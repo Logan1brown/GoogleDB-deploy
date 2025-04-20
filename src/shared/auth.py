@@ -270,6 +270,11 @@ def auth_required(func=None, required_roles=None):
     
     Can be used as @auth_required or @auth_required(required_roles=['admin'])
     """
+    # Handle case where decorator is used with roles list: @auth_required(['admin'])
+    if func is not None and not callable(func):
+        required_roles = func
+        func = None
+    
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
