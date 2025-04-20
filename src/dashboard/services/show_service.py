@@ -62,6 +62,7 @@ def load_lookup_data() -> Dict[str, List[Dict]]:
     
     return lookups
 
+@st.cache_data(ttl=60)
 def search_shows(title: str) -> List[str]:
     """Search for shows by title using fuzzy matching"""
     if not title or len(title.strip()) < 3:
@@ -75,7 +76,8 @@ def search_shows(title: str) -> List[str]:
     matches = difflib.get_close_matches(title.lower(), [s.lower() for s in existing_shows], n=5, cutoff=0.6)
     
     # Return original case versions of matches
-    return [next(s for s in existing_shows if s.lower() == m) for m in matches]
+    # Ensure we return a new list each time to avoid caching issues
+    return list(next(s for s in existing_shows if s.lower() == m) for m in matches)
 
 def load_show(title: str, lookups: Dict[str, List[Dict]] = None) -> dict:
     """Load show data for editing"""
