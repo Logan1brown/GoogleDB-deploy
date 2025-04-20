@@ -85,27 +85,27 @@ def main():
     
     try:
         if page == "Overview":
-            from src.dashboard.pages.1_overview import main
-            main()
+            from src.dashboard.pages.overview import show
+            show()
         elif page == "Market Snapshot":
-            from src.dashboard.pages.2_market_snapshot import main
-            main()
+            from src.dashboard.pages.market_snapshot import show
+            show()
         elif page == "Content Analysis":
-            from src.dashboard.pages.3_content_analysis import main
-            main()
+            from src.dashboard.pages.content_analysis import show
+            show()
         elif page == "Studio Performance":
-            from src.dashboard.pages.4_studio_performance import main
-            main()
+            from src.dashboard.pages.studio_performance import show
+            show()
         
         # Data Management and Admin sections (only show if appropriate role)
         if role in ['admin', 'editor']:
             section = st.sidebar.selectbox("Other", ["Data Management", "Admin"])
             if section == "Data Management":
-                from src.dashboard.pages.5_data_entry import main
-                main()
+                from src.dashboard.pages.data_entry import show
+                show()
             elif section == "Admin" and role == 'admin':
-                from src.dashboard.pages.6_admin import main
-                main()
+                from src.dashboard.pages.admin import show
+                show()
     except Exception as e:
         st.error("An error occurred loading the page. Please try again.")
         st.error(str(e))
