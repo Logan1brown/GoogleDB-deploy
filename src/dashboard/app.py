@@ -82,16 +82,32 @@ def main():
     
     # Initialize pages for navigation
     # All pages are always visible, access control is handled by auth_required decorator
-    pages = {
-        "Dashboard": [
-            st.Page("pages/1_overview.py"),
-            st.Page("pages/2_market_snapshot.py"),
-            st.Page("pages/3_content_analysis.py"),
-            st.Page("pages/4_studio_performance.py")
-        ],
-        "Data Management": [st.Page("pages/5_data_entry.py")],
-        "Admin": [st.Page("pages/6_admin.py")]
-    }
+    st.sidebar.title("Navigation")
+    
+    # Main dashboard pages
+    page = st.sidebar.selectbox("Dashboard", ["Overview", "Market Snapshot", "Content Analysis", "Studio Performance"])
+    
+    if page == "Overview":
+        from src.dashboard.pages import overview
+        overview.show()
+    elif page == "Market Snapshot":
+        from src.dashboard.pages import market_snapshot
+        market_snapshot.show()
+    elif page == "Content Analysis":
+        from src.dashboard.pages import content_analysis
+        content_analysis.show()
+    elif page == "Studio Performance":
+        from src.dashboard.pages import studio_performance
+        studio_performance.show()
+    
+    # Data Management and Admin sections
+    section = st.sidebar.selectbox("Other", ["Data Management", "Admin"])
+    if section == "Data Management":
+        from src.dashboard.pages import data_entry
+        data_entry.show()
+    elif section == "Admin":
+        from src.dashboard.pages import admin
+        admin.show()
     
     # Set up navigation
     pages = {
