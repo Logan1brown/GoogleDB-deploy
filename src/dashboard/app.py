@@ -42,7 +42,7 @@ def show_login():
 def main_page():
     """Main dashboard page."""
     st.markdown("""
-    ### Welcome to the TV Series Database Dashboard
+    ### Welcome to the STS Analysis Dashboard
     
     This dashboard provides tools for:
     - 📊 Market analysis and insights
