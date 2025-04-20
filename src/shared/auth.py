@@ -19,26 +19,26 @@ def init_supabase():
             url = url[url.index('](') + 2:-1]
         st.error(f"2. After markdown cleanup: {url}")
         
-        # Extract domain for DNS check
-        import re
-        domain = re.sub(r'^https?://', '', url)
-        domain = domain.split('/')[0]  # Remove any path
-        st.error(f"3. Domain to resolve: {domain}")
+        # Ensure URL is properly formatted
+        if not url.endswith('.supabase.co'):
+            if '.supabase.co' not in url:
+                url = f"{url}.supabase.co"
+        if not url.startswith('http'):
+            url = f"https://{url}"
         
-        # Try DNS resolution
-        import socket
-        try:
-            ip = socket.gethostbyname(domain)
-            st.error(f"4. Resolved IP: {ip}")
-        except socket.gaierror as e:
-            st.error(f"4. DNS resolution failed: {str(e)}")
-            raise
+        # Remove any trailing slashes
+        url = url.rstrip('/')
+        st.error(f"3. Final URL: {url}")
         
-        # Create client with exact URL
-        client = create_client(
-            url,
-            st.secrets["SUPABASE_ANON_KEY"].strip()
-        )
+        # Create client
+        key = st.secrets["SUPABASE_ANON_KEY"].strip()
+        st.error(f"4. Key length: {len(key)}")
+        
+        client = create_client(url, key)
+        
+        # Test client configuration
+        config = client.config
+        st.error(f"5. Client config - URL: {config.url}, API URL: {config.api_url}")
         
         st.info(f"Connected to Supabase at: {url}")
         return client
