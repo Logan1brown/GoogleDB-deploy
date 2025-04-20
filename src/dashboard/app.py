@@ -77,8 +77,7 @@ def main():
         st.sidebar.warning("Your account has not been assigned a role yet. Please contact an administrator.")
         return
     
-    # Navigation
-    st.sidebar.title("Navigation")
+    # Add navigation menu
     
     try:
         # Set up navigation
