@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
-def get_market_insights(market_analyzer):
+def get_market_insights(_market_analyzer):
     """Get market insights with caching.
     
     Args:
@@ -33,14 +33,14 @@ def get_market_insights(market_analyzer):
         Tuple of (filtered_df, network_df, insights dict)
     """
     # Initialize filtered DataFrame
-    filtered_df = market_analyzer.titles_df.copy()
+    filtered_df = _market_analyzer.titles_df.copy()
     
     # Get network data directly from network_df
-    network_df = market_analyzer.network_df.copy()
+    network_df = _market_analyzer.network_df.copy()
     
-    total_creatives = market_analyzer.get_unique_creatives() if hasattr(market_analyzer, 'get_unique_creatives') else 0
-    if hasattr(market_analyzer, 'titles_df') and 'title' in market_analyzer.titles_df.columns:
-        total_titles = market_analyzer.titles_df['title'].nunique()
+    total_creatives = _market_analyzer.get_unique_creatives() if hasattr(_market_analyzer, 'get_unique_creatives') else 0
+    if hasattr(_market_analyzer, 'titles_df') and 'title' in _market_analyzer.titles_df.columns:
+        total_titles = _market_analyzer.titles_df['title'].nunique()
     else:
         total_titles = 0
     if network_df is not None:
@@ -82,10 +82,11 @@ def render_market_snapshot(market_analyzer):
     </style>
     """, unsafe_allow_html=True)
     
-    # --- DEBUG: Try/catch around generate_market_insights ---
+    # Get market insights with caching
     try:
-        insights = market_analyzer.generate_market_insights(filtered_df)
-        
+        with st.spinner('Loading market analysis...'):
+            insights = market_analyzer.generate_market_insights(filtered_df)
+            
         if insights is None:
             st.error("generate_market_insights returned None!")
 
@@ -93,7 +94,6 @@ def render_market_snapshot(market_analyzer):
         logger.error(f"Error generating market insights: {str(e)}")
         st.error(f"Error generating market insights: {str(e)}")
         return
-    # --- END DEBUG ---
     # Display key dataset metrics and filters
     try:
         col1, col2, col3, col4 = st.columns(4)
