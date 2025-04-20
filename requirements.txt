@@ -8,8 +8,7 @@ pydantic>=2.0.0
 httpx>=0.24.0  # For HTTP client
 
 # Database
-supabase>=1.0.3  # Use latest stable version
-gotrue==1.3.0  # Required for auth to work properly
+supabase>=2.15.0  # Latest version with Python 3.12 support
 psycopg2-binary>=2.9.0
 
 # Visualization
