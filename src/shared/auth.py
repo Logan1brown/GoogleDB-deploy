@@ -228,8 +228,13 @@ def auth_required(func=None, required_roles=None):
                 # Return early to prevent page from loading at all
                 st.warning("Please log in to access this page")
                 
-                # Generate unique form key based on page path
-                form_key = f"login_form_{st._get_script_run_ctx().page_script_hash}"
+                # Initialize form counter if not exists
+                if 'login_form_counter' not in st.session_state:
+                    st.session_state.login_form_counter = 0
+                    
+                # Generate unique form key using counter
+                form_key = f"login_form_{st.session_state.login_form_counter}"
+                st.session_state.login_form_counter += 1
                 
                 with st.form(form_key):
                     email = st.text_input("Email")
