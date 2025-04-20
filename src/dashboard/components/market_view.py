@@ -16,6 +16,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import logging
 import time
+import traceback
 from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.utils.style_config import COLORS
 
