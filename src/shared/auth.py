@@ -19,10 +19,18 @@ def init_supabase():
         if not url.startswith('https://'):
             url = f"https://{url}"
         url = url.rstrip('/')
+        
+        # Basic URL validation
+        if not url or len(url) < 10 or ' ' in url:
+            raise ValueError(f"Invalid Supabase URL format: {url}")
+            
         st.error(f"2. Final URL: {url}")
         
         # Create client
         key = st.secrets["SUPABASE_ANON_KEY"].strip()
+        if not key or len(key) < 20:  # Supabase keys are typically long
+            raise ValueError("Invalid Supabase anon key format")
+            
         st.error(f"3. Key length: {len(key)}")
         
         # Create async client
@@ -32,6 +40,7 @@ def init_supabase():
         
     except Exception as e:
         st.error(f"Failed to initialize Supabase: {str(e)}")
+        st.error("Please check your SUPABASE_URL and SUPABASE_ANON_KEY in Streamlit secrets")
         raise
 
 # Initialize client
@@ -68,11 +77,28 @@ def login(email: str, password: str) -> bool:
         bool: True if login successful, False otherwise
     """
     try:
+        st.info("Starting login process...")
+        st.info(f"Email: {email}")
+        
+        if not supabase:
+            st.error("Supabase client not initialized")
+            return False
+            
+        st.info("Got Supabase client")
+        st.info("3a. Attempting sign in...")
+        
         # Get auth token
-        auth = supabase.auth.sign_in_with_password({
-            "email": email,
-            "password": password
-        })
+        try:
+            auth = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+        except Exception as auth_e:
+            st.error(f"3x. Sign in failed with error: {str(auth_e)}")
+            st.error(f"3y. Error type: {type(auth_e)}")
+            raise
+        
+        st.info("4. Sign in successful, storing session...")
         
         # Store auth in session
         st.session_state.user = auth.user
@@ -83,9 +109,12 @@ def login(email: str, password: str) -> bool:
         # Update Supabase client with auth token
         supabase.auth.set_session(auth.session.access_token, auth.session.refresh_token)
         
+        st.info("5. Login complete!")
         return True
+        
     except Exception as e:
         st.error(f"Login failed: {str(e)}")
+        st.error(f"Error type: {type(e)}")
         st.session_state.authenticated = False
         return False
 
@@ -125,30 +154,42 @@ def refresh_session() -> bool:
         
     return False
 
-def auth_required(func):
-    """Decorator to require authentication for a page or function."""
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        init_auth_state()
-        
-        if not st.session_state.authenticated:
-            st.warning("Please log in to access this page")
-            with st.form("login_form"):
-                email = st.text_input("Email")
-                password = st.text_input("Password", type="password")
-                submitted = st.form_submit_button("Login")
+def auth_required(func=None, required_roles=None):
+    """Decorator to require authentication and optionally specific roles for a page or function.
+    
+    Can be used as @auth_required or @auth_required(required_roles=['admin'])
+    """
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            init_auth_state()
+            
+            if not st.session_state.authenticated:
+                st.warning("Please log in to access this page")
+                with st.form("login_form"):
+                    email = st.text_input("Email")
+                    password = st.text_input("Password", type="password")
+                    submitted = st.form_submit_button("Login")
+                    
+                    if submitted:
+                        if login(email, password):
+                            st.rerun()
+                return
                 
-                if submitted:
-                    if login(email, password):
-                        st.rerun()
-            return
+            if not refresh_session():
+                st.error("Session expired. Please log in again.")
+                return
             
-        if not refresh_session():
-            st.error("Session expired. Please log in again.")
-            return
-            
-        return func(*args, **kwargs)
-    return wrapper
+            if required_roles and not check_role_access(required_roles):
+                st.error(f"Access denied. Required roles: {', '.join(required_roles)}")
+                return
+                
+            return f(*args, **kwargs)
+        return wrapper
+    
+    if func:
+        return decorator(func)
+    return decorator
 
 def get_user_role() -> Optional[str]:
     """Get the current user's role."""
@@ -158,8 +199,8 @@ def get_user_role() -> Optional[str]:
     try:
         # Use service key client for role queries
         client = create_client(
-            os.environ.get("SUPABASE_URL"),
-            os.environ.get("SUPABASE_SERVICE_KEY")
+            st.secrets["SUPABASE_URL"],
+            st.secrets["SUPABASE_SERVICE_KEY"]
         )
         
         response = client.from_('user_roles').select('role').eq('id', st.session_state.user.id).single().execute()
