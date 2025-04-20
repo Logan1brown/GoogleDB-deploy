@@ -10,28 +10,25 @@ from typing import Optional, List
 def init_supabase():
     """Initialize Supabase client with proper URL formatting."""
     try:
-        # Debug: Check what secrets are available
-        available_secrets = [key for key in st.secrets.keys()]
-        st.error(f"Available secrets: {available_secrets}")
+        # Get URL and strip any whitespace
+        url = st.secrets["SUPABASE_URL"].strip()
         
-        if "SUPABASE_URL" not in st.secrets:
-            raise ValueError("SUPABASE_URL not found in secrets")
-        if "SUPABASE_ANON_KEY" not in st.secrets:
-            raise ValueError("SUPABASE_ANON_KEY not found in secrets")
-            
-        url = st.secrets["SUPABASE_URL"]
-        st.error(f"Raw URL from secrets: {url}")
+        # Remove any markdown formatting if present
+        if url.startswith('[') and '](' in url and url.endswith(')'):
+            url = url[url.index('](') + 2:-1]
         
-        # If it's just the subdomain, append .supabase.co
-        if not url.endswith('.supabase.co') and not url.startswith('http'):
-            url = f"{url}.supabase.co"
+        # Validate URL format
+        if not url.startswith('https://') or not url.endswith('.supabase.co'):
+            raise ValueError(f'Invalid Supabase URL format. URL must start with https:// and end with .supabase.co')
         
-        # Ensure https://
-        if not url.startswith("https://"):
-            url = f"https://{url}"
-            
-        st.error(f"Final URL: {url}")
-        return create_client(url, st.secrets["SUPABASE_ANON_KEY"])
+        # Create client with exact URL
+        client = create_client(
+            url,
+            st.secrets["SUPABASE_ANON_KEY"].strip()
+        )
+        
+        st.info(f"Connected to Supabase at: {url}")
+        return client
     except Exception as e:
         st.error(f"Failed to initialize Supabase: {str(e)}")
         raise
