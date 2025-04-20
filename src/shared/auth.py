@@ -225,14 +225,20 @@ def auth_required(func=None, required_roles=None):
                     st.session_state.session = None
             
             if not st.session_state.authenticated:
+                # Return early to prevent page from loading at all
                 st.warning("Please log in to access this page")
-                with st.form("login_form"):
+                
+                # Generate unique form key based on page path
+                form_key = f"login_form_{st._get_script_run_ctx().page_script_hash}"
+                
+                with st.form(form_key):
                     email = st.text_input("Email")
                     password = st.text_input("Password", type="password")
                     submitted = st.form_submit_button("Login")
                     
                     if submitted:
                         if login(email, password):
+                            # Force rerun after successful login
                             st.rerun()
                 return
             
