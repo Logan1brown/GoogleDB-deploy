@@ -1,0 +1,18 @@
+# Core Dependencies
+streamlit>=1.22.0
+streamlit-searchbox>=0.1.5  # For data entry search
+pandas>=2.0.0
+numpy>=1.24.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# Database
+supabase>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Visualization
+plotly>=5.13.0
+
+# Data Analysis
+scipy>=1.10.0  # For statistical analysis
+statsmodels>=0.14.0  # For time series analysis

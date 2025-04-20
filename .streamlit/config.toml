@@ -1,0 +1,16 @@
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
+port = 8501
+
+[theme]
+primaryColor = "#1E4D8C"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F5FA"
+
+[client]
+showSidebarNavigation = true
+textColor = "#1A1A1A"
+font = "Source Sans Pro"

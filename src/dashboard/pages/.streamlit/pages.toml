@@ -1,0 +1,7 @@
+[pages]
+"1_overview.py" = true
+"2_market_snapshot.py" = true
+"3_content_analysis.py" = true
+"4_studio_performance.py" = true
+"5_data_entry.py" = {show = "role in ['editor', 'admin']"}
+"6_admin_dashboard.py" = {show = "role == 'admin'"}
