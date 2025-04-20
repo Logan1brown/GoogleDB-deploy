@@ -83,8 +83,30 @@ def run_async(coro):
 # Initialize auth state first
 init_auth_state()
 
-# Then initialize client
-supabase = init_supabase()
+# Initialize Supabase client lazily
+def get_supabase():
+    """Get or create Supabase client instance for current session."""
+    if 'supabase' not in st.session_state:
+        st.session_state.supabase = init_supabase()
+        
+        # Try to restore session if we have tokens
+        if (st.session_state.access_token and st.session_state.refresh_token):
+            try:
+                st.session_state.supabase.auth.set_session(
+                    st.session_state.access_token,
+                    st.session_state.refresh_token
+                )
+            except Exception as e:
+                st.error(f"Failed to restore session: {str(e)}")
+                st.session_state.authenticated = False
+                st.session_state.access_token = None
+                st.session_state.refresh_token = None
+                st.session_state.session = None
+                
+    return st.session_state.supabase
+    
+# Get Supabase client
+supabase = get_supabase()
 
 # Try to restore session if we have tokens
 if (st.session_state.access_token and st.session_state.refresh_token and 
@@ -116,13 +138,14 @@ def login(email: str, password: str) -> bool:
         bool: True if login successful, False otherwise
     """
     try:
-        if not supabase:
-            st.error("Supabase client not initialized")
+        client = get_supabase()
+        if not client:
+            st.error("Failed to initialize Supabase client")
             return False
             
         # Attempt sign in
         try:
-            auth = supabase.auth.sign_in_with_password({
+            auth = client.auth.sign_in_with_password({
                 "email": email,
                 "password": password
             })
@@ -144,7 +167,7 @@ def login(email: str, password: str) -> bool:
         st.session_state.last_refresh = time.time()
         
         # Update Supabase client with auth token
-        supabase.auth.set_session(auth.session.access_token, auth.session.refresh_token)
+        client.auth.set_session(auth.session.access_token, auth.session.refresh_token)
         return True
         
     except Exception as e:
@@ -156,14 +179,22 @@ def login(email: str, password: str) -> bool:
 def logout():
     """Handle user logout."""
     try:
-        supabase.auth.sign_out()
+        client = get_supabase()
+        if client:
+            client.auth.sign_out()
     except:
         pass
-    finally:
-        st.session_state.user = None
-        st.session_state.access_token = None
-        st.session_state.refresh_token = None
-        st.session_state.authenticated = False
+        
+    # Clear session state
+    st.session_state.user = None
+    st.session_state.session = None
+    st.session_state.access_token = None
+    st.session_state.refresh_token = None
+    st.session_state.authenticated = False
+    
+    # Clear Supabase client
+    if 'supabase' in st.session_state:
+        del st.session_state.supabase
 
 def restore_session() -> bool:
     """Try to restore or refresh the user's session.
@@ -172,8 +203,12 @@ def restore_session() -> bool:
         bool: True if session was restored or refreshed successfully
     """
     try:
+        client = get_supabase()
+        if not client:
+            return False
+            
         # First try to get current session
-        session = supabase.auth.get_session()
+        session = client.auth.get_session()
         if session:
             st.session_state.session = session
             st.session_state.access_token = session.access_token
@@ -183,7 +218,7 @@ def restore_session() -> bool:
             return True
             
         # If no session, try to refresh
-        auth = supabase.auth.refresh_session()
+        auth = client.auth.refresh_session()
         if auth and auth.session:
             st.session_state.session = auth.session
             st.session_state.access_token = auth.session.access_token
@@ -212,6 +247,10 @@ def refresh_session() -> bool:
         return False
         
     try:
+        client = get_supabase()
+        if not client:
+            return False
+            
         # Only refresh if we haven't refreshed in the last minute
         current_time = time.time()
         if (st.session_state.last_refresh and 
@@ -275,10 +314,10 @@ def auth_required(func=None, required_roles=None):
 
 def get_user_role() -> Optional[str]:
     """Get the current user's role."""
-    if not st.session_state.authenticated:
-        return None
-        
     try:
+        if not st.session_state.authenticated:
+            return None
+            
         # Use service key client for role queries
         client = create_client(
             st.secrets["SUPABASE_URL"],
@@ -288,6 +327,7 @@ def get_user_role() -> Optional[str]:
         response = client.from_('user_roles').select('role').eq('id', st.session_state.user.id).single().execute()
         return response.data['role'] if response.data else None
     except Exception as e:
+        st.error(f"Failed to get user role: {str(e)}")
         return None
 
 def check_role_access(required_roles: List[str]) -> bool:
