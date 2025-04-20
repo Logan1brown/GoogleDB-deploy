@@ -21,13 +21,13 @@ from src.shared.auth import get_user_role
 init_auth_state()
 
 @auth_required(['admin'])
-def main():
+def show():
     """Main admin page."""
     # Import admin dashboard
-    from src.dashboard.pages.admin_dashboard import admin_main
+    from src.dashboard.pages.admin_dashboard import admin_show
     
     # Run admin dashboard
-    admin_main()
+    admin_show()
 
 if __name__ == "__main__":
-    main()
+    show()

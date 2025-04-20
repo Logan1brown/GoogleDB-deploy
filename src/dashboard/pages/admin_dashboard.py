@@ -116,7 +116,7 @@ def invite_user(email: str, role: str) -> bool:
         return False
 
 @auth_required(['admin'])
-def admin_main():
+def admin_show():
     """Main function for admin dashboard."""
     try:
         st.title("Admin Dashboard")
@@ -193,4 +193,4 @@ def admin_main():
         st.error(f"Admin dashboard error: {str(e)}")
 
 if __name__ == "__main__":
-    admin_main()
+    admin_show()

@@ -36,7 +36,7 @@ class UnifiedState:
 
 @time_page
 @auth_required()
-def main():
+def show():
     try:
         # Page title using style from style_config
         st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Content Analysis</p>', unsafe_allow_html=True)
@@ -70,4 +70,4 @@ def main():
         st.info("An error occurred while loading the content analysis view.")
 
 if __name__ == "__main__":
-    main()
+    show()

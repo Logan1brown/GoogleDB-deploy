@@ -14,7 +14,7 @@ from src.dashboard.utils.timing import time_page
 from src.dashboard.utils.style_config import COLORS, FONTS
 
 @auth_required()
-def main():
+def show():
     """Main page content."""
     # Page title using style from style_config
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Overview</p>', unsafe_allow_html=True)
@@ -60,4 +60,4 @@ def main():
     """)
 
 if __name__ == "__main__":
-    main()
+    show()

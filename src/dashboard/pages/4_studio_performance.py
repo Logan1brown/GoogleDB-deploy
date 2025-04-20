@@ -22,7 +22,7 @@ from src.dashboard.state.session import get_page_state
 
 @time_page
 @auth_required()
-def main():
+def show():
     # Page title using style from style_config
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Studio Performance</p>', unsafe_allow_html=True)
 
@@ -40,4 +40,4 @@ def main():
         st.error(f"Error loading studio performance data: {str(e)}")
 
 if __name__ == "__main__":
-    main()
+    show()

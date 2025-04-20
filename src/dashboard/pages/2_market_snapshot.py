@@ -41,7 +41,7 @@ class MarketState:
 
 @time_page
 @auth_required()
-def main():
+def show():
     try:
         # Verify required environment variables
         required_vars = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY']
@@ -91,4 +91,4 @@ def main():
         st.stop()
 
 if __name__ == "__main__":
-    main()
+    show()

@@ -83,29 +83,23 @@ def main():
     # Main dashboard pages
     page = st.sidebar.selectbox("Dashboard", ["Overview", "Market Snapshot", "Content Analysis", "Studio Performance"])
     
+    # Set up navigation
     try:
-        if page == "Overview":
-            from src.dashboard.pages.overview import show
-            show()
-        elif page == "Market Snapshot":
-            from src.dashboard.pages.market_snapshot import show
-            show()
-        elif page == "Content Analysis":
-            from src.dashboard.pages.content_analysis import show
-            show()
-        elif page == "Studio Performance":
-            from src.dashboard.pages.studio_performance import show
-            show()
+        pages = {
+            "Home": [st.Page(main_page)],
+            "Dashboard": [
+                st.Page("pages/1_overview.py"),
+                st.Page("pages/2_market_snapshot.py"),
+                st.Page("pages/3_content_analysis.py"),
+                st.Page("pages/4_studio_performance.py")
+            ],
+            "Data Management": [st.Page("pages/5_data_entry.py")],
+            "Admin": [st.Page("pages/6_admin.py")]
+        }
         
-        # Data Management and Admin sections (only show if appropriate role)
-        if role in ['admin', 'editor']:
-            section = st.sidebar.selectbox("Other", ["Data Management", "Admin"])
-            if section == "Data Management":
-                from src.dashboard.pages.data_entry import show
-                show()
-            elif section == "Admin" and role == 'admin':
-                from src.dashboard.pages.admin import show
-                show()
+        # Run navigation
+        pg = st.navigation(pages)
+        pg.run()
     except Exception as e:
         st.error("An error occurred loading the page. Please try again.")
         st.error(str(e))

@@ -805,7 +805,7 @@ def validate_show_details(show_form: ShowFormState, lookups: Dict) -> bool:
 
 @time_page
 @auth_required(['editor', 'admin'])
-def main():
+def show():
     # Check for editor/admin access
     if not check_role_access(['editor', 'admin']):
         st.error("Access denied. You need editor or admin privileges to use the data entry system.")
@@ -856,4 +856,4 @@ def main():
                     handle_submit(state.show_form)
 
 if __name__ == "__main__":
-    main()
+    show()
