@@ -31,24 +31,30 @@ def init_supabase():
             
         # Create client
         client = create_client(url, key)
+        
+        # Try to get current session if it exists
+        try:
+            session = client.auth.get_session()
+            if session:
+                # Set session in Supabase client
+                client.auth.set_session(session.access_token, session.refresh_token)
+                
+                # Update session state
+                st.session_state.session = session
+                st.session_state.access_token = session.access_token
+                st.session_state.refresh_token = session.refresh_token
+                st.session_state.authenticated = True
+                st.session_state.last_refresh = time.time()
+        except:
+            # No session or invalid session, that's okay
+            pass
+            
         return client
         
     except Exception as e:
         st.error(f"Failed to initialize Supabase: {str(e)}")
         st.error("Please check your SUPABASE_URL and SUPABASE_ANON_KEY in Streamlit secrets")
         raise
-
-# Initialize client
-supabase = init_supabase()
-
-# Helper function to run async functions
-def run_async(coro):
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
 
 def init_auth_state():
     """Initialize authentication state variables."""
@@ -64,25 +70,40 @@ def init_auth_state():
         st.session_state.last_refresh = None
     if 'session' not in st.session_state:
         st.session_state.session = None
-        
-    # Try to restore session if we have tokens
-    if (st.session_state.access_token and st.session_state.refresh_token and 
-        not st.session_state.authenticated):
-        try:
-            # Get a new session object
-            session = supabase.auth.get_session()
-            if session:
-                st.session_state.session = session
-                st.session_state.authenticated = True
-                st.session_state.access_token = session.access_token
-                st.session_state.refresh_token = session.refresh_token
-                st.session_state.last_refresh = time.time()
-        except Exception as e:
-            st.error(f"Failed to restore session: {str(e)}")
-            st.session_state.authenticated = False
-            st.session_state.access_token = None
-            st.session_state.refresh_token = None
-            st.session_state.session = None
+
+# Helper function to run async functions
+def run_async(coro):
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
+# Initialize auth state first
+init_auth_state()
+
+# Then initialize client
+supabase = init_supabase()
+
+# Try to restore session if we have tokens
+if (st.session_state.access_token and st.session_state.refresh_token and 
+    not st.session_state.authenticated):
+    try:
+        # Get a new session object
+        session = supabase.auth.get_session()
+        if session:
+            st.session_state.session = session
+            st.session_state.authenticated = True
+            st.session_state.access_token = session.access_token
+            st.session_state.refresh_token = session.refresh_token
+            st.session_state.last_refresh = time.time()
+    except Exception as e:
+        st.error(f"Failed to restore session: {str(e)}")
+        st.session_state.authenticated = False
+        st.session_state.access_token = None
+        st.session_state.refresh_token = None
+        st.session_state.session = None
 
 def login(email: str, password: str) -> bool:
     """Handle user login.
