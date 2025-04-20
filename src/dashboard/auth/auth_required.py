@@ -4,7 +4,7 @@ import streamlit as st
 import toml
 from pathlib import Path
 from functools import wraps
-from dashboard.auth.auth_state import init_auth_state, refresh_session
+from src.dashboard.auth.auth_state import init_auth_state, refresh_session
 from src.shared.auth import get_user_role
 
 def auth_required(required_roles=None):

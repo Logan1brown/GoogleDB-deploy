@@ -2,7 +2,7 @@
 
 import streamlit as st
 from src.dashboard.auth.auth_required import auth_required
-from src.dashboard.utils.timing import time_page
+
 
 @auth_required
 def show():
