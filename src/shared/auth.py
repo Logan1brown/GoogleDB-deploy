@@ -14,37 +14,20 @@ def init_supabase():
         url = st.secrets["SUPABASE_URL"].strip()
         st.error(f"1. Raw URL: {url}")
         
-        # Remove any markdown formatting if present
-        if url.startswith('[') and '](' in url and url.endswith(')'):
-            url = url[url.index('](') + 2:-1]
-        st.error(f"2. After markdown cleanup: {url}")
-        
         # Ensure URL is properly formatted
-        if not url.endswith('.supabase.co'):
-            if '.supabase.co' not in url:
-                url = f"{url}.supabase.co"
-        if not url.startswith('http'):
+        if not url.startswith('https://'):
             url = f"https://{url}"
-        
-        # Remove any trailing slashes
         url = url.rstrip('/')
-        st.error(f"3. Final URL: {url}")
+        st.error(f"2. Final URL: {url}")
         
         # Create client
         key = st.secrets["SUPABASE_ANON_KEY"].strip()
-        st.error(f"4. Key length: {len(key)}")
-        
-        # Import newer client
-        from supabase import Client, create_client
-        
-        # Create client with explicit auth URL
-        auth_url = f"{url}/auth/v1"
-        st.error(f"5. Auth URL: {auth_url}")
+        st.error(f"3. Key length: {len(key)}")
         
         client = create_client(url, key)
-        
         st.info(f"Connected to Supabase at: {url}")
         return client
+        
     except Exception as e:
         st.error(f"Failed to initialize Supabase: {str(e)}")
         raise
