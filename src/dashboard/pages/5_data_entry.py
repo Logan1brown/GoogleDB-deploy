@@ -3,12 +3,18 @@
 Provides forms for adding and editing show data.
 """
 
+import os
 import sys
 from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import asdict
 import time
+
+# Add src to path
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if src_path not in sys.path:
+    sys.path.append(src_path)
 
 import streamlit as st
 from src.dashboard.utils.timing import time_page
