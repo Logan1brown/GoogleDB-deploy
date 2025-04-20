@@ -8,7 +8,7 @@ from functools import wraps
 def get_supabase_client():
     """Get Supabase client with current session."""
     try:
-        url = st.secrets["SUPABASE_URL"]
+        url = st.secrets["SUPABASE_URL"].strip()
         
         # If it's just the subdomain, append .supabase.co
         if not url.endswith('.supabase.co') and not url.startswith('http'):
@@ -18,7 +18,15 @@ def get_supabase_client():
         if not url.startswith("https://"):
             url = f"https://{url}"
             
-        client = create_client(url, st.secrets["SUPABASE_ANON_KEY"])
+        client = create_client(
+            url,
+            st.secrets["SUPABASE_ANON_KEY"].strip(),
+            options={
+                'headers': {
+                    'X-Client-Info': 'supabase-py/0.0.1'
+                }
+            }
+        )
         
         # If we have a session, set it
         if st.session_state.get('access_token') and st.session_state.get('refresh_token'):
