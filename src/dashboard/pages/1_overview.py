@@ -40,7 +40,7 @@ def show():
     - Packaging: Explore successful creative team combinations
     - Development: Understand format decisions and their impact
 
-    Filter by source type, genre, and year range to reveal patterns in successful content development.
+    Filter by source type and genre to reveal patterns in successful content development.
 
     **Studio Performance**  
     Visualize studio relationships and performance metrics through an interactive network graph. Track studio 
