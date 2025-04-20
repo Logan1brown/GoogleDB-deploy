@@ -7,9 +7,15 @@ from functools import wraps
 from typing import Optional, List
 
 # Initialize Supabase client
-st.write(f"Debug - Supabase URL: {st.secrets['SUPABASE_URL']}")
+url = st.secrets["SUPABASE_URL"]
+if not url.startswith("https://"):
+    url = f"https://{url}"
+
+st.write(f"Debug - Original URL: {st.secrets['SUPABASE_URL']}")
+st.write(f"Debug - Modified URL: {url}")
+
 supabase = create_client(
-    st.secrets["SUPABASE_URL"],
+    url,
     st.secrets["SUPABASE_ANON_KEY"]
 )
 
