@@ -62,20 +62,29 @@ def login(email: str, password: str) -> bool:
         bool: True if login successful, False otherwise
     """
     try:
+        st.info("1. Starting login process...")
+        
         # Get fresh client
         client = get_supabase_client()
+        st.info("2. Got Supabase client")
         
         # Get auth token
-        auth = client.auth.sign_in_with_password({
-            "email": email,
-            "password": password
-        })
+        try:
+            auth = client.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            st.info("3. Sign in successful")
+        except Exception as auth_error:
+            st.error(f"3. Sign in failed: {str(auth_error)}")
+            raise
         
         # Store auth in session
         st.session_state.user = auth.user
         st.session_state.access_token = auth.session.access_token
         st.session_state.refresh_token = auth.session.refresh_token
         st.session_state.authenticated = True
+        st.info("4. Session state updated")
         
         return True
     except Exception as e:
