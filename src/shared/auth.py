@@ -7,17 +7,14 @@ from functools import wraps
 from typing import Optional, List
 
 # Initialize Supabase client
-url = st.secrets["SUPABASE_URL"]
-if not url.startswith("https://"):
-    url = f"https://{url}"
+def init_supabase():
+    """Initialize Supabase client with proper URL formatting."""
+    url = st.secrets["SUPABASE_URL"]
+    if not url.startswith("https://"):
+        url = f"https://{url}"
+    return create_client(url, st.secrets["SUPABASE_ANON_KEY"])
 
-st.write(f"Debug - Original URL: {st.secrets['SUPABASE_URL']}")
-st.write(f"Debug - Modified URL: {url}")
-
-supabase = create_client(
-    url,
-    st.secrets["SUPABASE_ANON_KEY"]
-)
+supabase = init_supabase()
 
 def init_auth_state():
     """Initialize authentication state variables."""

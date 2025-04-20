@@ -7,10 +7,11 @@ from functools import wraps
 
 def get_supabase_client():
     """Get Supabase client with current session."""
-    client = create_client(
-        st.secrets["SUPABASE_URL"],
-        st.secrets["SUPABASE_ANON_KEY"]
-    )
+    url = st.secrets["SUPABASE_URL"]
+    if not url.startswith("https://"):
+        url = f"https://{url}"
+    
+    client = create_client(url, st.secrets["SUPABASE_ANON_KEY"])
     
     # If we have a session, set it
     if st.session_state.get('access_token') and st.session_state.get('refresh_token'):
