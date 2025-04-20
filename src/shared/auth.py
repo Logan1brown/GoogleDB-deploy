@@ -9,10 +9,22 @@ from typing import Optional, List
 # Initialize Supabase client
 def init_supabase():
     """Initialize Supabase client with proper URL formatting."""
-    url = st.secrets["SUPABASE_URL"]
-    if not url.startswith("https://"):
-        url = f"https://{url}"
-    return create_client(url, st.secrets["SUPABASE_ANON_KEY"])
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        
+        # If it's just the subdomain, append .supabase.co
+        if not url.endswith('.supabase.co') and not url.startswith('http'):
+            url = f"{url}.supabase.co"
+        
+        # Ensure https://
+        if not url.startswith("https://"):
+            url = f"https://{url}"
+            
+        return create_client(url, st.secrets["SUPABASE_ANON_KEY"])
+    except Exception as e:
+        st.error(f"Failed to initialize Supabase: {str(e)}")
+        st.error(f"URL attempted: {url}")
+        raise
 
 supabase = init_supabase()
 

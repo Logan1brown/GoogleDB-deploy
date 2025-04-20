@@ -7,20 +7,31 @@ from functools import wraps
 
 def get_supabase_client():
     """Get Supabase client with current session."""
-    url = st.secrets["SUPABASE_URL"]
-    if not url.startswith("https://"):
-        url = f"https://{url}"
-    
-    client = create_client(url, st.secrets["SUPABASE_ANON_KEY"])
-    
-    # If we have a session, set it
-    if st.session_state.get('access_token') and st.session_state.get('refresh_token'):
-        client.auth.set_session(
-            st.session_state.access_token,
-            st.session_state.refresh_token
-        )
-    
-    return client
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        
+        # If it's just the subdomain, append .supabase.co
+        if not url.endswith('.supabase.co') and not url.startswith('http'):
+            url = f"{url}.supabase.co"
+        
+        # Ensure https://
+        if not url.startswith("https://"):
+            url = f"https://{url}"
+            
+        client = create_client(url, st.secrets["SUPABASE_ANON_KEY"])
+        
+        # If we have a session, set it
+        if st.session_state.get('access_token') and st.session_state.get('refresh_token'):
+            client.auth.set_session(
+                st.session_state.access_token,
+                st.session_state.refresh_token
+            )
+        
+        return client
+    except Exception as e:
+        st.error(f"Failed to initialize Supabase client: {str(e)}")
+        st.error(f"URL attempted: {url}")
+        raise
 
 def init_auth_state():
     """Initialize authentication state variables."""
