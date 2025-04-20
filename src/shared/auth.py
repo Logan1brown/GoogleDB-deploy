@@ -144,6 +144,43 @@ def logout():
         st.session_state.refresh_token = None
         st.session_state.authenticated = False
 
+def restore_session() -> bool:
+    """Try to restore or refresh the user's session.
+    
+    Returns:
+        bool: True if session was restored or refreshed successfully
+    """
+    try:
+        # First try to get current session
+        session = supabase.auth.get_session()
+        if session:
+            st.session_state.session = session
+            st.session_state.access_token = session.access_token
+            st.session_state.refresh_token = session.refresh_token
+            st.session_state.authenticated = True
+            st.session_state.last_refresh = time.time()
+            return True
+            
+        # If no session, try to refresh
+        auth = supabase.auth.refresh_session()
+        if auth and auth.session:
+            st.session_state.session = auth.session
+            st.session_state.access_token = auth.session.access_token
+            st.session_state.refresh_token = auth.session.refresh_token
+            st.session_state.authenticated = True
+            st.session_state.last_refresh = time.time()
+            return True
+            
+        return False
+            
+    except Exception as e:
+        st.error(f"Session restoration failed: {str(e)}")
+        st.session_state.authenticated = False
+        st.session_state.access_token = None
+        st.session_state.refresh_token = None
+        st.session_state.session = None
+        return False
+        
 def refresh_session() -> bool:
     """Refresh the user's session if needed.
     
@@ -160,29 +197,10 @@ def refresh_session() -> bool:
             current_time - st.session_state.last_refresh < 60):
             return True
             
-        # First try to get current session
-        session = supabase.auth.get_session()
-        if session:
-            st.session_state.session = session
-            st.session_state.access_token = session.access_token
-            st.session_state.refresh_token = session.refresh_token
-            st.session_state.last_refresh = current_time
-            return True
-            
-        # If no session, try to refresh
-        auth = supabase.auth.refresh_session()
-        if auth and auth.session:
-            st.session_state.session = auth.session
-            st.session_state.access_token = auth.session.access_token
-            st.session_state.refresh_token = auth.session.refresh_token
-            st.session_state.last_refresh = current_time
-            return True
-            
-        st.error("No valid session found")
-        return False
+        # Try to restore/refresh session
+        return restore_session()
             
     except Exception as e:
-        # If refresh fails, log out
         st.error(f"Session refresh failed: {str(e)}")
         logout()
         return False
@@ -197,46 +215,16 @@ def auth_required(func=None, required_roles=None):
         def wrapper(*args, **kwargs):
             init_auth_state()
             
-            # Try to refresh session first if we have tokens
-            if (st.session_state.access_token and st.session_state.refresh_token):
-                try:
-                    # First try to get current session
-                    session = supabase.auth.get_session()
-                    if session:
-                        st.session_state.session = session
-                        st.session_state.access_token = session.access_token
-                        st.session_state.refresh_token = session.refresh_token
-                        st.session_state.authenticated = True
-                        st.session_state.last_refresh = time.time()
-                    else:
-                        # If no session, try to refresh
-                        auth = supabase.auth.refresh_session()
-                        if auth and auth.session:
-                            st.session_state.session = auth.session
-                            st.session_state.access_token = auth.session.access_token
-                            st.session_state.refresh_token = auth.session.refresh_token
-                            st.session_state.authenticated = True
-                            st.session_state.last_refresh = time.time()
-                except Exception as e:
-                    st.error(f"Session restoration failed: {str(e)}")
-                    st.session_state.authenticated = False
-                    st.session_state.access_token = None
-                    st.session_state.refresh_token = None
-                    st.session_state.session = None
+            # Try to restore session if we have tokens
+            if (st.session_state.access_token and st.session_state.refresh_token and 
+                not st.session_state.authenticated):
+                restore_session()
             
+            # Show login form if not authenticated
             if not st.session_state.authenticated:
-                # Return early to prevent page from loading at all
                 st.warning("Please log in to access this page")
                 
-                # Initialize form counter if not exists
-                if 'login_form_counter' not in st.session_state:
-                    st.session_state.login_form_counter = 0
-                    
-                # Generate unique form key using counter
-                form_key = f"login_form_{st.session_state.login_form_counter}"
-                st.session_state.login_form_counter += 1
-                
-                with st.form(form_key):
+                with st.form("login_form"):
                     email = st.text_input("Email")
                     password = st.text_input("Password", type="password")
                     submitted = st.form_submit_button("Login")
@@ -248,12 +236,7 @@ def auth_required(func=None, required_roles=None):
                 return
             
             # Session is authenticated, try to refresh if needed
-            try:
-                if not refresh_session():
-                    st.session_state.authenticated = False
-                    st.error("Session expired. Please log in again.")
-                    return
-            except:
+            if not refresh_session():
                 st.session_state.authenticated = False
                 st.error("Session expired. Please log in again.")
                 return
