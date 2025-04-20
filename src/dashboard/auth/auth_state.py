@@ -18,15 +18,7 @@ def get_supabase_client():
         if not url.startswith("https://"):
             url = f"https://{url}"
             
-        client = create_client(
-            url,
-            st.secrets["SUPABASE_ANON_KEY"].strip(),
-            options={
-                'headers': {
-                    'X-Client-Info': 'supabase-py/0.0.1'
-                }
-            }
-        )
+        client = create_client(url, st.secrets["SUPABASE_ANON_KEY"].strip())
         
         # If we have a session, set it
         if st.session_state.get('access_token') and st.session_state.get('refresh_token'):

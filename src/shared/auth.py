@@ -34,16 +34,8 @@ def init_supabase():
         key = st.secrets["SUPABASE_ANON_KEY"].strip()
         st.error(f"4. Key length: {len(key)}")
         
-        # Create client with proper options
-        client = create_client(
-            url,
-            key,
-            options={
-                'headers': {
-                    'X-Client-Info': 'supabase-py/0.0.1'
-                }
-            }
-        )
+        # Create client
+        client = create_client(url, key)
         
         st.info(f"Connected to Supabase at: {url}")
         return client
