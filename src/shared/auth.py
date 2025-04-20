@@ -34,7 +34,13 @@ def init_supabase():
         key = st.secrets["SUPABASE_ANON_KEY"].strip()
         st.error(f"4. Key length: {len(key)}")
         
-        # Create client
+        # Import newer client
+        from supabase import Client, create_client
+        
+        # Create client with explicit auth URL
+        auth_url = f"{url}/auth/v1"
+        st.error(f"5. Auth URL: {auth_url}")
+        
         client = create_client(url, key)
         
         st.info(f"Connected to Supabase at: {url}")
