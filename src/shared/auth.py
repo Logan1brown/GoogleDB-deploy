@@ -273,39 +273,44 @@ def auth_required(func=None, required_roles=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            init_auth_state()
-            
-            # Try to restore session if we have tokens
-            if (st.session_state.access_token and st.session_state.refresh_token and 
-                not st.session_state.authenticated):
-                restore_session()
-            
-            # Show login form if not authenticated
-            if not st.session_state.authenticated:
-                st.warning("Please log in to access this page")
+            try:
+                init_auth_state()
                 
-                with st.form("login_form"):
-                    email = st.text_input("Email")
-                    password = st.text_input("Password", type="password")
-                    submitted = st.form_submit_button("Login")
+                # Try to restore session if we have tokens
+                if (st.session_state.access_token and st.session_state.refresh_token and 
+                    not st.session_state.authenticated):
+                    restore_session()
+                
+                # Show login form if not authenticated
+                if not st.session_state.authenticated:
+                    st.warning("Please log in to access this page")
                     
-                    if submitted:
-                        if login(email, password):
-                            # Force rerun after successful login
-                            st.rerun()
-                return
-            
-            # Session is authenticated, try to refresh if needed
-            if not refresh_session():
-                st.session_state.authenticated = False
-                st.error("Session expired. Please log in again.")
-                return
-            
-            if required_roles and not check_role_access(required_roles):
-                st.error(f"Access denied. Required roles: {', '.join(required_roles)}")
-                return
+                    with st.form("login_form"):
+                        email = st.text_input("Email")
+                        password = st.text_input("Password", type="password")
+                        submitted = st.form_submit_button("Login")
+                        
+                        if submitted:
+                            if login(email, password):
+                                # Force rerun after successful login
+                                st.rerun()
+                    return
                 
-            return f(*args, **kwargs)
+                # Session is authenticated, try to refresh if needed
+                if not refresh_session():
+                    st.session_state.authenticated = False
+                    st.error("Session expired. Please log in again.")
+                    return
+                
+                if required_roles and not check_role_access(required_roles):
+                    st.error(f"Access denied. Required roles: {', '.join(required_roles)}")
+                    return
+                    
+                return f(*args, **kwargs)
+            except Exception as e:
+                import traceback
+                st.error(f"Auth error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}")
+                return None
         return wrapper
     
     if func:
@@ -327,15 +332,21 @@ def get_user_role() -> Optional[str]:
         response = client.from_('user_roles').select('role').eq('id', st.session_state.user.id).single().execute()
         return response.data['role'] if response.data else None
     except Exception as e:
-        st.error(f"Failed to get user role: {str(e)}")
+        import traceback
+        st.error(f"Failed to get user role: {str(e)}\n\nTraceback:\n{traceback.format_exc()}")
         return None
 
 def check_role_access(required_roles: List[str]) -> bool:
     """Check if current user has one of the required roles."""
-    user_role = get_user_role()
-    if not user_role:
+    try:
+        user_role = get_user_role()
+        if not user_role:
+            return False
+        return user_role in required_roles
+    except Exception as e:
+        import traceback
+        st.error(f"Failed to check role access: {str(e)}\n\nTraceback:\n{traceback.format_exc()}")
         return False
-    return user_role in required_roles
 
 def get_supabase_client() -> Optional[Client]:
     """Get an authenticated Supabase client if user is logged in."""

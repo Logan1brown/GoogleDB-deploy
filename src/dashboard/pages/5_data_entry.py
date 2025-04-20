@@ -812,10 +812,6 @@ def validate_show_details(show_form: ShowFormState, lookups: Dict) -> bool:
 @time_page
 @auth_required(['editor', 'admin'])
 def show():
-    # Check for editor/admin access
-    if not check_role_access(['editor', 'admin']):
-        st.error("Access denied. You need editor or admin privileges to use the data entry system.")
-        return
         
     # Initialize state
     state = get_data_entry_state()
