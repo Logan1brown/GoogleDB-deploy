@@ -34,11 +34,11 @@ def init_supabase():
         key = st.secrets["SUPABASE_ANON_KEY"].strip()
         st.error(f"4. Key length: {len(key)}")
         
-        client = create_client(url, key)
-        
-        # Test client configuration
-        config = client.config
-        st.error(f"5. Client config - URL: {config.url}, API URL: {config.api_url}")
+        # Create client with debug mode
+        import httpx
+        client = create_client(url, key, options={
+            'http_client': httpx.Client(verify=True)
+        })
         
         st.info(f"Connected to Supabase at: {url}")
         return client
