@@ -62,20 +62,27 @@ def init_auth_state():
         st.session_state.refresh_token = None
     if 'last_refresh' not in st.session_state:
         st.session_state.last_refresh = None
+    if 'session' not in st.session_state:
+        st.session_state.session = None
         
     # Try to restore session if we have tokens
     if (st.session_state.access_token and st.session_state.refresh_token and 
         not st.session_state.authenticated):
         try:
-            supabase.auth.set_session(
-                st.session_state.access_token,
-                st.session_state.refresh_token
-            )
-            st.session_state.authenticated = True
-        except:
+            # Get a new session object
+            session = supabase.auth.get_session()
+            if session:
+                st.session_state.session = session
+                st.session_state.authenticated = True
+                st.session_state.access_token = session.access_token
+                st.session_state.refresh_token = session.refresh_token
+                st.session_state.last_refresh = time.time()
+        except Exception as e:
+            st.error(f"Failed to restore session: {str(e)}")
             st.session_state.authenticated = False
             st.session_state.access_token = None
             st.session_state.refresh_token = None
+            st.session_state.session = None
 
 def login(email: str, password: str) -> bool:
     """Handle user login.
@@ -98,15 +105,22 @@ def login(email: str, password: str) -> bool:
                 "email": email,
                 "password": password
             })
+            
+            if not auth or not auth.session:
+                st.error("No session returned from authentication")
+                return False
+                
         except Exception as auth_e:
-            st.error("Invalid email or password")
-            raise
+            st.error(f"Login failed: {str(auth_e)}")
+            return False
         
         # Store auth in session
         st.session_state.user = auth.user
+        st.session_state.session = auth.session
         st.session_state.access_token = auth.session.access_token
         st.session_state.refresh_token = auth.session.refresh_token
         st.session_state.authenticated = True
+        st.session_state.last_refresh = time.time()
         
         # Update Supabase client with auth token
         supabase.auth.set_session(auth.session.access_token, auth.session.refresh_token)
@@ -146,21 +160,32 @@ def refresh_session() -> bool:
             current_time - st.session_state.last_refresh < 60):
             return True
             
-        # Try to refresh the session
+        # First try to get current session
+        session = supabase.auth.get_session()
+        if session:
+            st.session_state.session = session
+            st.session_state.access_token = session.access_token
+            st.session_state.refresh_token = session.refresh_token
+            st.session_state.last_refresh = current_time
+            return True
+            
+        # If no session, try to refresh
         auth = supabase.auth.refresh_session()
         if auth and auth.session:
+            st.session_state.session = auth.session
             st.session_state.access_token = auth.session.access_token
             st.session_state.refresh_token = auth.session.refresh_token
             st.session_state.last_refresh = current_time
-            supabase.auth.set_session(auth.session.access_token, auth.session.refresh_token)
             return True
+            
+        st.error("No valid session found")
+        return False
+            
     except Exception as e:
         # If refresh fails, log out
         st.error(f"Session refresh failed: {str(e)}")
         logout()
         return False
-        
-    return False
 
 def auth_required(func=None, required_roles=None):
     """Decorator to require authentication and optionally specific roles for a page or function.
