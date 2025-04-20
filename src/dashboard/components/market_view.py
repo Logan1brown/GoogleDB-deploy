@@ -16,7 +16,6 @@ import plotly.graph_objects as go
 import pandas as pd
 import logging
 import time
-import traceback
 from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.utils.style_config import COLORS
 
@@ -91,10 +90,8 @@ def render_market_snapshot(market_analyzer):
             st.error("generate_market_insights returned None!")
 
     except Exception as e:
-        import traceback
-        logger.error("Error generating market insights:")
-        logger.error(traceback.format_exc())
-        st.error(f"Error generating market insights: {str(e)}\n\nTraceback: {traceback.format_exc()}")
+        logger.error(f"Error generating market insights: {str(e)}")
+        st.error(f"Error generating market insights: {str(e)}")
         return
     # --- END DEBUG ---
     # Display key dataset metrics and filters
@@ -113,9 +110,8 @@ def render_market_snapshot(market_analyzer):
                 key="market_filter_titles"
             )
     except Exception as e:
-        logger.error("Error displaying metrics:")
-        logger.error(traceback.format_exc())
-        st.error(f"Error displaying metrics: {str(e)}\n\nTraceback: {traceback.format_exc()}")
+        logger.error(f"Error displaying metrics: {str(e)}")
+        st.error(f"Error displaying metrics: {str(e)}")
         return
     with col2:
         # Compute creatives without debug output
