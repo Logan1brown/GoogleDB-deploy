@@ -8,8 +8,8 @@ from typing import Optional, List
 
 # Initialize Supabase client
 supabase = create_client(
-    os.environ.get("SUPABASE_URL"),
-    os.environ.get("SUPABASE_ANON_KEY")
+    st.secrets["SUPABASE_URL"],
+    st.secrets["SUPABASE_ANON_KEY"]
 )
 
 def init_auth_state():
