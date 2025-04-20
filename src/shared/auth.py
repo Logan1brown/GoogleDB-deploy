@@ -198,17 +198,31 @@ def auth_required(func=None, required_roles=None):
             init_auth_state()
             
             # Try to refresh session first if we have tokens
-            if (st.session_state.access_token and st.session_state.refresh_token and 
-                not st.session_state.authenticated):
+            if (st.session_state.access_token and st.session_state.refresh_token):
                 try:
-                    supabase.auth.set_session(
-                        st.session_state.access_token,
-                        st.session_state.refresh_token
-                    )
-                    if refresh_session():
+                    # First try to get current session
+                    session = supabase.auth.get_session()
+                    if session:
+                        st.session_state.session = session
+                        st.session_state.access_token = session.access_token
+                        st.session_state.refresh_token = session.refresh_token
                         st.session_state.authenticated = True
-                except:
+                        st.session_state.last_refresh = time.time()
+                    else:
+                        # If no session, try to refresh
+                        auth = supabase.auth.refresh_session()
+                        if auth and auth.session:
+                            st.session_state.session = auth.session
+                            st.session_state.access_token = auth.session.access_token
+                            st.session_state.refresh_token = auth.session.refresh_token
+                            st.session_state.authenticated = True
+                            st.session_state.last_refresh = time.time()
+                except Exception as e:
+                    st.error(f"Session restoration failed: {str(e)}")
                     st.session_state.authenticated = False
+                    st.session_state.access_token = None
+                    st.session_state.refresh_token = None
+                    st.session_state.session = None
             
             if not st.session_state.authenticated:
                 st.warning("Please log in to access this page")
