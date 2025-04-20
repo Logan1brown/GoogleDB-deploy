@@ -4,6 +4,7 @@ import streamlit as st
 from supabase import Client, create_client
 import asyncio
 import os
+import time
 from functools import wraps
 from typing import Optional, List
 
@@ -59,6 +60,22 @@ def init_auth_state():
         st.session_state.access_token = None
     if 'refresh_token' not in st.session_state:
         st.session_state.refresh_token = None
+    if 'last_refresh' not in st.session_state:
+        st.session_state.last_refresh = None
+        
+    # Try to restore session if we have tokens
+    if (st.session_state.access_token and st.session_state.refresh_token and 
+        not st.session_state.authenticated):
+        try:
+            supabase.auth.set_session(
+                st.session_state.access_token,
+                st.session_state.refresh_token
+            )
+            st.session_state.authenticated = True
+        except:
+            st.session_state.authenticated = False
+            st.session_state.access_token = None
+            st.session_state.refresh_token = None
 
 def login(email: str, password: str) -> bool:
     """Handle user login.
@@ -123,15 +140,23 @@ def refresh_session() -> bool:
         return False
         
     try:
+        # Only refresh if we haven't refreshed in the last minute
+        current_time = time.time()
+        if (st.session_state.last_refresh and 
+            current_time - st.session_state.last_refresh < 60):
+            return True
+            
         # Try to refresh the session
         auth = supabase.auth.refresh_session()
         if auth and auth.session:
             st.session_state.access_token = auth.session.access_token
             st.session_state.refresh_token = auth.session.refresh_token
+            st.session_state.last_refresh = current_time
             supabase.auth.set_session(auth.session.access_token, auth.session.refresh_token)
             return True
-    except:
+    except Exception as e:
         # If refresh fails, log out
+        st.error(f"Session refresh failed: {str(e)}")
         logout()
         return False
         
