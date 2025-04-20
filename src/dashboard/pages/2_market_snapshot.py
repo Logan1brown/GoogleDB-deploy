@@ -17,7 +17,7 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from dashboard.auth.auth_required import auth_required
+from src.dashboard.auth.auth_required import auth_required
 from src.dashboard.utils.timing import time_page
 from dotenv import load_dotenv
 

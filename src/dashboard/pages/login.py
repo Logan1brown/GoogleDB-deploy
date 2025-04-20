@@ -9,7 +9,7 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from dashboard.auth.auth_state import init_auth_state, login
+from src.dashboard.auth.auth_state import init_auth_state, login
 
 # Page config
 st.set_page_config(

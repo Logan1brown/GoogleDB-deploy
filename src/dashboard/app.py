@@ -80,21 +80,18 @@ def main():
     # Navigation
     st.sidebar.title("Navigation")
     
-    # Main dashboard pages
-    page = st.sidebar.selectbox("Dashboard", ["Overview", "Market Snapshot", "Content Analysis", "Studio Performance"])
-    
-    # Set up navigation
     try:
+        # Set up navigation
         pages = {
             "Home": [st.Page(main_page)],
             "Dashboard": [
-                st.Page("src/dashboard/pages/1_overview.py"),
-                st.Page("src/dashboard/pages/2_market_snapshot.py"),
-                st.Page("src/dashboard/pages/3_content_analysis.py"),
-                st.Page("src/dashboard/pages/4_studio_performance.py")
+                st.Page("pages/1_overview.py"),
+                st.Page("pages/2_market_snapshot.py"),
+                st.Page("pages/3_content_analysis.py"),
+                st.Page("pages/4_studio_performance.py")
             ],
-            "Data Management": [st.Page("src/dashboard/pages/5_data_entry.py")],
-            "Admin": [st.Page("src/dashboard/pages/6_admin.py")]
+            "Data Management": [st.Page("pages/5_data_entry.py")],
+            "Admin": [st.Page("pages/6_admin.py")]
         }
         
         # Run navigation
