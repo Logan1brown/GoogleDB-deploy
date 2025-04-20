@@ -60,71 +60,57 @@ def main():
     # Initialize auth state
     init_auth_state()
     
-    # If not authenticated, show login in sidebar
+    # Show login form if not authenticated
     if not st.session_state.get('authenticated'):
         show_login()
+        st.warning("Please log in to access the dashboard")
+        return
     
-    # Session refresh is now handled by auth_required decorator
+    # Show logout button
+    if st.sidebar.button('Logout'):
+        logout()
+        st.rerun()
     
-    # Show user info and logout in sidebar if authenticated
-    if st.session_state.get('authenticated') and st.session_state.get('user'):
-        st.sidebar.info(f"Logged in as: {st.session_state.user.email}")
-        if st.sidebar.button("Logout"):
-            logout()
-            st.rerun()
+    # Show role
+    role = get_user_role()
+    if role:
+        st.sidebar.info(f"Role: {role}")
+    else:
+        st.sidebar.warning("Your account has not been assigned a role yet. Please contact an administrator.")
+        return
     
-    # Get user role if authenticated
-    role = None
-    if st.session_state.get('authenticated') and st.session_state.get('user'):
-        role = get_user_role()
-        if not role:
-            st.sidebar.warning("Your account has not been assigned a role yet. Please contact an administrator.")
-    
-    # Initialize pages for navigation
-    # All pages are always visible, access control is handled by auth_required decorator
+    # Navigation
     st.sidebar.title("Navigation")
     
     # Main dashboard pages
     page = st.sidebar.selectbox("Dashboard", ["Overview", "Market Snapshot", "Content Analysis", "Studio Performance"])
     
-    if page == "Overview":
-        from src.dashboard.pages import overview
-        overview.show()
-    elif page == "Market Snapshot":
-        from src.dashboard.pages import market_snapshot
-        market_snapshot.show()
-    elif page == "Content Analysis":
-        from src.dashboard.pages import content_analysis
-        content_analysis.show()
-    elif page == "Studio Performance":
-        from src.dashboard.pages import studio_performance
-        studio_performance.show()
-    
-    # Data Management and Admin sections
-    section = st.sidebar.selectbox("Other", ["Data Management", "Admin"])
-    if section == "Data Management":
-        from src.dashboard.pages import data_entry
-        data_entry.show()
-    elif section == "Admin":
-        from src.dashboard.pages import admin
-        admin.show()
-    
-    # Set up navigation
-    pages = {
-        "Home": [st.Page(main_page)],
-        "Dashboard": [
-            st.Page("pages/1_overview.py"),
-            st.Page("pages/2_market_snapshot.py"),
-            st.Page("pages/3_content_analysis.py"),
-            st.Page("pages/4_studio_performance.py")
-        ],
-        "Data Management": [st.Page("pages/5_data_entry.py")],
-        "Admin": [st.Page("pages/6_admin.py")]
-    }
-    
-    # Run navigation
-    pg = st.navigation(pages)
-    pg.run()
+    try:
+        if page == "Overview":
+            from src.dashboard.pages import overview
+            overview.show()
+        elif page == "Market Snapshot":
+            from src.dashboard.pages import market_snapshot
+            market_snapshot.show()
+        elif page == "Content Analysis":
+            from src.dashboard.pages import content_analysis
+            content_analysis.show()
+        elif page == "Studio Performance":
+            from src.dashboard.pages import studio_performance
+            studio_performance.show()
+        
+        # Data Management and Admin sections (only show if appropriate role)
+        if role in ['admin', 'editor']:
+            section = st.sidebar.selectbox("Other", ["Data Management", "Admin"])
+            if section == "Data Management":
+                from src.dashboard.pages import data_entry
+                data_entry.show()
+            elif section == "Admin" and role == 'admin':
+                from src.dashboard.pages import admin
+                admin.show()
+    except Exception as e:
+        st.error("An error occurred loading the page. Please try again.")
+        st.error(str(e))
 
 if __name__ == "__main__":
     main()
