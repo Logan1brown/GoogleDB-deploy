@@ -63,6 +63,7 @@ def login(email: str, password: str) -> bool:
     """
     try:
         st.info("1. Starting login process...")
+        st.info(f"Email: {email}")
         
         # Get fresh client
         client = get_supabase_client()
@@ -70,25 +71,35 @@ def login(email: str, password: str) -> bool:
         
         # Get auth token
         try:
+            # Try with email/password directly
+            st.info("3a. Attempting sign in...")
             auth = client.auth.sign_in_with_password({
                 "email": email,
                 "password": password
             })
-            st.info("3. Sign in successful")
+            st.info("3b. Sign in response received")
+            
+            # Debug auth response
+            st.info(f"3c. Auth response type: {type(auth)}")
+            st.info(f"3d. Auth response: {auth}")
+            
+            # Store auth in session
+            st.session_state.user = auth.user
+            st.session_state.access_token = auth.session.access_token
+            st.session_state.refresh_token = auth.session.refresh_token
+            st.session_state.authenticated = True
+            st.info("4. Session state updated")
+            
+            return True
+            
         except Exception as auth_error:
-            st.error(f"3. Sign in failed: {str(auth_error)}")
+            st.error(f"3x. Sign in failed with error: {str(auth_error)}")
+            st.error(f"3y. Error type: {type(auth_error)}")
             raise
-        
-        # Store auth in session
-        st.session_state.user = auth.user
-        st.session_state.access_token = auth.session.access_token
-        st.session_state.refresh_token = auth.session.refresh_token
-        st.session_state.authenticated = True
-        st.info("4. Session state updated")
-        
-        return True
+            
     except Exception as e:
         st.error(f"Login failed: {str(e)}")
+        st.error(f"Error type: {type(e)}")
         st.session_state.authenticated = False
         return False
 
