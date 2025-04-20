@@ -13,7 +13,7 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from src.dashboard.auth.auth_required import auth_required
+from src.shared.auth import auth_required
 from src.dashboard.utils.timing import time_page
 from src.dashboard.utils.style_config import COLORS, FONTS
 from src.data_processing.analyze_shows import ShowsAnalyzer

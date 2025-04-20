@@ -14,7 +14,7 @@ if src_path not in sys.path:
     sys.path.append(src_path)
 
 from src.shared.auth import auth_required
-from src.dashboard.auth.auth_state import init_auth_state
+from src.shared.auth import init_auth_state
 from src.shared.auth import get_user_role
 
 # Initialize auth state
