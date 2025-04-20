@@ -13,7 +13,6 @@ def init_supabase():
     try:
         # Get URL and strip any whitespace
         url = st.secrets["SUPABASE_URL"].strip()
-        st.error(f"1. Raw URL: {url}")
         
         # Ensure URL is properly formatted
         if not url.startswith('https://'):
@@ -22,20 +21,15 @@ def init_supabase():
         
         # Basic URL validation
         if not url or len(url) < 10 or ' ' in url:
-            raise ValueError(f"Invalid Supabase URL format: {url}")
+            raise ValueError("Invalid Supabase URL format")
             
-        st.error(f"2. Final URL: {url}")
-        
         # Create client
         key = st.secrets["SUPABASE_ANON_KEY"].strip()
         if not key or len(key) < 20:  # Supabase keys are typically long
             raise ValueError("Invalid Supabase anon key format")
             
-        st.error(f"3. Key length: {len(key)}")
-        
-        # Create async client
+        # Create client
         client = create_client(url, key)
-        st.info(f"Connected to Supabase at: {url}")
         return client
         
     except Exception as e:
@@ -77,28 +71,19 @@ def login(email: str, password: str) -> bool:
         bool: True if login successful, False otherwise
     """
     try:
-        st.info("Starting login process...")
-        st.info(f"Email: {email}")
-        
         if not supabase:
             st.error("Supabase client not initialized")
             return False
             
-        st.info("Got Supabase client")
-        st.info("3a. Attempting sign in...")
-        
-        # Get auth token
+        # Attempt sign in
         try:
             auth = supabase.auth.sign_in_with_password({
                 "email": email,
                 "password": password
             })
         except Exception as auth_e:
-            st.error(f"3x. Sign in failed with error: {str(auth_e)}")
-            st.error(f"3y. Error type: {type(auth_e)}")
+            st.error("Invalid email or password")
             raise
-        
-        st.info("4. Sign in successful, storing session...")
         
         # Store auth in session
         st.session_state.user = auth.user
@@ -108,8 +93,6 @@ def login(email: str, password: str) -> bool:
         
         # Update Supabase client with auth token
         supabase.auth.set_session(auth.session.access_token, auth.session.refresh_token)
-        
-        st.info("5. Login complete!")
         return True
         
     except Exception as e:
@@ -164,6 +147,19 @@ def auth_required(func=None, required_roles=None):
         def wrapper(*args, **kwargs):
             init_auth_state()
             
+            # Try to refresh session first if we have tokens
+            if (st.session_state.access_token and st.session_state.refresh_token and 
+                not st.session_state.authenticated):
+                try:
+                    supabase.auth.set_session(
+                        st.session_state.access_token,
+                        st.session_state.refresh_token
+                    )
+                    if refresh_session():
+                        st.session_state.authenticated = True
+                except:
+                    st.session_state.authenticated = False
+            
             if not st.session_state.authenticated:
                 st.warning("Please log in to access this page")
                 with st.form("login_form"):
@@ -175,8 +171,15 @@ def auth_required(func=None, required_roles=None):
                         if login(email, password):
                             st.rerun()
                 return
-                
-            if not refresh_session():
+            
+            # Session is authenticated, try to refresh if needed
+            try:
+                if not refresh_session():
+                    st.session_state.authenticated = False
+                    st.error("Session expired. Please log in again.")
+                    return
+            except:
+                st.session_state.authenticated = False
                 st.error("Session expired. Please log in again.")
                 return
             
