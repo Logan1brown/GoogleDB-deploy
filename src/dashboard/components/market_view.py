@@ -67,8 +67,8 @@ def render_market_snapshot(market_analyzer):
         # Use the cached insights
     except Exception as e:
         logger.error("Error generating market insights:")
-        logger.error(traceback.format_exc())
-        st.error(f"Error generating market insights: {str(e)}\n\nTraceback: {traceback.format_exc()}")
+        logger.error(f"Error generating market insights: {str(e)}")
+        st.error(f"Error generating market insights: {str(e)}")
         return
     
     # Add custom CSS for selectbox
