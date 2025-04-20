@@ -1,7 +1,8 @@
 """Shared authentication module for both dashboard and data entry applications."""
 
 import streamlit as st
-from supabase import create_client, Client
+from supabase import Client, create_client
+import asyncio
 import os
 from functools import wraps
 from typing import Optional, List
@@ -24,6 +25,7 @@ def init_supabase():
         key = st.secrets["SUPABASE_ANON_KEY"].strip()
         st.error(f"3. Key length: {len(key)}")
         
+        # Create async client
         client = create_client(url, key)
         st.info(f"Connected to Supabase at: {url}")
         return client
@@ -32,7 +34,17 @@ def init_supabase():
         st.error(f"Failed to initialize Supabase: {str(e)}")
         raise
 
+# Initialize client
 supabase = init_supabase()
+
+# Helper function to run async functions
+def run_async(coro):
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
 
 def init_auth_state():
     """Initialize authentication state variables."""
