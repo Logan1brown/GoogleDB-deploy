@@ -22,37 +22,49 @@ from src.dashboard.utils.style_config import COLORS
 logger = logging.getLogger(__name__)
 
 
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_market_insights(market_analyzer):
+    """Get market insights with caching.
+    
+    Args:
+        market_analyzer: MarketAnalyzer instance with processed data
+        
+    Returns:
+        Tuple of (filtered_df, network_df, insights dict)
+    """
+    # Initialize filtered DataFrame
+    filtered_df = market_analyzer.titles_df.copy()
+    
+    # Get network data directly from network_df
+    network_df = market_analyzer.network_df.copy()
+    
+    total_creatives = market_analyzer.get_unique_creatives() if hasattr(market_analyzer, 'get_unique_creatives') else 0
+    if hasattr(market_analyzer, 'titles_df') and 'title' in market_analyzer.titles_df.columns:
+        total_titles = market_analyzer.titles_df['title'].nunique()
+    else:
+        total_titles = 0
+    if network_df is not None:
+        total_networks = len(network_df)
+    else:
+        total_networks = 0
+        
+    return filtered_df, network_df, {
+        'total_titles': total_titles,
+        'total_networks': total_networks,
+        'total_creatives': total_creatives
+    }
+
 def render_market_snapshot(market_analyzer):
     """Render the market snapshot component.
     
     Args:
         market_analyzer: MarketAnalyzer instance with processed data
     """
-    # Add performance metrics display at the bottom
-
-    
     try:
-        # Initialize filtered DataFrame
-        filtered_df = market_analyzer.titles_df.copy()
+        with st.spinner('Loading market insights...'):
+            filtered_df, network_df, initial_insights = get_market_insights(market_analyzer)
         
-        # Get network data directly from network_df
-        network_df = market_analyzer.network_df.copy()
-        
-        
-        total_creatives = market_analyzer.get_unique_creatives() if hasattr(market_analyzer, 'get_unique_creatives') else 0
-        if hasattr(market_analyzer, 'titles_df') and 'title' in market_analyzer.titles_df.columns:
-            total_titles = market_analyzer.titles_df['title'].nunique()
-        else:
-            total_titles = 0
-        if network_df is not None:
-            total_networks = len(network_df)
-        else:
-            total_networks = 0
-        initial_insights = {
-            'total_titles': total_titles,
-            'total_networks': total_networks,
-            'total_creatives': total_creatives
-        }
+        # Use the cached insights
     except Exception as e:
         logger.error("Error generating market insights:")
         logger.error(traceback.format_exc())
