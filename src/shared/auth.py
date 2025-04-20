@@ -12,14 +12,27 @@ def init_supabase():
     try:
         # Get URL and strip any whitespace
         url = st.secrets["SUPABASE_URL"].strip()
+        st.error(f"1. Raw URL: {url}")
         
         # Remove any markdown formatting if present
         if url.startswith('[') and '](' in url and url.endswith(')'):
             url = url[url.index('](') + 2:-1]
+        st.error(f"2. After markdown cleanup: {url}")
         
-        # Validate URL format
-        if not url.startswith('https://') or not url.endswith('.supabase.co'):
-            raise ValueError(f'Invalid Supabase URL format. URL must start with https:// and end with .supabase.co')
+        # Extract domain for DNS check
+        import re
+        domain = re.sub(r'^https?://', '', url)
+        domain = domain.split('/')[0]  # Remove any path
+        st.error(f"3. Domain to resolve: {domain}")
+        
+        # Try DNS resolution
+        import socket
+        try:
+            ip = socket.gethostbyname(domain)
+            st.error(f"4. Resolved IP: {ip}")
+        except socket.gaierror as e:
+            st.error(f"4. DNS resolution failed: {str(e)}")
+            raise
         
         # Create client with exact URL
         client = create_client(
