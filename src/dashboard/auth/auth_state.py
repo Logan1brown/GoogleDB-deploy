@@ -8,8 +8,8 @@ from functools import wraps
 def get_supabase_client():
     """Get Supabase client with current session."""
     client = create_client(
-        os.environ.get("SUPABASE_URL"),
-        os.environ.get("SUPABASE_ANON_KEY")
+        st.secrets["SUPABASE_URL"],
+        st.secrets["SUPABASE_ANON_KEY"]
     )
     
     # If we have a session, set it
