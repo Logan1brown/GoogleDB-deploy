@@ -1,0 +1,7 @@
+{
+  "name": "tv-series-dashboard",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "python -m pip install --upgrade pip && python -m pip install -r requirements.txt && streamlit run src/dashboard/app.py"
+  }
+}

@@ -1,3 +1,8 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
 # Python virtual environment
 venv/
 env/
@@ -33,3 +38,4 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+.streamlit/secrets.toml
