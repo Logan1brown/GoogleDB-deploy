@@ -20,10 +20,8 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from src.shared.auth import auth_required
-from src.dashboard.auth.auth_state import init_auth_state, login, logout, refresh_session
+from src.shared.auth import auth_required, init_auth_state, login, logout, refresh_session, get_user_role
 from src.dashboard.utils.style_config import COLORS, FONTS
-from src.shared.auth import get_user_role
 
 def show_login():
     """Show login form in sidebar."""
