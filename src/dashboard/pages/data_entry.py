@@ -1,6 +1,6 @@
 """Data Entry page for the dashboard."""
 import streamlit as st
-from src.dashboard.auth.auth_required import auth_required
+from src.shared.auth import auth_required
 
 @auth_required
 def show():

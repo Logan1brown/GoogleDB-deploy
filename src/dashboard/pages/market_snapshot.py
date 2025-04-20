@@ -5,7 +5,7 @@ Displays market analysis and insights for TV series data using secure Supabase v
 
 import streamlit as st
 from dataclasses import asdict, dataclass, field
-from src.dashboard.auth.auth_required import auth_required
+from src.shared.auth import auth_required
 
 
 @dataclass

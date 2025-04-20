@@ -14,7 +14,7 @@ import streamlit as st
 from src.dashboard.utils.timing import time_page
 from streamlit_searchbox import st_searchbox
 from src.dashboard.utils.style_config import COLORS, FONTS
-from src.dashboard.auth.auth_required import auth_required
+from src.shared.auth import auth_required
 from src.shared.auth import get_user_role, check_role_access
 
 # Add custom CSS for data entry components
