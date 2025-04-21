@@ -67,13 +67,26 @@ def update_user_role(user_id: str, new_role: str, reason: str) -> bool:
         client = get_admin_client()
         
         if new_role == 'delete':
-            # Delete from auth
-            client.auth.admin.delete_user(user_id)
-            
-            # Delete from user_roles
-            client.table('user_roles').delete().eq('id', user_id).execute()
-            
-            st.success("User deleted successfully")
+            try:
+                # Delete from user_roles first
+                client.table('user_roles').delete().eq('id', user_id).execute()
+                
+                # Then delete from auth
+                client.auth.admin.delete_user(user_id)
+                
+                st.success("User deleted successfully")
+            except Exception as delete_error:
+                st.error(f"Error during deletion: {str(delete_error)}")
+                # Try to rollback user_roles deletion if auth delete failed
+                try:
+                    client.table('user_roles').upsert({
+                        'id': user_id,
+                        'role': 'viewer',  # Default to viewer role
+                        'updated_by': st.session_state.user.id
+                    }).execute()
+                except:
+                    pass  # Ignore rollback errors
+                return False
         else:
             # Update role in user_roles table
             result = client.table('user_roles').upsert({
