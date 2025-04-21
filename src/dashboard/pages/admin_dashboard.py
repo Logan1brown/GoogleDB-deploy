@@ -142,6 +142,16 @@ def invite_user(email: str, role: str) -> bool:
             st.error(f"Failed to invite user: {error_msg}")
         return False
 
+# Initialize form state
+if 'create_user_email' not in st.session_state:
+    st.session_state.create_user_email = ""
+if 'create_user_password' not in st.session_state:
+    st.session_state.create_user_password = ""
+if 'create_user_confirm' not in st.session_state:
+    st.session_state.create_user_confirm = ""
+if 'create_user_role' not in st.session_state:
+    st.session_state.create_user_role = "viewer"
+
 @auth_required(['admin'])
 def admin_show():
     """Main function for admin dashboard."""
@@ -197,19 +207,13 @@ def admin_show():
                             else:
                                 st.error("Failed to update role")
     
-        # Initialize form state
-        if 'create_user_email' not in st.session_state:
-            st.session_state.create_user_email = ""
-        if 'create_user_role' not in st.session_state:
-            st.session_state.create_user_role = "viewer"
-
         # User creation form
         st.subheader("Create New User")
         with st.form("create_user"):
-            email = st.text_input("Email", value=st.session_state.create_user_email)
-            password = st.text_input("Password", type="password")
-            confirm_password = st.text_input("Confirm Password", type="password")
-            role = st.selectbox("Role", ["viewer", "editor", "admin"], index=["viewer", "editor", "admin"].index(st.session_state.create_user_role))
+            email = st.text_input("Email", value=st.session_state.create_user_email, key="create_user_email")
+            password = st.text_input("Password", type="password", value=st.session_state.create_user_password, key="create_user_password")
+            confirm_password = st.text_input("Confirm Password", type="password", value=st.session_state.create_user_confirm, key="create_user_confirm")
+            role = st.selectbox("Role", ["viewer", "editor", "admin"], index=["viewer", "editor", "admin"].index(st.session_state.create_user_role), key="create_user_role")
             submitted = st.form_submit_button("Create User")
             
             if submitted:
@@ -240,6 +244,8 @@ def admin_show():
                         
                         # Clear form
                         st.session_state.create_user_email = ""
+                        st.session_state.create_user_password = ""
+                        st.session_state.create_user_confirm = ""
                         st.session_state.create_user_role = "viewer"
                         st.success(f"Successfully created user {email} with role {role}")
                         st.rerun()
