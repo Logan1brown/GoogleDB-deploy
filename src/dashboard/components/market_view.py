@@ -283,8 +283,9 @@ def render_market_snapshot(market_analyzer):
     else:
         # Join with network_df to get parent companies
         merged_df = filtered_df.merge(
-            network_df[['network_name', 'parent_company']], 
-            on='network_name'
+            network_df[['network', 'parent_company']], 
+            left_on='network_name',
+            right_on='network'
         )
         titles_by_group = merged_df.groupby('parent_company').size()
         all_groups = pd.Series(0, index=network_df['parent_company'].unique())
