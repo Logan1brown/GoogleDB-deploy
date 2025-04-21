@@ -10,16 +10,41 @@ import secrets
 from datetime import datetime
 from typing import List, Dict, Any
 from pathlib import Path
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 # Add src to path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from src.shared.auth import auth_required
-from src.shared.auth import get_user_role
+from src.shared.auth import auth_required, get_user_role, get_admin_client, check_role_access
 from src.dashboard.utils.style_config import COLORS, FONTS
 from supabase import create_client
+
+
+@dataclass
+class AdminState:
+    """State for admin dashboard"""
+    create_user_email: str = ""
+    create_user_password: str = ""
+    create_user_confirm: str = ""
+    create_user_role: str = "viewer"
+
+
+def get_admin_state() -> AdminState:
+    """Get the admin state from session state"""
+    state = st.session_state.get("admin_state")
+    if not state:
+        state = AdminState()
+        st.session_state.admin_state = state
+    return state
+
+
+def update_admin_state(state: AdminState):
+    """Update the admin state in session state"""
+    st.session_state.admin_state = state
+
 
 def get_admin_client():
     """Get Supabase client with service role for admin operations."""
@@ -27,6 +52,7 @@ def get_admin_client():
         os.environ.get("SUPABASE_URL"),
         os.environ.get("SUPABASE_SERVICE_KEY")
     )
+
 
 def get_users() -> List[Dict[str, Any]]:
     """Get list of users with their roles."""
@@ -146,15 +172,8 @@ def invite_user(email: str, role: str) -> bool:
 def admin_show():
     """Main function for admin dashboard."""
     try:
-        # Initialize form state
-        if 'create_user_email' not in st.session_state:
-            st.session_state.create_user_email = ""
-        if 'create_user_password' not in st.session_state:
-            st.session_state.create_user_password = ""
-        if 'create_user_confirm' not in st.session_state:
-            st.session_state.create_user_confirm = ""
-        if 'create_user_role' not in st.session_state:
-            st.session_state.create_user_role = "viewer"
+        # Get admin state
+        state = get_admin_state()
         st.title("Admin Dashboard")
         
         # Test admin client access
@@ -209,10 +228,10 @@ def admin_show():
         # User creation form
         st.subheader("Create New User")
         with st.form("create_user"):
-            email = st.text_input("Email", value=st.session_state.create_user_email, key="create_user_email")
-            password = st.text_input("Password", type="password", value=st.session_state.create_user_password, key="create_user_password")
-            confirm_password = st.text_input("Confirm Password", type="password", value=st.session_state.create_user_confirm, key="create_user_confirm")
-            role = st.selectbox("Role", ["viewer", "editor", "admin"], index=["viewer", "editor", "admin"].index(st.session_state.create_user_role), key="create_user_role")
+            email = st.text_input("Email", value=state.create_user_email)
+            password = st.text_input("Password", type="password")
+            confirm_password = st.text_input("Confirm Password", type="password")
+            role = st.selectbox("Role", ["viewer", "editor", "admin"], index=["viewer", "editor", "admin"].index(state.create_user_role))
             submitted = st.form_submit_button("Create User")
             
             if submitted:
@@ -241,12 +260,10 @@ def admin_show():
                             'updated_by': st.session_state.user.id
                         }).execute()
                         
-                        # Clear form
-                        st.session_state.create_user_email = ""
-                        st.session_state.create_user_password = ""
-                        st.session_state.create_user_confirm = ""
-                        st.session_state.create_user_role = "viewer"
                         st.success(f"Successfully created user {email} with role {role}")
+                        # Clear form by resetting state
+                        state = AdminState()
+                        update_admin_state(state)
                         st.rerun()
                     except Exception as e:
                         st.error(f"Failed to create user: {str(e)}")
