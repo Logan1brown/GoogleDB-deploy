@@ -18,7 +18,7 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from src.shared.auth import auth_required, get_user_role, get_admin_client, check_role_access
+from src.shared.auth import auth_required, get_user_role, check_role_access
 from src.dashboard.utils.style_config import COLORS, FONTS
 from supabase import create_client
 
