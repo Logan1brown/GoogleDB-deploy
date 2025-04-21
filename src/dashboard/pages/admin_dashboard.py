@@ -85,23 +85,21 @@ def update_user_role(user_id: str, new_role: str, reason: str) -> bool:
         return False
 
 def invite_user(email: str, role: str) -> bool:
-    """Invite a new user with specified role."""
+    """Invite a new user with specified role using Supabase's invite system."""
     try:
         # Get admin client
         client = get_admin_client()
         
-        # Sign up user with email confirmation
-        temp_password = 'temp' + secrets.token_urlsafe(16)
-        response = client.auth.sign_up({
-            'email': email,
-            'password': temp_password,
-            'options': {
+        # Invite user with role in metadata
+        response = client.auth.admin.invite_user_by_email(
+            email,
+            {
                 'data': {'initial_role': role}
             }
-        })
+        )
         user = response.user
         
-        # Set initial role
+        # Set initial role in database
         client.table('user_roles').insert({
             'id': user.id,
             'role': role,
@@ -109,10 +107,15 @@ def invite_user(email: str, role: str) -> bool:
             'updated_by': st.session_state.user.id
         }).execute()
         
+        st.success(f"Invitation email sent to {email}. Note: Limited to 4 invites per hour.")
         return True
         
     except Exception as e:
-        st.error(f"Failed to invite user: {str(e)}")
+        error_msg = str(e)
+        if "rate limit" in error_msg.lower():
+            st.error("Rate limit reached. Please wait before sending more invitations (limit: 4 per hour).")
+        else:
+            st.error(f"Failed to invite user: {error_msg}")
         return False
 
 @auth_required(['admin'])
