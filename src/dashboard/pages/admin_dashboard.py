@@ -197,13 +197,19 @@ def admin_show():
                             else:
                                 st.error("Failed to update role")
     
+        # Initialize form state
+        if 'create_user_email' not in st.session_state:
+            st.session_state.create_user_email = ""
+        if 'create_user_role' not in st.session_state:
+            st.session_state.create_user_role = "viewer"
+
         # User creation form
         st.subheader("Create New User")
         with st.form("create_user"):
-            email = st.text_input("Email")
+            email = st.text_input("Email", value=st.session_state.create_user_email)
             password = st.text_input("Password", type="password")
             confirm_password = st.text_input("Confirm Password", type="password")
-            role = st.selectbox("Role", ["viewer", "editor", "admin"])
+            role = st.selectbox("Role", ["viewer", "editor", "admin"], index=["viewer", "editor", "admin"].index(st.session_state.create_user_role))
             submitted = st.form_submit_button("Create User")
             
             if submitted:
@@ -232,6 +238,9 @@ def admin_show():
                             'updated_by': st.session_state.user.id
                         }).execute()
                         
+                        # Clear form
+                        st.session_state.create_user_email = ""
+                        st.session_state.create_user_role = "viewer"
                         st.success(f"Successfully created user {email} with role {role}")
                         st.rerun()
                     except Exception as e:
