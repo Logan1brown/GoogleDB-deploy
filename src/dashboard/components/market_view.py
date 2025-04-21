@@ -282,11 +282,13 @@ def render_market_snapshot(market_analyzer):
     # Calculate average scores and create hover text
     avg_scores = []
     hover_text = []
-    for group, count in titles_by_group.items():
-        text = f'{group}<br>Titles: {count}'
+    for _, row in titles_by_group.iterrows():
+        network = row['network_name']
+        count = row['count']
+        text = f'{network}<br>Titles: {count}'
         
-        if group in network_scores:
-            avg = sum(network_scores[group]) / len(network_scores[group])
+        if network in network_scores:
+            avg = sum(network_scores[network]) / len(network_scores[network])
             avg_scores.append(avg)
             text += f'<br>Avg Success Score: {avg:.1f}'
         else:
