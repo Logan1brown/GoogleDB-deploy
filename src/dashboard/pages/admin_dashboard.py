@@ -118,7 +118,10 @@ def invite_user(email: str, role: str) -> bool:
         response = client.auth.admin.invite_user_by_email(
             email,
             {
-                'data': {'initial_role': role}
+                'data': {'initial_role': role},
+                'options': {
+                    'redirectTo': 'https://appdb-deploy-nrsfx8wrmuajjww5qrkwwy.streamlit.app/login'
+                }
             }
         )
         user = response.user
