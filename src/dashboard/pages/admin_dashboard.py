@@ -118,10 +118,7 @@ def invite_user(email: str, role: str) -> bool:
         response = client.auth.admin.invite_user_by_email(
             email,
             {
-                'data': {'initial_role': role},
-                'options': {
-                    'redirectTo': 'https://hlwnwcxylueaoemdqiwo.supabase.co/auth/v1/verify'
-                }
+                'data': {'initial_role': role}
             }
         )
         user = response.user
