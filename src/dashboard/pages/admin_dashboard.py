@@ -197,25 +197,47 @@ def admin_show():
                             else:
                                 st.error("Failed to update role")
     
-        # Invite new user section
-        st.markdown("### Invite New User")
-        with st.form("invite_user_form"):
+        # User creation form
+        st.subheader("Create New User")
+        with st.form("create_user"):
             email = st.text_input("Email")
-            role = st.selectbox(
-                "Initial Role",
-                options=['viewer', 'editor', 'admin'],
-                index=0
-            )
-            submitted = st.form_submit_button("Send Invitation")
+            password = st.text_input("Password", type="password")
+            confirm_password = st.text_input("Confirm Password", type="password")
+            role = st.selectbox("Role", ["viewer", "editor", "admin"])
+            submitted = st.form_submit_button("Create User")
             
             if submitted:
-                if not email:
-                    st.error("Please enter an email address")
-                    return
-                
-                if invite_user(email, role):
-                    st.success("Invitation sent successfully")
-                    st.rerun()
+                if not email or not password:
+                    st.error("Please enter both email and password")
+                elif password != confirm_password:
+                    st.error("Passwords do not match")
+                elif len(password) < 8:
+                    st.error("Password must be at least 8 characters")
+                else:
+                    try:
+                        # Create user with password
+                        client = get_admin_client()
+                        response = client.auth.admin.create_user({
+                            'email': email,
+                            'password': password,
+                            'email_confirm': True  # Skip email verification
+                        })
+                        user = response.user
+                        
+                        # Set role in user_roles table
+                        client.table('user_roles').insert({
+                            'id': user.id,
+                            'role': role,
+                            'created_by': st.session_state.user.id,
+                            'updated_by': st.session_state.user.id
+                        }).execute()
+                        
+                        st.success(f"Successfully created user {email} with role {role}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to create user: {str(e)}")
+        
+
     except Exception as e:
         st.error(f"Admin dashboard error: {str(e)}")
 
