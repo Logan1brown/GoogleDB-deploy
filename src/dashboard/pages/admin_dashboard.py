@@ -61,17 +61,28 @@ def get_users() -> List[Dict[str, Any]]:
         return []
         
 def update_user_role(user_id: str, new_role: str, reason: str) -> bool:
-    """Update a user's role."""
+    """Update a user's role or delete the user if new_role is 'delete'."""
     try:
         # Get admin client
         client = get_admin_client()
         
-        # Update role in user_roles table
-        result = client.table('user_roles').upsert({
-            'id': user_id,
-            'role': new_role,
-            'updated_by': st.session_state.user.id
-        }).execute()
+        if new_role == 'delete':
+            # Delete from auth
+            client.auth.admin.delete_user(user_id)
+            
+            # Delete from user_roles
+            client.table('user_roles').delete().eq('id', user_id).execute()
+            
+            st.success("User deleted successfully")
+        else:
+            # Update role in user_roles table
+            result = client.table('user_roles').upsert({
+                'id': user_id,
+                'role': new_role,
+                'updated_by': st.session_state.user.id
+            }).execute()
+            
+            st.success(f"Role updated to {new_role}")
         
         # Clean up session state
         for key in list(st.session_state.keys()):
@@ -81,7 +92,7 @@ def update_user_role(user_id: str, new_role: str, reason: str) -> bool:
         return True
         
     except Exception as e:
-        st.error(f"Failed to update role: {str(e)}")
+        st.error(f"Failed to {'delete user' if new_role == 'delete' else 'update role'}: {str(e)}")
         return False
 
 def invite_user(email: str, role: str) -> bool:
@@ -137,7 +148,7 @@ def admin_show():
         # Display each user in an expander
         for user in users:
             # Show revoked status in title if applicable
-            title = f"{user['email']} - {'🚫 REVOKED' if user['role'] == 'revoked' else user['role']}"
+            title = f"{user['email']} - {user['role']}"
             
             with st.expander(title):
                 # Show user details
@@ -151,7 +162,7 @@ def admin_show():
                     with col1:
                         new_role = st.selectbox(
                             "New Role",
-                            ["admin", "editor", "viewer", "revoked"],
+                            ["admin", "editor", "viewer", "delete"],
                             key=f"role_{user['id']}"
                         )
                         
@@ -165,8 +176,8 @@ def admin_show():
                         if st.button("Update", key=f"update_{user['id']}"):
                             if not reason:
                                 st.error("Please provide a reason for the role change")
-                            elif new_role == 'revoked' and not reason:
-                                st.error("Please provide a reason for revoking access")
+                            elif new_role == 'delete' and not reason:
+                                st.error("Please provide a reason for deleting user")
                             elif update_user_role(user['id'], new_role, reason):
                                 st.success("Role updated successfully")
                                 st.rerun()
