@@ -120,7 +120,7 @@ def invite_user(email: str, role: str) -> bool:
             {
                 'data': {'initial_role': role},
                 'options': {
-                    'redirectTo': 'https://appdb-deploy-nrsfx8wrmuajjww5qrkwwy.streamlit.app/login'
+                    'redirectTo': 'https://hlwnwcxylueaoemdqiwo.supabase.co/auth/v1/verify'
                 }
             }
         )
