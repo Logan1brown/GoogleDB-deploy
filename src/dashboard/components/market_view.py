@@ -190,6 +190,10 @@ def render_market_snapshot(market_analyzer):
     # Network Distribution Section
     st.markdown('<p class="section-header">Network Distribution</p>', unsafe_allow_html=True)
     
+    # Initialize view state if not present
+    if 'network_view' not in st.session_state:
+        st.session_state.network_view = 'network'  # Default to network view
+    
     # Filter data based on success level
     # Include all needed columns including studio_names for vertical integration
     needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'tmdb_avg_eps', 'studio_names', 'status_name']
@@ -270,25 +274,52 @@ def render_market_snapshot(market_analyzer):
         # Process networks with scores
         filtered_df = filtered_df[filtered_df['network_name'].isin(networks_with_scores)]
     
-    # Get network distribution after filtering
-    titles_by_network = filtered_df.groupby('network_name').size()
+    # Get distribution based on current view
+    if st.session_state.network_view == 'network':
+        titles_by_group = filtered_df.groupby('network_name').size()
+        all_groups = pd.Series(0, index=network_df['network_name'])
+        x_title = "Network"
+        group_col = 'network_name'
+    else:
+        # Join with network_df to get parent companies
+        merged_df = filtered_df.merge(
+            network_df[['network_name', 'parent_company']], 
+            on='network_name'
+        )
+        titles_by_group = merged_df.groupby('parent_company').size()
+        all_groups = pd.Series(0, index=network_df['parent_company'].unique())
+        x_title = "Parent Company"
+        group_col = 'parent_company'
     
-    # Merge with network_df to ensure all networks are included
-    all_networks = pd.Series(0, index=network_df['network_name'])
-    titles_by_network = titles_by_network.combine(all_networks, max, fill_value=0)
-    titles_by_network = titles_by_network.sort_values(ascending=False)
+    titles_by_group = titles_by_group.combine(all_groups, max, fill_value=0)
+    titles_by_group = titles_by_group.sort_values(ascending=False)
     
     # Calculate average scores and create hover text
     avg_scores = []
     hover_text = []
-    for network, count in titles_by_network.items():
-        text = f'{network}<br>Titles: {count}'
-        if network in network_scores:
-            avg = sum(network_scores[network]) / len(network_scores[network])
-            avg_scores.append(avg)
-            text += f'<br>Avg Success Score: {avg:.1f}'
+    for group, count in titles_by_group.items():
+        text = f'{group}<br>Titles: {count}'
+        
+        if st.session_state.network_view == 'network':
+            if group in network_scores:
+                avg = sum(network_scores[group]) / len(network_scores[group])
+                avg_scores.append(avg)
+                text += f'<br>Avg Success Score: {avg:.1f}'
+            else:
+                avg_scores.append(0)  # No score data
         else:
-            avg_scores.append(0)  # No score data
+            # For parent companies, get average of all their networks
+            parent_networks = network_df[network_df['parent_company'] == group]['network_name']
+            parent_scores = []
+            for network in parent_networks:
+                if network in network_scores:
+                    parent_scores.extend(network_scores[network])
+            if parent_scores:
+                avg = sum(parent_scores) / len(parent_scores)
+                avg_scores.append(avg)
+                text += f'<br>Avg Success Score: {avg:.1f}'
+            else:
+                avg_scores.append(0)  # No score data
         hover_text.append(text)
     
     # Create color array using Viridis colorscale
@@ -309,9 +340,9 @@ def render_market_snapshot(market_analyzer):
     # Create chart
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=list(titles_by_network.index),
-        y=list(titles_by_network.values),
-        name="Titles per Network",
+        x=list(titles_by_group.index),
+        y=list(titles_by_group.values),
+        name=f"Titles per {x_title}",
         marker_color=colors,
         hovertext=hover_text,
         hoverinfo='text'
@@ -319,7 +350,7 @@ def render_market_snapshot(market_analyzer):
     
     # Update layout
     fig.update_layout(
-        xaxis_title="Network",
+        xaxis_title=x_title,
         yaxis_title="Number of Titles",
         font_family="Source Sans Pro",
         showlegend=False,
@@ -327,6 +358,17 @@ def render_market_snapshot(market_analyzer):
     )
     
     st.plotly_chart(fig, use_container_width=True)
+    
+    # Add view toggle buttons below chart
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Network View", type="primary" if st.session_state.network_view == 'network' else "secondary"):
+            st.session_state.network_view = 'network'
+            st.rerun()
+    with col2:
+        if st.button("Parent Company View", type="primary" if st.session_state.network_view == 'parent' else "secondary"):
+            st.session_state.network_view = 'parent'
+            st.rerun()
     
     # Key Metrics Section
     st.markdown('<p class="section-header">Key Metrics</p>', unsafe_allow_html=True)
