@@ -142,20 +142,19 @@ def invite_user(email: str, role: str) -> bool:
             st.error(f"Failed to invite user: {error_msg}")
         return False
 
-# Initialize form state
-if 'create_user_email' not in st.session_state:
-    st.session_state.create_user_email = ""
-if 'create_user_password' not in st.session_state:
-    st.session_state.create_user_password = ""
-if 'create_user_confirm' not in st.session_state:
-    st.session_state.create_user_confirm = ""
-if 'create_user_role' not in st.session_state:
-    st.session_state.create_user_role = "viewer"
-
 @auth_required(['admin'])
 def admin_show():
     """Main function for admin dashboard."""
     try:
+        # Initialize form state
+        if 'create_user_email' not in st.session_state:
+            st.session_state.create_user_email = ""
+        if 'create_user_password' not in st.session_state:
+            st.session_state.create_user_password = ""
+        if 'create_user_confirm' not in st.session_state:
+            st.session_state.create_user_confirm = ""
+        if 'create_user_role' not in st.session_state:
+            st.session_state.create_user_role = "viewer"
         st.title("Admin Dashboard")
         
         # Test admin client access
