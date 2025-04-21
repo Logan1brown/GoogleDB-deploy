@@ -227,11 +227,12 @@ def admin_show():
     
         # User creation form
         st.subheader("Create New User")
-        with st.form("create_user"):
-            email = st.text_input("Email", value=state.create_user_email)
-            password = st.text_input("Password", type="password")
-            confirm_password = st.text_input("Confirm Password", type="password")
-            role = st.selectbox("Role", ["viewer", "editor", "admin"], index=["viewer", "editor", "admin"].index(state.create_user_role))
+        with st.form("create_user", clear_on_submit=True):
+            # Use form_ prefix for form keys to avoid conflicts
+            email = st.text_input("Email", key="form_email")
+            password = st.text_input("Password", type="password", key="form_password")
+            confirm_password = st.text_input("Confirm Password", type="password", key="form_confirm")
+            role = st.selectbox("Role", ["viewer", "editor", "admin"], key="form_role")
             submitted = st.form_submit_button("Create User")
             
             if submitted:
@@ -261,9 +262,7 @@ def admin_show():
                         }).execute()
                         
                         st.success(f"Successfully created user {email} with role {role}")
-                        # Clear form by resetting state
-                        state = AdminState()
-                        update_admin_state(state)
+                        # Form will clear automatically due to clear_on_submit=True
                         st.rerun()
                     except Exception as e:
                         st.error(f"Failed to create user: {str(e)}")
