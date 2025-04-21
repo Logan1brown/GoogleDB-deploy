@@ -274,26 +274,32 @@ def render_market_snapshot(market_analyzer):
         # Process networks with scores
         filtered_df = filtered_df[filtered_df['network_name'].isin(networks_with_scores)]
     
+    # Debug: print network_df info
+    st.write("Network DataFrame columns:", network_df.columns.tolist())
+    st.write("Network DataFrame sample:", network_df.head(1).to_dict('records'))
+    
     # Get distribution based on current view
     if st.session_state.network_view == 'network':
-        titles_by_group = filtered_df.groupby('network_name').size()
-        all_groups = pd.Series(0, index=network_df['network_name'])
+        # Group by network and count shows
+        titles_by_group = filtered_df.groupby('network_name').size().reset_index()
+        titles_by_group.columns = ['network_name', 'count']
         x_title = "Network"
         group_col = 'network_name'
     else:
         # Join with network_df to get parent companies
         merged_df = filtered_df.merge(
-            network_df[['network', 'parent_company']], 
+            network_df, 
             left_on='network_name',
             right_on='network'
         )
-        titles_by_group = merged_df.groupby('parent_company').size()
-        all_groups = pd.Series(0, index=network_df['parent_company'].unique())
+        # Group by parent company and count shows
+        titles_by_group = merged_df.groupby('parent_company').size().reset_index()
+        titles_by_group.columns = ['parent_company', 'count']
         x_title = "Parent Company"
         group_col = 'parent_company'
     
-    titles_by_group = titles_by_group.combine(all_groups, max, fill_value=0)
-    titles_by_group = titles_by_group.sort_values(ascending=False)
+    # Sort by count
+    titles_by_group = titles_by_group.sort_values('count', ascending=False)
     
     # Calculate average scores and create hover text
     avg_scores = []
@@ -341,8 +347,8 @@ def render_market_snapshot(market_analyzer):
     # Create chart
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=list(titles_by_group.index),
-        y=list(titles_by_group.values),
+        x=titles_by_group[group_col],
+        y=titles_by_group['count'],
         name=f"Titles per {x_title}",
         marker_color=colors,
         hovertext=hover_text,
