@@ -53,7 +53,7 @@ class ShowsAnalyzer:
     VIEWS = {
         'titles': 'api_market_analysis',  # Use market analysis view for market snapshot
         'networks': 'api_network_stats',
-        'team': 'api_show_team',  # Team member data (correct key)
+        'team': 'show_team',  # Use raw team table to get all team members
         'details': 'api_show_details'  # Additional show details for content analysis
     }
     
@@ -114,12 +114,12 @@ class ShowsAnalyzer:
             # Log available columns
             logger.info(f"Market analysis columns: {titles_df.columns.tolist()}")
             
-            # Get active status directly from shows table
-            shows_data = supabase.table('shows').select('title,active').execute()
+            # Get active status and IDs directly from shows table
+            shows_data = supabase.table('shows').select('id,title,active').execute()
             if not hasattr(shows_data, 'data') or not shows_data.data:
                 raise ValueError("No data returned from shows table")
             shows_df = pd.DataFrame(shows_data.data)
-            titles_df = titles_df.merge(shows_df[['title', 'active']], on='title', how='left')
+            titles_df = titles_df.merge(shows_df[['id', 'title', 'active']], on='title', how='left')
             titles_df['active'] = titles_df['active'].fillna(False)  # Default to inactive for any shows not in shows table
             
             # Fetch team data with pagination
@@ -138,6 +138,10 @@ class ShowsAnalyzer:
             if not all_team_data:
                 raise ValueError(f"No data returned from {self.VIEWS['team']}")
             team_df = pd.DataFrame(all_team_data)
+            
+            # Filter team_df to only include members from active shows
+            active_show_ids = titles_df[titles_df['active'] == True]['id'].tolist()
+            team_df = team_df[team_df['show_id'].isin(active_show_ids)]
             
             # Fetch network data
             network_data = supabase.table(self.VIEWS['networks']).select('*').execute()
