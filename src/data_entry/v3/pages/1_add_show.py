@@ -330,24 +330,24 @@ with tabs[TAB_REVIEW]:
     with col2:
         st.write("**Source Type:**", format_lookup('source_types')(st.session_state.show_data['source_type_id']))
         st.write("**Order Type:**", format_lookup('order_types')(st.session_state.show_data['order_type_id']))
-        st.write("**Episode Count:**", st.session_state.show_data.get('episode_count', 0))
-        announce_date = st.session_state.show_data.get('date')
-        st.write("**Announcement Date:**", announce_date.strftime('%Y-%m-%d') if announce_date else "*Not set*")
+        st.write("**Episode Count:**", st.session_state.show_data['episode_count'])
+        st.write("**Date:**", st.session_state.show_data['date'])
     
     # Studios
-    st.markdown("### 🎬 Studios")
-    
-    # Existing studios
-    if st.session_state.show_data['studio_ids']:
-        st.write("**Selected Studios:**")
-        for studio_id in st.session_state.show_data['studio_ids']:
-            st.write(f"- {format_lookup('studios')(studio_id)}")
-    
-    # New studios
-    if st.session_state.show_data['new_studios']:
-        st.write("**New Studios:**")
-        for studio in st.session_state.show_data['new_studios']:
-            st.write(f"- {studio}")
+    if st.session_state.show_data['studio_ids'] or st.session_state.show_data['new_studios']:
+        st.markdown("### 🏢 Studios")
+        
+        # Existing studios
+        if st.session_state.show_data['studio_ids']:
+            st.write("**Selected Studios:**")
+            for studio_id in st.session_state.show_data['studio_ids']:
+                st.write(f"- {format_lookup('studios')(studio_id)}")
+        
+        # New studios
+        if st.session_state.show_data['new_studios']:
+            st.write("**New Studios to Add:**")
+            for studio in st.session_state.show_data['new_studios']:
+                st.write(f"- {studio}")
     
     # Team Members
     if st.session_state.show_data['team_members']:
@@ -359,8 +359,8 @@ with tabs[TAB_REVIEW]:
             for role_id in member['role_ids']:
                 st.write(f"- {format_lookup('roles')(role_id)}")
     
-    # Submit button - only show in Review tab
-    if st.session_state.active_tab == TAB_REVIEW and st.button("Submit Show", type="primary"):
+    # Submit button
+    if st.button("Submit Show", type="primary"):
         try:
             # Save show to database
             save_show(st.session_state.show_data)
@@ -374,18 +374,15 @@ with tabs[TAB_REVIEW]:
                 'subgenre_id': None,
                 'source_type_id': None,
                 'order_type_id': None,
-                'episode_runtime': 0,
-                'start_date': date.today(),
+                'episode_count': 0,
+                'date': date.today(),
                 'studio_ids': [],
                 'new_studios': [],
                 'team_members': []
             }
-            st.session_state.active_tab = TAB_DETAILS
             st.session_state.num_new_studios = 0
             st.session_state.num_team_members = 0
-            
-            # Rerun to refresh the page
+            st.session_state.active_tab = TAB_DETAILS
             st.rerun()
-            
         except Exception as e:
             st.error(f"Error saving show: {str(e)}")
