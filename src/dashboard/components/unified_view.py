@@ -55,10 +55,17 @@ def render_acquisition_view(unified_analyzer: UnifiedAnalyzer, source_type: str,
         
         for network, metrics in network_metrics.items():
             with st.expander(f"{network} ({metrics['title_count']} titles)"):
-                st.markdown(f"**Network Average Success: {metrics['success_score']:.0f} pts**")
+                # Only count shows with TMDB data in the average
+                shows_with_data = [t for t in metrics['titles'] if t['has_tmdb']]
+                if not shows_with_data:
+                    score_display = "N/A"
+                else:
+                    score_display = f"{metrics['success_score']:.0f} pts"
+                st.markdown(f"**Network Average Success: {score_display}**")
                 st.markdown("**Titles:**")
                 for title_info in metrics['titles']:
-                    st.markdown(f"- {title_info['title']} ({title_info['success_score']:.0f} pts)")
+                    score_display = "N/A" if not title_info['has_tmdb'] else f"{title_info['success_score']:.0f} pts"
+                    st.markdown(f"- {title_info['title']} ({score_display})")
     
     with tabs[1]:  # Market Insights
         # Get market metrics

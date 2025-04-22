@@ -355,7 +355,11 @@ class UnifiedAnalyzer:
             title_scores = []
             for _, show in network_titles.iterrows():
                 score = self.success_analyzer.calculate_success(show)
-                title_scores.append({'title': show['title'], 'success_score': score})
+                title_scores.append({
+                    'title': show['title'],
+                    'success_score': score,
+                    'has_tmdb': pd.notna(show['tmdb_id'])
+                })
             
             network_metrics[network] = {
                 'title_count': len(network_titles),
