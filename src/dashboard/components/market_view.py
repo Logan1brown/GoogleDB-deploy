@@ -42,7 +42,7 @@ def get_market_insights(_market_analyzer):
     with st.expander("Debug: Team Data Stats"):
         st.write("Team Data Stats:")
         st.write(f"- Total rows: {len(_market_analyzer.team_df)}")
-        st.write(f"- Unique names: {_market_analyzer.team_df['name'].dropna().nunique()}")
+        st.write(f"- Unique names: {_market_analyzer.get_unique_creatives()}")
         st.write(f"- Null names: {_market_analyzer.team_df['name'].isna().sum()}")
         st.write(f"- Duplicate names: {len(_market_analyzer.team_df) - _market_analyzer.team_df['name'].nunique()}")
     
@@ -122,15 +122,20 @@ def render_market_snapshot(market_analyzer):
         st.error(f"Error displaying metrics: {str(e)}")
         return
     with col2:
-        # Compute creatives without debug output
+        # Get unique creatives using the filtered method
+        unique_creatives = market_analyzer.get_unique_creatives()
+        
+        # Get the list of creatives for filtering
         if not market_analyzer.team_df.empty and 'name' in market_analyzer.team_df.columns:
-            # Get unique names without cleaning
-            creatives = sorted(market_analyzer.team_df['name'].dropna().unique())
+            # Get unique names from active shows
+            active_show_ids = market_analyzer.titles_df[market_analyzer.titles_df['active'] == True]['id'].tolist()
+            active_team_df = market_analyzer.team_df[market_analyzer.team_df['show_id'].isin(active_show_ids)]
+            creatives = sorted(active_team_df['name'].dropna().unique())
         else:
             creatives = []
             
         # Display metric for unique creatives
-        st.metric("Unique Creatives", str(len(creatives)))
+        st.metric("Unique Creatives", str(unique_creatives))
         selected_creatives = st.multiselect(
             "Filter Creatives", 
             creatives,
