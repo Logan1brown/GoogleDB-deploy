@@ -359,7 +359,7 @@ with tabs[TAB_REVIEW]:
             for role_id in member['role_ids']:
                 st.write(f"- {format_lookup('roles')(role_id)}")
     
-    # Submit button
+    # Submit button - only shown in Review tab
     if st.button("Submit Show", type="primary"):
         try:
             # Save show to database
@@ -386,3 +386,5 @@ with tabs[TAB_REVIEW]:
             st.rerun()
         except Exception as e:
             st.error(f"Error saving show: {str(e)}")
+    
+
