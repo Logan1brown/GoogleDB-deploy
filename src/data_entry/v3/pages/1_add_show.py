@@ -359,8 +359,8 @@ with tabs[TAB_REVIEW]:
             for role_id in member['role_ids']:
                 st.write(f"- {format_lookup('roles')(role_id)}")
     
-    # Submit button
-    if st.button("Submit Show", type="primary"):
+    # Submit button - only show in Review tab
+    if st.session_state.active_tab == TAB_REVIEW and st.button("Submit Show", type="primary"):
         try:
             # Save show to database
             save_show(st.session_state.show_data)
