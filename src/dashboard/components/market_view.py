@@ -18,7 +18,6 @@ import logging
 import time
 from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.utils.style_config import COLORS
-from src.config.supabase_client import get_client
 
 logger = logging.getLogger(__name__)
 
@@ -126,17 +125,9 @@ def render_market_snapshot(market_analyzer):
         # Get unique creatives using the filtered method
         unique_creatives = market_analyzer.get_unique_creatives()
         
-        # Get the list of creatives for filtering
+        # Get the list of creatives for filtering - use the same filtered team_df
         if not market_analyzer.team_df.empty and 'name' in market_analyzer.team_df.columns:
-            # Get active shows directly from Supabase
-            supabase = get_client(use_service_key=True)
-            shows_data = supabase.table('shows').select('id').eq('active', True).execute()
-            if hasattr(shows_data, 'data') and shows_data.data:
-                active_show_ids = [show['id'] for show in shows_data.data]
-                active_team_df = market_analyzer.team_df[market_analyzer.team_df['show_id'].isin(active_show_ids)]
-                creatives = sorted(active_team_df['name'].dropna().unique())
-            else:
-                creatives = []
+            creatives = sorted(market_analyzer.team_df['name'].dropna().unique())
         else:
             creatives = []
             
