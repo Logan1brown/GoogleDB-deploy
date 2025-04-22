@@ -49,8 +49,15 @@ class UnifiedAnalyzer:
                 } for rt in role_types}
                 
                 # Get content data and filter to active shows only
-                self.details_df = self.shows_analyzer.fetch_content_data()
-                self.details_df = self.details_df[self.details_df['active'] == True]
+                try:
+                    self.details_df = self.shows_analyzer.fetch_content_data()
+                    if 'active' not in self.details_df.columns:
+                        logger.error("'active' column missing from content data")
+                        raise ValueError("Content data missing required 'active' column")
+                    self.details_df = self.details_df[self.details_df['active'] == True]
+                except Exception as e:
+                    logger.error(f"Error fetching or filtering content data: {str(e)}")
+                    raise
 
                 
                 # Transform team data with role names

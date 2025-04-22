@@ -223,7 +223,7 @@ class ShowsAnalyzer:
             return details_df
         except Exception as e:
             logger.error(f"Error fetching content data: {str(e)}")
-            return pd.DataFrame()
+            raise  # Re-raise the error so UnifiedAnalyzer can handle it properly
     
     def fetch_studio_data(self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Internal implementation of fetch_studio_data."""
