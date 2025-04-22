@@ -193,9 +193,15 @@ class ShowsAnalyzer:
             start = 0
             page_size = 1000
             while True:
+                # Join show_team with shows to get title
                 page = supabase.table(self.VIEWS['team']).select(
-                    'title,name,role_type_id'
+                    'name,role_type_id,shows(title)'
                 ).range(start, start + page_size - 1).execute()
+                
+                # Extract title from the nested shows object
+                for row in page.data:
+                    row['title'] = row['shows']['title']
+                    del row['shows']
                 if not page.data:
                     break
                 all_team_rows.extend(page.data)
