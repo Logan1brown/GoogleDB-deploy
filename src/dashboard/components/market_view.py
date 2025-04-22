@@ -38,13 +38,6 @@ def get_market_insights(_market_analyzer):
     # Get network data directly from network_df
     network_df = _market_analyzer.network_df.copy()
     
-    # Show team data stats
-    with st.expander("Debug: Team Data Stats"):
-        st.write("Team Data Stats:")
-        st.write(f"- Total rows: {len(_market_analyzer.team_df)}")
-        st.write(f"- Unique names: {_market_analyzer.get_unique_creatives()}")
-        st.write(f"- Null names: {_market_analyzer.team_df['name'].isna().sum()}")
-        st.write(f"- Duplicate names: {len(_market_analyzer.team_df) - _market_analyzer.team_df['name'].nunique()}")
     
     total_creatives = _market_analyzer.get_unique_creatives() if hasattr(_market_analyzer, 'get_unique_creatives') else 0
     if hasattr(_market_analyzer, 'titles_df') and 'title' in _market_analyzer.titles_df.columns:
