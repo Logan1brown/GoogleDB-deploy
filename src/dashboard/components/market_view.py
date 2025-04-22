@@ -116,16 +116,8 @@ def render_market_snapshot(market_analyzer):
     with col2:
         # Compute creatives without debug output
         if not market_analyzer.team_df.empty and 'name' in market_analyzer.team_df.columns:
-            # Clean and dedupe names
-            unique_members = set()
-            for name in market_analyzer.team_df['name'].dropna():
-                # Remove role prefixes like 'ep)', 'dir)', etc
-                cleaned = name.strip()
-                if ')' in cleaned:
-                    cleaned = cleaned.split(')', 1)[1].strip()
-                if cleaned:  # Only add non-empty names
-                    unique_members.add(cleaned)
-            creatives = sorted(unique_members)
+            # Get unique names without cleaning
+            creatives = sorted(market_analyzer.team_df['name'].dropna().unique())
         else:
             creatives = []
             

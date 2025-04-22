@@ -56,11 +56,9 @@ class MarketAnalyzer:
                 if len(self.network_df) == 0:
                     raise ValueError("No network data available from Supabase")
             
-            # Filter for active shows and team members only
+            # Filter for active shows only
             if 'active' in self.titles_df.columns:
                 self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
-            if 'active' in self.team_df.columns:
-                self.team_df = self.team_df[self.team_df['active'] == True].copy()
         except Exception as e:
             logger.error(f"Error initializing MarketAnalyzer: {str(e)}")
             raise
@@ -254,8 +252,8 @@ class MarketAnalyzer:
         
         # Calculate total creatives if team data is available
         total_creatives = 0
-        if hasattr(self, 'team_df') and not self.team_df.empty and 'search_name' in self.team_df.columns:
-            total_creatives = self.team_df['search_name'].nunique()
+        if hasattr(self, 'team_df') and not self.team_df.empty and 'name' in self.team_df.columns:
+            total_creatives = self.team_df['name'].nunique()
 
         # Initialize tracking variables for top networks and scores
         top_success_network = None
