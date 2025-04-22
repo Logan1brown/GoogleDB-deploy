@@ -22,6 +22,7 @@ import logging
 import streamlit as st
 from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
 from src.data_processing.analyze_shows import ShowsAnalyzer
+from src.external.tmdb.tmdb_models import ShowStatus
 
 logger = logging.getLogger(__name__)
 
@@ -358,7 +359,7 @@ class UnifiedAnalyzer:
                 title_scores.append({
                     'title': show['title'],
                     'success_score': score,
-                    'has_reliable_status': show['tmdb_status'] in self.success_analyzer.ShowStatus.RELIABLE
+                    'has_reliable_status': show['tmdb_status'] in ShowStatus.RELIABLE
                 })
             
             network_metrics[network] = {
