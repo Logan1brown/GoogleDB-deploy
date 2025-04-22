@@ -193,7 +193,9 @@ class ShowsAnalyzer:
             start = 0
             page_size = 1000
             while True:
-                page = supabase.table(self.VIEWS['team']).select('*').range(start, start + page_size - 1).execute()
+                page = supabase.table(self.VIEWS['team']).select(
+                    'title,name,role_type_id'
+                ).range(start, start + page_size - 1).execute()
                 if not page.data:
                     break
                 all_team_rows.extend(page.data)
@@ -203,17 +205,23 @@ class ShowsAnalyzer:
             team_df = pd.DataFrame(all_team_rows)
             logger.info(f"Fetched {len(team_df)} team members")
             
-            # Validate required columns
-            required_cols = [
+            # Validate required columns for details_df
+            required_details_cols = [
                 'source_type_name', 'genre_name', 'network_name', 'title',
                 'episode_count', 'order_type_name'
             ]
-            missing_cols = [col for col in required_cols if col not in details_df.columns]
-            if missing_cols:
-                raise ValueError(f"Missing required columns in details_df: {missing_cols}")
+            missing_details_cols = [col for col in required_details_cols if col not in details_df.columns]
+            if missing_details_cols:
+                raise ValueError(f"Missing required columns in details_df: {missing_details_cols}")
             
-            # Merge details with team data
+            # Validate required columns for team_df
+            required_team_cols = ['title', 'name', 'role_type_id']
             if len(team_df) > 0:
+                missing_team_cols = [col for col in required_team_cols if col not in team_df.columns]
+                if missing_team_cols:
+                    raise ValueError(f"Missing required columns in team_df: {missing_team_cols}")
+                
+                # Merge details with team data
                 details_df['team'] = details_df['title'].map(team_df.groupby('title').apply(
                     lambda x: x[['name', 'role_type_id']].to_dict('records')
                 ))
