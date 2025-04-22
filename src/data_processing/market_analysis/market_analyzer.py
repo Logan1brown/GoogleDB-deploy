@@ -120,7 +120,15 @@ class MarketAnalyzer:
         df = self.titles_df[['network_name', 'success_score']].copy()
         return df.groupby('network_name')['success_score'].mean().sort_values(ascending=False)
     
-
+    def get_unique_creatives(self) -> int:
+        """Get number of unique creatives.
+        
+        Returns:
+            Number of unique creatives
+        """
+        if hasattr(self, 'team_df') and not self.team_df.empty and 'name' in self.team_df.columns:
+            return self.team_df['name'].dropna().nunique()
+        return 0
     
     def generate_market_insights(self, df: pd.DataFrame = None) -> Dict[str, Any]:
         """
@@ -167,6 +175,7 @@ class MarketAnalyzer:
                     # Split by comma and check each part
                     return any(part.strip().lower() == 'vertically integrated' for part in cat.split(','))
                 return False
+
             mask = studio_list_df['category'].apply(is_vertically_integrated_cat)
             vertically_integrated_studios = set(
                 studio_list_df.loc[mask, 'studio'].str.lower()
@@ -193,12 +202,7 @@ class MarketAnalyzer:
             import traceback
             success_metrics = None
         if not success_metrics or 'titles' not in success_metrics:
-            return {
-                'vertical_integration': vertical_integration,
-                'avg_success_score': 0,
-                'top_networks': [],
-                'high_success_networks': 0
-            }
+            return {'vertical_integration': vertical_integration, 'avg_success_score': 0, 'top_networks': [], 'high_success_networks': 0}
             
         # Calculate overall average success score
         total_score = 0
@@ -253,7 +257,7 @@ class MarketAnalyzer:
         # Calculate total creatives if team data is available
         total_creatives = 0
         if hasattr(self, 'team_df') and not self.team_df.empty and 'name' in self.team_df.columns:
-            total_creatives = self.team_df['name'].nunique()
+            total_creatives = self.team_df['name'].dropna().nunique()
 
         # Initialize tracking variables for top networks and scores
         top_success_network = None
@@ -290,18 +294,4 @@ class MarketAnalyzer:
             sorted_networks = sorted(network_success.items(), key=lambda x: x[1], reverse=True)
             top_success_network, top_success_score = sorted_networks[0]
 
-        return {
-            'vertical_integration': vertical_integration,
-            'avg_success_score': avg_success_score,
-            'top_networks': top_networks,
-            'high_success_networks': high_success_networks,
-            'top_success_network': top_success_network,
-            'top_success_score': top_success_score,
-            'network_concentration': network_concentration,
-            'top_3_networks': top_3_networks,
-            'network_success': network_success,
-            'total_shows': len(df) if df is not None else 0,
-            'total_networks': df['network_name'].nunique() if df is not None and 'network_name' in df.columns else 0,
-            'total_creatives': total_creatives if 'total_creatives' in locals() else 0,
-            'studio_insights': studio_insights if 'studio_insights' in locals() else {},
-        }
+        return {'vertical_integration': vertical_integration, 'avg_success_score': avg_success_score, 'top_networks': top_networks, 'high_success_networks': high_success_networks, 'top_success_network': top_success_network, 'top_success_score': top_success_score, 'network_concentration': network_concentration, 'top_3_networks': top_3_networks, 'network_success': network_success, 'total_shows': len(df) if df is not None else 0, 'total_networks': df['network_name'].nunique() if df is not None and 'network_name' in df.columns else 0, 'total_creatives': total_creatives if 'total_creatives' in locals() else 0, 'studio_insights': studio_insights if 'studio_insights' in locals() else {}}
