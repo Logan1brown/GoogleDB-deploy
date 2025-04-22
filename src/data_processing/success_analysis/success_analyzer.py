@@ -174,10 +174,25 @@ class SuccessAnalyzer:
             }
         }
         
+    def has_enough_data(self, show: pd.Series) -> bool:
+        """Check if a show has enough data to calculate a meaningful success score.
+        
+        Args:
+            show: Show data as a pandas Series
+            
+        Returns:
+            True if the show has enough data for success calculation
+        """
+        return (
+            show['tmdb_status'] in ShowStatus.RELIABLE and
+            pd.notna(show['tmdb_seasons']) and
+            pd.notna(show['tmdb_avg_eps'])
+        )
+
     def calculate_success(self, show: pd.Series) -> float:
         """Calculate success score for a single show."""
-        # Shows must have reliable status to get a score
-        if show['tmdb_status'] not in ShowStatus.RELIABLE:
+        # Shows must have reliable status and enough data to get a score
+        if not self.has_enough_data(show):
             return 0
             
         score = 0
