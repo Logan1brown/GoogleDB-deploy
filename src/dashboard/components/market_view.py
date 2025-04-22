@@ -141,7 +141,7 @@ def render_market_snapshot(market_analyzer):
     with col3:
 
         st.metric("Networks", f"{initial_insights['total_networks']:,}")
-        networks = sorted(market_analyzer.network_df['network_name'].unique() if 'network_name' in market_analyzer.network_df.columns else market_analyzer.titles_df['network_name'].unique())
+        networks = sorted(market_analyzer.titles_df['network_name'].unique())
         selected_networks = st.multiselect(
             "Filter Networks", 
             networks,
