@@ -22,7 +22,7 @@ import logging
 import streamlit as st
 from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
 from src.data_processing.analyze_shows import ShowsAnalyzer
-from src.external.tmdb.tmdb_models import ShowStatus
+from ..external.tmdb.tmdb_models import ShowStatus
 
 logger = logging.getLogger(__name__)
 
