@@ -345,7 +345,7 @@ def render_market_snapshot(market_analyzer):
         st.metric(
             "Top Network",
             f"{insights['top_success_network']}",
-            help=f"Highest average success score: {insights['top_success_score']:.0f if insights['top_success_score'] > 0 else 'N/A'} out of 100"
+            help=f"Highest average success score: {insights['top_success_score']:.0f} out of 100"
         )
     with col2:
         st.metric(

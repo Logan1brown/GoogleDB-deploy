@@ -55,12 +55,10 @@ def render_acquisition_view(unified_analyzer: UnifiedAnalyzer, source_type: str,
         
         for network, metrics in network_metrics.items():
             with st.expander(f"{network} ({metrics['title_count']} titles)"):
-                score_display = "N/A" if metrics['success_score'] == 0 and any(not unified_analyzer.success_analyzer.has_enough_data(title) for title in metrics['titles']) else f"{metrics['success_score']:.0f} pts"
-                st.markdown(f"**Network Average Success: {score_display}**")
+                st.markdown(f"**Network Average Success: {metrics['success_score']:.0f} pts**")
                 st.markdown("**Titles:**")
                 for title_info in metrics['titles']:
-                    score_display = "N/A" if title_info['success_score'] == 0 and not unified_analyzer.success_analyzer.has_enough_data(title_info) else f"{title_info['success_score']:.0f} pts"
-                    st.markdown(f"- {title_info['title']} ({score_display})")
+                    st.markdown(f"- {title_info['title']} ({title_info['success_score']:.0f} pts)")
     
     with tabs[1]:  # Market Insights
         # Get market metrics
