@@ -550,6 +550,18 @@ class UnifiedAnalyzer:
             # Only suggest teams with multiple networks
             if len(network_titles) >= 2:
                 networks = []
+                for network, titles in network_titles.items():
+                    network_success = sum(s['success_score'] for s in titles) / len(titles)
+                    networks.append({
+                        'name': network,
+                        'title_count': len(titles),
+                        'titles': sorted(titles, key=lambda x: x['success_score'], reverse=True),
+                        'success_score': network_success
+                    })
+                
+                # Calculate overall success for this team
+                overall_success = sum(title_scores[title] for title in team_titles) / len(team_titles) if team_titles else 0
+                
                 suggestions.append({
                     'creator': ' & '.join(creator for creator, _ in team),
                     'overall_success': overall_success,
