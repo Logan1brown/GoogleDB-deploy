@@ -195,6 +195,20 @@ def admin_show():
         elif state.current_view == "TMDB Matches":
             render_tmdb_matches()
         
+        # Navigation
+        state.current_view = st.radio(
+            "Select Function",
+            ["User Management", "Announcements", "TMDB Matches"]
+        )
+        st.divider()
+        
+        if state.current_view == "User Management":
+            render_user_management()
+        elif state.current_view == "Announcements":
+            render_announcements()
+        elif state.current_view == "TMDB Matches":
+            render_tmdb_matches()
+        
     except Exception as e:
         st.error(f"Admin dashboard error: {str(e)}")
 
