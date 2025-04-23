@@ -49,9 +49,9 @@ class AdminState:
     match_filter: MatchStatus = MatchStatus.PENDING  # Filter view by status
     show_low_confidence: bool = False  # Whether to show low confidence matches
     
-    # TMDB API metrics
-    api_calls_total: int = 0
-    api_calls_remaining: int = 40  # TMDB rate limit is 40 calls per 10s
-    api_window_reset_time: float = 0.0
-    cache_hits: int = 0
-    cache_misses: int = 0
+    # TMDB API Metrics
+    api_calls_total: int = field(default=0)  # Total API calls made
+    api_calls_remaining: int = field(default=40)  # Remaining calls in current window
+    api_window_reset_time: float = field(default=0.0)  # When rate limit window resets
+    cache_hits: int = field(default=0)  # Number of cache hits
+    cache_misses: int = field(default=0)  # Number of cache misses
