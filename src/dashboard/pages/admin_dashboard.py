@@ -12,7 +12,6 @@ import pandas as pd
 from datetime import datetime
 from typing import List, Dict, Any
 from pathlib import Path
-from thefuzz import fuzz
 from ..services.tmdb.tmdb_client import TMDBClient
 from dataclasses import dataclass
 from typing import Dict, List, Optional
