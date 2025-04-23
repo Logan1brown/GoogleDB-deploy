@@ -92,8 +92,8 @@ def get_admin_state() -> AdminState:
         AdminState instance
     """
     if 'admin_state' not in st.session_state:
-        st.session_state.admin_state = AdminState()
-    return st.session_state.admin_state
+        st.session_state.admin_state = asdict(AdminState())
+    return AdminState(**st.session_state.admin_state)
 
 def update_admin_state(admin_state: AdminState) -> None:
     """Update admin dashboard state.
@@ -101,4 +101,4 @@ def update_admin_state(admin_state: AdminState) -> None:
     Args:
         admin_state: New admin state
     """
-    st.session_state.admin_state = admin_state
+    st.session_state.admin_state = asdict(admin_state)
