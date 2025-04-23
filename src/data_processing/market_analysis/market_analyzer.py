@@ -264,21 +264,46 @@ class MarketAnalyzer:
         top_success_score = 0
         high_success_networks = 0
         top_networks = []
-
-        # Track top networks
+        
+        # Get total number of shows for volume weighting
+        total_shows = len(df) if df is not None else 0
+        
+        # Track top networks with combined success and volume score
+        network_combined_scores = {}
         for network, avg_score in network_success.items():
-            if avg_score > top_success_score:
-                top_success_score = avg_score
-                top_success_network = network
-            # Count high success networks
+            # Get show count for this network
+            network_shows = df[df['network_name'] == network]
+            show_count = len(network_shows)
+            
+            # Calculate volume weight (show_count / total_shows)
+            volume_weight = show_count / total_shows if total_shows > 0 else 0
+            
+            # Combined score = success_score * (1 + volume_weight)
+            # This way success is still primary but volume provides a boost
+            combined_score = avg_score * (1 + volume_weight)
+            network_combined_scores[network] = {
+                'combined_score': combined_score,
+                'success_score': avg_score,
+                'show_count': show_count,
+                'volume_weight': volume_weight
+            }
+            
+            # Count high success networks (based on raw success score)
             if avg_score > 80:
                 high_success_networks += 1
+            
             # Add to top networks list
             top_networks.append({
                 'network': network,
                 'success_score': avg_score,
-                'show_count': None  # If needed, can be refined
+                'show_count': show_count
             })
+        
+        # Find network with highest combined score
+        if network_combined_scores:
+            top_network = max(network_combined_scores.items(), key=lambda x: x[1]['combined_score'])
+            top_success_network = top_network[0]
+            top_success_score = top_network[1]['success_score']  # Keep showing raw success score in UI
         
         # Calculate network concentration (percentage of shows from the largest network)
         network_concentration = 0
