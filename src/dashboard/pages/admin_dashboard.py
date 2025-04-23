@@ -26,6 +26,7 @@ from supabase import create_client
 @dataclass
 class AdminState:
     """State for admin dashboard"""
+    current_view: str = "User Management"  # Current selected view
     create_user_email: str = ""
     create_user_password: str = ""
     create_user_confirm: str = ""
@@ -180,96 +181,122 @@ def admin_show():
         client = get_admin_client()
         client.auth.admin.list_users()
         
-        # Get all users
-        users = get_users()
+        # Navigation
+        state.current_view = st.radio(
+            "Select Function",
+            ["User Management", "Announcements", "TMDB Matches"]
+        )
+        st.divider()
         
-        # Create a table to display users
-        st.markdown("### User Management")
+        if state.current_view == "User Management":
+            render_user_management()
+        elif state.current_view == "Announcements":
+            render_announcements()
+        elif state.current_view == "TMDB Matches":
+            render_tmdb_matches()
         
-        # Display each user in an expander
-        for user in users:
-            # Show revoked status in title if applicable
-            title = f"{user['email']} - {user['role']}"
-            
-            with st.expander(title):
-                # Show user details
-                st.markdown(f"**Current Role:** {user['role']}")
-                st.markdown(f"**Last Login:** {user['last_sign_in'] or 'Never'}")
-                
-                # Only show role management if it's not the current user
-                if user['id'] != st.session_state.user.id:
-                    col1, col2 = st.columns([3, 1])
-                    
-                    with col1:
-                        new_role = st.selectbox(
-                            "New Role",
-                            ["admin", "editor", "viewer", "delete"],
-                            key=f"role_{user['id']}"
-                        )
-                        
-                        reason = st.text_input(
-                            "Reason for change",
-                            key=f"reason_{user['id']}",
-                            placeholder="Required for role changes"
-                        )
-                        
-                    with col2:
-                        if st.button("Update", key=f"update_{user['id']}"):
-                            if not reason:
-                                st.error("Please provide a reason for the role change")
-                            elif new_role == 'delete' and not reason:
-                                st.error("Please provide a reason for deleting user")
-                            elif update_user_role(user['id'], new_role, reason):
-                                st.success("Role updated successfully")
-                                st.rerun()
-                            else:
-                                st.error("Failed to update role")
-    
-        # User creation form
-        st.subheader("Create New User")
-        with st.form("create_user", clear_on_submit=True):
-            # Use form_ prefix for form keys to avoid conflicts
-            email = st.text_input("Email", key="form_email")
-            password = st.text_input("Password", type="password", key="form_password")
-            confirm_password = st.text_input("Confirm Password", type="password", key="form_confirm")
-            role = st.selectbox("Role", ["viewer", "editor", "admin"], key="form_role")
-            submitted = st.form_submit_button("Create User")
-            
-            if submitted:
-                if not email or not password:
-                    st.error("Please enter both email and password")
-                elif password != confirm_password:
-                    st.error("Passwords do not match")
-                elif len(password) < 8:
-                    st.error("Password must be at least 8 characters")
-                else:
-                    try:
-                        # Create user with password
-                        client = get_admin_client()
-                        response = client.auth.admin.create_user({
-                            'email': email,
-                            'password': password,
-                            'email_confirm': True  # Skip email verification
-                        })
-                        user = response.user
-                        
-                        # Set role in user_roles table
-                        client.table('user_roles').insert({
-                            'id': user.id,
-                            'role': role,
-                            'created_by': st.session_state.user.id,
-                            'updated_by': st.session_state.user.id
-                        }).execute()
-                        
-                        st.success(f"Successfully created user {email} with role {role}")
-                        # Form will clear automatically due to clear_on_submit=True
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Failed to create user: {str(e)}")
-        
-
     except Exception as e:
         st.error(f"Admin dashboard error: {str(e)}")
+
+
+def render_user_management():
+    """Render the user management section."""
+    # Get all users
+    users = get_users()
+    
+    # User creation form first
+    st.subheader("Create New User")
+    with st.form("create_user", clear_on_submit=True):
+        # Use form_ prefix for form keys to avoid conflicts
+        email = st.text_input("Email", key="form_email")
+        password = st.text_input("Password", type="password", key="form_password")
+        confirm_password = st.text_input("Confirm Password", type="password", key="form_confirm")
+        role = st.selectbox("Role", ["viewer", "editor", "admin"], key="form_role")
+        submitted = st.form_submit_button("Create User")
+        
+        if submitted:
+            if not email or not password:
+                st.error("Please enter both email and password")
+            elif password != confirm_password:
+                st.error("Passwords do not match")
+            elif len(password) < 8:
+                st.error("Password must be at least 8 characters")
+            else:
+                try:
+                    # Create user with password
+                    client = get_admin_client()
+                    response = client.auth.admin.create_user({
+                        'email': email,
+                        'password': password,
+                        'email_confirm': True  # Skip email verification
+                    })
+                    user = response.user
+                    
+                    # Set role in user_roles table
+                    client.table('user_roles').insert({
+                        'id': user.id,
+                        'role': role,
+                        'created_by': st.session_state.user.id,
+                        'updated_by': st.session_state.user.id
+                    }).execute()
+                    
+                    st.success(f"Successfully created user {email} with role {role}")
+                    # Form will clear automatically due to clear_on_submit=True
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to create user: {str(e)}")
+    
+    # Manage existing users
+    st.subheader("Manage Users")
+    for user in users:
+        # Show revoked status in title if applicable
+        title = f"{user['email']} - {user['role']}"
+        
+        with st.expander(title):
+            # Show user details
+            st.markdown(f"**Current Role:** {user['role']}")
+            st.markdown(f"**Last Login:** {user['last_sign_in'] or 'Never'}")
+            
+            # Only show role management if it's not the current user
+            if user['id'] != st.session_state.user.id:
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    new_role = st.selectbox(
+                        "New Role",
+                        ["admin", "editor", "viewer", "delete"],
+                        key=f"role_{user['id']}"
+                    )
+                    
+                    reason = st.text_input(
+                        "Reason for change",
+                        key=f"reason_{user['id']}",
+                        placeholder="Required for role changes"
+                    )
+                    
+                with col2:
+                    if st.button("Update", key=f"update_{user['id']}"):
+                        if not reason:
+                            st.error("Please provide a reason for the role change")
+                        elif new_role == 'delete' and not reason:
+                            st.error("Please provide a reason for deleting user")
+                        elif update_user_role(user['id'], new_role, reason):
+                            st.success("Role updated successfully")
+                            st.rerun()
+                        else:
+                            st.error("Failed to update role")
+
+
+def render_announcements():
+    """Render the announcements section."""
+    st.subheader("Announcements")
+    st.info("Coming soon: Review and manage announcements from Deadline and other sources")
+
+
+def render_tmdb_matches():
+    """Render the TMDB matches section."""
+    st.subheader("TMDB Matches")
+    st.info("Coming soon: Review and validate TMDB matches for shows")
 
 if __name__ == "__main__":
     admin_show()
