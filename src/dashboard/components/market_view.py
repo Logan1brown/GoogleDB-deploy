@@ -338,7 +338,7 @@ def render_market_snapshot(market_analyzer):
         st.metric(
             "Top Network",
             f"{insights['top_success_network']}",
-            help=f"Highest average success score: {insights['top_success_score']:.0f} out of 100"
+            help=f"Network with highest combined success score ({insights['top_success_score']:.0f}/100) and show volume. Networks must have at least 3 titles to qualify."
         )
     with col2:
         st.metric(
