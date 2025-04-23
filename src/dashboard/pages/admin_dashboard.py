@@ -308,15 +308,23 @@ def render_tmdb_matches():
                 
                 # Store match attempts
                 for match in matches[:5]:  # Store top 5 matches
-                    # Calculate confidence score
-                    title_match = fuzz.ratio(show['title'].lower(), match.name.lower())
-                    network_match = 0  # TODO: Compare networks
-                    year_match = 0  # TODO: Compare years if available
+                    # Let Streamlit's fuzzy matching handle title similarity
+                    # We'll use selectbox's behavior: exact matches first, then fuzzy
+                    title_match = 100 if show['title'].lower() == match.name.lower() else 60
                     
+                    # Compare years if available
+                    year_match = 0
+                    if show.get('year') and match.first_air_date:
+                        match_year = match.first_air_date.split('-')[0]
+                        if show['year'] == match_year:
+                            year_match = 100
+                        elif abs(int(show['year']) - int(match_year)) <= 1:
+                            year_match = 60  # Off by 1 year
+                    
+                    # Calculate confidence (same weights as Streamlit)
                     confidence = (
-                        title_match * 0.6 +  # Title is 60% of score
-                        network_match * 0.25 +  # Network is 25%
-                        year_match * 0.15  # Year is 15%
+                        title_match * 0.6 +  # Title is 60%
+                        year_match * 0.4  # Year is 40%
                     )
                     
                     # Store match attempt
@@ -326,7 +334,6 @@ def render_tmdb_matches():
                         'confidence_score': confidence,
                         'confidence_level': 'high' if confidence >= 80 else 'medium' if confidence >= 60 else 'low',
                         'title_match_score': title_match,
-                        'network_match_score': network_match,
                         'year_match_score': year_match
                     }).execute()
                 
