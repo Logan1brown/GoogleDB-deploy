@@ -91,7 +91,10 @@ def get_admin_state() -> AdminState:
     Returns:
         AdminState instance
     """
-    if 'admin_state' not in st.session_state:
+    # Create new state if not exists or if missing fields
+    if 'admin_state' not in st.session_state or \
+       not all(hasattr(st.session_state.admin_state, field) \
+               for field in AdminState.__dataclass_fields__):
         st.session_state.admin_state = AdminState()
     return st.session_state.admin_state
 
