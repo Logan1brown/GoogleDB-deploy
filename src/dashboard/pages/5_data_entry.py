@@ -467,17 +467,6 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
     """Render studios tab"""
     st.subheader("Studios")
     
-    # Show success/error messages if any
-    state = get_data_entry_state()
-    if state.form_error:
-        st.error(state.form_error)
-        state.form_error = None
-        update_data_entry_state(state)
-    elif getattr(state, 'studios_success', False):
-        st.success('Studio changes applied successfully')
-        state.studios_success = False
-        update_data_entry_state(state)
-    
     # Select existing studios
     studio_options = [(s['id'], s['name']) for s in lookups.get('studios', [])]
     # Convert studio IDs to tuples for the multiselect
@@ -492,29 +481,6 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
         disabled=readonly,
         on_change=lambda: handle_studio_select(st.session_state.studios_dropdown)
     )
-    
-    # Form 2: Add new studio
-    if not readonly:
-        with st.form("new_studio_form"):
-            col1, col2 = st.columns([3,1])
-            with col1:
-                st.text_input(
-                    "Add New Studio",
-                    key="new_studio_input",
-                    value="",
-                    placeholder="Enter studio name"
-                )
-            with col2:
-                st.write("")
-                st.form_submit_button(
-                    "Add Studio",
-                    on_click=handle_studio_save,
-                    type="primary",
-                    use_container_width=True
-                )
-    
-    # Import at top of file
-    from dashboard.components.list_item import render_list_item
     
     # Show selected and new studios
     if show_form.studios or show_form.new_studios:
@@ -537,7 +503,36 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
                     handle_studio_remove(studio)
     
     # Apply Changes button
-    st.button("Apply Changes", on_click=handle_studios_apply, type="primary", use_container_width=True)
+    state = get_data_entry_state()
+    if not readonly:
+        if st.button(
+            "Apply Changes",
+            type="primary",
+            use_container_width=True,
+            key="apply_studios_changes"
+        ):
+            handle_studios_apply()
+            st.success('Studio changes applied successfully')
+    
+    # Form 2: Add new studio
+    if not readonly:
+        with st.form("new_studio_form"):
+            col1, col2 = st.columns([3,1])
+            with col1:
+                st.text_input(
+                    "Add New Studio",
+                    key="new_studio_input",
+                    value="",
+                    placeholder="Enter studio name"
+                )
+            with col2:
+                st.write("")
+                st.form_submit_button(
+                    "Add Studio",
+                    on_click=handle_studio_save,
+                    type="primary",
+                    use_container_width=True
+                )
 
 
 def handle_team_select(selected):
