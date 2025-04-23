@@ -20,31 +20,8 @@ if src_path not in sys.path:
 
 from src.shared.auth import auth_required, get_user_role, check_role_access
 from src.dashboard.utils.style_config import COLORS, FONTS
+from src.dashboard.state.session import get_admin_state, update_admin_state
 from supabase import create_client
-
-
-@dataclass
-class AdminState:
-    """State for admin dashboard"""
-    current_view: str = "User Management"  # Current selected view
-    create_user_email: str = ""
-    create_user_password: str = ""
-    create_user_confirm: str = ""
-    create_user_role: str = "viewer"
-
-
-def get_admin_state() -> AdminState:
-    """Get the admin state from session state"""
-    state = st.session_state.get("admin_state")
-    if not state:
-        state = AdminState()
-        st.session_state.admin_state = state
-    return state
-
-
-def update_admin_state(state: AdminState):
-    """Update the admin state in session state"""
-    st.session_state.admin_state = state
 
 
 def get_admin_client():
@@ -169,36 +146,6 @@ def invite_user(email: str, role: str) -> bool:
             st.error(f"Failed to invite user: {error_msg}")
         return False
 
-@auth_required(['admin'])
-def admin_show():
-    """Main function for admin dashboard."""
-    try:
-        # Get admin state
-        state = get_admin_state()
-        st.title("Admin Dashboard")
-        
-        # Test admin client access
-        client = get_admin_client()
-        client.auth.admin.list_users()
-        
-        # Navigation
-        state.current_view = st.radio(
-            "Select Function",
-            ["User Management", "Announcements", "TMDB Matches"]
-        )
-        st.divider()
-        
-        # Render selected section
-        if state.current_view == "User Management":
-            render_user_management()
-        elif state.current_view == "Announcements":
-            render_announcements()
-        elif state.current_view == "TMDB Matches":
-            render_tmdb_matches()
-    except Exception as e:
-        st.error(f"Admin dashboard error: {str(e)}")
-
-
 def render_user_management():
     """Render the user management section."""
     # Get all users
@@ -294,9 +241,118 @@ def render_announcements():
 
 
 def render_tmdb_matches():
-    """Render the TMDB matches section."""
-    st.subheader("TMDB Matches")
-    st.info("Coming soon: Review and validate TMDB matches for shows")
+    """Render the TMDB matches section.
+    
+    This section allows admins to:
+    1. Search for shows in TMDB
+    2. Review and approve/reject matches
+    3. Handle batch operations on matches
+    4. Track integration progress
+    """
+    state = get_admin_state()
+    
+    # Search Interface
+    st.subheader("Search TMDB")
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        # Search box with previous query preserved
+        state.tmdb_search_query = st.text_input(
+            "Search Shows",
+            value=state.tmdb_search_query,
+            placeholder="Enter show title..."
+        )
+    with col2:
+        st.write("")
+        st.write("")
+        if st.button("Search", type="primary"):
+            # TODO: Implement search
+            # 1. Search our database for show
+            # 2. Search TMDB API
+            # 3. Calculate match confidence
+            # 4. Update state.tmdb_matches
+            pass
+    
+    # Filters
+    st.subheader("Match Review")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        # Filter by status
+        status_filter = st.selectbox(
+            "Status",
+            [status.value for status in MatchStatus],
+            index=list(MatchStatus).index(state.match_filter)
+        )
+        state.match_filter = MatchStatus(status_filter)
+    
+    with col2:
+        # Toggle low confidence matches
+        state.show_low_confidence = st.checkbox(
+            "Show Low Confidence Matches",
+            value=state.show_low_confidence
+        )
+    
+    with col3:
+        # Batch operations
+        if state.selected_match_ids:
+            st.write(f"{len(state.selected_match_ids)} matches selected")
+            # TODO: Add batch approve/reject buttons
+    
+    # Results table
+    if state.tmdb_matches:
+        # TODO: Implement results table with columns:
+        # - Checkbox for selection
+        # - Our Show Title
+        # - TMDB Title
+        # - Confidence Score
+        # - Status
+        # - Actions (Approve/Reject/View Details)
+        pass
+    else:
+        st.info("Search for shows to see potential matches")
+    
+    # Progress tracking
+    st.subheader("Integration Progress")
+    # TODO: Add metrics:
+    # - Total shows to match
+    # - Shows matched
+    # - Pending reviews
+    # - Match success rate
+    
+    # Save state
+    update_admin_state(state)
+
+
+@auth_required(['admin'])
+def admin_show():
+    """Main function for admin dashboard."""
+    try:
+
+        st.title("Admin Dashboard")
+        
+        # Test admin client access
+        client = get_admin_client()
+        client.auth.admin.list_users()
+        
+        # Get admin state
+        state = get_admin_state()
+        
+        # Update view based on radio selection
+        state.current_view = st.radio(
+            "Select Function",
+            ["User Management", "Announcements", "TMDB Matches"]
+        )
+        update_admin_state(state)
+        st.divider()
+        
+        # Render selected section
+        if state.current_view == "User Management":
+            render_user_management()
+        elif state.current_view == "Announcements":
+            render_announcements()
+        elif state.current_view == "TMDB Matches":
+            render_tmdb_matches()
+    except Exception as e:
+        st.error(f"Admin dashboard error: {str(e)}")
 
 if __name__ == "__main__":
     admin_show()

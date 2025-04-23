@@ -3,12 +3,13 @@ Session state management for the dashboard.
 Provides utilities for managing page-scoped state.
 """
 
-__all__ = ['get_page_state', 'update_page_state', 'get_filter_state', 'update_filter_state', 'get_data_entry_state', 'update_data_entry_state']
+__all__ = ['get_page_state', 'update_page_state', 'get_filter_state', 'update_filter_state', 'get_data_entry_state', 'update_data_entry_state', 'get_admin_state', 'update_admin_state']
 
 import streamlit as st
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, asdict
 from src.dashboard.state.show_state import DataEntryState
+from src.dashboard.state.admin_state import AdminState
 
 @dataclass
 class FilterState:
@@ -83,3 +84,21 @@ def update_data_entry_state(data_entry: DataEntryState) -> None:
     """
     state = get_page_state("data_entry")
     state["data_entry"] = asdict(data_entry)
+
+def get_admin_state() -> AdminState:
+    """Get admin dashboard state.
+    
+    Returns:
+        AdminState instance
+    """
+    if 'admin_state' not in st.session_state:
+        st.session_state.admin_state = AdminState()
+    return st.session_state.admin_state
+
+def update_admin_state(admin_state: AdminState) -> None:
+    """Update admin dashboard state.
+    
+    Args:
+        admin_state: New admin state
+    """
+    st.session_state.admin_state = admin_state
