@@ -315,6 +315,9 @@ def handle_studio_remove(studio_name: str):
     
     # Update state
     update_data_entry_state(state)
+    
+    # Show success message
+    st.success('Studio removed successfully')
 
 def handle_studios_apply():
     """Handle applying studio changes"""
@@ -327,6 +330,9 @@ def handle_studios_apply():
     # Nothing to do here - the studios are already saved
     # when you click Add Selected Studios or Add Studio
     update_data_entry_state(state)
+    
+    # Show success message
+    st.success('Studio changes applied successfully')
 
 def render_select(label: str, options: List[Tuple], value_id: Optional[int], key: str, required: bool = False, readonly: bool = False):
     """Render a single-select dropdown"""
@@ -577,6 +583,9 @@ def handle_team_apply():
     """Handle applying team changes"""
     state = get_data_entry_state()
     update_data_entry_state(state)
+    
+    # Show success message
+    st.success('Team member changes applied successfully')
 
 def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False):
     """Render team members tab"""
