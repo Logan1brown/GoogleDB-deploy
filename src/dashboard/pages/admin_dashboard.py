@@ -274,7 +274,7 @@ def render_tmdb_matches():
             'id',
             'title',
             'year',
-            'networks(name)'
+            'network_list(name)'
         ) \
         .is_('tmdb_id', 'null') \
         .execute()
@@ -284,7 +284,7 @@ def render_tmdb_matches():
         'id': show['id'],
         'title': show['title'],
         'year': show['year'],
-        'network': show['networks']['name'] if show.get('networks') else None
+        'network': show['network_list']['name'] if show.get('network_list') else None
     } for show in response.data]
     
     if not unmatched_shows:
