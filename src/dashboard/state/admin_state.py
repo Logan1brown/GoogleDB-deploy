@@ -48,3 +48,10 @@ class AdminState:
     selected_match_ids: List[int] = field(default_factory=list)  # For batch operations
     match_filter: MatchStatus = MatchStatus.PENDING  # Filter view by status
     show_low_confidence: bool = False  # Whether to show low confidence matches
+    
+    # TMDB API metrics
+    api_calls_total: int = 0
+    api_calls_remaining: int = 40  # TMDB rate limit is 40 calls per 10s
+    api_window_reset_time: float = 0.0
+    cache_hits: int = 0
+    cache_misses: int = 0
