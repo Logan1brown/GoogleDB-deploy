@@ -265,6 +265,37 @@ def render_tmdb_matches():
         reset_in = max(0, state.api_window_reset_time - time.time())
         st.metric("Rate Limit", f"{state.api_calls_remaining}/40", f"Reset in {reset_in:.1f}s")
     
+    # Unmatched Shows
+    st.subheader("Unmatched Shows")
+    
+    # Get unmatched shows from database
+    supabase = get_supabase_client()
+    response = supabase.table('shows').select('id', 'title', 'network', 'year').is_('tmdb_id', 'null').execute()
+    unmatched_shows = response.data
+    
+    if not unmatched_shows:
+        st.info("No unmatched shows found!")
+        return
+        
+    # Display shows in a table
+    shows_df = pd.DataFrame(unmatched_shows)
+    shows_df = shows_df.rename(columns={'id': 'ID', 'title': 'Title', 'network': 'Network', 'year': 'Year'})
+    
+    # Add action buttons
+    shows_df['Actions'] = None  # Placeholder for buttons
+    st.dataframe(
+        shows_df,
+        column_config={
+            'Actions': st.column_config.ButtonColumn(
+                'Actions',
+                help='Find TMDB matches for this show',
+                default='Find Matches',
+                width='medium'
+            )
+        },
+        hide_index=True
+    )
+    
     # Search Interface
     st.subheader("Search TMDB")
     col1, col2 = st.columns([3, 1])
