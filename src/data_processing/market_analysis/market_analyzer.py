@@ -273,6 +273,9 @@ class MarketAnalyzer:
         show_count_25th = network_show_counts.quantile(0.25)
         avg_shows = network_show_counts.mean()
         
+        logger.info(f"Network show counts: {network_show_counts}")
+        logger.info(f"25th percentile: {show_count_25th}, Average shows: {avg_shows}")
+        
         # Track top networks with combined success and volume score
         network_combined_scores = {}
         for network, avg_score in network_success.items():
@@ -289,6 +292,12 @@ class MarketAnalyzer:
             
             # Combined score uses volume multiplier
             combined_score = avg_score * volume_multiplier
+            
+            logger.info(f"Network: {network}")
+            logger.info(f"  Shows: {show_count} (25th: {show_count_25th}, Avg: {avg_shows:.1f})")
+            logger.info(f"  Success: {avg_score:.1f}, Multiplier: {volume_multiplier:.2f}")
+            logger.info(f"  Combined: {combined_score:.1f}")
+            
             network_combined_scores[network] = {
                 'combined_score': combined_score,
                 'success_score': avg_score,
@@ -322,9 +331,9 @@ class MarketAnalyzer:
                 network_concentration = network_counts.iloc[0] * 100
             top_3_networks = network_counts.head(3).index.tolist()
 
-        # If no top_success_network was found in the loop, pick the network with the highest score if any exist
-        if (top_success_network == 'None' or not top_success_network) and network_success:
-            sorted_networks = sorted(network_success.items(), key=lambda x: x[1], reverse=True)
-            top_success_network, top_success_score = sorted_networks[0]
+        # If no network was found at all, set defaults
+        if not network_combined_scores:
+            top_success_network = 'None'
+            top_success_score = 0
 
         return {'vertical_integration': vertical_integration, 'avg_success_score': avg_success_score, 'top_networks': top_networks, 'high_success_networks': high_success_networks, 'top_success_network': top_success_network, 'top_success_score': top_success_score, 'network_concentration': network_concentration, 'top_3_networks': top_3_networks, 'network_success': network_success, 'total_shows': len(df) if df is not None else 0, 'total_networks': df['network_name'].nunique() if df is not None and 'network_name' in df.columns else 0, 'total_creatives': total_creatives if 'total_creatives' in locals() else 0, 'studio_insights': studio_insights if 'studio_insights' in locals() else {}}
