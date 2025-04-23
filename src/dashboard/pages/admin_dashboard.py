@@ -314,8 +314,9 @@ def render_tmdb_matches():
                     # Compare years if available
                     year_match = 0
                     if show.get('year') and match.first_air_date:
-                        match_year = match.first_air_date.split('-')[0]
-                        if show['year'] == match_year:
+                        # Convert datetime.date to string format YYYY-MM-DD first
+                        match_year = match.first_air_date.strftime('%Y-%m-%d').split('-')[0]
+                        if str(show['year']) == match_year:
                             year_match = 100
                         elif abs(int(show['year']) - int(match_year)) <= 1:
                             year_match = 60  # Off by 1 year
