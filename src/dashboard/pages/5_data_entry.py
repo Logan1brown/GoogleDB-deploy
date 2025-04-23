@@ -288,8 +288,7 @@ def handle_studio_save():
     show_form.new_studios.append(new_studio)
     
     # Clear input
-    if 'new_studio_input' in st.session_state:
-        del st.session_state.new_studio_input
+    st.session_state.new_studio_input = ""
     
     update_data_entry_state(state)
 
