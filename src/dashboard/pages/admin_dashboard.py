@@ -287,24 +287,20 @@ def render_tmdb_matches():
         st.info("No unmatched shows found!")
         return
         
-    # Display shows in a table
-    shows_df = pd.DataFrame(unmatched_shows)
-    shows_df = shows_df.rename(columns={'id': 'ID', 'title': 'Title', 'network': 'Network', 'year': 'Year'})
+    # Display shows in a table with buttons
+    st.write("Click 'Find Matches' to search TMDB for potential matches:")
     
-    # Add action buttons
-    shows_df['Actions'] = None  # Placeholder for buttons
-    st.dataframe(
-        shows_df,
-        column_config={
-            'Actions': st.column_config.ButtonColumn(
-                'Actions',
-                help='Find TMDB matches for this show',
-                default='Find Matches',
-                width='medium'
-            )
-        },
-        hide_index=True
-    )
+    for show in unmatched_shows:
+        col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+        with col1:
+            st.write(show['title'])
+        with col2:
+            st.write(show.get('network') or 'No network')
+        with col3:
+            st.write(show.get('year') or 'No year')
+        with col4:
+            if st.button('Find Matches', key=f"find_matches_{show['id']}"):
+                st.session_state.selected_show = show
     
     # Search Interface
     st.subheader("Search TMDB")
