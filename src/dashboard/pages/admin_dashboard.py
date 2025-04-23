@@ -301,12 +301,23 @@ def render_tmdb_matches():
             st.write(show.get('year') or 'No year')
         with col4:
             if st.button('Find Matches', key=f"find_matches_{show['id']}"):
-                # Get TMDB matches
-                client = TMDBClient()
-                matches = client.search_tv_show(show['title'])
-                
-                # Store match attempts
-                for match in matches[:5]:  # Store top 5 matches
+                try:
+                    # Get TMDB matches
+                    client = TMDBClient()
+                    st.write("Searching TMDB for:", show['title'])
+                    matches = client.search_tv_show(show['title'])
+                    st.write(f"Found {len(matches) if matches else 0} matches for {show['title']}")
+                    
+                    if not matches:
+                        st.error("No matches found")
+                        continue
+                    
+                    # Store match attempts
+                    for match in matches[:5]:  # Store top 5 matches
+                        st.write(f"Processing match: {match.name} ({match.first_air_date})")
+                except Exception as e:
+                    st.error(f"Error searching TMDB: {str(e)}")
+                    continue
                     # Let Streamlit's fuzzy matching handle title similarity
                     # We'll use selectbox's behavior: exact matches first, then fuzzy
                     title_match = 100 if show['title'].lower() == match.name.lower() else 60

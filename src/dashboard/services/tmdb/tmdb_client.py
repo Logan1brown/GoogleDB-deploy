@@ -1,7 +1,9 @@
 """TMDB client with retries and error handling."""
 import time
+import requests
 from functools import wraps
 from typing import Any, Dict, List, Optional, Union
+from urllib.parse import quote
 from .tmdb_cache import TMDBCache, cache_response
 from .tmdb_logger import log_api_call
 from .tmdb_models import TVShow, TVShowDetails, Genre, TVShowSeason
@@ -86,8 +88,14 @@ class TMDBClient:
         if api_key:
             self.api_key = api_key
         else:
-            config = APIConfig.from_env()
-            self.api_key = config.tmdb_api_key
+            # Try Streamlit secrets first
+            try:
+                import streamlit as st
+                self.api_key = st.secrets['TMDB_API_KEY']
+            except (ImportError, KeyError):
+                # Fall back to environment variable
+                config = APIConfig.from_env()
+                self.api_key = config.tmdb_api_key
             
         self.headers = {
             'Accept': 'application/json',
