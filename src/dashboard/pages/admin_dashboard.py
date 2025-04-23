@@ -20,11 +20,10 @@ if src_path not in sys.path:
     sys.path.append(src_path)
 
 from src.shared.auth import auth_required, get_user_role, check_role_access
-from src.dashboard.utils.style_config import COLORS, FONTS
 from src.dashboard.state.session import get_admin_state, update_admin_state
 from src.dashboard.state.admin_state import MatchStatus
+from src.dashboard.services.supabase import get_supabase_client
 from supabase import create_client
-
 
 def get_admin_client():
     """Get Supabase client with service role for admin operations."""
