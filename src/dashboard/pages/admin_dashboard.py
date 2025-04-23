@@ -278,10 +278,12 @@ def render_tmdb_matches():
     col1, col2, col3 = st.columns(3)
     with col1:
         # Filter by status
+        status_values = [status.value for status in MatchStatus]
+        current_index = status_values.index(state.match_filter.value)
         status_filter = st.selectbox(
             "Status",
-            [status.value for status in MatchStatus],
-            index=list(MatchStatus).index(state.match_filter)
+            status_values,
+            index=current_index
         )
         state.match_filter = MatchStatus(status_filter)
     
