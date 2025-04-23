@@ -339,7 +339,8 @@ def admin_show():
         # Update view based on radio selection
         state.current_view = st.radio(
             "Select Function",
-            ["User Management", "Announcements", "TMDB Matches"]
+            ["User Management", "Announcements", "TMDB Matches"],
+            horizontal=True
         )
         update_admin_state(state)
         st.divider()
