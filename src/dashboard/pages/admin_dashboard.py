@@ -270,11 +270,22 @@ def render_tmdb_matches():
     # Get unmatched shows from database
     supabase = get_supabase_client()
     response = supabase.table('shows') \
-        .select('shows.id', 'shows.title', 'networks.name:network', 'shows.year') \
-        .eq('shows.tmdb_id', None) \
-        .join('networks', 'shows.network_id', 'networks.id') \
+        .select(
+            'id',
+            'title',
+            'year',
+            'networks(name)'
+        ) \
+        .is_('tmdb_id', 'null') \
         .execute()
-    unmatched_shows = response.data
+    
+    # Transform response to flatten network name
+    unmatched_shows = [{
+        'id': show['id'],
+        'title': show['title'],
+        'year': show['year'],
+        'network': show['networks']['name'] if show.get('networks') else None
+    } for show in response.data]
     
     if not unmatched_shows:
         st.info("No unmatched shows found!")
