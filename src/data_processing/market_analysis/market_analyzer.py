@@ -268,24 +268,32 @@ class MarketAnalyzer:
         # Get total number of shows for volume weighting
         total_shows = len(df) if df is not None else 0
         
+        # Get network show counts and calculate quartiles
+        network_show_counts = df['network_name'].value_counts()
+        show_count_25th = network_show_counts.quantile(0.25)
+        avg_shows = network_show_counts.mean()
+        
         # Track top networks with combined success and volume score
         network_combined_scores = {}
         for network, avg_score in network_success.items():
             # Get show count for this network
-            network_shows = df[df['network_name'] == network]
-            show_count = len(network_shows)
+            show_count = network_show_counts.get(network, 0)
             
-            # Calculate volume weight (show_count / total_shows)
-            volume_weight = show_count / total_shows if total_shows > 0 else 0
+            # Calculate volume multiplier
+            # If network is in bottom 25% of show volume, penalize their score
+            # Otherwise scale by their volume relative to average
+            if show_count <= show_count_25th:
+                volume_multiplier = 0.5
+            else:
+                volume_multiplier = show_count / avg_shows
             
-            # Combined score = success_score * (1 + volume_weight)
-            # This way success is still primary but volume provides a boost
-            combined_score = avg_score * (1 + volume_weight)
+            # Combined score uses volume multiplier
+            combined_score = avg_score * volume_multiplier
             network_combined_scores[network] = {
                 'combined_score': combined_score,
                 'success_score': avg_score,
                 'show_count': show_count,
-                'volume_weight': volume_weight
+                'volume_multiplier': volume_multiplier
             }
             
             # Count high success networks (based on raw success score)
