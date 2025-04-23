@@ -502,18 +502,6 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
                 if st.button("✕", key=f"remove_new_studio_{studio}"):
                     handle_studio_remove(studio)
     
-    # Apply Changes button
-    state = get_data_entry_state()
-    if not readonly:
-        if st.button(
-            "Apply Changes",
-            type="primary",
-            use_container_width=True,
-            key="apply_studios_changes"
-        ):
-            handle_studios_apply()
-            st.success('Studio changes applied successfully')
-    
     # Form 2: Add new studio
     if not readonly:
         with st.form("new_studio_form"):
@@ -533,6 +521,18 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
                     type="primary",
                     use_container_width=True
                 )
+    
+    # Apply Changes button
+    state = get_data_entry_state()
+    if not readonly:
+        if st.button(
+            "Apply Changes",
+            type="primary",
+            use_container_width=True,
+            key="apply_studios_changes"
+        ):
+            handle_studios_apply()
+            st.success('Studio changes applied successfully')
 
 
 def handle_team_select(selected):
