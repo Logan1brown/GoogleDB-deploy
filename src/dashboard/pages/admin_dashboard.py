@@ -255,6 +255,7 @@ def render_tmdb_matches():
     
     # API Metrics
     st.subheader("API Status")
+    st.write("Debug - State fields:", [field for field in state.__dict__])
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("API Calls", f"{state.api_calls_total} total", f"{state.api_calls_remaining} remaining")
