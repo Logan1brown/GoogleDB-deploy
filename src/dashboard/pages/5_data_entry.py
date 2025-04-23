@@ -327,8 +327,8 @@ def handle_studios_apply():
     # Clear any previous errors
     state.form_error = None
     
-    # Set success flag
-    state.studios_success = True
+    # Set success message
+    state.success_message = "Studio changes applied successfully"
     
     # Nothing to do here - the studios are already saved
     # when you click Add Selected Studios or Add Studio
@@ -455,12 +455,13 @@ def render_show_details(show_form: ShowFormState, lookups: Dict, readonly: bool 
         
         # Submit form to update state
         if not readonly:
-            st.form_submit_button(
+            if st.form_submit_button(
                 "Apply Changes", 
                 use_container_width=True,
-                on_click=handle_show_details_save,
                 type="primary"
-            )
+            ):
+                handle_show_details_save()
+                st.success('Show details updated successfully')
 
 def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = False):
     """Render studios tab"""
@@ -592,8 +593,8 @@ def handle_team_apply():
     """Handle applying team changes"""
     state = get_data_entry_state()
     
-    # Set success flag
-    state.team_success = True
+    # Set success message
+    state.success_message = "Team member changes applied successfully"
     
     update_data_entry_state(state)
 
@@ -677,13 +678,14 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
                         handle_team_remove(i)
     
     # Apply Changes button
-    st.button(
+    if st.button(
         "Apply Changes",
-        on_click=handle_team_apply,
         type="primary",
         use_container_width=True,
         key="apply_team_changes"
-    )
+    ):
+        handle_team_apply()
+        st.success('Team member changes applied successfully')
 
 def handle_submit(show_form: ShowFormState):
     """Handle final form submission"""
