@@ -327,12 +327,12 @@ def handle_studios_apply():
     # Clear any previous errors
     state.form_error = None
     
+    # Set success flag
+    state.studios_success = True
+    
     # Nothing to do here - the studios are already saved
     # when you click Add Selected Studios or Add Studio
     update_data_entry_state(state)
-    
-    # Show success message
-    st.success('Studio changes applied successfully')
 
 def render_select(label: str, options: List[Tuple], value_id: Optional[int], key: str, required: bool = False, readonly: bool = False):
     """Render a single-select dropdown"""
@@ -363,13 +363,18 @@ def render_show_details(show_form: ShowFormState, lookups: Dict, readonly: bool 
     """Render show details tab"""
     st.subheader("Show Details")
     
+    # Show success/error messages if any
+    state = get_data_entry_state()
+    if state.form_error:
+        st.error(state.form_error)
+        state.form_error = None  # Clear after showing
+        update_data_entry_state(state)
+    elif getattr(state, 'show_details_success', False):
+        st.success('Show details updated successfully')
+        state.show_details_success = False
+        update_data_entry_state(state)
+    
     with st.form("show_details_form"):
-        # Show error message if any
-        state = get_data_entry_state()
-        if state.form_error:
-            st.error(state.form_error)
-            state.form_error = None  # Clear after showing
-            update_data_entry_state(state)
         
         # Title
         st.text_input(
@@ -461,11 +466,15 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
     """Render studios tab"""
     st.subheader("Studios")
     
-    # Show error message if any
+    # Show success/error messages if any
     state = get_data_entry_state()
     if state.form_error:
         st.error(state.form_error)
         state.form_error = None
+        update_data_entry_state(state)
+    elif getattr(state, 'studios_success', False):
+        st.success('Studio changes applied successfully')
+        state.studios_success = False
         update_data_entry_state(state)
     
     # Select existing studios
@@ -582,10 +591,11 @@ def handle_team_remove(index: int):
 def handle_team_apply():
     """Handle applying team changes"""
     state = get_data_entry_state()
-    update_data_entry_state(state)
     
-    # Show success message
-    st.success('Team member changes applied successfully')
+    # Set success flag
+    state.team_success = True
+    
+    update_data_entry_state(state)
 
 def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False):
     """Render team members tab"""
@@ -594,10 +604,14 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
     # Help text to explain the flow
     st.info("To add a team member: Enter their name, select their role(s), then click Add Member")
     
-    # Show error message if any
+    # Show success/error messages if any
     state = get_data_entry_state()
     if state.form_error:
         st.error(state.form_error)
+    elif getattr(state, 'team_success', False):
+        st.success('Team member changes applied successfully')
+        state.team_success = False
+        update_data_entry_state(state)
         state.form_error = None
         update_data_entry_state(state)
     
