@@ -12,6 +12,8 @@ import pandas as pd
 from datetime import datetime
 from typing import List, Dict, Any
 from pathlib import Path
+from thefuzz import fuzz
+from ..services.tmdb.tmdb_client import TMDBClient
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
@@ -300,7 +302,38 @@ def render_tmdb_matches():
             st.write(show.get('year') or 'No year')
         with col4:
             if st.button('Find Matches', key=f"find_matches_{show['id']}"):
-                st.session_state.selected_show = show
+                # Get TMDB matches
+                client = TMDBClient()
+                matches = client.search_tv_show(show['title'])
+                
+                # Store match attempts
+                for match in matches[:5]:  # Store top 5 matches
+                    # Calculate confidence score
+                    title_match = fuzz.ratio(show['title'].lower(), match.name.lower())
+                    network_match = 0  # TODO: Compare networks
+                    year_match = 0  # TODO: Compare years if available
+                    
+                    confidence = (
+                        title_match * 0.6 +  # Title is 60% of score
+                        network_match * 0.25 +  # Network is 25%
+                        year_match * 0.15  # Year is 15%
+                    )
+                    
+                    # Store match attempt
+                    supabase.table('tmdb_match_attempts').insert({
+                        'show_id': show['id'],
+                        'tmdb_id': match.id,
+                        'confidence_score': confidence,
+                        'confidence_level': 'high' if confidence >= 80 else 'medium' if confidence >= 60 else 'low',
+                        'title_match_score': title_match,
+                        'network_match_score': network_match,
+                        'year_match_score': year_match
+                    }).execute()
+                
+                # Update metrics
+                state.api_calls_total += 1
+                state.api_calls_remaining -= 1
+                update_admin_state(state)
     
     # Search Interface
     st.subheader("Search TMDB")
