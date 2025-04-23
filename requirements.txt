@@ -17,3 +17,7 @@ plotly>=5.13.0
 # Data Analysis
 scipy>=1.10.0  # For statistical analysis
 statsmodels>=0.14.0  # For time series analysis
+
+# Text Processing
+thefuzz>=0.20.0  # For fuzzy string matching
+python-Levenshtein>=0.21.0  # For faster fuzzy matching
