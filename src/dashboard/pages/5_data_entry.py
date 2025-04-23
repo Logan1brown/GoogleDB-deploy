@@ -481,26 +481,6 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
         on_change=lambda: handle_studio_select(st.session_state.studios_dropdown)
     )
     
-    # Show selected and new studios
-    if show_form.studios or show_form.new_studios:
-        st.markdown("### Selected Studios")
-        
-        # Show selected existing studios
-        if show_form.studios:
-            for studio_id in show_form.studios:
-                studio = next((s for s in lookups.get('studios', []) if s['id'] == studio_id), None)
-                if studio:
-                    st.write(studio['name'])
-        
-        # Show new studios with remove buttons
-        for studio in show_form.new_studios:
-            col1, col2 = st.columns([10,1])
-            with col1:
-                st.write(f"{studio} (New)")
-            with col2:
-                if st.button("✕", key=f"remove_new_studio_{studio}"):
-                    handle_studio_remove(studio)
-    
     # Form 2: Add new studio
     if not readonly:
         with st.form("new_studio_form"):
@@ -520,6 +500,25 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
                     type="primary",
                     use_container_width=True
                 )
+    
+    # Show all selected studios
+    if show_form.studios or show_form.new_studios:
+        st.markdown("### Selected Studios")
+        
+        # Show existing studios
+        for studio_id in show_form.studios:
+            studio = next((s for s in lookups.get('studios', []) if s['id'] == studio_id), None)
+            if studio:
+                st.write(studio['name'])
+        
+        # Show new studios with remove buttons
+        for studio in show_form.new_studios:
+            col1, col2 = st.columns([10,1])
+            with col1:
+                st.write(f"{studio} (New)")
+            with col2:
+                if st.button("✕", key=f"remove_new_studio_{studio}"):
+                    handle_studio_remove(studio)
     
     # Apply Changes button
     state = get_data_entry_state()
