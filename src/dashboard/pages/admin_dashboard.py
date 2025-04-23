@@ -322,7 +322,7 @@ def render_tmdb_matches():
                             year_match = 60  # Off by 1 year
                     
                     # Calculate confidence (same weights as Streamlit)
-                    confidence = (
+                    confidence = int(
                         title_match * 0.6 +  # Title is 60%
                         year_match * 0.4  # Year is 40%
                     )
@@ -333,8 +333,8 @@ def render_tmdb_matches():
                         'tmdb_id': match.id,
                         'confidence_score': confidence,
                         'confidence_level': 'high' if confidence >= 80 else 'medium' if confidence >= 60 else 'low',
-                        'title_match_score': title_match,
-                        'year_match_score': year_match
+                        'title_match_score': int(title_match),
+                        'year_match_score': int(year_match)
                     }).execute()
                 
                 # Update metrics
