@@ -300,53 +300,69 @@ def render_tmdb_matches():
         with col3:
             st.write(show.get('year') or 'No year')
         with col4:
+            # Create a container for match results
+            match_container = st.container()
+            
             if st.button('Find Matches', key=f"find_matches_{show['id']}"):
-                try:
-                    # Get TMDB matches
-                    client = TMDBClient()
-                    st.write("Searching TMDB for:", show['title'])
-                    matches = client.search_tv_show(show['title'])
-                    st.write(f"Found {len(matches) if matches else 0} matches for {show['title']}")
-                    
-                    if not matches:
-                        st.error("No matches found")
+                with match_container:
+                    try:
+                        with st.spinner(f"Searching TMDB for '{show['title']}'..."):
+                            # Get TMDB matches
+                            client = TMDBClient()
+                            matches = client.search_tv_show(show['title'])
+                            
+                            if not matches:
+                                st.error("No matches found")
+                                continue
+                            
+                            st.success(f"Found {len(matches)} potential matches:")
+                            
+                            # Display matches in a more organized way
+                            for match in matches[:5]:  # Store top 5 matches
+                                with st.expander(f"{match.name} ({match.first_air_date.year if match.first_air_date else 'No date'})"):
+                                    cols = st.columns([3, 1])
+                                    with cols[0]:
+                                        st.write("**Overview:**")
+                                        st.write(match.overview or "No overview available")
+                                    with cols[1]:
+                                        st.write("**Match Details:**")
+                                        st.write(f"TMDB ID: {match.id}")
+                                        st.write(f"First Air: {match.first_air_date or 'Unknown'}")
+                                        if st.button("Select Match", key=f"select_{show['id']}_{match.id}"):
+                                            st.success(f"Selected {match.name} as match for {show['title']}")
+                                            # TODO: Update show with TMDB ID
+                                            # Let Streamlit's fuzzy matching handle title similarity
+                                            # We'll use selectbox's behavior: exact matches first, then fuzzy
+                                            title_match = 100 if show['title'].lower() == match.name.lower() else 60
+                                            
+                                            # Compare years if available
+                                            year_match = 0
+                                            if show.get('year') and match.first_air_date:
+                                                # Convert datetime.date to string format YYYY-MM-DD first
+                                                match_year = match.first_air_date.strftime('%Y-%m-%d').split('-')[0]
+                                                if str(show['year']) == match_year:
+                                                    year_match = 100
+                                                elif abs(int(show['year']) - int(match_year)) <= 1:
+                                                    year_match = 60  # Off by 1 year
+                                            
+                                            # Calculate confidence (same weights as Streamlit)
+                                            confidence = int(
+                                                title_match * 0.6 +  # Title is 60%
+                                                year_match * 0.4  # Year is 40%
+                                            )
+                                            
+                                            # Store match attempt
+                                            supabase.table('tmdb_match_attempts').insert({
+                                                'show_id': show['id'],
+                                                'tmdb_id': match.id,
+                                                'confidence_score': confidence,
+                                                'confidence_level': 'high' if confidence >= 80 else 'medium' if confidence >= 60 else 'low',
+                                                'title_match_score': int(title_match),
+                                                'year_match_score': int(year_match)
+                                            }).execute()
+                    except Exception as e:
+                        st.error(f"Error searching TMDB: {str(e)}")
                         continue
-                    
-                    # Store match attempts
-                    for match in matches[:5]:  # Store top 5 matches
-                        st.write(f"Processing match: {match.name} ({match.first_air_date})")
-                except Exception as e:
-                    st.error(f"Error searching TMDB: {str(e)}")
-                    continue
-                    # Let Streamlit's fuzzy matching handle title similarity
-                    # We'll use selectbox's behavior: exact matches first, then fuzzy
-                    title_match = 100 if show['title'].lower() == match.name.lower() else 60
-                    
-                    # Compare years if available
-                    year_match = 0
-                    if show.get('year') and match.first_air_date:
-                        # Convert datetime.date to string format YYYY-MM-DD first
-                        match_year = match.first_air_date.strftime('%Y-%m-%d').split('-')[0]
-                        if str(show['year']) == match_year:
-                            year_match = 100
-                        elif abs(int(show['year']) - int(match_year)) <= 1:
-                            year_match = 60  # Off by 1 year
-                    
-                    # Calculate confidence (same weights as Streamlit)
-                    confidence = int(
-                        title_match * 0.6 +  # Title is 60%
-                        year_match * 0.4  # Year is 40%
-                    )
-                    
-                    # Store match attempt
-                    supabase.table('tmdb_match_attempts').insert({
-                        'show_id': show['id'],
-                        'tmdb_id': match.id,
-                        'confidence_score': confidence,
-                        'confidence_level': 'high' if confidence >= 80 else 'medium' if confidence >= 60 else 'low',
-                        'title_match_score': int(title_match),
-                        'year_match_score': int(year_match)
-                    }).execute()
                 
                 # Update metrics
                 state.api_calls_total += 1
