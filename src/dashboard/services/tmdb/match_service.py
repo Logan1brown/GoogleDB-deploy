@@ -6,7 +6,7 @@ import streamlit as st
 from ...state.admin_state import TMDBMatch, MatchStatus
 from .tmdb_client import TMDBClient
 from .tmdb_models import TVShow, TVShowDetails
-from ...utils.supabase import get_supabase_client
+from ..supabase import get_supabase_client
 from .match_shows import (
     match_show, ShowMatch, get_search_variations,
     score_title_match, score_ep_matches, get_tmdb_eps,
