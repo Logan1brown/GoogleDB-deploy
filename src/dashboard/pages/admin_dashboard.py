@@ -60,7 +60,7 @@ def validate_match(match: TMDBMatch):
             st.write(f"Number of seasons: {details.number_of_seasons}")
             st.write("Seasons:")
             for season in details.seasons:
-                st.write(f"Season {season.season_number}: {dir(season)}")
+                st.write(f"Season {season.season_number}: {season.episode_count} episodes")
         except Exception as e:
             st.error(f"Failed to get TMDB details: {str(e)}")
             return
