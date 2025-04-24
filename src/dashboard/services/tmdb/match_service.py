@@ -75,17 +75,11 @@ class TMDBMatchService:
             List of potential matches with confidence scores
         """
         matches = []
-        st.write(f"Searching for: {query}")
-        
-        # Search TMDB
+        # Search TMDB with variations
         variations = get_search_variations(query)
-        st.write(f"Search variations: {variations}")
         
         for search_title in variations:
-            st.write(f"Trying variation: {search_title}")
             results = self.client.search_tv_show(search_title)
-            st.write(f"Found {len(results) if results else 0} results")
-            
             if not results:
                 continue
                 
@@ -100,22 +94,16 @@ class TMDBMatchService:
             
             # Extract our executive producers
             team_members = our_show.get('team_members', []) if our_show else []
-            st.write("Team members:", team_members)
             our_eps = [member['name'] for member in team_members 
                      if member.get('role', '').lower() == 'executive producer']
             
             # Score and convert each result
             for result in results:
                 try:
-                    st.write(f"Processing result: {result.name} (ID: {result.id})")
-                    
                     # Get full details
                     details = self.client.get_tv_show_details(result.id)
-                    st.write(f"Got details: {details.name} ({details.first_air_date})")
-                    
                     credits = self.client.get_tv_show_credits(result.id)
                     tmdb_eps = get_tmdb_eps(credits)
-                    st.write(f"Found {len(tmdb_eps)} executive producers")
                     
                     # Calculate scores
                     title_score = score_title_match(query, details.name)
@@ -124,33 +112,26 @@ class TMDBMatchService:
                     
                     total_score = title_score + network_score + ep_score
                     confidence = get_confidence_level(total_score)
-                    st.write(f"Scores - Title: {title_score}, Network: {network_score}, EPs: {ep_score}, Total: {total_score}")
                     
-                    try:
-                        # Create TMDBMatch
-                        st.write("Creating TMDBMatch object...")
-                        
-                        match = TMDBMatch(
-                            our_show_id=our_show['show_id'] if our_show else 0,
-                            our_show_title=our_show['title'] if our_show else query,
-                            our_network=our_show['network_name'] if our_show else None,
-                            our_year=our_show['date'] if our_show else None,
-                            tmdb_id=details.id,
-                            name=details.name,
-                            first_air_date=str(details.first_air_date) if details.first_air_date else None,
-                            episodes_per_season=[s.episode_count for s in details.seasons if s.episode_count],
-                            status=details.status,
-                            networks=[n.name for n in details.networks],
-                            executive_producers=tmdb_eps,
-                            confidence=total_score,
-                            title_score=title_score,
-                            network_score=network_score,
-                            ep_score=ep_score
-                        )
-                        st.write("Successfully created TMDBMatch")
-                        matches.append(match)
-                    except Exception as e:
-                        st.error(f"Error creating match: {str(e)}")
+                    # Create TMDBMatch
+                    match = TMDBMatch(
+                        our_show_id=our_show['show_id'] if our_show else 0,
+                        our_show_title=our_show['title'] if our_show else query,
+                        our_network=our_show['network_name'] if our_show else None,
+                        our_year=our_show['date'] if our_show else None,
+                        tmdb_id=details.id,
+                        name=details.name,
+                        first_air_date=str(details.first_air_date) if details.first_air_date else None,
+                        episodes_per_season=[s.episode_count for s in details.seasons if s.episode_count],
+                        status=details.status,
+                        networks=[n.name for n in details.networks],
+                        executive_producers=tmdb_eps,
+                        confidence=total_score,
+                        title_score=title_score,
+                        network_score=network_score,
+                        ep_score=ep_score
+                    )
+                    matches.append(match)
                 except Exception as e:
                     st.error(f"Error processing result: {str(e)}")
                     continue

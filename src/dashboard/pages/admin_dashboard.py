@@ -449,6 +449,14 @@ def render_tmdb_matches():
                         st.error(f"Error searching TMDB: {str(e)}")
                         continue
     
+    # Show validation result if any
+    if hasattr(state, 'last_validation') and state.last_validation:
+        if state.last_validation["success"]:
+            st.success(f"Successfully validated match for {state.last_validation['show_title']}")
+            # Clear the message after showing
+            state.last_validation = None
+            update_admin_state(state)
+    
     # Match Results
     if state.tmdb_matches:
         st.subheader(f"Matches for '{state.tmdb_search_query}'")
@@ -507,10 +515,14 @@ def render_tmdb_matches():
                                type="primary",
                                use_container_width=True):
                         if validate_match(match):
-                            st.success(f"Successfully validated match for {match.our_show_title}")
-                            # Clear state
+                            # Clear state first
                             state.tmdb_matches = []
                             state.tmdb_search_query = ""
+                            # Add success message to state
+                            state.last_validation = {
+                                "success": True,
+                                "show_title": match.our_show_title
+                            }
                             update_admin_state(state)
                             # Force refresh
                             time.sleep(1)  # Give DB time to update
