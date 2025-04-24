@@ -82,15 +82,21 @@ def validate_match(match: TMDBMatch):
             # Get episode counts from each season
             for season in details.seasons:
                 if season.season_number > 0:  # Skip season 0 (specials)
+                    st.write(f"Season {season.season_number}:")
+                    st.write(f"  Name: {season.name}")
+                    st.write(f"  Episode count: {season.episode_count or 'Unknown'}")
+                    st.write(f"  Air date: {season.air_date}")
+                    
                     if season.episode_count:
                         episodes_per_season.append(season.episode_count)
-                        st.write(f"Season {season.season_number}: {season.episode_count} episodes")
             
             # Only calculate totals if we have episode counts
             if episodes_per_season:
                 total_episodes = sum(episodes_per_season)
                 average_episodes = round(total_episodes / len(episodes_per_season), 2)
-                st.write(f"Found {len(episodes_per_season)} seasons with episode counts: {episodes_per_season}")
+                st.write(f"\nFound {len(episodes_per_season)} seasons with episode counts: {episodes_per_season}")
+                st.write(f"Total episodes: {total_episodes}")
+                st.write(f"Average episodes per season: {average_episodes}")
             else:
                 st.warning("No episode counts found in TMDB data")
         except (AttributeError, TypeError, ZeroDivisionError) as e:

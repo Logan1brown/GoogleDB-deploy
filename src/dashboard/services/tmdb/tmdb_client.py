@@ -194,6 +194,13 @@ class TMDBClient:
     
     def _create_tv_show_details(self, data: Dict) -> TVShowDetails:
         """Create TVShowDetails object from raw data."""
+        # Ensure seasons have episode counts
+        if 'seasons' in data:
+            for season in data['seasons']:
+                if 'episode_count' not in season:
+                    season['episode_count'] = None
+                elif not season['episode_count']:
+                    season['episode_count'] = None
         return TVShowDetails.model_validate(data)
     
     @cache_response(model_type=TVShowDetails)
@@ -221,15 +228,15 @@ class TMDBClient:
         params = {'language': language}
         response = self._make_request(endpoint, params)
         
-        # Debug: Print show details
-        st.write("Show details from TMDB:")
-        st.write({
-            'id': response.get('id'),
-            'name': response.get('name'),
-            'number_of_seasons': response.get('number_of_seasons'),
-            'status': response.get('status')
-        })
+        # Debug: Print raw response
+        st.write("Raw TMDB response:")
+        st.write(response)
         
+        # Debug: Print seasons
+        st.write("\nSeasons from response:")
+        for season in response.get('seasons', []):
+            st.write(season)
+            
         # Get seasons from response
         seasons = []
         for season in response.get('seasons', []):

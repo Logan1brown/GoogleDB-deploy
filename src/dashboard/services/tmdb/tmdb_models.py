@@ -78,6 +78,14 @@ class TVShowSeason(BaseModel):
     air_date: Optional[date] = None
     episodes: List[Episode] = Field(default_factory=list)
     
+    @field_validator('episode_count', mode='before')
+    @classmethod
+    def validate_episode_count(cls, v: Optional[int]) -> Optional[int]:
+        """Convert empty or zero episode count to None."""
+        if not v:
+            return None
+        return v
+    
     @field_validator('air_date', mode='before')
     @classmethod
     def validate_air_date(cls, v: Optional[str]) -> Optional[date]:
