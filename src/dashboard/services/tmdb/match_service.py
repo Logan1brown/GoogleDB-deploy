@@ -13,6 +13,50 @@ class TMDBMatchService:
         """Initialize service with optional client."""
         self.client = client or TMDBClient()
     
+    def propose_match(self, match: TMDBMatch) -> bool:
+        """Store a proposed match in tmdb_match_attempts with all TMDB data for review.
+        
+        Args:
+            match: TMDBMatch object containing all match data
+            
+        Returns:
+            True if match was successfully proposed, False otherwise
+        """
+        try:
+            data = {
+                'show_id': match.show_id,
+                'tmdb_id': match.tmdb_id,
+                
+                # Confidence scores
+                'confidence_score': match.confidence,
+                'title_match_score': match.title_score,
+                'network_match_score': match.network_score,
+                'year_match_score': match.year_score,
+                
+                # TMDB data for review
+                'tmdb_name': match.name,
+                'tmdb_seasons': len(match.episodes_per_season),
+                'tmdb_episodes_per_season': match.episodes_per_season,
+                'tmdb_total_episodes': sum(match.episodes_per_season),
+                'tmdb_average_episodes': sum(match.episodes_per_season) / len(match.episodes_per_season),
+                'tmdb_status': match.status,
+                'tmdb_last_air_date': match.last_air_date,
+                
+                # Review-only fields
+                'tmdb_executive_producers': match.executive_producers,
+                'tmdb_network_name': match.networks,
+                
+                # Default status
+                'status': 'pending'
+            }
+            
+            result = self.client.table('tmdb_match_attempts').insert(data).execute()
+            return bool(result.data)
+            
+        except Exception as e:
+            print(f"Failed to propose match: {str(e)}")
+            return False
+            
     async def search_and_match(self, query: str, confidence_threshold: float = 0.8) -> List[TMDBMatch]:
         """Search TMDB and find potential matches for our shows.
         

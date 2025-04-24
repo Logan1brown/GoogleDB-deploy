@@ -6,65 +6,21 @@ This page is only visible to admin users and provides access to administrative f
 import streamlit as st
 import sys
 import os
-import secrets
 import time
-import pandas as pd
 from datetime import datetime
-from typing import List, Dict, Any
-from pathlib import Path
-from ..services.tmdb.tmdb_client import TMDBClient
-from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import List, Dict, Any, Optional
 
 # Add src to path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from src.shared.auth import auth_required, get_user_role, check_role_access
-from src.dashboard.state.session import get_admin_state, update_admin_state
-from src.dashboard.state.admin_state import MatchStatus
-from src.dashboard.services.supabase import get_supabase_client
+from ..components.tmdb_match_view import render_match_card
+from ..services.supabase import get_supabase_client
+from ..services.tmdb.match_service import TMDBMatchService
+from ..state.admin_state import get_admin_state, update_admin_state, TMDBMatch
 from supabase import create_client
-
-def propose_match(match):
-    """Store a proposed match in tmdb_match_attempts with all TMDB data for review"""
-    client = get_admin_client()
-    
-    # Store match attempt with full TMDB data for review
-    data = {
-        'show_id': match.show_id,
-        'tmdb_id': match.tmdb_id,
-        
-        # Confidence scores
-        'confidence_score': match.confidence,
-        'title_match_score': match.title_score,
-        'network_match_score': match.network_score,
-        'year_match_score': match.year_score,
-        
-        # TMDB data for review
-        'tmdb_name': match.name,
-        'tmdb_seasons': len(match.episodes_per_season),
-        'tmdb_episodes_per_season': match.episodes_per_season,
-        'tmdb_total_episodes': sum(match.episodes_per_season),
-        'tmdb_average_episodes': sum(match.episodes_per_season) / len(match.episodes_per_season),
-        'tmdb_status': match.status,
-        'tmdb_last_air_date': match.last_air_date,
-        
-        # Review-only fields
-        'tmdb_executive_producers': match.executive_producers,
-        'tmdb_network_name': match.networks,
-        
-        # Default status
-        'status': 'pending'
-    }
-    
-    result = client.table('tmdb_match_attempts').insert(data).execute()
-    
-    if result.data:
-        st.success(f"Match proposed for review")
-    else:
-        st.error("Failed to propose match")
+from dataclasses import dataclass
 
 def get_admin_client():
     """Get Supabase client with service role for admin operations."""
@@ -290,6 +246,7 @@ def render_tmdb_matches():
     2. Review and approve/reject matches
     """
     state = get_admin_state()
+    match_service = TMDBMatchService()
     
     # API Status
     col1, col2, col3 = st.columns(3)
@@ -344,118 +301,33 @@ def render_tmdb_matches():
             with col1:
                 st.write(show['title'])
             with col2:
-                st.write(show.get('network') or 'No network')
+                st.write(show.get('network', ''))
             with col3:
-                st.write(show.get('year') or 'No year')
+                st.write(show.get('year', ''))
             with col4:
-                find_matches = st.button('Find Matches', key=f"find_matches_{show['id']}")
-            
-            # Show match results in full width below
-            if find_matches:
-                st.markdown("---")
-                st.markdown(f"### Matches for '{show['title']}'")
-                try:
-                    with st.spinner(f"Searching TMDB..."):
-                        # Get TMDB matches
-                        client = TMDBClient()
-                        matches = client.search_tv_show(show['title'])
-                        
-                        if not matches:
-                            st.error("No matches found")
-                            continue
-                        
-                        st.success(f"Found {len(matches)} potential matches:")
-                        
-                        # Display matches in a more organized way
-                        for match in matches[:5]:  # Store top 5 matches
-                            with st.expander(f"{match.name} ({match.first_air_date.year if match.first_air_date else 'No date'})", expanded=True):
-                                st.markdown("")
-                                left, right = st.columns([4, 1])
-                                with left:
-                                    st.write("**Overview:**")
-                                    st.write(match.overview or "No overview available")
-                                with right:
-                                    st.write("**Match Details:**")
-                                    st.write(f"TMDB ID: {match.id}")
-                                    st.write(f"First Air: {match.first_air_date or 'Unknown'}")
-                                    if st.button("Propose Match", key=f"select_{show['id']}_{match.id}", use_container_width=True):
-                                        try:
-                                            # Calculate match scores
-                                            # Title match (60% weight)
-                                            title_match = 100 if show['title'].lower() == match.name.lower() else 60
-                                            
-                                            # Network match (25% weight)
-                                            network_match = 0
-                                            if show.get('network') and match.networks:
-                                                # Compare networks case-insensitive
-                                                show_network = show['network'].lower()
-                                                tmdb_networks = [n.name.lower() for n in match.networks]
-                                                if show_network in tmdb_networks:
-                                                    network_match = 100
-                                            
-                                            # Year match (15% weight)
-                                            year_match = 0
-                                            if show.get('year') and match.first_air_date:
-                                                match_year = match.first_air_date.strftime('%Y-%m-%d').split('-')[0]
-                                                if str(show['year']) == match_year:
-                                                    year_match = 100
-                                                elif abs(int(show['year']) - int(match_year)) <= 1:
-                                                    year_match = 60  # Off by 1 year
-                                            
-                                            # Calculate overall confidence
-                                            confidence = int(
-                                                title_match * 0.60 +    # Title is 60%
-                                                network_match * 0.25 +  # Network is 25%
-                                                year_match * 0.15      # Year is 15%
-                                            )
-                                            
-                                            # Store match attempt for review
-                                            supabase.table('tmdb_match_attempts').insert({
-                                                'show_id': show['id'],
-                                                'tmdb_id': match.id,
-                                                'confidence_score': confidence,
-                                                'confidence_level': 'high' if confidence >= 80 else 'medium' if confidence >= 60 else 'low',
-                                                'title_match_score': int(title_match),
-                                                'network_match_score': int(network_match),
-                                                'year_match_score': int(year_match),
-                                                'status': 'pending',
-                                                'created_at': datetime.now().isoformat(),
-                                                'validated_at': None,
-                                                'validated_by': None
-                                            }).execute()
-                                            
-                                            st.success(f"✓ Match proposed for review with {confidence}% confidence")
-                                        except Exception as e:
-                                            st.error(f"Failed to propose match: {str(e)}")
-                                            return
-                                        title_match = 100 if show['title'].lower() == match.name.lower() else 60
-                                        
-                                        # Compare years if available
-                                        year_match = 0
-                                        if show.get('year') and match.first_air_date:
-                                            # Convert datetime.date to string format YYYY-MM-DD first
-                                            match_year = match.first_air_date.strftime('%Y-%m-%d').split('-')[0]
-                                            if str(show['year']) == match_year:
-                                                year_match = 100
-                                            elif abs(int(show['year']) - int(match_year)) <= 1:
-                                                year_match = 60  # Off by 1 year
-                                        
-                                        # Calculate confidence (same weights as Streamlit)
-                                        confidence = int(
-                                            title_match * 0.6 +  # Title is 60%
-                                            year_match * 0.4  # Year is 40%
-                                        )
-                                        
-                                        # Store match attempt
-                                        supabase.table('tmdb_match_attempts').insert({
-                                            'show_id': show['id'],
-                                            'tmdb_id': match.id,
-                                            'confidence_score': confidence,
-                                            'confidence_level': 'high' if confidence >= 80 else 'medium' if confidence >= 60 else 'low',
-                                            'title_match_score': int(title_match),
-                                            'year_match_score': int(year_match)
-                                        }).execute()
-                except Exception as e:
+                if st.button("Find Matches", key=f"find_{show['id']}"):
+                    try:
+                        with st.spinner(f"Searching TMDB for {show['title']}..."):
+                            # Get TMDB matches
+                            matches = match_service.search_and_match(show['title'])
+                            
+                            if not matches:
+                                st.error("No matches found")
+                                continue
+                            
+                            # Store matches in state
+                            state.tmdb_matches = matches
+                            state.tmdb_search_query = show['title']
+                            update_admin_state(state)
+                            
+                            # Update metrics
+                            state.api_calls_total += 1
+                            state.api_calls_remaining -= 1
+                            update_admin_state(state)
+                    except Exception as e:
+                        st.error(f"Error searching TMDB: {str(e)}")
+                        continue
+                    
                     st.error(f"Error searching TMDB: {str(e)}")
                     continue
                 
@@ -469,34 +341,54 @@ def render_tmdb_matches():
         st.subheader(f"Matches for '{state.tmdb_search_query}'")
         
         for match in state.tmdb_matches:
-            with st.expander(f"{match.name} ({match.confidence}%)"):
+            with st.expander(f"{match.name}", expanded=True):
                 col1, col2 = st.columns(2)
                 
                 # Our Show Details
                 with col1:
-                    st.write("Our Data")
-                    st.write(f"Title: {match.show_title}")
-                    st.write(f"Network: {match.show_network}")
-                    st.write(f"Team: {', '.join(match.show_team)}")
-                    st.write(f"Year: {match.show_year}")
+                    st.markdown("**Our Show Data**")
+                    st.markdown(f"**Title:** {match.show_title}")
+                    st.markdown(f"**Network:** {match.show_network or 'Unknown'}")
+                    st.markdown(f"**Year:** {match.show_year or 'Unknown'}")
                 
                 # TMDB Details
                 with col2:
-                    st.write("TMDB Data")
-                    st.write(f"Name: {match.name}")
-                    st.write(f"Networks: {', '.join(match.networks)}")
-                    st.write(f"EPs: {', '.join(match.executive_producers)}")
-                    st.write(f"First Air: {match.first_air_date}")
+                    st.markdown("**TMDB Data**")
+                    st.markdown(f"**Title:** {match.name}")
+                    st.markdown(f"**Network:** {', '.join(match.networks) if match.networks else 'Unknown'}")
+                    st.markdown(f"**First Air:** {match.first_air_date or 'Unknown'}")
+                    st.markdown(f"**Status:** {match.status or 'Unknown'}")
+                
+                # Overview
+                st.markdown("**Overview**")
+                st.write(match.overview or "No overview available")
                 
                 # Episode Data
-                st.write("Episodes & Seasons")
-                for i, count in enumerate(match.episodes_per_season):
-                    st.write(f"S{i+1}: {count} eps")
+                st.markdown("**Episodes & Seasons**")
+                if match.episodes_per_season:
+                    season_data = [f"S{i+1}: {count} eps" for i, count in enumerate(match.episodes_per_season)]
+                    st.markdown(" | ".join(season_data))
+                else:
+                    st.markdown("No episode data available")
                 
-                # Propose Match Button
-                if st.button(f"Propose Match: {match.confidence}%", 
-                           key=f"propose_{match.show_id}_{match.tmdb_id}"):
-                    propose_match(match)
+                # Match Score Details
+                st.markdown("**Match Details**")
+                score_col1, score_col2, score_col3 = st.columns(3)
+                with score_col1:
+                    st.metric("Title Match", f"{match.title_score}%")
+                with score_col2:
+                    st.metric("Network Match", f"{match.network_score}%")
+                with score_col3:
+                    st.metric("Year Match", f"{match.year_score}%")
+                
+                # Propose Match Button - centered and prominent
+                st.markdown("---")
+                col1, col2, col3 = st.columns([2,1,2])
+                with col2:
+                    if st.button(f"Propose Match ({match.confidence}%)", 
+                               key=f"propose_{match.show_id}_{match.tmdb_id}",
+                               use_container_width=True):
+                        propose_match(match)
     
     # Save state
     update_admin_state(state)
