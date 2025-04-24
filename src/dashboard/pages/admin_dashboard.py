@@ -462,12 +462,6 @@ def render_tmdb_matches():
                 state.api_calls_remaining -= 1
                 update_admin_state(state)
     
-    # Search TMDB
-    st.text_input("Search Shows", 
-                 value=state.tmdb_search_query,
-                 placeholder="Enter show title...",
-                 key="tmdb_search_input")
-    
     # Match Review section
     st.subheader("Match Review")
     
@@ -506,14 +500,6 @@ def render_tmdb_matches():
                     propose_match(match)
     else:
         st.info("Search for shows to see potential matches")
-    
-    # Progress tracking
-    st.subheader("Integration Progress")
-    # TODO: Add metrics:
-    # - Total shows to match
-    # - Shows matched
-    # - Pending reviews
-    # - Match success rate
     
     # Save state
     update_admin_state(state)
