@@ -288,13 +288,10 @@ def render_tmdb_matches():
     This section allows admins to:
     1. Search for shows in TMDB
     2. Review and approve/reject matches
-    3. Handle batch operations on matches
-    4. Track integration progress
     """
     state = get_admin_state()
     
-    # API Metrics
-    st.subheader("API Status")
+    # API Status
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("API Calls", f"{state.api_calls_total} total", f"{state.api_calls_remaining} remaining")
@@ -305,8 +302,11 @@ def render_tmdb_matches():
         reset_in = max(0, state.api_window_reset_time - time.time())
         st.metric("Rate Limit", f"{state.api_calls_remaining}/40", f"Reset in {reset_in:.1f}s")
     
-    # Unmatched Shows
-    st.subheader("Unmatched Shows")
+    # Search TMDB
+    st.text_input("Search Shows", 
+                 value=state.tmdb_search_query,
+                 placeholder="Enter show title...",
+                 key="tmdb_search")
     
     # Get unmatched shows from database
     supabase = get_supabase_client()
