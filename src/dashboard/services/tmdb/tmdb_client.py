@@ -216,7 +216,7 @@ class TMDBClient:
             - type: Show type
             - number_of_seasons: Total seasons
         """
-        # First get basic show details to get number of seasons
+        # Get basic show details
         endpoint = f"/tv/{show_id}"
         params = {'language': language}
         response = self._make_request(endpoint, params)
@@ -224,12 +224,21 @@ class TMDBClient:
         # Get number of seasons
         num_seasons = response.get('number_of_seasons', 0)
         
-        # Build append_to_response string for all seasons
-        season_params = ','.join([f'season/{i}' for i in range(1, num_seasons + 1)])
+        # Get season details
+        seasons = []
+        for season_num in range(1, num_seasons + 1):
+            season_endpoint = f"/tv/{show_id}/season/{season_num}"
+            try:
+                season_response = self._make_request(season_endpoint, params)
+                if season_response:
+                    season_response['season_number'] = season_num
+                    seasons.append(season_response)
+            except Exception as e:
+                st.warning(f"Failed to get season {season_num} details: {e}")
+                continue
         
-        # Get full details with all seasons
-        params['append_to_response'] = f'content_ratings,keywords,{season_params}'
-        response = self._make_request(endpoint, params)
+        # Add seasons to response
+        response['seasons'] = seasons
         
         # Debug: Print raw response
         st.write("Raw TMDB API response:")
