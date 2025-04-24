@@ -229,20 +229,7 @@ class TMDBClient:
         params = {'language': language}
         response = self._make_request(endpoint, params)
         
-        # Debug: Print raw response
-        print("DEBUG: Raw TMDB response:")
-        print(json.dumps(response, indent=2))
-        st.write("Raw TMDB response:")
-        st.write(response)
-        
-        # Debug: Print seasons
-        st.write("\nSeasons from response:")
-        for season in response.get('seasons', []):
-            if season.get('season_number', 0) > 0:  # Skip season 0 (specials)
-                st.write(f"Season {season['season_number']}:")
-                st.write(f"  Name: {season.get('name')}")
-                st.write(f"  Episode count: {season.get('episode_count')}")
-                st.write(f"  Air date: {season.get('air_date')}")
+        # Get seasons from response
             
         # Get seasons from response
         seasons = []

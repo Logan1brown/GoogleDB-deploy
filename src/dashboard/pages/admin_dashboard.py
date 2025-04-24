@@ -24,7 +24,7 @@ from src.shared.auth import auth_required
 from supabase import create_client
 from dataclasses import dataclass
 
-def validate_match(match: TMDBMatch):
+def validate_match(match: TMDBMatch) -> bool:
     """Validate a TMDB match and save the data."""
     try:
         # Input validation
@@ -56,15 +56,6 @@ def validate_match(match: TMDBMatch):
         tmdb_client = TMDBClient()
         try:
             details = tmdb_client.get_tv_show_details(match.tmdb_id)
-            st.write("Raw TMDB response:")
-            st.write(f"Number of seasons: {details.number_of_seasons}")
-            st.write("Seasons:")
-            for season in details.seasons:
-                st.write(f"Season {season.season_number}:")
-                st.write(f"  Episode count: {season.episode_count}")
-                st.write(f"  Air date: {season.air_date}")
-                st.write(f"  Overview: {season.overview}")
-                st.write("  Raw season data:", vars(season))
         except Exception as e:
             st.error(f"Failed to get TMDB details: {str(e)}")
             return
@@ -82,11 +73,6 @@ def validate_match(match: TMDBMatch):
             # Get episode counts from each season
             for season in details.seasons:
                 if season.season_number > 0:  # Skip season 0 (specials)
-                    st.write(f"Season {season.season_number}:")
-                    st.write(f"  Name: {season.name}")
-                    st.write(f"  Episode count: {season.episode_count or 'Unknown'}")
-                    st.write(f"  Air date: {season.air_date}")
-                    
                     if season.episode_count:
                         episodes_per_season.append(season.episode_count)
             
@@ -94,9 +80,7 @@ def validate_match(match: TMDBMatch):
             if episodes_per_season:
                 total_episodes = sum(episodes_per_season)
                 average_episodes = round(total_episodes / len(episodes_per_season), 2)
-                st.write(f"\nFound {len(episodes_per_season)} seasons with episode counts: {episodes_per_season}")
-                st.write(f"Total episodes: {total_episodes}")
-                st.write(f"Average episodes per season: {average_episodes}")
+
             else:
                 st.warning("No episode counts found in TMDB data")
         except (AttributeError, TypeError, ZeroDivisionError) as e:
@@ -147,7 +131,7 @@ def validate_match(match: TMDBMatch):
             st.error("Failed to insert TMDB metrics")
             return
             
-        st.success(f"Successfully validated match for {match.our_show_title} (ID: {match.our_show_id})")
+        return True
         
     except Exception as e:
         st.error(f"Error validating match: {str(e)}")
@@ -157,6 +141,7 @@ def validate_match(match: TMDBMatch):
         except Exception as rollback_error:
             st.error(f"Failed to rollback changes: {str(rollback_error)}")
             st.error("Manual database check required")
+        return False
 
 
 def get_admin_client():
@@ -521,7 +506,15 @@ def render_tmdb_matches():
                                key=f"validate_{match.our_show_id}_{match.tmdb_id}",
                                type="primary",
                                use_container_width=True):
-                        validate_match(match)
+                        if validate_match(match):
+                            st.success(f"Successfully validated match for {match.our_show_title}")
+                            # Clear state
+                            state.tmdb_matches = []
+                            state.tmdb_search_query = ""
+                            update_admin_state(state)
+                            # Force refresh
+                            time.sleep(1)  # Give DB time to update
+                            st.rerun()
 
     # Save state
     update_admin_state(state)
