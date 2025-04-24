@@ -351,10 +351,6 @@ def render_tmdb_matches():
                     st.markdown(f"**First Air:** {match.first_air_date or 'Unknown'}")
                     st.markdown(f"**Status:** {match.status or 'Unknown'}")
                 
-                # Overview
-                st.markdown("**Overview**")
-                st.write(match.overview or "No overview available")
-                
                 # Episode Data
                 st.markdown("**Episodes & Seasons**")
                 if match.episodes_per_season:

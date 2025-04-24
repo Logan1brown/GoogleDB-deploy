@@ -6,6 +6,7 @@ import streamlit as st
 from ...state.admin_state import TMDBMatch, MatchStatus
 from .tmdb_client import TMDBClient
 from .tmdb_models import TVShow, TVShowDetails
+from ...utils.supabase import get_supabase_client
 from .match_shows import (
     match_show, ShowMatch, get_search_variations,
     score_title_match, score_ep_matches, get_tmdb_eps,
@@ -113,9 +114,21 @@ class TMDBMatchService:
                     try:
                         # Create TMDBMatch
                         st.write("Creating TMDBMatch object...")
+                        
+                        # Get our show data
+                        supabase = get_supabase_client()
+                        response = supabase.table('show_details') \
+                            .select('id', 'title', 'network_name', 'date') \
+                            .eq('title', query) \
+                            .execute()
+                        
+                        our_show = response.data[0] if response.data else None
+                        
                         match = TMDBMatch(
-                            our_show_id=0,  # We'll set this when proposing
-                            our_show_title=query,
+                            our_show_id=our_show['id'] if our_show else 0,
+                            our_show_title=our_show['title'] if our_show else query,
+                            our_network=our_show['network_name'] if our_show else None,
+                            our_year=our_show['date'] if our_show else None,
                             tmdb_id=details.id,
                             name=details.name,
                             first_air_date=str(details.first_air_date) if details.first_air_date else None,
