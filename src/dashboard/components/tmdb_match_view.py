@@ -16,8 +16,8 @@ def render_match_card(match: TMDBMatch, on_validate=None):
         # Our Show Details
         with col1:
             st.markdown("**Our Show Data**")
-            st.markdown(f"**Title:** {match.show_title}")
-            st.markdown(f"**Network:** {match.show_network or 'Unknown'}")
+            st.markdown(f"**Title:** {match.our_show_title}")
+            st.markdown(f"**Network:** {match.our_network or 'Unknown'}")
             st.markdown(f"**Year:** {match.show_year or 'Unknown'}")
             st.markdown("**Executive Producers:**")
             if match.our_eps:
@@ -60,7 +60,7 @@ def render_match_card(match: TMDBMatch, on_validate=None):
         # Validate Match button
         with button_col1:
             if st.button(f"Validate Match ({match.confidence}%)", 
-                       key=f"validate_{match.show_id}_{match.tmdb_id}",
+                       key=f"validate_{match.our_show_id}_{match.tmdb_id}",
                        use_container_width=True):
                 if on_validate:
                     on_validate(match)
@@ -68,15 +68,15 @@ def render_match_card(match: TMDBMatch, on_validate=None):
         # No Match button
         with button_col2:
             if st.button("No Match", 
-                       key=f"no_match_{match.show_id}_{match.tmdb_id}",
+                       key=f"no_match_{match.our_show_id}_{match.tmdb_id}",
                        type="secondary",
                        use_container_width=True):
                 if on_validate:
                     # Create a dummy match object with tmdb_id = -1
                     no_match = TMDBMatch(
-                        our_show_id=match.show_id,
-                        our_show_title=match.show_title,
-                        our_network=match.show_network,
+                        our_show_id=match.our_show_id,
+                        our_show_title=match.our_show_title,
+                        our_network=match.our_network,
                         tmdb_id=-1,
                         name="N/A",
                         confidence=100,  # We're 100% sure there's no match
