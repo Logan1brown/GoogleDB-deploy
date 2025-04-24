@@ -471,28 +471,6 @@ def render_tmdb_matches():
                         update_admin_state(state)
                         time.sleep(1)  # Give DB time to update
                         st.rerun()
-            with col5:
-                if st.button("No Match", key=f"no_match_{show['show_id']}"):
-                    # Create a dummy match object with tmdb_id = -1
-                    no_match = TMDBMatch(
-                        our_show_id=show['show_id'],
-                        our_show_title=show['title'],
-                        our_network=show.get('network_name'),
-                        tmdb_id=-1,
-                        name="N/A",
-                        confidence=100,  # We're 100% sure there's no match
-                        title_score=0,
-                        network_score=0,
-                        ep_score=0
-                    )
-                    if validate_match(no_match):
-                        state.last_validation = {
-                            "success": True,
-                            "show_title": show['title']
-                        }
-                        update_admin_state(state)
-                        time.sleep(1)  # Give DB time to update
-                        st.rerun()
     
     # Show validation result if any
     if hasattr(state, 'last_validation') and state.last_validation:
