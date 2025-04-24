@@ -467,7 +467,10 @@ def render_tmdb_matches():
     # Show validation result if any
     if hasattr(state, 'last_validation') and state.last_validation:
         if state.last_validation["success"]:
-            st.success(f"Successfully validated match for {state.last_validation['show_title']}")
+            if state.last_validation.get("is_no_match"):
+                st.success(f"Marked '{state.last_validation['show_title']}' as having no TMDB match")
+            else:
+                st.success(f"Successfully validated match for {state.last_validation['show_title']}")
             # Clear the message after showing
             state.last_validation = None
             update_admin_state(state)
@@ -536,7 +539,8 @@ def render_tmdb_matches():
                             # Add success message to state
                             state.last_validation = {
                                 "success": True,
-                                "show_title": match.our_show_title
+                                "show_title": match.our_show_title,
+                                "is_no_match": match.tmdb_id == -1
                             }
                             update_admin_state(state)
                             # Force refresh
@@ -566,7 +570,8 @@ def render_tmdb_matches():
                             # Add success message to state
                             state.last_validation = {
                                 "success": True,
-                                "show_title": match.our_show_title
+                                "show_title": match.our_show_title,
+                                "is_no_match": match.tmdb_id == -1
                             }
                             update_admin_state(state)
                             # Force refresh
