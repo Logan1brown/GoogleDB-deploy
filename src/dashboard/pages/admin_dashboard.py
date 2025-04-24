@@ -19,7 +19,7 @@ from ..components.tmdb_match_view import render_match_card
 from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
 from ..state.admin_state import get_admin_state, update_admin_state, TMDBMatch
-from shared.auth import auth_required
+from src.shared.auth import auth_required
 from supabase import create_client
 from dataclasses import dataclass
 
@@ -328,14 +328,6 @@ def render_tmdb_matches():
                     except Exception as e:
                         st.error(f"Error searching TMDB: {str(e)}")
                         continue
-                    
-                    st.error(f"Error searching TMDB: {str(e)}")
-                    continue
-                
-                # Update metrics
-                state.api_calls_total += 1
-                state.api_calls_remaining -= 1
-                update_admin_state(state)
     
     # Match Results
     if state.tmdb_matches:
