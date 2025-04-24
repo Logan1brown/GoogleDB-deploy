@@ -480,103 +480,11 @@ def render_tmdb_matches():
         st.subheader(f"Matches for '{state.tmdb_search_query}'")
         
         for match in state.tmdb_matches:
-            with st.expander(f"{match.name}", expanded=True):
-                col1, col2 = st.columns(2)
-                
-                # Our Show Details
-                with col1:
-                    st.markdown("**Our Show Data**")
-                    st.markdown(f"**Title:** {match.our_show_title}")
-                    st.markdown(f"**Network:** {match.our_network or 'Unknown'}")
-                    st.markdown(f"**Year:** {match.our_year or 'Unknown'}")
-                    st.markdown("**Executive Producers:**")
-                    if state.our_eps:
-                        for ep in state.our_eps:
-                            matched = ep in match.executive_producers
-                            st.write("🟢" if matched else "⚫", ep)
-                    else:
-                        st.markdown("*No executive producers listed*")
-
-                # TMDB Details
-                with col2:
-                    st.markdown("**TMDB Data**")
-                    st.markdown(f"**Title:** {match.name}")
-                    st.markdown(f"**Network:** {', '.join(match.networks) if match.networks else 'Unknown'}")
-                    st.markdown(f"**First Air:** {match.first_air_date or 'Unknown'}")
-                    st.markdown("**Executive Producers:**")
-                    if match.executive_producers:
-                        for ep in match.executive_producers:
-                            matched = ep in state.our_eps
-                            st.write("🟢" if matched else "⚫", ep)
-                    else:
-                        st.markdown("*No executive producers found*")
-                
-                # Match Score Details
-                st.markdown("**Match Details**")
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.markdown("Title Match")
-                    st.markdown(f"{match.title_score}%")
-                with col2:
-                    st.markdown("Network Match")
-                    st.markdown(f"{match.network_score}%")
-                with col3:
-                    st.markdown("EP Match")
-                    st.markdown(f"{match.ep_score}%")
-
-                # Action buttons - centered and prominent
-                st.markdown("---")
-                col1, col2, col3 = st.columns([1,2,2])
-                with col2:
-                    if st.button(f"Validate Match ({match.confidence}%)", 
-                               key=f"validate_{match.our_show_id}_{match.tmdb_id}",
-                               type="primary",
-                               use_container_width=True):
-                        if validate_match(match):
-                            # Clear state first
-                            state.tmdb_matches = []
-                            state.tmdb_search_query = ""
-                            # Add success message to state
-                            state.last_validation = {
-                                "success": True,
-                                "show_title": match.our_show_title,
-                                "is_no_match": match.tmdb_id == -1
-                            }
-                            update_admin_state(state)
-                            # Force refresh
-                            time.sleep(1)  # Give DB time to update
-                            st.rerun()
-                with col3:
-                    if st.button("No Match",
-                               key=f"no_match_{match.our_show_id}_{match.tmdb_id}",
-                               type="secondary",
-                               use_container_width=True):
-                        # Create a dummy match object with tmdb_id = -1
-                        no_match = TMDBMatch(
-                            our_show_id=match.our_show_id,
-                            our_show_title=match.our_show_title,
-                            our_network=match.our_network,
-                            tmdb_id=-1,
-                            name="N/A",
-                            confidence=100,  # We're 100% sure there's no match
-                            title_score=0,
-                            network_score=0,
-                            ep_score=0
-                        )
-                        if validate_match(no_match):
-                            # Clear state first
-                            state.tmdb_matches = []
-                            state.tmdb_search_query = ""
-                            # Add success message to state
-                            state.last_validation = {
-                                "success": True,
-                                "show_title": match.our_show_title,
-                                "is_no_match": match.tmdb_id == -1
-                            }
-                            update_admin_state(state)
-                            # Force refresh
-                            time.sleep(1)  # Give DB time to update
-                            st.rerun()
+            # Add our_eps to match object for template
+            match.our_eps = state.our_eps
+            
+            # Use template to render match card
+            render_match_card(match, validate_match)
 
     # Save state
     update_admin_state(state)
