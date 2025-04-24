@@ -2,6 +2,7 @@
 
 import asyncio
 from typing import List, Optional
+import streamlit as st
 from ...state.admin_state import TMDBMatch, MatchStatus
 from .tmdb_client import TMDBClient
 from .tmdb_models import TVShow, TVShowDetails
@@ -73,16 +74,16 @@ class TMDBMatchService:
             List of potential matches with confidence scores
         """
         matches = []
-        print(f"Searching for: {query}")
+        st.write(f"Searching for: {query}")
         
         # Search TMDB
         variations = get_search_variations(query)
-        print(f"Search variations: {variations}")
+        st.write(f"Search variations: {variations}")
         
         for search_title in variations:
-            print(f"Trying variation: {search_title}")
+            st.write(f"Trying variation: {search_title}")
             results = self.client.search_tv_show(search_title)
-            print(f"Found {len(results) if results else 0} results")
+            st.write(f"Found {len(results) if results else 0} results")
             
             if not results:
                 continue

@@ -1,6 +1,7 @@
 """TMDB client with retries and error handling."""
 import time
 import requests
+import streamlit as st
 from functools import wraps
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote
@@ -132,14 +133,14 @@ class TMDBClient:
         params['api_key'] = self.api_key
         
         url = f"{self.BASE_URL}{endpoint}"
-        print(f"Making request to: {url}")
-        print(f"With params: {params}")
+        st.write(f"Making request to: {url}")
+        st.write(f"With params: {params}")
         
         response = requests.get(url, headers=self.headers, params=params)
-        print(f"Response status: {response.status_code}")
+        st.write(f"Response status: {response.status_code}")
         
         if response.status_code != 200:
-            print(f"Error response: {response.text}")
+            st.error(f"Error response: {response.text}")
         
         if response.status_code == 429:
             retry_after = int(response.headers.get('Retry-After', 10))
