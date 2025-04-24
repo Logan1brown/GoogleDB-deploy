@@ -462,9 +462,6 @@ def render_tmdb_matches():
                 state.api_calls_remaining -= 1
                 update_admin_state(state)
     
-    # Match Review section
-    st.subheader("Match Review")
-    
     # Match Results
     if state.tmdb_matches:
         st.subheader(f"Matches for '{state.tmdb_search_query}'")
