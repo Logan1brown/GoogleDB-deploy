@@ -10,9 +10,6 @@ from urllib.parse import quote
 from .tmdb_cache import TMDBCache, cache_response
 from .tmdb_models import Genre, TVShow, TVShowDetails, TVShowSeason
 from .tmdb_logger import log_api_call
-from urllib.parse import quote
-
-import requests
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -257,7 +254,8 @@ class TMDBClient:
                     'name': season.get('name', f'Season {season["season_number"]}'),
                     'season_number': season['season_number'],
                     'episode_count': season.get('episode_count'),
-                    'air_date': season.get('air_date')
+                    'air_date': season.get('air_date'),
+                    'overview': season.get('overview')
                 }
                 seasons.append(season_data)
         

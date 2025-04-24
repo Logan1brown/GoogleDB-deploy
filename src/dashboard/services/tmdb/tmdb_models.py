@@ -76,6 +76,7 @@ class TVShowSeason(BaseModel):
     season_number: int
     episode_count: Optional[int] = None
     air_date: Optional[date] = None
+    overview: Optional[str] = None
     episodes: List[Episode] = Field(default_factory=list)
     
     @field_validator('episode_count', mode='before')
