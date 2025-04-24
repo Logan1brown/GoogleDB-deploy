@@ -374,7 +374,7 @@ def render_tmdb_matches():
                 col1, col2, col3 = st.columns([2,1,2])
                 with col2:
                     if st.button(f"Propose Match ({match.confidence}%)", 
-                               key=f"propose_{match.show_id}_{match.tmdb_id}",
+                               key=f"propose_{match.our_show_id}_{match.tmdb_id}",
                                use_container_width=True):
                         propose_match(match)
     

@@ -118,8 +118,9 @@ class TMDBMatchService:
                         # Get our show data
                         supabase = get_supabase_client()
                         response = supabase.table('show_details') \
-                            .select('id', 'title', 'network_name', 'date') \
+                            .select('id', 'title', 'network_name', 'date', 'tmdb_id') \
                             .eq('title', query) \
+                            .is_('tmdb_id', 'null') \
                             .execute()
                         
                         our_show = response.data[0] if response.data else None
