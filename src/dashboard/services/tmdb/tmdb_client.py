@@ -231,8 +231,17 @@ class TMDBClient:
             try:
                 season_response = self._make_request(season_endpoint, params)
                 if season_response:
-                    season_response['season_number'] = season_num
-                    seasons.append(season_response)
+                    # Extract episode count and details
+                    episodes = season_response.get('episodes', [])
+                    season_data = {
+                        'id': season_response.get('id'),
+                        'name': season_response.get('name'),
+                        'season_number': season_num,
+                        'episode_count': len(episodes),
+                        'air_date': season_response.get('air_date'),
+                        'episodes': episodes
+                    }
+                    seasons.append(season_data)
             except Exception as e:
                 st.warning(f"Failed to get season {season_num} details: {e}")
                 continue
