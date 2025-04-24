@@ -376,16 +376,16 @@ def render_tmdb_matches():
                 with col3:
                     st.markdown("EP Match")
                     st.markdown(f"{match.ep_score}%")
-                
-                # Propose Match Button - centered and prominent
+
+                # Validate Match Button - centered and prominent
                 st.markdown("---")
                 col1, col2, col3 = st.columns([2,1,2])
                 with col2:
-                    if st.button(f"Propose Match ({match.confidence}%)", 
-                               key=f"propose_{match.our_show_id}_{match.tmdb_id}",
+                    if st.button(f"Validate Match ({match.confidence}%)", 
+                               key=f"validate_{match.our_show_id}_{match.tmdb_id}",
                                use_container_width=True):
                         propose_match(match)
-    
+
     # Save state
     update_admin_state(state)
 
