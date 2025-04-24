@@ -291,26 +291,27 @@ def render_tmdb_matches():
     # Display shows in a table with buttons
     st.write("Click 'Find Matches' to search TMDB for potential matches:")
     
+    # Create containers for each show's info and potential matches
     for show in unmatched_shows:
-        # Display show info in columns
-        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
-        with col1:
-            st.write(show['title'])
-        with col2:
-            st.write(show.get('network') or 'No network')
-        with col3:
-            st.write(show.get('year') or 'No year')
-        with col4:
-            find_matches = st.button('Find Matches', key=f"find_matches_{show['id']}")
+        show_container = st.container()
+        with show_container:
+            # Display show info in columns
+            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+            with col1:
+                st.write(show['title'])
+            with col2:
+                st.write(show.get('network') or 'No network')
+            with col3:
+                st.write(show.get('year') or 'No year')
+            with col4:
+                find_matches = st.button('Find Matches', key=f"find_matches_{show['id']}")
             
-        # Create a container for match results below the grid
-        if find_matches:
-            st.divider()
-            st.write("")
-            match_container = st.container()
-            with match_container:
+            # Show match results in full width below
+            if find_matches:
+                st.markdown("---")
+                st.markdown(f"### Matches for '{show['title']}'")
                 try:
-                    with st.spinner(f"Searching TMDB for '{show['title']}'..."):
+                    with st.spinner(f"Searching TMDB..."):
                         # Get TMDB matches
                         client = TMDBClient()
                         matches = client.search_tv_show(show['title'])
@@ -323,16 +324,17 @@ def render_tmdb_matches():
                         
                         # Display matches in a more organized way
                         for match in matches[:5]:  # Store top 5 matches
-                            with st.expander(f"{match.name} ({match.first_air_date.year if match.first_air_date else 'No date'})"):
-                                cols = st.columns([3, 1])
-                                with cols[0]:
+                            with st.expander(f"{match.name} ({match.first_air_date.year if match.first_air_date else 'No date'})", expanded=True):
+                                st.markdown("")
+                                left, right = st.columns([4, 1])
+                                with left:
                                     st.write("**Overview:**")
                                     st.write(match.overview or "No overview available")
-                                with cols[1]:
+                                with right:
                                     st.write("**Match Details:**")
                                     st.write(f"TMDB ID: {match.id}")
                                     st.write(f"First Air: {match.first_air_date or 'Unknown'}")
-                                    if st.button("Select Match", key=f"select_{show['id']}_{match.id}"):
+                                    if st.button("Select Match", key=f"select_{show['id']}_{match.id}", use_container_width=True):
                                         st.success(f"Selected {match.name} as match for {show['title']}")
                                         # Let Streamlit's fuzzy matching handle title similarity
                                         # We'll use selectbox's behavior: exact matches first, then fuzzy
