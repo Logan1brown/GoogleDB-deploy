@@ -46,11 +46,12 @@ def validate_match(match: TMDBMatch) -> bool:
             st.error(f"Show {match.our_show_title} already has TMDB ID {show_response.data[0]['tmdb_id']}")
             return
             
-        # Check if TMDB ID already exists in success metrics
-        metrics_response = client.table('tmdb_success_metrics').select('id').eq('tmdb_id', match.tmdb_id).execute()
-        if metrics_response.data:
-            st.error(f"TMDB ID {match.tmdb_id} already exists in success metrics")
-            return
+        # Check if TMDB ID already exists in success metrics (ignore -1)
+        if match.tmdb_id != -1:
+            metrics_response = client.table('tmdb_success_metrics').select('id').eq('tmdb_id', match.tmdb_id).execute()
+            if metrics_response.data:
+                st.error(f"TMDB ID {match.tmdb_id} already exists in success metrics")
+                return
         
         # Get full show details from TMDB
         tmdb_client = TMDBClient()
@@ -412,7 +413,7 @@ def render_tmdb_matches():
         show_container = st.container()
         with show_container:
             # Display show info in columns
-            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+            col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 0.8, 0.8])
             with col1:
                 st.write(show['title'])
             with col2:
@@ -448,6 +449,28 @@ def render_tmdb_matches():
                     except Exception as e:
                         st.error(f"Error searching TMDB: {str(e)}")
                         continue
+            with col5:
+                if st.button("No Match", key=f"no_match_{show['show_id']}"):
+                    # Create a dummy match object with tmdb_id = -1
+                    no_match = TMDBMatch(
+                        our_show_id=show['show_id'],
+                        our_show_title=show['title'],
+                        our_network=show.get('network_name'),
+                        tmdb_id=-1,
+                        name="N/A",
+                        confidence=100,  # We're 100% sure there's no match
+                        title_score=0,
+                        network_score=0,
+                        ep_score=0
+                    )
+                    if validate_match(no_match):
+                        state.last_validation = {
+                            "success": True,
+                            "show_title": show['title']
+                        }
+                        update_admin_state(state)
+                        time.sleep(1)  # Give DB time to update
+                        st.rerun()
     
     # Show validation result if any
     if hasattr(state, 'last_validation') and state.last_validation:
