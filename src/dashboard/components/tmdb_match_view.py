@@ -53,36 +53,34 @@ def render_match_card(match: TMDBMatch, on_propose=None):
         # Action buttons - side by side at bottom
         st.markdown("---")
         
-        # Create a container for the buttons
-        with st.container():
-            # Two equal columns for the two buttons
-            col1, col2 = st.columns(2)
-            
-            # Propose Match button
-            with col1:
-                if st.button(f"Propose Match ({match.confidence}%)", 
-                           key=f"propose_{match.show_id}_{match.tmdb_id}",
-                           use_container_width=True):
-                    if on_propose:
-                        on_propose(match)
-            
-            # No Match button
-            with col2:
-                if st.button("No Match", 
-                           key=f"no_match_{match.show_id}_{match.tmdb_id}",
-                           type="secondary",
-                           use_container_width=True):
-                    if on_propose:
-                        # Create a dummy match object with tmdb_id = -1
-                        no_match = TMDBMatch(
-                            our_show_id=match.show_id,
-                            our_show_title=match.show_title,
-                            our_network=match.show_network,
-                            tmdb_id=-1,
-                            name="N/A",
-                            confidence=100,  # We're 100% sure there's no match
-                            title_score=0,
-                            network_score=0,
-                            ep_score=0
-                        )
-                        on_propose(no_match)
+        # Two equal columns for the buttons
+        button_col1, button_col2 = st.columns(2)
+        
+        # Propose Match button
+        with button_col1:
+            if st.button(f"Propose Match ({match.confidence}%)", 
+                       key=f"propose_{match.show_id}_{match.tmdb_id}",
+                       use_container_width=True):
+                if on_propose:
+                    on_propose(match)
+        
+        # No Match button
+        with button_col2:
+            if st.button("No Match", 
+                       key=f"no_match_{match.show_id}_{match.tmdb_id}",
+                       type="secondary",
+                       use_container_width=True):
+                if on_propose:
+                    # Create a dummy match object with tmdb_id = -1
+                    no_match = TMDBMatch(
+                        our_show_id=match.show_id,
+                        our_show_title=match.show_title,
+                        our_network=match.show_network,
+                        tmdb_id=-1,
+                        name="N/A",
+                        confidence=100,  # We're 100% sure there's no match
+                        title_score=0,
+                        network_score=0,
+                        ep_score=0
+                    )
+                    on_propose(no_match)
