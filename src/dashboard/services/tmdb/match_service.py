@@ -73,10 +73,17 @@ class TMDBMatchService:
             List of potential matches with confidence scores
         """
         matches = []
+        print(f"Searching for: {query}")
         
         # Search TMDB
-        for search_title in get_search_variations(query):
+        variations = get_search_variations(query)
+        print(f"Search variations: {variations}")
+        
+        for search_title in variations:
+            print(f"Trying variation: {search_title}")
             results = self.client.search_tv_show(search_title)
+            print(f"Found {len(results) if results else 0} results")
+            
             if not results:
                 continue
                 
