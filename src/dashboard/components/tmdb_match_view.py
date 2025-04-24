@@ -50,23 +50,24 @@ def render_match_card(match: TMDBMatch, on_propose=None):
         with score_col3:
             st.metric("Year Match", f"{match.year_score}%")
         
-        # Action buttons - centered at bottom
+        # Action buttons - side by side at bottom
         st.markdown("---")
         
         # Create a container for the buttons
         with st.container():
-            # Use 4 columns to center the buttons in the middle two columns
-            col1, col2, col3, col4 = st.columns([1,2,2,1])
+            # Two equal columns for the two buttons
+            col1, col2 = st.columns(2)
             
-            # Place buttons in middle columns
-            with col2:
+            # Propose Match button
+            with col1:
                 if st.button(f"Propose Match ({match.confidence}%)", 
                            key=f"propose_{match.show_id}_{match.tmdb_id}",
                            use_container_width=True):
                     if on_propose:
                         on_propose(match)
             
-            with col3:
+            # No Match button
+            with col2:
                 if st.button("No Match", 
                            key=f"no_match_{match.show_id}_{match.tmdb_id}",
                            type="secondary",
