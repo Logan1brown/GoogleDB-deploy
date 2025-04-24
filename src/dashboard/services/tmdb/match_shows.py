@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, NamedTuple
 
 from dotenv import load_dotenv
-# Using Streamlit's built-in string matching now
+from thefuzz import fuzz
 from .tmdb_client import TMDBClient
 from .tmdb_models import TVShow, TVShowDetails, Network
 
@@ -77,13 +77,14 @@ def get_tmdb_eps(credits: Dict) -> List[str]:
 
 def score_title_match(our_title: str, tmdb_title: str) -> int:
     """Score title match (0-60 points)."""
-    ratio = fuzz.ratio(our_title.lower(), tmdb_title.lower())
-    if ratio == 100:
+    our_title = our_title.lower().strip()
+    tmdb_title = tmdb_title.lower().strip()
+    if our_title == tmdb_title:
         return 60  # Exact match
-    elif ratio >= 90:
-        return 50  # Very close
-    elif ratio >= 80:
-        return 30  # Similar
+    elif our_title in tmdb_title or tmdb_title in our_title:
+        return 50  # One title contains the other
+    elif any(word in tmdb_title.split() for word in our_title.split()):
+        return 30  # Some words match
     return 0
 
 def score_network_match(our_network: str, tmdb_networks: List[Network]) -> int:
