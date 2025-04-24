@@ -379,7 +379,18 @@ def render_tmdb_matches():
 
                 # Validate Match Button - centered and prominent
                 st.markdown("---")
-                col1, col2, col3 = st.columns([2,1,2])
+                st.markdown("""
+                    <style>
+                    div[data-testid="stHorizontalBlock"] button {
+                        width: 100%;
+                        background-color: #FF4B4B;
+                        color: white;
+                        font-weight: bold;
+                        padding: 0.5rem;
+                    }
+                    </style>
+                """, unsafe_allow_html=True)
+                col1, col2, col3 = st.columns([1,3,1])
                 with col2:
                     if st.button(f"Validate Match ({match.confidence}%)", 
                                key=f"validate_{match.our_show_id}_{match.tmdb_id}",
