@@ -307,6 +307,8 @@ def render_tmdb_matches():
                  value=state.tmdb_search_query,
                  placeholder="Enter show title...",
                  key="tmdb_search_bar")
+    if not state.tmdb_matches:
+        st.info("Search for shows to see potential matches")
     
     # Unmatched Shows section
     st.subheader("Unmatched Shows")
@@ -495,8 +497,6 @@ def render_tmdb_matches():
                 if st.button(f"Propose Match: {match.confidence}%", 
                            key=f"propose_{match.show_id}_{match.tmdb_id}"):
                     propose_match(match)
-    else:
-        st.info("Search for shows to see potential matches")
     
     # Save state
     update_admin_state(state)
