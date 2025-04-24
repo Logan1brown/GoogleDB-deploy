@@ -335,22 +335,23 @@ def render_tmdb_matches():
                     st.markdown("**Our Show Data**")
                     st.markdown(f"**Title:** {match.our_show_title}")
                     st.markdown(f"**Network:** {match.our_network or 'Unknown'}")
-                    st.markdown(f"**Year:** {match.our_year or 'Unknown'}")                
+                    st.markdown(f"**Year:** {match.our_year or 'Unknown'}")
+                    st.markdown("**Executive Producers:**")
+                    for ep in match.our_eps:
+                        matched = ep in match.tmdb_eps
+                        color = "green" if matched else "default"
+                        st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
+
                 # TMDB Details
                 with col2:
                     st.markdown("**TMDB Data**")
                     st.markdown(f"**Title:** {match.name}")
                     st.markdown(f"**Network:** {', '.join(match.networks) if match.networks else 'Unknown'}")
                     st.markdown(f"**First Air:** {match.first_air_date or 'Unknown'}")
-                    st.markdown(f"**Status:** {match.status or 'Unknown'}")
-                
-                # Episode Data
-                st.markdown("**Episodes & Seasons**")
-                if match.episodes_per_season:
-                    season_data = [f"S{i+1}: {count} eps" for i, count in enumerate(match.episodes_per_season)]
-                    st.markdown(" | ".join(season_data))
-                else:
-                    st.markdown("No episode data available")
+                    st.markdown("**Executive Producers:**")
+                    for ep in match.tmdb_eps:
+                        matched = ep in match.our_eps
+                        st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
                 
                 # Match Score Details
                 st.markdown("**Match Details**")
