@@ -10,7 +10,7 @@ from ..supabase import get_supabase_client
 from .match_shows import (
     match_show, ShowMatch, get_search_variations,
     score_title_match, score_ep_matches, get_tmdb_eps,
-    get_confidence_level
+    get_confidence_level, score_network_match
 )
 
 class TMDBMatchService:
