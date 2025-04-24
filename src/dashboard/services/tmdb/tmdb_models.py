@@ -135,7 +135,7 @@ class TMDBMatch(BaseModel):
     our_show_title: str
     our_network: Optional[str] = None
     our_year: Optional[str] = None
-    our_eps: List[str] = Field(default_factory=list)
+    executive_producers: List[str] = Field(default_factory=list)
     
     # TMDB data
     tmdb_id: int
@@ -144,7 +144,6 @@ class TMDBMatch(BaseModel):
     episodes_per_season: List[int] = Field(default_factory=list)
     status: Optional[str] = None
     networks: List[str] = Field(default_factory=list)
-    tmdb_eps: List[str] = Field(default_factory=list)
     
     # Match scores
     confidence: float

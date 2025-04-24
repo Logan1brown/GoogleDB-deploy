@@ -337,9 +337,9 @@ def render_tmdb_matches():
                     st.markdown(f"**Network:** {match.our_network or 'Unknown'}")
                     st.markdown(f"**Year:** {match.our_year or 'Unknown'}")
                     st.markdown("**Executive Producers:**")
-                    if match.our_eps:
-                        for ep in match.our_eps:
-                            matched = ep in match.tmdb_eps
+                    if our_eps:
+                        for ep in our_eps:
+                            matched = ep in match.executive_producers
                             st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
                     else:
                         st.markdown("*No executive producers listed*")
@@ -351,9 +351,9 @@ def render_tmdb_matches():
                     st.markdown(f"**Network:** {', '.join(match.networks) if match.networks else 'Unknown'}")
                     st.markdown(f"**First Air:** {match.first_air_date or 'Unknown'}")
                     st.markdown("**Executive Producers:**")
-                    if match.tmdb_eps:
-                        for ep in match.tmdb_eps:
-                            matched = ep in match.our_eps
+                    if match.executive_producers:
+                        for ep in match.executive_producers:
+                            matched = ep in our_eps
                             st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
                     else:
                         st.markdown("*No executive producers found*")
