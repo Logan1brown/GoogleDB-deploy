@@ -1,13 +1,15 @@
 """TMDB client with retries and error handling."""
+import json
 import time
 import requests
 import streamlit as st
 from functools import wraps
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Type, TypeVar
 from urllib.parse import quote
+
 from .tmdb_cache import TMDBCache, cache_response
-from .tmdb_logger import log_api_call
-from .tmdb_models import TVShow, TVShowDetails, Genre, TVShowSeason
+from .tmdb_models import Genre, TVShow, TVShowDetails, TVShowSeason
+from ...config import APIConfig
 from urllib.parse import quote
 
 import requests
@@ -239,14 +241,25 @@ class TMDBClient:
         # Debug: Print seasons
         st.write("\nSeasons from response:")
         for season in response.get('seasons', []):
-            st.write(season)
+            if season.get('season_number', 0) > 0:  # Skip season 0 (specials)
+                st.write(f"Season {season['season_number']}:")
+                st.write(f"  Name: {season.get('name')}")
+                st.write(f"  Episode count: {season.get('episode_count')}")
+                st.write(f"  Air date: {season.get('air_date')}")
             
         # Get seasons from response
         seasons = []
         for season in response.get('seasons', []):
             if season.get('season_number', 0) > 0:  # Skip season 0 (specials)
-                st.write(f"Season {season.get('season_number')}: {season.get('episode_count')} episodes")
-                seasons.append(season)
+                # Ensure required fields exist
+                season_data = {
+                    'id': season.get('id'),
+                    'name': season.get('name', f'Season {season["season_number"]}'),
+                    'season_number': season['season_number'],
+                    'episode_count': season.get('episode_count'),
+                    'air_date': season.get('air_date')
+                }
+                seasons.append(season_data)
         
         # Create TVShowDetails object
         return self._create_tv_show_details({**response, 'seasons': seasons})
