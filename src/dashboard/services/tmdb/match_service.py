@@ -5,7 +5,11 @@ from typing import List, Optional
 from ...state.admin_state import TMDBMatch, MatchStatus
 from .tmdb_client import TMDBClient
 from .tmdb_models import TVShow, TVShowDetails
-from .match_shows import match_show, ShowMatch
+from .match_shows import (
+    match_show, ShowMatch, get_search_variations,
+    score_title_match, score_ep_matches, get_tmdb_eps,
+    get_confidence_level
+)
 
 class TMDBMatchService:
     """Service for managing TMDB show matches."""
@@ -68,14 +72,57 @@ class TMDBMatchService:
         Returns:
             List of potential matches with confidence scores
         """
-        # TODO: Implement search and match logic
-        # 1. Search our database for shows matching query
-        # 2. For each show:
-        #    - Search TMDB
-        #    - Calculate match confidence
-        #    - Create TMDBMatch objects
-        # 3. Sort by confidence score
-        return []
+        matches = []
+        
+        # Search TMDB
+        for search_title in get_search_variations(query):
+            results = self.client.search_tv_show(search_title)
+            if not results:
+                continue
+                
+            # Score and convert each result
+            for result in results:
+                try:
+                    # Get full details
+                    details = self.client.get_tv_show_details(result.id)
+                    credits = self.client.get_tv_show_credits(result.id)
+                    
+                    # Calculate scores
+                    title_score = score_title_match(query, details.name)
+                    network_score = 0  # We don't have show's network yet
+                    ep_score, _ = score_ep_matches([], get_tmdb_eps(credits))
+                    
+                    total_score = title_score + network_score + ep_score
+                    confidence = get_confidence_level(total_score)
+                    
+                    # Create TMDBMatch
+                    match = TMDBMatch(
+                        show_id=0,  # We'll set this when proposing
+                        show_title=query,
+                        tmdb_id=details.id,
+                        name=details.name,
+                        overview=details.overview,
+                        first_air_date=details.first_air_date,
+                        episodes_per_season=[s.episode_count for s in details.seasons],
+                        status=details.status,
+                        networks=[n.name for n in details.networks],
+                        executive_producers=get_tmdb_eps(credits),
+                        confidence=total_score,
+                        title_score=title_score,
+                        network_score=network_score,
+                        year_score=0  # We don't have show's year yet
+                    )
+                    
+                    matches.append(match)
+                    
+                except Exception as e:
+                    print(f"Error processing result {result.id}: {e}")
+                    continue
+        
+        # Sort by confidence score
+        matches.sort(key=lambda m: m.confidence, reverse=True)
+        
+        return matches
     
     def update_match_status(self, match_ids: List[int], status: MatchStatus, notes: str = "") -> None:
         """Update status for multiple matches.
