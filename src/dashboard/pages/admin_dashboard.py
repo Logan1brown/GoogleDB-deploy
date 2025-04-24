@@ -27,6 +27,45 @@ from src.dashboard.state.admin_state import MatchStatus
 from src.dashboard.services.supabase import get_supabase_client
 from supabase import create_client
 
+def propose_match(match):
+    """Store a proposed match in tmdb_match_attempts with all TMDB data for review"""
+    client = get_admin_client()
+    
+    # Store match attempt with full TMDB data for review
+    data = {
+        'show_id': match.show_id,
+        'tmdb_id': match.tmdb_id,
+        
+        # Confidence scores
+        'confidence_score': match.confidence,
+        'title_match_score': match.title_score,
+        'network_match_score': match.network_score,
+        'year_match_score': match.year_score,
+        
+        # TMDB data for review
+        'tmdb_name': match.name,
+        'tmdb_seasons': len(match.episodes_per_season),
+        'tmdb_episodes_per_season': match.episodes_per_season,
+        'tmdb_total_episodes': sum(match.episodes_per_season),
+        'tmdb_average_episodes': sum(match.episodes_per_season) / len(match.episodes_per_season),
+        'tmdb_status': match.status,
+        'tmdb_last_air_date': match.last_air_date,
+        
+        # Review-only fields
+        'tmdb_executive_producers': match.executive_producers,
+        'tmdb_network_name': match.networks,
+        
+        # Default status
+        'status': 'pending'
+    }
+    
+    result = client.table('tmdb_match_attempts').insert(data).execute()
+    
+    if result.data:
+        st.success(f"Match proposed for review")
+    else:
+        st.error("Failed to propose match")
+
 def get_admin_client():
     """Get Supabase client with service role for admin operations."""
     return create_client(
@@ -334,10 +373,56 @@ def render_tmdb_matches():
                                     st.write("**Match Details:**")
                                     st.write(f"TMDB ID: {match.id}")
                                     st.write(f"First Air: {match.first_air_date or 'Unknown'}")
-                                    if st.button("Select Match", key=f"select_{show['id']}_{match.id}", use_container_width=True):
-                                        st.success(f"Selected {match.name} as match for {show['title']}")
-                                        # Let Streamlit's fuzzy matching handle title similarity
-                                        # We'll use selectbox's behavior: exact matches first, then fuzzy
+                                    if st.button("Propose Match", key=f"select_{show['id']}_{match.id}", use_container_width=True):
+                                        try:
+                                            # Calculate match scores
+                                            # Title match (60% weight)
+                                            title_match = 100 if show['title'].lower() == match.name.lower() else 60
+                                            
+                                            # Network match (25% weight)
+                                            network_match = 0
+                                            if show.get('network') and match.networks:
+                                                # Compare networks case-insensitive
+                                                show_network = show['network'].lower()
+                                                tmdb_networks = [n.name.lower() for n in match.networks]
+                                                if show_network in tmdb_networks:
+                                                    network_match = 100
+                                            
+                                            # Year match (15% weight)
+                                            year_match = 0
+                                            if show.get('year') and match.first_air_date:
+                                                match_year = match.first_air_date.strftime('%Y-%m-%d').split('-')[0]
+                                                if str(show['year']) == match_year:
+                                                    year_match = 100
+                                                elif abs(int(show['year']) - int(match_year)) <= 1:
+                                                    year_match = 60  # Off by 1 year
+                                            
+                                            # Calculate overall confidence
+                                            confidence = int(
+                                                title_match * 0.60 +    # Title is 60%
+                                                network_match * 0.25 +  # Network is 25%
+                                                year_match * 0.15      # Year is 15%
+                                            )
+                                            
+                                            # Store match attempt for review
+                                            supabase.table('tmdb_match_attempts').insert({
+                                                'show_id': show['id'],
+                                                'tmdb_id': match.id,
+                                                'confidence_score': confidence,
+                                                'confidence_level': 'high' if confidence >= 80 else 'medium' if confidence >= 60 else 'low',
+                                                'title_match_score': int(title_match),
+                                                'network_match_score': int(network_match),
+                                                'year_match_score': int(year_match),
+                                                'status': 'pending',
+                                                'created_at': datetime.now().isoformat(),
+                                                'validated_at': None,
+                                                'validated_by': None
+                                            }).execute()
+                                            
+                                            st.success(f"✓ Match proposed for review with {confidence}% confidence")
+                                        except Exception as e:
+                                            st.error(f"Failed to propose match: {str(e)}")
+                                            return
                                         title_match = 100 if show['title'].lower() == match.name.lower() else 60
                                         
                                         # Compare years if available
@@ -374,64 +459,45 @@ def render_tmdb_matches():
                 state.api_calls_remaining -= 1
                 update_admin_state(state)
     
-    # Search Interface
-    st.subheader("Search TMDB")
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        # Search box with previous query preserved
-        state.tmdb_search_query = st.text_input(
-            "Search Shows",
-            value=state.tmdb_search_query,
-            placeholder="Enter show title..."
-        )
-    with col2:
-        st.write("")
-        st.write("")
-        if st.button("Search", type="primary"):
-            # TODO: Implement search
-            # 1. Search our database for show
-            # 2. Search TMDB API
-            # 3. Calculate match confidence
-            # 4. Update state.tmdb_matches
-            pass
+    # Search TMDB
+    st.text_input("Search Shows", 
+                 value=state.tmdb_search_query,
+                 placeholder="Enter show title...",
+                 key="tmdb_search")
     
-    # Filters
-    st.subheader("Match Review")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        # Filter by status
-        status_values = [status.value for status in MatchStatus]
-        current_index = status_values.index(state.match_filter.value)
-        status_filter = st.selectbox(
-            "Status",
-            status_values,
-            index=current_index
-        )
-        state.match_filter = MatchStatus(status_filter)
-    
-    with col2:
-        # Toggle low confidence matches
-        state.show_low_confidence = st.checkbox(
-            "Show Low Confidence Matches",
-            value=state.show_low_confidence
-        )
-    
-    with col3:
-        # Batch operations
-        if state.selected_match_ids:
-            st.write(f"{len(state.selected_match_ids)} matches selected")
-            # TODO: Add batch approve/reject buttons
-    
-    # Results table
+    # Match Results
     if state.tmdb_matches:
-        # TODO: Implement results table with columns:
-        # - Checkbox for selection
-        # - Our Show Title
-        # - TMDB Title
-        # - Confidence Score
-        # - Status
-        # - Actions (Approve/Reject/View Details)
-        pass
+        st.subheader(f"Matches for '{state.tmdb_search_query}'")
+        
+        for match in state.tmdb_matches:
+            with st.expander(f"{match.name} ({match.confidence}%)"):
+                col1, col2 = st.columns(2)
+                
+                # Our Show Details
+                with col1:
+                    st.write("Our Data")
+                    st.write(f"Title: {match.show_title}")
+                    st.write(f"Network: {match.show_network}")
+                    st.write(f"Team: {', '.join(match.show_team)}")
+                    st.write(f"Year: {match.show_year}")
+                
+                # TMDB Details
+                with col2:
+                    st.write("TMDB Data")
+                    st.write(f"Name: {match.name}")
+                    st.write(f"Networks: {', '.join(match.networks)}")
+                    st.write(f"EPs: {', '.join(match.executive_producers)}")
+                    st.write(f"First Air: {match.first_air_date}")
+                
+                # Episode Data
+                st.write("Episodes & Seasons")
+                for i, count in enumerate(match.episodes_per_season):
+                    st.write(f"S{i+1}: {count} eps")
+                
+                # Propose Match Button
+                if st.button(f"Propose Match: {match.confidence}%", 
+                           key=f"propose_{match.show_id}_{match.tmdb_id}"):
+                    propose_match(match)
     else:
         st.info("Search for shows to see potential matches")
     
