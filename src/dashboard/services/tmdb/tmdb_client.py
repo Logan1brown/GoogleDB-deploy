@@ -132,11 +132,7 @@ class TMDBClient:
         params['api_key'] = self.api_key
         
         url = f"{self.BASE_URL}{endpoint}"
-        st.write(f"Making request to: {url}")
-        st.write(f"With params: {params}")
-        
         response = requests.get(url, headers=self.headers, params=params)
-        st.write(f"Response status: {response.status_code}")
         
         if response.status_code != 200:
             st.error(f"Error response: {response.text}")
@@ -222,8 +218,6 @@ class TMDBClient:
             - type: Show type
             - number_of_seasons: Total seasons
         """
-        print("DEBUG: Starting get_tv_show_details")
-        st.write("DEBUG: Starting get_tv_show_details")
         # Get show details
         endpoint = f"/tv/{show_id}"
         params = {'language': language}
