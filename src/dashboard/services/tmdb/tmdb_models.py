@@ -54,6 +54,38 @@ class Network(BaseModel):
     id: int
     name: str
 
+class Episode(BaseModel):
+    """Episode model from TMDB."""
+    id: int
+    name: str
+    episode_number: int
+    air_date: Optional[date] = None
+    
+    @field_validator('air_date', mode='before')
+    @classmethod
+    def validate_air_date(cls, v: Optional[str]) -> Optional[date]:
+        """Convert empty string to None for dates."""
+        if not v:
+            return None
+        return v
+
+class TVShowSeason(BaseModel):
+    """Season model from TMDB."""
+    id: int
+    name: str
+    season_number: int
+    episode_count: Optional[int] = None
+    air_date: Optional[date] = None
+    episodes: List[Episode] = Field(default_factory=list)
+    
+    @field_validator('air_date', mode='before')
+    @classmethod
+    def validate_air_date(cls, v: Optional[str]) -> Optional[date]:
+        """Convert empty string to None for dates."""
+        if not v:
+            return None
+        return v
+
 class TVShowDetails(TVShow):
     """Detailed TV show model from TMDB."""
     genres: List[Genre] = Field(default_factory=list)
@@ -78,28 +110,6 @@ class TVShowDetails(TVShow):
     def get_genre_names(self) -> List[str]:
         """Get list of genre names."""
         return [genre.name for genre in self.genres]
-
-class Episode(BaseModel):
-    """Episode model from TMDB."""
-    id: int
-    name: str
-    episode_number: int
-    air_date: Optional[date] = None
-    
-    @field_validator('air_date', mode='before')
-    @classmethod
-    def validate_air_date(cls, v: Optional[str]) -> Optional[date]:
-        """Convert empty string to None for dates."""
-        if not v:
-            return None
-        return v
-
-class TVShowSeason(BaseModel):
-    """Season model from TMDB."""
-    id: int
-    name: str
-    season_number: int
-    episode_count: Optional[int] = None
     air_date: Optional[date] = None
     episodes: List[Episode] = Field(default_factory=list)
     
