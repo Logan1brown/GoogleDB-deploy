@@ -407,9 +407,10 @@ def render_tmdb_matches():
     
     # Get unmatched shows from our view, excluding ones marked as no-match
     supabase = get_supabase_client()
+    # Get unmatched shows by excluding those in no_tmdb_matches table
     response = supabase.table('api_tmdb_match') \
         .select('show_id, title, network_name, date, team_members') \
-        .not_('show_id', 'in', '(select show_id from no_tmdb_matches)') \
+        .not_.is_('show_id', 'in', (supabase.table('no_tmdb_matches').select('show_id'))) \
         .execute()
     
     unmatched_shows = response.data
