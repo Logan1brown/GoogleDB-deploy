@@ -209,8 +209,8 @@ class TMDBClient:
         """Get detailed information about a specific TV show.
         
         Args:
-            show_id: TMDB ID of the show
-            language: ISO 639-1 language code (default: en-US)
+            show_id (int): TMDB ID of the show
+            language (str): ISO 639-1 language code (default: en-US)
             
         Returns:
             Detailed show information including:
@@ -223,12 +223,16 @@ class TMDBClient:
             - type: Show type
             - number_of_seasons: Total seasons
         """
+        print("DEBUG: Starting get_tv_show_details")
+        st.write("DEBUG: Starting get_tv_show_details")
         # Get show details
         endpoint = f"/tv/{show_id}"
         params = {'language': language}
         response = self._make_request(endpoint, params)
         
         # Debug: Print raw response
+        print("DEBUG: Raw TMDB response:")
+        print(json.dumps(response, indent=2))
         st.write("Raw TMDB response:")
         st.write(response)
         

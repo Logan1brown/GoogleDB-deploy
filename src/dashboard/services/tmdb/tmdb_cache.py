@@ -95,6 +95,8 @@ def cache_response(model_type: Optional[Type[T]] = None) -> Callable:
             key_parts = [func.__name__]
             key_parts.extend(str(arg).replace('/', '_').replace('\\', '_') for arg in args)
             key_parts.extend(f"{k}={v}".replace('/', '_').replace('\\', '_') for k, v in sorted(kwargs.items()))
+            # Add timestamp to force fresh request
+            key_parts.append(str(datetime.now().timestamp()))
             cache_key = "_".join(key_parts)
             
             # Try to get from cache
