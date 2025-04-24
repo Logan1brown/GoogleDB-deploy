@@ -9,7 +9,7 @@ from urllib.parse import quote
 
 from .tmdb_cache import TMDBCache, cache_response
 from .tmdb_models import Genre, TVShow, TVShowDetails, TVShowSeason
-from ...config import APIConfig
+from .tmdb_logger import log_api_call
 from urllib.parse import quote
 
 import requests
