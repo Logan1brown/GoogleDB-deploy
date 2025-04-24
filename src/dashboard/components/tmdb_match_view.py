@@ -18,7 +18,7 @@ def render_match_card(match: TMDBMatch, on_validate=None):
             st.markdown("**Our Show Data**")
             st.markdown(f"**Title:** {match.our_show_title}")
             st.markdown(f"**Network:** {match.our_network or 'Unknown'}")
-            st.markdown(f"**Year:** {match.show_year or 'Unknown'}")
+            st.markdown(f"**Year:** {match.our_year or 'Unknown'}")
             st.markdown("**Executive Producers:**")
             if match.our_eps:
                 for ep in match.our_eps:
