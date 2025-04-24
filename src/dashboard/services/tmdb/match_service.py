@@ -100,8 +100,9 @@ class TMDBMatchService:
             
             # Extract our executive producers
             team_members = our_show.get('team_members', []) if our_show else []
+            st.write("Team members:", team_members)
             our_eps = [member['name'] for member in team_members 
-                     if member['role'].lower() == 'executive producer']
+                     if member.get('role', '').lower() == 'executive producer']
             
             # Score and convert each result
             for result in results:
