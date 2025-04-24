@@ -18,10 +18,121 @@ if src_path not in sys.path:
 from ..components.tmdb_match_view import render_match_card
 from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
+from ..services.tmdb.tmdb_client import TMDBClient
 from ..state.admin_state import get_admin_state, update_admin_state, TMDBMatch
 from src.shared.auth import auth_required
 from supabase import create_client
 from dataclasses import dataclass
+
+def validate_match(match: TMDBMatch):
+    """Validate a TMDB match and save the data."""
+    try:
+        # Input validation
+        if not match.our_show_id or not isinstance(match.our_show_id, int):
+            st.error("Invalid show ID")
+            return
+        if not match.tmdb_id or not isinstance(match.tmdb_id, int):
+            st.error("Invalid TMDB ID")
+            return
+            
+        client = get_admin_client()
+        
+        # Check if show exists and doesn't have TMDB ID
+        show_response = client.table('shows').select('tmdb_id').eq('id', match.our_show_id).execute()
+        if not show_response.data:
+            st.error(f"Show {match.our_show_title} (ID: {match.our_show_id}) not found")
+            return
+        if show_response.data[0].get('tmdb_id'):
+            st.error(f"Show {match.our_show_title} already has TMDB ID {show_response.data[0]['tmdb_id']}")
+            return
+            
+        # Check if TMDB ID already exists in success metrics
+        metrics_response = client.table('tmdb_success_metrics').select('id').eq('tmdb_id', match.tmdb_id).execute()
+        if metrics_response.data:
+            st.error(f"TMDB ID {match.tmdb_id} already exists in success metrics")
+            return
+        
+        # Get full show details from TMDB
+        tmdb_client = TMDBClient()
+        try:
+            details = tmdb_client.get_tv_show_details(match.tmdb_id)
+        except Exception as e:
+            st.error(f"Failed to get TMDB details: {str(e)}")
+            return
+            
+        if not details:
+            st.error(f"No TMDB details found for ID {match.tmdb_id}")
+            return
+        
+        # Calculate metrics with validation
+        episodes_per_season = []
+        total_episodes = 0
+        average_episodes = None
+        
+        try:
+            episodes_per_season = [s.episode_count for s in details.seasons if s.episode_count is not None]
+            if episodes_per_season:
+                total_episodes = sum(episodes_per_season)
+                average_episodes = round(total_episodes / len(episodes_per_season), 2)
+        except (AttributeError, TypeError, ZeroDivisionError) as e:
+            st.error(f"Error calculating episode metrics: {str(e)}")
+            return
+            
+        # Validate required fields
+        if not details.status:
+            st.error("Missing required field: status")
+            return
+        
+        # Start transaction
+        # Update show's tmdb_id
+        update_response = client.table('shows')\
+            .update({"tmdb_id": match.tmdb_id})\
+            .eq('id', match.our_show_id)\
+            .execute()
+            
+        if not update_response.data or len(update_response.data) == 0:
+            st.error(f"Failed to update show {match.our_show_title} with TMDB ID")
+            return
+        
+        # Prepare and validate metrics data
+        metrics_data = {
+            "tmdb_id": match.tmdb_id,
+            "seasons": details.number_of_seasons,
+            "episodes_per_season": episodes_per_season,
+            "total_episodes": total_episodes or None,
+            "average_episodes": average_episodes,
+            "status": details.status,
+            "last_air_date": details.last_air_date.isoformat() if details.last_air_date else None
+        }
+        
+        # Validate all metrics data fields
+        if not all(key in metrics_data for key in ['tmdb_id', 'seasons', 'episodes_per_season', 'status']):
+            client.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
+            st.error("Missing required metrics fields")
+            return
+        
+        # Insert into tmdb_success_metrics
+        metrics_response = client.table('tmdb_success_metrics')\
+            .insert(metrics_data)\
+            .execute()
+            
+        if not metrics_response.data or len(metrics_response.data) == 0:
+            # Rollback show update
+            client.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
+            st.error("Failed to insert TMDB metrics")
+            return
+            
+        st.success(f"Successfully validated match for {match.our_show_title} (ID: {match.our_show_id})")
+        
+    except Exception as e:
+        st.error(f"Error validating match: {str(e)}")
+        # Attempt rollback
+        try:
+            client.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
+        except Exception as rollback_error:
+            st.error(f"Failed to rollback changes: {str(rollback_error)}")
+            st.error("Manual database check required")
+
 
 def get_admin_client():
     """Get Supabase client with service role for admin operations."""
@@ -385,7 +496,7 @@ def render_tmdb_matches():
                                key=f"validate_{match.our_show_id}_{match.tmdb_id}",
                                type="primary",
                                use_container_width=True):
-                        propose_match(match)
+                        validate_match(match)
 
     # Save state
     update_admin_state(state)
