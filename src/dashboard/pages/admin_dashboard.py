@@ -274,7 +274,7 @@ def render_tmdb_matches():
     # Get unmatched shows from our view
     supabase = get_supabase_client()
     response = supabase.table('api_tmdb_match') \
-        .select('show_id', 'title', 'network_name', 'date') \
+        .select('show_id, title, network_name, date') \
         .execute()
     
     unmatched_shows = response.data
@@ -337,10 +337,12 @@ def render_tmdb_matches():
                     st.markdown(f"**Network:** {match.our_network or 'Unknown'}")
                     st.markdown(f"**Year:** {match.our_year or 'Unknown'}")
                     st.markdown("**Executive Producers:**")
-                    for ep in match.our_eps:
-                        matched = ep in match.tmdb_eps
-                        color = "green" if matched else "default"
-                        st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
+                    if match.our_eps:
+                        for ep in match.our_eps:
+                            matched = ep in match.tmdb_eps
+                            st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
+                    else:
+                        st.markdown("*No executive producers listed*")
 
                 # TMDB Details
                 with col2:
@@ -349,9 +351,12 @@ def render_tmdb_matches():
                     st.markdown(f"**Network:** {', '.join(match.networks) if match.networks else 'Unknown'}")
                     st.markdown(f"**First Air:** {match.first_air_date or 'Unknown'}")
                     st.markdown("**Executive Producers:**")
-                    for ep in match.tmdb_eps:
-                        matched = ep in match.our_eps
-                        st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
+                    if match.tmdb_eps:
+                        for ep in match.tmdb_eps:
+                            matched = ep in match.our_eps
+                            st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
+                    else:
+                        st.markdown("*No executive producers found*")
                 
                 # Match Score Details
                 st.markdown("**Match Details**")

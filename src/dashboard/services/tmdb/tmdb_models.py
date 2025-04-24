@@ -126,3 +126,28 @@ class TVShowDetails(TVShow):
         if not v:
             return None
         return v
+
+
+class TMDBMatch(BaseModel):
+    """Model for a potential TMDB match with confidence scores."""
+    # Our show data
+    our_show_id: int
+    our_show_title: str
+    our_network: Optional[str] = None
+    our_year: Optional[str] = None
+    our_eps: List[str] = Field(default_factory=list)
+    
+    # TMDB data
+    tmdb_id: int
+    name: str
+    first_air_date: Optional[str] = None
+    episodes_per_season: List[int] = Field(default_factory=list)
+    status: Optional[str] = None
+    networks: List[str] = Field(default_factory=list)
+    tmdb_eps: List[str] = Field(default_factory=list)
+    
+    # Match scores
+    confidence: float
+    title_score: float
+    network_score: float
+    year_score: float

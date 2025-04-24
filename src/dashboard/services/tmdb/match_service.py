@@ -89,6 +89,20 @@ class TMDBMatchService:
             if not results:
                 continue
                 
+            # Get our show data first
+            supabase = get_supabase_client()
+            response = supabase.table('api_tmdb_match') \
+                .select('*') \
+                .eq('title', query) \
+                .execute()
+            
+            our_show = response.data[0] if response.data else None
+            
+            # Extract our executive producers
+            team_members = our_show.get('team_members', []) if our_show else []
+            our_eps = [member['name'] for member in team_members 
+                     if member['role'].lower() == 'executive producer']
+            
             # Score and convert each result
             for result in results:
                 try:
@@ -99,13 +113,13 @@ class TMDBMatchService:
                     st.write(f"Got details: {details.name} ({details.first_air_date})")
                     
                     credits = self.client.get_tv_show_credits(result.id)
-                    eps = get_tmdb_eps(credits)
-                    st.write(f"Found {len(eps)} executive producers")
+                    tmdb_eps = get_tmdb_eps(credits)
+                    st.write(f"Found {len(tmdb_eps)} executive producers")
                     
                     # Calculate scores
                     title_score = score_title_match(query, details.name)
                     network_score = score_network_match(our_show['network_name'] if our_show else None, details.networks)
-                    ep_score, _ = score_ep_matches(our_eps, eps)
+                    ep_score, _ = score_ep_matches(our_eps, tmdb_eps)
                     
                     total_score = title_score + network_score + ep_score
                     confidence = get_confidence_level(total_score)
@@ -114,20 +128,6 @@ class TMDBMatchService:
                     try:
                         # Create TMDBMatch
                         st.write("Creating TMDBMatch object...")
-                        
-                        # Get our show data from the view
-                        supabase = get_supabase_client()
-                        response = supabase.table('api_tmdb_match') \
-                            .select('*') \
-                            .eq('title', query) \
-                            .execute()
-                        
-                        our_show = response.data[0] if response.data else None
-                        
-                        # Extract executive producers from team members
-                        team_members = our_show.get('team_members', [])
-                        our_eps = [member['name'] for member in team_members 
-                                 if member['role'].lower() == 'executive producer']
                         
                         match = TMDBMatch(
                             our_show_id=our_show['show_id'] if our_show else 0,
@@ -140,7 +140,8 @@ class TMDBMatchService:
                             episodes_per_season=[s.episode_count for s in details.seasons if s.episode_count],
                             status=details.status,
                             networks=[n.name for n in details.networks],
-                            executive_producers=eps,
+                            our_eps=our_eps,
+                            tmdb_eps=tmdb_eps,
                             confidence=total_score,
                             title_score=title_score,
                             network_score=network_score,
@@ -149,11 +150,12 @@ class TMDBMatchService:
                         st.write("Successfully created TMDBMatch")
                         matches.append(match)
                     except Exception as e:
-                        st.error(f"Error creating TMDBMatch: {str(e)}")
-                    
+                        st.error(f"Error creating match: {str(e)}")
                 except Exception as e:
-                    print(f"Error processing result {result.id}: {e}")
+                    st.error(f"Error processing result: {str(e)}")
                     continue
+            
+            return matches
         
         # Sort by confidence score
         matches.sort(key=lambda m: m.confidence, reverse=True)
