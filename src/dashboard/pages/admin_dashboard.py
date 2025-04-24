@@ -4,8 +4,8 @@ This page is only visible to admin users and provides access to administrative f
 """
 
 import streamlit as st
-import sys
 import os
+import sys
 import time
 from datetime import datetime
 from typing import List, Dict, Any, Optional
@@ -19,6 +19,7 @@ from ..components.tmdb_match_view import render_match_card
 from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
 from ..state.admin_state import get_admin_state, update_admin_state, TMDBMatch
+from shared.auth import auth_required
 from supabase import create_client
 from dataclasses import dataclass
 
