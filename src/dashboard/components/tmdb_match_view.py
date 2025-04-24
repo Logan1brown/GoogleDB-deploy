@@ -50,12 +50,31 @@ def render_match_card(match: TMDBMatch, on_propose=None):
         with score_col3:
             st.metric("Year Match", f"{match.year_score}%")
         
-        # Propose Match Button - centered and prominent
+        # Action buttons - centered and prominent
         st.markdown("---")
-        col1, col2, col3 = st.columns([2,1,2])
+        col1, col2, col3 = st.columns([2,2,2])
         with col2:
             if st.button(f"Propose Match ({match.confidence}%)", 
                        key=f"propose_{match.show_id}_{match.tmdb_id}",
                        use_container_width=True):
                 if on_propose:
                     on_propose(match)
+        with col3:
+            if st.button("No Match", 
+                       key=f"no_match_{match.show_id}_{match.tmdb_id}",
+                       type="secondary",
+                       use_container_width=True):
+                if on_propose:
+                    # Create a dummy match object with tmdb_id = -1
+                    no_match = TMDBMatch(
+                        our_show_id=match.show_id,
+                        our_show_title=match.show_title,
+                        our_network=match.show_network,
+                        tmdb_id=-1,
+                        name="N/A",
+                        confidence=100,  # We're 100% sure there's no match
+                        title_score=0,
+                        network_score=0,
+                        ep_score=0
+                    )
+                    on_propose(no_match)

@@ -31,7 +31,7 @@ def validate_match(match: TMDBMatch) -> bool:
         if not match.our_show_id or not isinstance(match.our_show_id, int):
             st.error("Invalid show ID")
             return
-        if not match.tmdb_id or not isinstance(match.tmdb_id, int):
+        if not isinstance(match.tmdb_id, int):
             st.error("Invalid TMDB ID")
             return
             
@@ -46,12 +46,23 @@ def validate_match(match: TMDBMatch) -> bool:
             st.error(f"Show {match.our_show_title} already has TMDB ID {show_response.data[0]['tmdb_id']}")
             return
             
-        # Check if TMDB ID already exists in success metrics (ignore -1)
-        if match.tmdb_id != -1:
-            metrics_response = client.table('tmdb_success_metrics').select('id').eq('tmdb_id', match.tmdb_id).execute()
-            if metrics_response.data:
-                st.error(f"TMDB ID {match.tmdb_id} already exists in success metrics")
+        # Handle no-match case
+        if match.tmdb_id == -1:
+            # Insert into no_tmdb_matches
+            no_match_response = client.table('no_tmdb_matches').insert({
+                'show_id': match.our_show_id
+            }).execute()
+            
+            if not no_match_response.data:
+                st.error("Failed to mark show as no-match")
                 return
+            return True
+
+        # Check if TMDB ID already exists in success metrics
+        metrics_response = client.table('tmdb_success_metrics').select('id').eq('tmdb_id', match.tmdb_id).execute()
+        if metrics_response.data:
+            st.error(f"TMDB ID {match.tmdb_id} already exists in success metrics")
+            return
         
         # Get full show details from TMDB
         tmdb_client = TMDBClient()
@@ -393,10 +404,11 @@ def render_tmdb_matches():
     # Unmatched Shows section
     st.subheader("Unmatched Shows")
     
-    # Get unmatched shows from our view
+    # Get unmatched shows from our view, excluding ones marked as no-match
     supabase = get_supabase_client()
     response = supabase.table('api_tmdb_match') \
         .select('show_id, title, network_name, date, team_members') \
+        .not_('show_id', 'in', '(select show_id from no_tmdb_matches)') \
         .execute()
     
     unmatched_shows = response.data
@@ -413,7 +425,7 @@ def render_tmdb_matches():
         show_container = st.container()
         with show_container:
             # Display show info in columns
-            col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 0.8, 0.8])
+            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
             with col1:
                 st.write(show['title'])
             with col2:
@@ -449,28 +461,7 @@ def render_tmdb_matches():
                     except Exception as e:
                         st.error(f"Error searching TMDB: {str(e)}")
                         continue
-            with col5:
-                if st.button("No Match", key=f"no_match_{show['show_id']}", type="secondary"):
-                    # Create a dummy match object with tmdb_id = -1
-                    no_match = TMDBMatch(
-                        our_show_id=show['show_id'],
-                        our_show_title=show['title'],
-                        our_network=show.get('network_name'),
-                        tmdb_id=-1,
-                        name="N/A",
-                        confidence=100,  # We're 100% sure there's no match
-                        title_score=0,
-                        network_score=0,
-                        ep_score=0
-                    )
-                    if validate_match(no_match):
-                        state.last_validation = {
-                            "success": True,
-                            "show_title": show['title']
-                        }
-                        update_admin_state(state)
-                        time.sleep(1)  # Give DB time to update
-                        st.rerun()
+
     
     # Show validation result if any
     if hasattr(state, 'last_validation') and state.last_validation:
@@ -529,15 +520,45 @@ def render_tmdb_matches():
                     st.markdown("EP Match")
                     st.markdown(f"{match.ep_score}%")
 
-                # Validate Match Button - centered and prominent
+                # Action buttons - centered and prominent
                 st.markdown("---")
-                col1, col2, col3 = st.columns([1,3,1])
+                col1, col2, col3 = st.columns([1,2,2])
                 with col2:
                     if st.button(f"Validate Match ({match.confidence}%)", 
                                key=f"validate_{match.our_show_id}_{match.tmdb_id}",
                                type="primary",
                                use_container_width=True):
                         if validate_match(match):
+                            # Clear state first
+                            state.tmdb_matches = []
+                            state.tmdb_search_query = ""
+                            # Add success message to state
+                            state.last_validation = {
+                                "success": True,
+                                "show_title": match.our_show_title
+                            }
+                            update_admin_state(state)
+                            # Force refresh
+                            time.sleep(1)  # Give DB time to update
+                            st.rerun()
+                with col3:
+                    if st.button("No Match",
+                               key=f"no_match_{match.our_show_id}_{match.tmdb_id}",
+                               type="secondary",
+                               use_container_width=True):
+                        # Create a dummy match object with tmdb_id = -1
+                        no_match = TMDBMatch(
+                            our_show_id=match.our_show_id,
+                            our_show_title=match.our_show_title,
+                            our_network=match.our_network,
+                            tmdb_id=-1,
+                            name="N/A",
+                            confidence=100,  # We're 100% sure there's no match
+                            title_score=0,
+                            network_score=0,
+                            ep_score=0
+                        )
+                        if validate_match(no_match):
                             # Clear state first
                             state.tmdb_matches = []
                             state.tmdb_search_query = ""
