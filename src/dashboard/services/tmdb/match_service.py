@@ -91,37 +91,48 @@ class TMDBMatchService:
             # Score and convert each result
             for result in results:
                 try:
+                    st.write(f"Processing result: {result.name} (ID: {result.id})")
+                    
                     # Get full details
                     details = self.client.get_tv_show_details(result.id)
+                    st.write(f"Got details: {details.name} ({details.first_air_date})")
+                    
                     credits = self.client.get_tv_show_credits(result.id)
+                    eps = get_tmdb_eps(credits)
+                    st.write(f"Found {len(eps)} executive producers")
                     
                     # Calculate scores
                     title_score = score_title_match(query, details.name)
                     network_score = 0  # We don't have show's network yet
-                    ep_score, _ = score_ep_matches([], get_tmdb_eps(credits))
+                    ep_score, _ = score_ep_matches([], eps)
                     
                     total_score = title_score + network_score + ep_score
                     confidence = get_confidence_level(total_score)
+                    st.write(f"Scores - Title: {title_score}, Network: {network_score}, EPs: {ep_score}, Total: {total_score}")
                     
-                    # Create TMDBMatch
-                    match = TMDBMatch(
-                        show_id=0,  # We'll set this when proposing
-                        show_title=query,
-                        tmdb_id=details.id,
-                        name=details.name,
-                        overview=details.overview,
-                        first_air_date=details.first_air_date,
-                        episodes_per_season=[s.episode_count for s in details.seasons],
-                        status=details.status,
-                        networks=[n.name for n in details.networks],
-                        executive_producers=get_tmdb_eps(credits),
-                        confidence=total_score,
-                        title_score=title_score,
-                        network_score=network_score,
-                        year_score=0  # We don't have show's year yet
-                    )
-                    
-                    matches.append(match)
+                    try:
+                        # Create TMDBMatch
+                        st.write("Creating TMDBMatch object...")
+                        match = TMDBMatch(
+                            show_id=0,  # We'll set this when proposing
+                            show_title=query,
+                            tmdb_id=details.id,
+                            name=details.name,
+                            overview=details.overview,
+                            first_air_date=details.first_air_date,
+                            episodes_per_season=[s.episode_count for s in details.seasons],
+                            status=details.status,
+                            networks=[n.name for n in details.networks],
+                            executive_producers=eps,
+                            confidence=total_score,
+                            title_score=title_score,
+                            network_score=network_score,
+                            year_score=0  # We don't have show's year yet
+                        )
+                        st.write("Successfully created TMDBMatch")
+                        matches.append(match)
+                    except Exception as e:
+                        st.error(f"Error creating TMDBMatch: {str(e)}")
                     
                 except Exception as e:
                     print(f"Error processing result {result.id}: {e}")
