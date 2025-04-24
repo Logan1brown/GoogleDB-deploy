@@ -346,7 +346,7 @@ def render_tmdb_matches():
                     if state.our_eps:
                         for ep in state.our_eps:
                             matched = ep in match.executive_producers
-                            st.markdown(f"{':green_circle:' if matched else '⚫'} {ep}")
+                            st.write("🟢" if matched else "⚫", ep)
                     else:
                         st.markdown("*No executive producers listed*")
 
@@ -360,7 +360,7 @@ def render_tmdb_matches():
                     if match.executive_producers:
                         for ep in match.executive_producers:
                             matched = ep in state.our_eps
-                            st.markdown(f"{':green_circle:' if matched else '⚫'} {ep}")
+                            st.write("🟢" if matched else "⚫", ep)
                     else:
                         st.markdown("*No executive producers found*")
                 
