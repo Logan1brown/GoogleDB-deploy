@@ -306,7 +306,10 @@ def render_tmdb_matches():
     st.text_input("Search Shows", 
                  value=state.tmdb_search_query,
                  placeholder="Enter show title...",
-                 key="tmdb_search")
+                 key="tmdb_search_bar")
+    
+    # Unmatched Shows section
+    st.subheader("Unmatched Shows")
     
     # Get unmatched shows from database
     supabase = get_supabase_client()
@@ -463,7 +466,10 @@ def render_tmdb_matches():
     st.text_input("Search Shows", 
                  value=state.tmdb_search_query,
                  placeholder="Enter show title...",
-                 key="tmdb_search")
+                 key="tmdb_search_input")
+    
+    # Match Review section
+    st.subheader("Match Review")
     
     # Match Results
     if state.tmdb_matches:
