@@ -65,6 +65,7 @@ class TVShowDetails(TVShow):
     in_production: bool
     languages: List[str] = Field(default_factory=list)
     last_air_date: Optional[date] = None
+    seasons: List[TVShowSeason] = Field(default_factory=list)
     
     @field_validator('last_air_date', mode='before')
     @classmethod

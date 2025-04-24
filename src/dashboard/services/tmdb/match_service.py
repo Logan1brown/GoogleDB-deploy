@@ -114,13 +114,12 @@ class TMDBMatchService:
                         # Create TMDBMatch
                         st.write("Creating TMDBMatch object...")
                         match = TMDBMatch(
-                            show_id=0,  # We'll set this when proposing
-                            show_title=query,
+                            our_show_id=0,  # We'll set this when proposing
+                            our_show_title=query,
                             tmdb_id=details.id,
                             name=details.name,
-                            overview=details.overview,
-                            first_air_date=details.first_air_date,
-                            episodes_per_season=[s.episode_count for s in details.seasons],
+                            first_air_date=str(details.first_air_date) if details.first_air_date else None,
+                            episodes_per_season=[s.episode_count for s in details.seasons if s.episode_count],
                             status=details.status,
                             networks=[n.name for n in details.networks],
                             executive_producers=eps,
