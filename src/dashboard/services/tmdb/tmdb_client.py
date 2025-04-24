@@ -216,12 +216,25 @@ class TMDBClient:
             - type: Show type
             - number_of_seasons: Total seasons
         """
+        # First get basic show details to get number of seasons
         endpoint = f"/tv/{show_id}"
-        params = {
-            'language': language,
-            'append_to_response': 'content_ratings,keywords'
-        }
+        params = {'language': language}
         response = self._make_request(endpoint, params)
+        
+        # Get number of seasons
+        num_seasons = response.get('number_of_seasons', 0)
+        
+        # Build append_to_response string for all seasons
+        season_params = ','.join([f'season/{i}' for i in range(1, num_seasons + 1)])
+        
+        # Get full details with all seasons
+        params['append_to_response'] = f'content_ratings,keywords,{season_params}'
+        response = self._make_request(endpoint, params)
+        
+        # Debug: Print raw response
+        st.write("Raw TMDB API response:")
+        st.write(response)
+        
         return self._create_tv_show_details(response)
     
     def _create_genres(self, data: List[Dict]) -> List[Genre]:
