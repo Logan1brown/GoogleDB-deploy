@@ -37,7 +37,7 @@ class TMDBMatch:
     confidence: float = 0.0
     title_score: float = 0.0
     network_score: float = 0.0
-    year_score: float = 0.0
+    ep_score: float = 0.0
 
 @dataclass
 class AdminState:
