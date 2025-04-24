@@ -346,7 +346,7 @@ def render_tmdb_matches():
                     if state.our_eps:
                         for ep in state.our_eps:
                             matched = ep in match.executive_producers
-                            st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
+                            st.markdown(f"{':green_circle:' if matched else '⚫'} {ep}")
                     else:
                         st.markdown("*No executive producers listed*")
 
@@ -360,19 +360,22 @@ def render_tmdb_matches():
                     if match.executive_producers:
                         for ep in match.executive_producers:
                             matched = ep in state.our_eps
-                            st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
+                            st.markdown(f"{':green_circle:' if matched else '⚫'} {ep}")
                     else:
                         st.markdown("*No executive producers found*")
                 
                 # Match Score Details
                 st.markdown("**Match Details**")
-                score_col1, score_col2, score_col3 = st.columns(3)
-                with score_col1:
-                    st.metric("Title Match", f"{match.title_score}%")
-                with score_col2:
-                    st.metric("Network Match", f"{match.network_score}%")
-                with score_col3:
-                    st.metric("Year Match", f"{match.year_score}%")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown("Title Match")
+                    st.markdown(f"{match.title_score}%")
+                with col2:
+                    st.markdown("Network Match")
+                    st.markdown(f"{match.network_score}%")
+                with col3:
+                    st.markdown("EP Match")
+                    st.markdown(f"{match.ep_score}%")
                 
                 # Propose Match Button - centered and prominent
                 st.markdown("---")

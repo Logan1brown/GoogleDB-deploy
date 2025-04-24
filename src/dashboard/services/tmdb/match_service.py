@@ -145,7 +145,7 @@ class TMDBMatchService:
                             confidence=total_score,
                             title_score=title_score,
                             network_score=network_score,
-                            year_score=0  # We don't have show's year yet
+                            ep_score=ep_score
                         )
                         st.write("Successfully created TMDBMatch")
                         matches.append(match)

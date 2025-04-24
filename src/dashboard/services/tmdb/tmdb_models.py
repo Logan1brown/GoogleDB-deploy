@@ -149,4 +149,4 @@ class TMDBMatch(BaseModel):
     confidence: float
     title_score: float
     network_score: float
-    year_score: float
+    ep_score: float
