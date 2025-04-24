@@ -76,28 +76,7 @@ def get_admin_state() -> AdminState:
 def update_admin_state(state: AdminState):
     """Update the admin state in session state."""
     st.session_state.admin_state = state
-    tmdb_id: int
-    tmdb_title: str
-    confidence: float
-    status: MatchStatus = MatchStatus.PENDING
-    notes: str = ""
 
-@dataclass
-class AdminState:
-    """State for admin dashboard."""
-    # Navigation
-    current_view: str = "User Management"  # Current selected view
-    
-    # User Management
-    create_user_email: str = ""
-    create_user_password: str = ""
-    create_user_confirm: str = ""
-    create_user_role: str = "viewer"
-    
-    # Announcements
-    announcement_title: str = ""
-    announcement_content: str = ""
-    announcements: List[dict] = field(default_factory=list)
     
     # TMDB Integration
     tmdb_search_query: str = ""
