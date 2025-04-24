@@ -383,7 +383,7 @@ def render_tmdb_matches():
                     <style>
                     div[data-testid="stHorizontalBlock"] button {
                         width: 100%;
-                        background-color: #FF4B4B;
+                        background-color: #1E88E5;
                         color: white;
                         font-weight: bold;
                         padding: 0.5rem;
