@@ -1,5 +1,6 @@
 """TMDB match service for managing show matches."""
 
+import asyncio
 from typing import List, Optional
 from ...state.admin_state import TMDBMatch, MatchStatus
 from .tmdb_client import TMDBClient
@@ -57,7 +58,7 @@ class TMDBMatchService:
             print(f"Failed to propose match: {str(e)}")
             return False
             
-    async def search_and_match(self, query: str, confidence_threshold: float = 0.8) -> List[TMDBMatch]:
+    def search_and_match(self, query: str, confidence_threshold: float = 0.8) -> List[TMDBMatch]:
         """Search TMDB and find potential matches for our shows.
         
         Args:

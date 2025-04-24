@@ -391,7 +391,6 @@ def render_tmdb_matches():
 def admin_show():
     """Main function for admin dashboard."""
     try:
-
         st.title("Admin Dashboard")
         
         # Test admin client access
