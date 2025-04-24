@@ -340,10 +340,9 @@ def render_tmdb_matches():
                 # Our Show Details
                 with col1:
                     st.markdown("**Our Show Data**")
-                    st.markdown(f"**Title:** {match.show_title}")
-                    st.markdown(f"**Network:** {match.show_network or 'Unknown'}")
-                    st.markdown(f"**Year:** {match.show_year or 'Unknown'}")
-                
+                    st.markdown(f"**Title:** {match.our_show_title}")
+                    st.markdown(f"**Network:** {match.our_network or 'Unknown'}")
+                    st.markdown(f"**Year:** {match.our_year or 'Unknown'}")                
                 # TMDB Details
                 with col2:
                     st.markdown("**TMDB Data**")
