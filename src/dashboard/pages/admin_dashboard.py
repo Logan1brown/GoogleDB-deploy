@@ -302,6 +302,11 @@ def render_tmdb_matches():
                 if st.button("Find Matches", key=f"find_{show['show_id']}"):
                     try:
                         with st.spinner(f"Searching TMDB for {show['title']}..."):
+                            # Get our EPs first
+                            team_members = show.get('team_members', [])
+                            our_eps = [member['name'] for member in team_members 
+                                     if member['role'].lower() == 'executive producer']
+                            
                             # Get TMDB matches
                             matches = match_service.search_and_match(show['title'])
                             
@@ -309,9 +314,10 @@ def render_tmdb_matches():
                                 st.error("No matches found")
                                 continue
                             
-                            # Store matches in state
+                            # Store matches and our_eps in state
                             state.tmdb_matches = matches
                             state.tmdb_search_query = show['title']
+                            state.our_eps = our_eps
                             update_admin_state(state)
                             
                             # Update metrics
@@ -337,8 +343,8 @@ def render_tmdb_matches():
                     st.markdown(f"**Network:** {match.our_network or 'Unknown'}")
                     st.markdown(f"**Year:** {match.our_year or 'Unknown'}")
                     st.markdown("**Executive Producers:**")
-                    if our_eps:
-                        for ep in our_eps:
+                    if state.our_eps:
+                        for ep in state.our_eps:
                             matched = ep in match.executive_producers
                             st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
                     else:
@@ -353,7 +359,7 @@ def render_tmdb_matches():
                     st.markdown("**Executive Producers:**")
                     if match.executive_producers:
                         for ep in match.executive_producers:
-                            matched = ep in our_eps
+                            matched = ep in state.our_eps
                             st.markdown(f":{'green' if matched else 'black'}_circle: {ep}")
                     else:
                         st.markdown("*No executive producers found*")

@@ -61,6 +61,7 @@ class AdminState:
     selected_match_ids: List[int] = field(default_factory=list)
     match_filter: MatchStatus = MatchStatus.PENDING
     show_low_confidence: bool = False
+    our_eps: List[str] = field(default_factory=list)
     
     # API stats
     api_calls_total: int = field(default=0)
