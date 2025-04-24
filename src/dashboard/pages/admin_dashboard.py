@@ -77,8 +77,12 @@ def validate_match(match: TMDBMatch):
         try:
             # Get episode counts from each season
             for season in details.seasons:
+                # Try episode_count field first
                 if hasattr(season, 'episode_count') and season.episode_count:
                     episodes_per_season.append(season.episode_count)
+                # Fall back to episodes list length
+                elif hasattr(season, 'episodes') and season.episodes:
+                    episodes_per_season.append(len(season.episodes))
             
             # Only calculate totals if we have episode counts
             if episodes_per_season:
