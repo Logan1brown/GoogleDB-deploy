@@ -271,20 +271,13 @@ def render_tmdb_matches():
     # Unmatched Shows section
     st.subheader("Unmatched Shows")
     
-    # Get unmatched shows from database
+    # Get unmatched shows from our view
     supabase = get_supabase_client()
-    response = supabase.table('show_details') \
-        .select('id', 'title', 'network_name', 'date') \
-        .is_('tmdb_id', 'null') \
+    response = supabase.table('api_tmdb_match') \
+        .select('show_id', 'title', 'network_name', 'date') \
         .execute()
     
-    # Transform response
-    unmatched_shows = [{
-        'id': show['id'],
-        'title': show['title'],
-        'year': show['date'].split('-')[0] if show.get('date') else None,
-        'network': show.get('network_name')
-    } for show in response.data]
+    unmatched_shows = response.data
     
     if not unmatched_shows:
         st.info("No unmatched shows found!")
@@ -302,11 +295,11 @@ def render_tmdb_matches():
             with col1:
                 st.write(show['title'])
             with col2:
-                st.write(show.get('network', ''))
+                st.write(show.get('network_name', ''))
             with col3:
-                st.write(show.get('year', ''))
+                st.write(show.get('date', ''))
             with col4:
-                if st.button("Find Matches", key=f"find_{show['id']}"):
+                if st.button("Find Matches", key=f"find_{show['show_id']}"):
                     try:
                         with st.spinner(f"Searching TMDB for {show['title']}..."):
                             # Get TMDB matches

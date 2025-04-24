@@ -104,8 +104,8 @@ class TMDBMatchService:
                     
                     # Calculate scores
                     title_score = score_title_match(query, details.name)
-                    network_score = 0  # We don't have show's network yet
-                    ep_score, _ = score_ep_matches([], eps)
+                    network_score = score_network_match(our_show['network_name'] if our_show else None, details.networks)
+                    ep_score, _ = score_ep_matches(our_eps, eps)
                     
                     total_score = title_score + network_score + ep_score
                     confidence = get_confidence_level(total_score)
@@ -115,18 +115,22 @@ class TMDBMatchService:
                         # Create TMDBMatch
                         st.write("Creating TMDBMatch object...")
                         
-                        # Get our show data
+                        # Get our show data from the view
                         supabase = get_supabase_client()
-                        response = supabase.table('show_details') \
-                            .select('id', 'title', 'network_name', 'date', 'tmdb_id') \
+                        response = supabase.table('api_tmdb_match') \
+                            .select('*') \
                             .eq('title', query) \
-                            .is_('tmdb_id', 'null') \
                             .execute()
                         
                         our_show = response.data[0] if response.data else None
                         
+                        # Extract executive producers from team members
+                        team_members = our_show.get('team_members', [])
+                        our_eps = [member['name'] for member in team_members 
+                                 if member['role'].lower() == 'executive producer']
+                        
                         match = TMDBMatch(
-                            our_show_id=our_show['id'] if our_show else 0,
+                            our_show_id=our_show['show_id'] if our_show else 0,
                             our_show_title=our_show['title'] if our_show else query,
                             our_network=our_show['network_name'] if our_show else None,
                             our_year=our_show['date'] if our_show else None,
