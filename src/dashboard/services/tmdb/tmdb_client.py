@@ -221,6 +221,15 @@ class TMDBClient:
         params = {'language': language}
         response = self._make_request(endpoint, params)
         
+        # Debug: Print basic show details
+        st.write("Basic show details from TMDB:")
+        st.write({
+            'id': response.get('id'),
+            'name': response.get('name'),
+            'number_of_seasons': response.get('number_of_seasons'),
+            'status': response.get('status')
+        })
+        
         # Get number of seasons
         num_seasons = response.get('number_of_seasons', 0)
         
@@ -229,10 +238,14 @@ class TMDBClient:
         for season_num in range(1, num_seasons + 1):
             season_endpoint = f"/tv/{show_id}/season/{season_num}"
             try:
+                st.write(f"\nFetching season {season_num} details...")
                 season_response = self._make_request(season_endpoint, params)
                 if season_response:
                     # Extract episode count and details
                     episodes = season_response.get('episodes', [])
+                    st.write(f"Season {season_num} episodes:")
+                    st.write(episodes)
+                    
                     season_data = {
                         'id': season_response.get('id'),
                         'name': season_response.get('name'),
@@ -241,6 +254,8 @@ class TMDBClient:
                         'air_date': season_response.get('air_date'),
                         'episodes': episodes
                     }
+                    st.write(f"Season {season_num} processed data:")
+                    st.write(season_data)
                     seasons.append(season_data)
             except Exception as e:
                 st.warning(f"Failed to get season {season_num} details: {e}")
@@ -249,8 +264,8 @@ class TMDBClient:
         # Add seasons to response
         response['seasons'] = seasons
         
-        # Debug: Print raw response
-        st.write("Raw TMDB API response:")
+        # Debug: Print final response
+        st.write("\nFinal processed response:")
         st.write(response)
         
         return self._create_tv_show_details(response)
