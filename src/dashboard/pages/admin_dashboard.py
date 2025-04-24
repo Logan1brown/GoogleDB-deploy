@@ -70,10 +70,18 @@ def validate_match(match: TMDBMatch):
         average_episodes = None
         
         try:
-            episodes_per_season = [s.episode_count for s in details.seasons if s.episode_count is not None]
+            # Get episode counts from each season
+            for season in details.seasons:
+                if hasattr(season, 'episode_count') and season.episode_count:
+                    episodes_per_season.append(season.episode_count)
+            
+            # Only calculate totals if we have episode counts
             if episodes_per_season:
                 total_episodes = sum(episodes_per_season)
                 average_episodes = round(total_episodes / len(episodes_per_season), 2)
+                st.write(f"Found {len(episodes_per_season)} seasons with episode counts: {episodes_per_season}")
+            else:
+                st.warning("No episode counts found in TMDB data")
         except (AttributeError, TypeError, ZeroDivisionError) as e:
             st.error(f"Error calculating episode metrics: {str(e)}")
             return
