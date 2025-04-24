@@ -92,7 +92,7 @@ class TMDBMatchService:
             # Get our show data first
             supabase = get_supabase_client()
             response = supabase.table('api_tmdb_match') \
-                .select('*') \
+                .select('show_id, title, network_name, date, team_members') \
                 .eq('title', query) \
                 .execute()
             

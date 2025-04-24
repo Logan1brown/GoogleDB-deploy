@@ -274,7 +274,7 @@ def render_tmdb_matches():
     # Get unmatched shows from our view
     supabase = get_supabase_client()
     response = supabase.table('api_tmdb_match') \
-        .select('show_id, title, network_name, date') \
+        .select('show_id, title, network_name, date, team_members') \
         .execute()
     
     unmatched_shows = response.data
