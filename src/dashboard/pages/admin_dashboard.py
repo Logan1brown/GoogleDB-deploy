@@ -56,6 +56,11 @@ def validate_match(match: TMDBMatch):
         tmdb_client = TMDBClient()
         try:
             details = tmdb_client.get_tv_show_details(match.tmdb_id)
+            st.write("Raw TMDB response:")
+            st.write(f"Number of seasons: {details.number_of_seasons}")
+            st.write("Seasons:")
+            for season in details.seasons:
+                st.write(f"Season {season.season_number}: {dir(season)}")
         except Exception as e:
             st.error(f"Failed to get TMDB details: {str(e)}")
             return

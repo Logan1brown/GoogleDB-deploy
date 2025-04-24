@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, NamedTuple
 
 from dotenv import load_dotenv
-from thefuzz import fuzz
+# Using Streamlit's built-in string matching now
 from .tmdb_client import TMDBClient
 from .tmdb_models import TVShow, TVShowDetails, Network
 
