@@ -483,8 +483,17 @@ def render_tmdb_matches():
         show['show_id'] = show['id']
         
         # Format date to year
-        if show.get('date'):
-            show['year'] = show['date'].split('-')[0] if isinstance(show['date'], str) else str(show['date'].year)
+        date = show.get('date')
+        if date:
+            try:
+                show['year'] = date.split('-')[0]
+                st.write(f"Debug - Date for {show.get('title')}: {date}, Year: {show['year']}")
+            except (AttributeError, IndexError):
+                show['year'] = str(date.year) if hasattr(date, 'year') else None
+                st.write(f"Debug - Date error for {show.get('title')}: {date}, Type: {type(date)}")
+        else:
+            show['year'] = None
+            st.write(f"Debug - No date for {show.get('title')}")
     unmatched_shows = response.data
     
     # Filter out the show that was just validated
