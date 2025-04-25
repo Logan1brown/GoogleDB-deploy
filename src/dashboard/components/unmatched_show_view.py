@@ -2,16 +2,22 @@
 
 import streamlit as st
 from typing import Dict, Any, Callable, List
+from ..state.admin_state import TMDBMatchState
+from .tmdb_match_view import render_match_card
 
 def render_unmatched_shows_table(
     shows: List[Dict[str, Any]], 
-    on_find_matches: Callable[[Dict[str, Any]], None]
+    on_find_matches: Callable[[Dict[str, Any]], None],
+    matching: TMDBMatchState,
+    validate_match: Callable[[TMDBMatchState], None]
 ):
     """Render all unmatched shows in a table.
     
     Args:
         shows: List of show dictionaries
         on_find_matches: Callback when Find Matches is clicked
+        matching: Current TMDB matching state
+        validate_match: Callback for validating matches
     """
     # Create table header
     col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
@@ -36,3 +42,10 @@ def render_unmatched_shows_table(
         with col4:
             if st.button("Find Matches", key=f"find_{show['id']}", use_container_width=True):
                 on_find_matches(show)
+        
+        # Show matches right after this row if this is the show we just searched
+        if matching.matches and matching.search_query == show['title']:
+            st.subheader(f"Matches for '{matching.search_query}'")
+            for match in matching.matches:
+                match.our_eps = matching.our_eps
+                render_match_card(match, validate_match)

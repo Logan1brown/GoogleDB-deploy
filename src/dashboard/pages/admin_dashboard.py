@@ -396,8 +396,8 @@ def render_tmdb_matches():
         except Exception as e:
             st.error(f"Error searching TMDB: {str(e)}")
     
-    # Render scrollable table with all shows
-    render_unmatched_shows_table(unmatched_shows, on_find_matches)
+    # Render table with all shows and inline matches
+    render_unmatched_shows_table(unmatched_shows, on_find_matches, matching, validate_match)
 
     
     # No need to show validation result here anymore
@@ -409,15 +409,7 @@ def render_tmdb_matches():
         matching.success_message = None
         update_admin_state(state)
     
-    # Match Results
-    if matching.matches:
-        st.subheader(f"Matches for '{matching.search_query}'")
-        for match in matching.matches:
-            # Add our_eps to match object for template
-            match.our_eps = matching.our_eps
-            
-            # Use template to render match card
-            render_match_card(match, validate_match)
+    # Match Results - handled in unmatched_show_view.py
 
     # Save state
     update_admin_state(state)
