@@ -96,6 +96,7 @@ def validate_match(match: TMDBMatch) -> bool:
         
         # Then prepare show updates
         show_updates = map_tmdb_show_data(details, existing_show)
+        st.write(f"Show updates to apply: {show_updates}")
         
         # Start transaction
         # First update the show
@@ -103,6 +104,7 @@ def validate_match(match: TMDBMatch) -> bool:
             .update(show_updates)\
             .eq('id', match.our_show_id)\
             .execute()
+        st.write(f"Show update response: {update_response.data}")
             
         if not update_response.data or len(update_response.data) == 0:
             st.error(f"Failed to update show {match.our_show_title}")
