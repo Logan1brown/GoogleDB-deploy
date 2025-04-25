@@ -150,17 +150,15 @@ def validate_match(match: TMDBMatchState) -> bool:
         matching.matches = []
         matching.validated_show_id = match.our_show_id  # Track which show was validated
         
-        # Update state
-        update_admin_state(state)
-        
-        # Clear any UI state
+        # Clear any UI state and update state
         for key in list(st.session_state.keys()):
             if key.startswith('tmdb_'):
                 del st.session_state[key]
         
-        # Update state again after clearing
-        state = get_admin_state()
-        state.tmdb_matching.success_message = matching.success_message
+        # Ensure success message persists
+        st.success(matching.success_message)
+        
+        # Update state last
         update_admin_state(state)
         
         return True
@@ -432,7 +430,7 @@ def render_tmdb_matches():
                  value=matching.search_query,
                  placeholder="Enter show title...",
                  key="tmdb_search_bar")
-    if not matching.matches:
+    if not matching.matches or matching.validated_show_id:
         st.info("Search for shows to see potential matches")
     
     # Unmatched Shows section
@@ -496,27 +494,14 @@ def render_tmdb_matches():
     # The success message is shown directly in validate_match
     
     # Match Results
-    if matching.matches and matching.search_query:
-        # Check if we just validated a match
-        if matching.last_validation:
-            validation_age = time.time() - matching.last_validation['timestamp']
-            if validation_age < 5:  # Within last 5 seconds
-                # Use our helper to clear matching state
-                clear_matching_state(state)
-                time.sleep(0.5)  # Brief pause to ensure state is cleared
-                st.experimental_rerun()
-                return
-        
-        # Show matches if we have them
-        if matching.matches:
-            st.subheader(f"Matches for '{matching.search_query}'")
+    if matching.matches and not matching.validated_show_id:
+        st.subheader(f"Matches for '{matching.search_query}'")
+        for match in matching.matches:
+            # Add our_eps to match object for template
+            match.our_eps = matching.our_eps
             
-            for match in matching.matches:
-                # Add our_eps to match object for template
-                match.our_eps = matching.our_eps
-                
-                # Use template to render match card
-                render_match_card(match, validate_match)
+            # Use template to render match card
+            render_match_card(match, validate_match)
 
     # Save state
     update_admin_state(state)
