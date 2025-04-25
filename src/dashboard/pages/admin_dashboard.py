@@ -564,7 +564,8 @@ def render_tmdb_matches():
                                 confidence=match.confidence,
                                 title_score=match.title_score,
                                 network_score=match.network_score,
-                                ep_score=match.ep_score
+                                ep_score=match.ep_score,
+                                expanded=True  # Show the side-by-side by default
                             )
                             matching.matches.append(state_obj)
                             

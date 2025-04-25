@@ -80,9 +80,11 @@ class TMDBMatchService:
         matches = []
         # Search TMDB with variations
         variations = get_search_variations(show_data['title'])
+        st.write(f"Debug - Search variations: {variations}")
         
         for search_title in variations:
             results = self.client.search_tv_show(search_title)
+            st.write(f"Debug - TMDB results for '{search_title}': {len(results) if results else 0}")
             if not results:
                 continue
             
