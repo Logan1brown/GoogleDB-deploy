@@ -31,6 +31,12 @@ class TMDBMatchService:
             True if validation succeeded, False if there were any errors
         """
         try:
+            # Debug logging
+            st.write("Debug - Match object:")
+            st.write(f"our_show_id: {match.our_show_id} ({type(match.our_show_id)})")
+            st.write(f"tmdb_id: {match.tmdb_id} ({type(match.tmdb_id)})")
+            st.write(f"our_show_title: {match.our_show_title}")
+            
             # Input validation
             if not match.our_show_id or not isinstance(match.our_show_id, int):
                 raise ValueError("Invalid show ID")
@@ -38,15 +44,20 @@ class TMDBMatchService:
                 raise ValueError("Invalid TMDB ID")
             
             # Check if show exists and doesn't have TMDB ID
+            st.write("Debug - Looking up show in database...")
             show_response = self.supabase.table('shows')\
                 .select('*')\
                 .eq('id', match.our_show_id)\
                 .execute()
             
+            st.write(f"Debug - Show response: {show_response.data}")
+            
             if not show_response.data:
                 raise ValueError(f"Show {match.our_show_title} not found")
             
             existing_show = show_response.data[0]
+            st.write(f"Debug - Existing show: {existing_show}")
+            
             if existing_show.get('tmdb_id'):
                 raise ValueError(f"Show {match.our_show_title} already has TMDB ID {existing_show['tmdb_id']}")
             
