@@ -37,6 +37,6 @@ def render_unmatched_show_row(
         with col4:
             # Only show Find Matches button
             if st.button("Find Matches", 
-                        key=f"find_{show['show_id']}", 
+                        key=f"find_{show['id']}", 
                         use_container_width=True):
                 on_find_matches(show)

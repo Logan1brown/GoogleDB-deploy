@@ -155,10 +155,7 @@ def validate_match(match: TMDBMatchState) -> bool:
             if key.startswith('tmdb_'):
                 del st.session_state[key]
         
-        # Ensure success message persists
-        st.success(matching.success_message)
-        
-        # Update state last
+        # Update state
         update_admin_state(state)
         
         return True
@@ -408,12 +405,6 @@ def render_tmdb_matches():
         matching.error_message = None
         update_admin_state(state)
     
-    # Show any success messages
-    if matching.success_message:
-        st.success(matching.success_message)
-        matching.success_message = None
-        update_admin_state(state)
-    
     # API Status
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -436,14 +427,26 @@ def render_tmdb_matches():
     # Unmatched Shows section
     st.subheader("Unmatched Shows")
     
-    # Get unmatched shows from our view, excluding ones marked as no-match
+    # Get unmatched shows, excluding ones marked as no-match
     supabase = get_supabase_client()
-    response = supabase.rpc('get_unmatched_shows').execute()
+    
+    # First get all show_ids that have no matches
+    no_match_ids = supabase.table('no_tmdb_matches')\
+        .select('show_id')\
+        .execute()
+    no_match_ids = [row['show_id'] for row in no_match_ids.data]
+    
+    # Then get all shows without tmdb_id that aren't in no_match_ids
+    response = supabase.table('shows')\
+        .select('id, title, network_id, date, team_members')\
+        .is_('tmdb_id', 'null')\
+        .not_.in_('id', no_match_ids)\
+        .execute()
     unmatched_shows = response.data
     
     # Filter out the show that was just validated
     if matching.validated_show_id:
-        unmatched_shows = [show for show in unmatched_shows if show['show_id'] != matching.validated_show_id]
+        unmatched_shows = [show for show in unmatched_shows if show['id'] != matching.validated_show_id]
     
     if not unmatched_shows:
         st.info("No unmatched shows found!")
@@ -502,6 +505,11 @@ def render_tmdb_matches():
             
             # Use template to render match card
             render_match_card(match, validate_match)
+    elif matching.success_message:
+        # Show success message after container disappears
+        st.success(matching.success_message)
+        matching.success_message = None
+        update_admin_state(state)
 
     # Save state
     update_admin_state(state)
