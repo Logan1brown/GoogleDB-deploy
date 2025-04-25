@@ -112,7 +112,7 @@ class TMDBMatchService:
                         our_show_id=show_data['show_id'],
                         our_show_title=show_data['title'],
                         our_network=show_data.get('network_name'),
-                        our_year=show_data.get('date'),
+                        our_year=show_data.get('year'),
                         tmdb_id=details.id,
                         name=details.name,
                         first_air_date=str(details.first_air_date) if details.first_air_date else None,

@@ -483,6 +483,10 @@ def render_tmdb_matches():
         
         # Map id to show_id for TMDBMatchState
         show['show_id'] = show['id']
+        
+        # Format date to year
+        if show.get('date'):
+            show['year'] = show['date'].split('-')[0] if isinstance(show['date'], str) else str(show['date'].year)
     unmatched_shows = response.data
     
     # Filter out the show that was just validated
