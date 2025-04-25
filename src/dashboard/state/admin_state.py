@@ -161,15 +161,31 @@ def clear_section_state(state: AdminState, section: str) -> None:
     
     update_admin_state(state)
 
-def clear_matching_state(admin_state: AdminState) -> None:
+def clear_match_session_state(match_id: int):
+    """Clear all session state keys for a specific match.
+    
+    Args:
+        match_id: ID of the match to clear state for
+    """
+    prefix = f"tmdb_match_{match_id}"
+    keys_to_clear = [k for k in st.session_state.keys() if k.startswith(prefix)]
+    for k in keys_to_clear:
+        del st.session_state[k]
+
+def clear_matching_state(admin_state: AdminState):
     """Clear TMDB matching state after a successful match.
     
     Args:
         admin_state: Current admin state to update
     """
-    clear_section_state(admin_state, "TMDB Matches")
-
+    # Clear session state for all matches
+    for match in admin_state.tmdb_matching.matches:
+        clear_match_session_state(match.our_show_id)
     
+    # Reset matching state
+    admin_state.tmdb_matching = TMDBMatchingState()
+    update_admin_state(admin_state)
+
     # TMDB Integration
     tmdb_search_query: str = ""
     tmdb_matches: List[TMDBMatch] = field(default_factory=list)

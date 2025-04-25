@@ -5,7 +5,7 @@ It uses the TMDBMatchState class for state management and provides validation co
 """
 
 import streamlit as st
-from ..state.admin_state import TMDBMatchState
+from ..state.admin_state import TMDBMatchState, clear_match_session_state
 
 def render_match_card(match: TMDBMatchState, on_validate=None):
     """Render a TMDB match card with side-by-side comparison.
@@ -84,9 +84,9 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
                        key=f"{card_key}_validate",
                        use_container_width=True):
                 if on_validate:
-                    # Clear expanded state before validation
+                    # Clear expanded state and all session state before validation
                     match.expanded = False
-                    st.session_state[f"{card_key}_expanded"] = False
+                    clear_match_session_state(match.our_show_id)
                     on_validate(match)
         
         # No Match button
