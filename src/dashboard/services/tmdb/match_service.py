@@ -37,7 +37,6 @@ class TMDBMatchService:
                 'notes': 'Manual validation - No match found',
                 'created_at': datetime.now().isoformat()
             }).execute()
-            st.success("Show marked as having no TMDB match")
             return True
         except Exception as e:
             st.error(f"Error marking show as no match: {e}")
