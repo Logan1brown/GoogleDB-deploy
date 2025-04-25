@@ -115,6 +115,10 @@ def render_landing_page(state: DataEntryState):
         )
         
         if selected_show:
+            # Clear search box immediately
+            if 'edit_show_search' in st.session_state:
+                del st.session_state['edit_show_search']
+                
             # Load show data
             try:
                 st.info(f"⏳ Loading show '{selected_show}'... Please wait.")
