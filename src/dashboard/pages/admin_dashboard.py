@@ -51,13 +51,11 @@ def validate_match(match: TMDBMatchState) -> bool:
         match_service = TMDBMatchService(supabase_client=get_admin_client())
         match_service.validate_match(match)
         
-        # Show success message
+        # Set success message and track validated show
         success_msg = f"Successfully validated match for {match.our_show_title}"
-        st.success(success_msg)
-        
-        # Clear all state in one place
-        from ..state.session import clear_matching_state
-        clear_matching_state(state)
+        matching.success_message = success_msg
+        matching.validated_show_id = match.our_show_id
+        update_admin_state(state)
         
         return True
         
@@ -407,18 +405,22 @@ def render_tmdb_matches():
     # The success message is shown directly in validate_match
     
     # Match Results
-    if matching.matches and not matching.validated_show_id:
-        st.subheader(f"Matches for '{matching.search_query}'")
-        for match in matching.matches:
-            # Add our_eps to match object for template
-            match.our_eps = matching.our_eps
-            
-            # Use template to render match card
-            render_match_card(match, validate_match)
-            
-        # Rerun if we just validated a show
-        if matching.validated_show_id:
+    if matching.matches:
+        if matching.success_message:
+            # Show success and clear state
+            st.success(matching.success_message)
+            from ..state.session import clear_matching_state
+            clear_matching_state(state)
             st.rerun()
+        else:
+            # Show matches
+            st.subheader(f"Matches for '{matching.search_query}'")
+            for match in matching.matches:
+                # Add our_eps to match object for template
+                match.our_eps = matching.our_eps
+                
+                # Use template to render match card
+                render_match_card(match, validate_match)
 
     # Save state
     update_admin_state(state)
