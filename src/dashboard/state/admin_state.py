@@ -18,7 +18,7 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from datetime import datetime
-from .session import get_page_state, update_page_state
+import streamlit as st
 
 class MatchStatus(Enum):
     """Status of a TMDB match."""
@@ -135,6 +135,7 @@ def update_admin_state(admin_state: AdminState) -> None:
     """
     state = get_page_state("admin")
     state["admin"] = asdict(admin_state)
+    update_page_state(state)
 
 def clear_section_state(state: AdminState, section: str) -> None:
     """Clear state for a specific section.

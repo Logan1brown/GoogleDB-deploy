@@ -9,7 +9,7 @@ import streamlit as st
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, asdict
 from src.dashboard.state.show_state import DataEntryState
-from src.dashboard.state.admin_state import AdminState
+from src.dashboard.state.admin_state import AdminState, TMDBMatchState, UserManagementState, AnnouncementState, TMDBMatchingState, APIMetricsState
 
 @dataclass
 class FilterState:
@@ -89,22 +89,20 @@ def get_admin_state() -> AdminState:
     """Get admin dashboard state.
     
     Returns:
-        AdminState instance
+        AdminState instance with all section states properly initialized.
     """
-    # Create new state if not exists or if missing fields
-    if 'admin_state' not in st.session_state or \
-       not all(hasattr(st.session_state.admin_state, field) \
-               for field in AdminState.__dataclass_fields__):
-        st.session_state.admin_state = AdminState()
-    return st.session_state.admin_state
+    state = get_page_state("admin")
+    if not state:
+        return AdminState()
+    return AdminState(**state)
 
 def update_admin_state(admin_state: AdminState) -> None:
     """Update admin dashboard state.
     
+    This is the ONLY way state should be updated in the admin dashboard.
+    Do not modify st.session_state directly.
+    
     Args:
-        admin_state: New admin state
+        admin_state: New admin state to save
     """
-    # Update fields individually to preserve object identity
-    current = get_admin_state()
-    for field in admin_state.__dataclass_fields__:
-        setattr(current, field, getattr(admin_state, field))
+    update_page_state("admin", asdict(admin_state))
