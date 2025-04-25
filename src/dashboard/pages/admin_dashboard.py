@@ -148,6 +148,7 @@ def validate_match(match: TMDBMatchState) -> bool:
         matching.success_message = f"Successfully validated match for {match.our_show_title}"
         matching.search_query = ""
         matching.matches = []
+        matching.validated_show_id = match.our_show_id  # Track which show was validated
         
         # Update state
         update_admin_state(state)
@@ -439,18 +440,12 @@ def render_tmdb_matches():
     
     # Get unmatched shows from our view, excluding ones marked as no-match
     supabase = get_supabase_client()
-    
-    # First get all show_ids that have no matches
-    no_match_ids = supabase.table('no_tmdb_matches').select('show_id').execute().data
-    no_match_ids = [row['show_id'] for row in no_match_ids]
-    
-    # Then get all shows that aren't in that list
-    response = supabase.table('api_tmdb_match') \
-        .select('show_id, title, network_name, date, team_members') \
-        .not_.in_('show_id', no_match_ids) \
-        .execute()
-    
+    response = supabase.rpc('get_unmatched_shows').execute()
     unmatched_shows = response.data
+    
+    # Filter out the show that was just validated
+    if matching.validated_show_id:
+        unmatched_shows = [show for show in unmatched_shows if show['show_id'] != matching.validated_show_id]
     
     if not unmatched_shows:
         st.info("No unmatched shows found!")

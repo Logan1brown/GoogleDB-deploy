@@ -89,6 +89,7 @@ class TMDBMatchingState:
     last_validation: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     success_message: Optional[str] = None
+    validated_show_id: Optional[int] = None  # Track which show was just validated
 
 @dataclass
 class APIMetricsState:
