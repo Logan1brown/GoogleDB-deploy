@@ -32,7 +32,10 @@ def render_unmatched_shows_table(
         st.markdown("**Actions**")
     
     # Render each show row
-    for show in shows:
+    for i, show in enumerate(shows):
+        # Add divider between shows (but not before first one)
+        if i > 0:
+            st.markdown("---")
         col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
         with col1:
             st.write(show['title'])
