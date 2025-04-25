@@ -43,6 +43,20 @@ def validate_match(match: TMDBMatchState) -> bool:
         # Use TMDBMatchService to validate
         match_service = TMDBMatchService(supabase_client=get_admin_client())
         match_service.validate_match(match)
+        
+        # Set success message and clear UI state
+        matching.success_message = f"Successfully validated match for {match.our_show_title}"
+        matching.search_query = ""
+        matching.matches = []
+        matching.validated_show_id = match.our_show_id  # Track which show was validated
+        
+        # Clear any UI state
+        for key in list(st.session_state.keys()):
+            if key.startswith('tmdb_'):
+                del st.session_state[key]
+                
+        # Update state
+        update_admin_state(state)
         return True
         
     except Exception as e:
@@ -53,8 +67,7 @@ def validate_match(match: TMDBMatchState) -> bool:
         
         # Update state
         update_admin_state(state)
-        
-        return True
+        return False
         
     except Exception as e:
         st.error(f"Error validating match: {str(e)}")

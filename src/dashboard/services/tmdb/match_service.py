@@ -125,8 +125,6 @@ class TMDBMatchService:
                 
         except Exception as e:
             raise ValueError(str(e))
-        """Initialize service with optional client."""
-        self.client = client or TMDBClient()
     
     def propose_match(self, match: TMDBMatchState) -> bool:
         """Store a proposed match in tmdb_match_attempts with all TMDB data for review.
