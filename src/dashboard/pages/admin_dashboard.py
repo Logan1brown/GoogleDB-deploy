@@ -582,15 +582,7 @@ def render_tmdb_matches():
     # The success message is shown directly in validate_match
     
     # Match Results
-    if matching.success_message:
-        # Show success message after container disappears
-        st.success(matching.success_message)
-        matching.success_message = None
-        # Clear matches after successful validation
-        matching.matches = []
-        matching.search_query = ""
-        update_admin_state(state)
-    elif matching.matches and not matching.validated_show_id:
+    if matching.matches and not matching.validated_show_id:
         st.subheader(f"Matches for '{matching.search_query}'")
         for match in matching.matches:
             # Add our_eps to match object for template
@@ -598,6 +590,15 @@ def render_tmdb_matches():
             
             # Use template to render match card
             render_match_card(match, validate_match)
+    elif matching.success_message:
+        # Show success message after container disappears
+        st.subheader(f"Matches for '{matching.search_query}'")
+        st.success(matching.success_message)
+        matching.success_message = None
+        # Clear matches after successful validation
+        matching.matches = []
+        matching.search_query = ""
+        update_admin_state(state)
 
     # Save state
     update_admin_state(state)
