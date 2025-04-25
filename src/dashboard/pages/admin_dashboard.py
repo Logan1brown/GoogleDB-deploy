@@ -604,14 +604,17 @@ def admin_show():
     except Exception as e:
         # Update error in appropriate section state
         state = get_admin_state()
+        error_msg = str(e) if str(e) else "Unknown error occurred"
+        
         if state.current_view == "User Management":
-            state.user_management.error_message = str(e)
+            state.user_management.error_message = error_msg
         elif state.current_view == "Announcements":
-            state.announcements.error_message = str(e)
+            state.announcements.error_message = error_msg
         elif state.current_view == "TMDB Matches":
-            state.tmdb_matching.error_message = str(e)
+            state.tmdb_matching.error_message = error_msg
         update_admin_state(state)
-        st.error(f"Admin dashboard error: {str(e)}")
+        
+        st.error(f"Admin dashboard error: {error_msg}")
 
 if __name__ == "__main__":
     admin_show()

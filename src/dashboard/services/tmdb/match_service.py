@@ -130,7 +130,7 @@ class TMDBMatchService:
                     )
                     matches.append(match)
                 except Exception as e:
-                    st.error(f"Error processing result: {str(e)}")
+                    st.warning(f"Skipping result due to error: {str(e)}")
                     continue
         
         # Deduplicate matches by TMDB ID and sort by confidence score
