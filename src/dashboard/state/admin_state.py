@@ -74,6 +74,8 @@ class AnnouncementState:
     content: str = ""
     announcements: List[Dict[str, Any]] = field(default_factory=list)
     selected_announcement_id: Optional[int] = None
+    error_message: Optional[str] = None
+    success_message: Optional[str] = None
 
 @dataclass
 class TMDBMatchingState:
@@ -85,6 +87,8 @@ class TMDBMatchingState:
     show_low_confidence: bool = False
     our_eps: List[str] = field(default_factory=list)
     last_validation: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    success_message: Optional[str] = None
 
 @dataclass
 class APIMetricsState:

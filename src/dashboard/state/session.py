@@ -92,9 +92,9 @@ def get_admin_state() -> AdminState:
         AdminState instance with all section states properly initialized.
     """
     state = get_page_state("admin")
-    if not state:
-        return AdminState()
-    return AdminState(**state)
+    if not state or "admin" not in state:
+        state["admin"] = asdict(AdminState())
+    return AdminState(**state["admin"])
 
 def update_admin_state(admin_state: AdminState) -> None:
     """Update admin dashboard state.
@@ -105,7 +105,9 @@ def update_admin_state(admin_state: AdminState) -> None:
     Args:
         admin_state: New admin state to save
     """
-    update_page_state("admin", asdict(admin_state))
+    state = get_page_state("admin")
+    state["admin"] = asdict(admin_state)
+    update_page_state("admin", state)
 
 def clear_match_session_state(match_id: int):
     """Clear all session state keys for a specific match.
