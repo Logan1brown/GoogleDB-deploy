@@ -602,6 +602,13 @@ def admin_show():
             render_tmdb_matches()
             
     except Exception as e:
+        # Debug error info
+        st.write("Exception type:", type(e))
+        st.write("Exception dir:", dir(e))
+        st.write("Exception dict:", e.__dict__ if hasattr(e, '__dict__') else 'No dict')
+        st.write("Exception str:", str(e))
+        st.write("Exception repr:", repr(e))
+        
         # Update error in appropriate section state
         state = get_admin_state()
         error_msg = str(e) if str(e) else "Unknown error occurred"
