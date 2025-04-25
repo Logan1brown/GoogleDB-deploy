@@ -122,13 +122,8 @@ def validate_match(match: TMDBMatch) -> bool:
             st.error("Failed to insert TMDB metrics")
             return
             
-        # Show success message and clear state
+        # Just show success message - state will be cleared in render_tmdb_matches
         st.success(f"Successfully validated match for {match.our_show_title}")
-        
-        # Clear all TMDB-related state
-        for key in list(st.session_state.keys()):
-            if key.startswith('tmdb_') or key in ['our_eps']:
-                del st.session_state[key]
         return True
         
     except Exception as e:
@@ -462,7 +457,11 @@ def render_tmdb_matches():
             .execute()
             
         if show_response.data and show_response.data[0].get('tmdb_id'):
-            # Show was matched, clear the state
+            # Show was matched, clear all TMDB-related state
+            for key in list(st.session_state.keys()):
+                if key.startswith('tmdb_') or key in ['our_eps']:
+                    del st.session_state[key]
+            # Also clear admin state
             state.tmdb_matches = None
             state.tmdb_search_query = None
             state.our_eps = None
