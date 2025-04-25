@@ -101,7 +101,7 @@ class TMDBMatchService:
                     
                     # Calculate scores
                     title_score = score_title_match(show_data['title'], details.name)
-                    network_score = score_network_match(show_data.get('network_name'), details.networks)
+                    network_score = score_network_match(show_data.get('search_network'), details.networks)
                     ep_score, _ = score_ep_matches(our_eps, tmdb_eps)
                     
                     total_score = title_score + network_score + ep_score
@@ -111,7 +111,7 @@ class TMDBMatchService:
                     match = TMDBMatchState(
                         our_show_id=show_data['show_id'],
                         our_show_title=show_data['title'],
-                        our_network=show_data.get('network_name'),
+                        our_network=show_data.get('network_name'),  # Use display name
                         our_year=show_data.get('year'),
                         tmdb_id=details.id,
                         name=details.name,
