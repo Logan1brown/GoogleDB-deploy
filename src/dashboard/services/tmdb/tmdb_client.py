@@ -132,7 +132,10 @@ class TMDBClient:
         params['api_key'] = self.api_key
         
         url = f"{self.BASE_URL}{endpoint}"
+        st.write(f"TMDB API URL: {url}")
+        st.write(f"TMDB API params: {params}")
         response = requests.get(url, headers=self.headers, params=params)
+        st.write(f"TMDB API response: {response.text}")
         
         if response.status_code != 200:
             st.error(f"Error response: {response.text}")

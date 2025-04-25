@@ -135,8 +135,6 @@ class TMDBMatchService:
                 except Exception as e:
                     st.error(f"Error processing result: {str(e)}")
                     continue
-            
-            return matches
         
         # Sort by confidence score
         matches.sort(key=lambda m: m.confidence, reverse=True)
