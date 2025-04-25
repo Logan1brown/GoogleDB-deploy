@@ -431,10 +431,11 @@ def render_tmdb_matches():
     supabase = get_supabase_client()
     
     # First get all show_ids that have no matches
-    no_match_ids = supabase.table('no_tmdb_matches')\
+    no_match_response = supabase.table('no_tmdb_matches')\
         .select('show_id')\
         .execute()
-    no_match_ids = [row['show_id'] for row in no_match_ids.data]
+    st.write("No match response:", no_match_response.data)
+    no_match_ids = [row.get('show_id') for row in no_match_response.data] if no_match_response.data else []
     
     # Then get all shows without tmdb_id that aren't in no_match_ids
     response = supabase.table('shows')\
@@ -449,8 +450,27 @@ def render_tmdb_matches():
     # Convert show_team and network data
     for show in response.data:
         # Handle network name
-        network_list = show.pop('network_list', [])
-        show['network_name'] = network_list[0]['network'] if network_list else ''
+        try:
+            network_list = show.get('network_list', [])
+            # Check if we have any networks
+            first_network = network_list[0] if network_list else None
+            if first_network:
+                # Get network name from first network
+                network_name = first_network.get('network', '')
+                # Also get aliases and search network for better matching
+                aliases = first_network.get('aliases', [])
+                search_network = first_network.get('search_network', '')
+                # Use search_network if available, otherwise network name
+                show['network_name'] = search_network or network_name
+            else:
+                show['network_name'] = ''
+        except (IndexError, AttributeError, KeyError) as e:
+            st.write(f"Debug - Network error for {show.get('title', 'Unknown show')}: {str(e)}")
+            st.write(f"Network list: {show.get('network_list')}")
+            show['network_name'] = ''
+        
+        # Remove network list after using
+        show.pop('network_list', None)
         
         # Handle team members
         team = show.pop('show_team', [])

@@ -20,12 +20,11 @@ def map_tmdb_status(tmdb_status: str) -> Optional[int]:
     """
     status_map = {
         'Returning Series': 1,  # active
-        'In Production': 1,     # active
         'Pilot': 1,             # active
         'Ended': 3,             # ended
         'Canceled': 2,          # canceled
         'Planned': 4,           # development
-        # In Production is intentionally mapped twice as per spec
+        # Note: In Production maps to development per spec
         'In Production': 4      # development
     }
     return status_map.get(tmdb_status)
