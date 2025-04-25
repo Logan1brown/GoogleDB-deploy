@@ -70,10 +70,29 @@ def load_show_eps(show_name: str, team_csv_path: str) -> List[str]:
 
 def get_tmdb_eps(credits: Dict) -> List[str]:
     """Extract executive producer names from TMDB credits."""
-    return [
-        person['name'] for person in credits.get('crew', [])
-        if person['job'] in ['Executive Producer']
+    producer_titles = [
+        'Executive Producer',
+        'Co-Executive Producer',
+        'Consulting Producer',
+        'Producer',
+        'Co-Producer',
+        'Supervising Producer'
     ]
+    
+    # First try exact matches
+    eps = [
+        person['name'] for person in credits.get('crew', [])
+        if person['job'] in producer_titles
+    ]
+    
+    # If no exact matches, try case-insensitive partial matches
+    if not eps:
+        eps = [
+            person['name'] for person in credits.get('crew', [])
+            if any(title.lower() in person['job'].lower() for title in producer_titles)
+        ]
+    
+    return eps
 
 def score_title_match(our_title: str, tmdb_title: str) -> int:
     """Score title match (0-60 points)."""
