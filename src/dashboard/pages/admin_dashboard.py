@@ -44,18 +44,18 @@ def validate_match(match: TMDBMatchState) -> bool:
         True if validation succeeded, False if there were any errors
     """
     try:
-        state = get_admin_state()
-        matching = state.tmdb_matching
-        
         # Use TMDBMatchService to validate
         match_service = TMDBMatchService(supabase_client=get_admin_client())
         match_service.validate_match(match)
         
-        # Set success message and track validated show
-        success_msg = f"Successfully validated match for {match.our_show_title}"
-        matching.success_message = success_msg
-        matching.validated_show_id = match.our_show_id
-        update_admin_state(state)
+        # Show success message
+        st.success(f"Successfully validated match for {match.our_show_title}")
+        
+        # Clear state and rerun
+        from ..state.session import clear_matching_state
+        state = get_admin_state()
+        clear_matching_state(state)
+        st.rerun()
         
         return True
         
@@ -406,21 +406,13 @@ def render_tmdb_matches():
     
     # Match Results
     if matching.matches:
-        if matching.success_message:
-            # Show success and clear state
-            st.success(matching.success_message)
-            from ..state.session import clear_matching_state
-            clear_matching_state(state)
-            st.rerun()
-        else:
-            # Show matches
-            st.subheader(f"Matches for '{matching.search_query}'")
-            for match in matching.matches:
-                # Add our_eps to match object for template
-                match.our_eps = matching.our_eps
-                
-                # Use template to render match card
-                render_match_card(match, validate_match)
+        st.subheader(f"Matches for '{matching.search_query}'")
+        for match in matching.matches:
+            # Add our_eps to match object for template
+            match.our_eps = matching.our_eps
+            
+            # Use template to render match card
+            render_match_card(match, validate_match)
 
     # Save state
     update_admin_state(state)
