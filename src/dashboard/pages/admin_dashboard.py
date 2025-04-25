@@ -453,13 +453,10 @@ def render_tmdb_matches():
         try:
             network = show.get('network_list')
             if network:
-                # Get network name
-                network_name = network.get('network', '')
-                # Also get aliases and search network for better matching
-                aliases = network.get('aliases', [])
-                search_network = network.get('search_network', '')
-                # Use search_network if available, otherwise network name
-                show['network_name'] = search_network or network_name
+                # Get network name for display
+                show['network_name'] = network.get('network', '')
+                # Store search_network for TMDB matching
+                show['search_network'] = network.get('search_network', '') or network.get('network', '')
             else:
                 show['network_name'] = ''
         except (AttributeError, KeyError) as e:
@@ -486,13 +483,19 @@ def render_tmdb_matches():
         date = show.get('date')
         if date:
             try:
-                show['year'] = date.split('-')[0]
-                st.write(f"Debug - Date for {show.get('title')}: {date}, Year: {show['year']}")
+                # Store in both fields to match TMDBMatchState
+                year = date.split('-')[0]
+                show['year'] = year
+                show['date'] = year  # Also store in date for TMDBMatchState
+                st.write(f"Debug - Date for {show.get('title')}: {date}, Year: {year}")
             except (AttributeError, IndexError):
-                show['year'] = str(date.year) if hasattr(date, 'year') else None
+                year = str(date.year) if hasattr(date, 'year') else None
+                show['year'] = year
+                show['date'] = year  # Also store in date for TMDBMatchState
                 st.write(f"Debug - Date error for {show.get('title')}: {date}, Type: {type(date)}")
         else:
             show['year'] = None
+            show['date'] = None  # Also store in date for TMDBMatchState
             st.write(f"Debug - No date for {show.get('title')}")
     unmatched_shows = response.data
     
