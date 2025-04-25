@@ -44,6 +44,7 @@ class TMDBMatchState:
     status: str = ""
     episodes_per_season: List[int] = field(default_factory=list)
     executive_producers: List[str] = field(default_factory=list)
+    our_eps: List[str] = field(default_factory=list)  # Our executive producers
     
     # Match confidence scores
     confidence: float = 0.0

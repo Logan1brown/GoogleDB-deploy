@@ -122,12 +122,13 @@ class TMDBMatchService:
                         status=details.status,
                         networks=[n.name for n in details.networks],
                         executive_producers=tmdb_eps,
+                        our_eps=our_eps,  # Add our EPs for comparison
                         confidence=total_score,
                         title_score=title_score,
                         network_score=network_score,
                         ep_score=ep_score,
                         # Initial UI state
-                        expanded=False,
+                        expanded=True,  # Show side-by-side by default
                         validation_error=None
                     )
                     matches.append(match)
