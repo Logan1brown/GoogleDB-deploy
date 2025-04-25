@@ -3,7 +3,7 @@
 import asyncio
 from typing import List, Optional
 import streamlit as st
-from ...state.admin_state import TMDBMatch, MatchStatus
+from ...state.admin_state import TMDBMatchState, MatchStatus
 from .tmdb_client import TMDBClient
 from .tmdb_models import TVShow, TVShowDetails
 from ..supabase import get_supabase_client
@@ -20,14 +20,17 @@ class TMDBMatchService:
         """Initialize service with optional client."""
         self.client = client or TMDBClient()
     
-    def propose_match(self, match: TMDBMatch) -> bool:
+    def propose_match(self, match: TMDBMatchState) -> bool:
         """Store a proposed match in tmdb_match_attempts with all TMDB data for review.
         
         Args:
-            match: TMDBMatch object containing all match data
+            match: TMDBMatchState object containing match data and UI state
             
         Returns:
             True if match was successfully proposed, False otherwise
+            
+        Note:
+            Only the match data is stored, UI state is not persisted
         """
         try:
             data = {
@@ -64,7 +67,7 @@ class TMDBMatchService:
             print(f"Failed to propose match: {str(e)}")
             return False
             
-    def search_and_match(self, show_data: dict, confidence_threshold: float = 0.8) -> List[TMDBMatch]:
+    def search_and_match(self, show_data: dict, confidence_threshold: float = 0.8) -> List[TMDBMatchState]:
         """Search TMDB and find potential matches for our shows.
         
         Args:
@@ -72,7 +75,7 @@ class TMDBMatchService:
             confidence_threshold: Minimum confidence score for automatic matches
             
         Returns:
-            List of potential matches with confidence scores
+            List of potential matches with confidence scores and initial UI state
         """
         matches = []
         # Search TMDB with variations
@@ -104,8 +107,8 @@ class TMDBMatchService:
                     total_score = title_score + network_score + ep_score
                     confidence = get_confidence_level(total_score)
                     
-                    # Create TMDBMatch
-                    match = TMDBMatch(
+                    # Create TMDBMatchState with initial UI state
+                    match = TMDBMatchState(
                         our_show_id=show_data['show_id'],
                         our_show_title=show_data['title'],
                         our_network=show_data.get('network_name'),
@@ -120,7 +123,10 @@ class TMDBMatchService:
                         confidence=total_score,
                         title_score=title_score,
                         network_score=network_score,
-                        ep_score=ep_score
+                        ep_score=ep_score,
+                        # Initial UI state
+                        expanded=False,
+                        validation_error=None
                     )
                     matches.append(match)
                 except Exception as e:

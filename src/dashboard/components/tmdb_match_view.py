@@ -1,16 +1,37 @@
-"""Component for displaying TMDB match information."""
+"""Component for displaying TMDB match information.
+
+This component handles the display of individual TMDB matches in the admin dashboard.
+It uses the TMDBMatchState class for state management and provides validation controls.
+"""
 
 import streamlit as st
-from ..state.admin_state import TMDBMatch
+from ..state.admin_state import TMDBMatchState
 
-def render_match_card(match: TMDBMatch, on_validate=None):
+def render_match_card(match: TMDBMatchState, on_validate=None):
     """Render a TMDB match card with side-by-side comparison.
     
     Args:
-        match: TMDBMatch object containing all match data
+        match: TMDBMatchState object containing match data and UI state
         on_validate: Optional callback when match is validated
+    
+    The card shows:
+    1. Our show data vs TMDB data
+    2. Match confidence scores
+    3. Validation controls
+    
+    UI state is persisted in the match state object and session state.
     """
-    with st.expander(f"{match.name}", expanded=True):
+    # Generate unique key for this match card
+    card_key = f"tmdb_match_{match.our_show_id}_{match.tmdb_id}"
+    
+    # Initialize or get expanded state
+    if f"{card_key}_expanded" not in st.session_state:
+        st.session_state[f"{card_key}_expanded"] = match.expanded
+    
+    # Update match state from session state
+    match.expanded = st.session_state[f"{card_key}_expanded"]
+    
+    with st.expander(f"{match.name}", expanded=match.expanded):
         col1, col2 = st.columns(2)
         
         # Our Show Details
@@ -60,20 +81,23 @@ def render_match_card(match: TMDBMatch, on_validate=None):
         # Validate Match button
         with button_col1:
             if st.button(f"Validate Match ({match.confidence}%)", 
-                       key=f"validate_{match.our_show_id}_{match.tmdb_id}",
+                       key=f"{card_key}_validate",
                        use_container_width=True):
                 if on_validate:
+                    # Clear expanded state before validation
+                    match.expanded = False
+                    st.session_state[f"{card_key}_expanded"] = False
                     on_validate(match)
         
         # No Match button
         with button_col2:
             if st.button("No Match", 
-                       key=f"no_match_{match.our_show_id}_{match.tmdb_id}",
+                       key=f"{card_key}_no_match",
                        type="secondary",
                        use_container_width=True):
                 if on_validate:
-                    # Create a dummy match object with tmdb_id = -1
-                    no_match = TMDBMatch(
+                    # Create a dummy match state object with tmdb_id = -1
+                    no_match = TMDBMatchState(
                         our_show_id=match.our_show_id,
                         our_show_title=match.our_show_title,
                         our_network=match.our_network,

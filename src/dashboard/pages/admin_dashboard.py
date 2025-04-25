@@ -25,29 +25,43 @@ from src.shared.auth import auth_required
 from supabase import create_client
 from dataclasses import dataclass
 
-def validate_match(match: TMDBMatch) -> bool:
-    """Validate a TMDB match and save the data."""
+def validate_match(match: TMDBMatchState) -> bool:
+    """Validate a TMDB match and save the data.
+    
+    Args:
+        match: TMDBMatchState object containing match data and UI state
+        
+    Returns:
+        True if validation succeeded, False if there were any errors
+    """
     try:
         state = get_admin_state()
+        matching = state.tmdb_matching
+        metrics = state.api_metrics
+        
         # Input validation
         if not match.our_show_id or not isinstance(match.our_show_id, int):
-            st.error("Invalid show ID")
-            return
+            matching.error_message = "Invalid show ID"
+            update_admin_state(state)
+            return False
         if not isinstance(match.tmdb_id, int):
-            st.error("Invalid TMDB ID")
-            return
+            matching.error_message = "Invalid TMDB ID"
+            update_admin_state(state)
+            return False
             
         client = get_admin_client()
         
         # Check if show exists and doesn't have TMDB ID
         show_response = client.table('shows').select('*').eq('id', match.our_show_id).execute()
         if not show_response.data:
-            st.error(f"Show {match.our_show_title} (ID: {match.our_show_id}) not found")
-            return
+            matching.error_message = f"Show {match.our_show_title} (ID: {match.our_show_id}) not found"
+            update_admin_state(state)
+            return False
+            
         existing_show = show_response.data[0]
         if existing_show.get('tmdb_id'):
-            st.error(f"Show {match.our_show_title} already has TMDB ID {existing_show['tmdb_id']}")
-            return
+            matching.error_message = f"Show {match.our_show_title} already has TMDB ID {existing_show['tmdb_id']}"
+            return False
             
         # Handle no-match case
         if match.tmdb_id == -1:
@@ -58,14 +72,14 @@ def validate_match(match: TMDBMatch) -> bool:
             
             if not no_match_response.data:
                 st.error("Failed to mark show as no-match")
-                return
+                return False
             return True
 
         # Check if TMDB ID already exists in success metrics
         metrics_response = client.table('tmdb_success_metrics').select('id').eq('tmdb_id', match.tmdb_id).execute()
         if metrics_response.data:
             st.error(f"TMDB ID {match.tmdb_id} already exists in success metrics")
-            return
+            return False
         
         # Get full show details from TMDB
         tmdb_client = TMDBClient()
@@ -122,15 +136,24 @@ def validate_match(match: TMDBMatch) -> bool:
             st.error("Failed to insert TMDB metrics")
             return
             
-        # Set last validation in state
-        state.last_validation = {
+        # Set last validation in matching state
+        matching.last_validation = {
             'show_id': match.our_show_id,
             'tmdb_id': match.tmdb_id,
             'timestamp': time.time()
         }
+        
+        # Set success message
+        matching.success_message = f"Successfully validated match for {match.our_show_title}"
+        
+        # Update state
         update_admin_state(state)
         
-        st.success(f"Successfully validated match for {match.our_show_title}")
+        # Clear any UI state
+        for key in list(st.session_state.keys()):
+            if key.startswith('tmdb_'):
+                del st.session_state[key]
+        
         return True
         
     except Exception as e:
@@ -368,25 +391,39 @@ def render_tmdb_matches():
     2. Review and approve/reject matches
     """
     state = get_admin_state()
+    matching = state.tmdb_matching
+    metrics = state.api_metrics
     match_service = TMDBMatchService()
+    
+    # Show any error messages
+    if matching.error_message:
+        st.error(matching.error_message)
+        matching.error_message = None
+        update_admin_state(state)
+    
+    # Show any success messages
+    if matching.success_message:
+        st.success(matching.success_message)
+        matching.success_message = None
+        update_admin_state(state)
     
     # API Status
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("API Calls", f"{state.api_calls_total} total", f"{state.api_calls_remaining} remaining")
+        st.metric("API Calls", f"{metrics.calls_total} total", f"{metrics.calls_remaining} remaining")
     with col2:
-        cache_ratio = (state.cache_hits / (state.cache_hits + state.cache_misses)) * 100 if state.cache_hits + state.cache_misses > 0 else 0
-        st.metric("Cache", f"{state.cache_hits} hits", f"{cache_ratio:.1f}% hit rate")
+        cache_ratio = (metrics.cache_hits / (metrics.cache_hits + metrics.cache_misses)) * 100 if metrics.cache_hits + metrics.cache_misses > 0 else 0
+        st.metric("Cache", f"{metrics.cache_hits} hits", f"{cache_ratio:.1f}% hit rate")
     with col3:
-        reset_in = max(0, state.api_window_reset_time - time.time())
-        st.metric("Rate Limit", f"{state.api_calls_remaining}/40", f"Reset in {reset_in:.1f}s")
+        reset_in = max(0, (metrics.window_reset_time.timestamp() - datetime.now().timestamp()))
+        st.metric("Rate Limit", f"{metrics.calls_remaining}/40", f"Reset in {reset_in:.1f}s")
     
     # Search TMDB
     st.text_input("Search Shows", 
-                 value=state.tmdb_search_query,
+                 value=matching.search_query,
                  placeholder="Enter show title...",
                  key="tmdb_search_bar")
-    if not state.tmdb_matches:
+    if not matching.matches:
         st.info("Search for shows to see potential matches")
     
     # Unmatched Shows section
@@ -436,15 +473,15 @@ def render_tmdb_matches():
                         return
                     
                     # Store matches and our_eps in state
-                    state.tmdb_matches = matches
-                    state.tmdb_search_query = show_data['title']
-                    state.our_eps = our_eps
-                    state.last_validation = None  # Clear any previous validation
-                    update_admin_state(state)
+                    matching.matches = [TMDBMatchState(**match.__dict__) for match in matches]
+                    matching.search_query = show_data['title']
+                    matching.our_eps = our_eps
+                    matching.last_validation = None  # Clear any previous validation
                     
                     # Update metrics
-                    state.api_calls_total += 1
-                    state.api_calls_remaining -= 1
+                    metrics.calls_total += 1
+                    metrics.calls_remaining -= 1
+                    
                     update_admin_state(state)
             except Exception as e:
                 st.error(f"Error searching TMDB: {str(e)}")
@@ -456,34 +493,24 @@ def render_tmdb_matches():
     # The success message is shown directly in validate_match
     
     # Match Results
-    if state.tmdb_matches and state.tmdb_search_query:
+    if matching.matches and matching.search_query:
         # Check if we just validated a match
-        if state.last_validation:
-            validation_age = time.time() - state.last_validation['timestamp']
+        if matching.last_validation:
+            validation_age = time.time() - matching.last_validation['timestamp']
             if validation_age < 5:  # Within last 5 seconds
-                # Clear all state
-                state.tmdb_matches = None
-                state.tmdb_search_query = None
-                state.our_eps = None
-                state.last_validation = None
-                update_admin_state(state)
-                
-                # Clear Streamlit session state
-                for key in list(st.session_state.keys()):
-                    if key.startswith('tmdb_') or key in ['our_eps']:
-                        del st.session_state[key]
-                        
+                # Use our helper to clear matching state
+                clear_matching_state(state)
                 time.sleep(0.5)  # Brief pause to ensure state is cleared
                 st.experimental_rerun()
                 return
         
         # Show matches if we have them
-        if state.tmdb_matches:
-            st.subheader(f"Matches for '{state.tmdb_search_query}'")
+        if matching.matches:
+            st.subheader(f"Matches for '{matching.search_query}'")
             
-            for match in state.tmdb_matches:
+            for match in matching.matches:
                 # Add our_eps to match object for template
-                match.our_eps = state.our_eps
+                match.our_eps = matching.our_eps
                 
                 # Use template to render match card
                 render_match_card(match, validate_match)
@@ -494,7 +521,13 @@ def render_tmdb_matches():
 
 @auth_required(['admin'])
 def admin_show():
-    """Main function for admin dashboard."""
+    """Main function for admin dashboard.
+    
+    This is the entry point for the admin dashboard. It handles:
+    1. Access control
+    2. View selection
+    3. Section rendering
+    """
     try:
         st.title("Admin Dashboard")
         
@@ -506,12 +539,20 @@ def admin_show():
         state = get_admin_state()
         
         # Update view based on radio selection
-        state.current_view = st.radio(
+        new_view = st.radio(
             "Select Function",
             ["User Management", "Announcements", "TMDB Matches"],
-            horizontal=True
+            horizontal=True,
+            key="admin_view_selector"
         )
-        update_admin_state(state)
+        
+        # Only update state if view changed
+        if new_view != state.current_view:
+            # Clear old section state
+            clear_section_state(state, state.current_view)
+            # Update view
+            state.current_view = new_view
+            
         st.divider()
         
         # Render selected section
@@ -521,7 +562,17 @@ def admin_show():
             render_announcements()
         elif state.current_view == "TMDB Matches":
             render_tmdb_matches()
+            
     except Exception as e:
+        # Update error in appropriate section state
+        state = get_admin_state()
+        if state.current_view == "User Management":
+            state.user_management.error_message = str(e)
+        elif state.current_view == "Announcements":
+            state.announcements.error_message = str(e)
+        elif state.current_view == "TMDB Matches":
+            state.tmdb_matching.error_message = str(e)
+        update_admin_state(state)
         st.error(f"Admin dashboard error: {str(e)}")
 
 if __name__ == "__main__":
