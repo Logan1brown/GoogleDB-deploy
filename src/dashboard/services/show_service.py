@@ -71,12 +71,23 @@ def process_show_data(show: Dict) -> Dict:
         
         # Handle team members
         team = show.pop('show_team', [])
-        # Include both producers and creators as EPs
-        show['team_members'] = [
+        
+        # First try to get EPs by role
+        eps_by_role = [
             {'name': member['name'], 'role': 'Executive Producer'}
-            for member in team 
-            if member['role_type_id'] in (2, 4)  # 2 = Producer, 4 = Creator
+            for member in {m['name']: m for m in team 
+                         if m['role_type_id'] in (1, 4, 5, 15)  # 1 = Creator, 4 = Showrunner, 5 = EP, 15 = Writer/EP
+                        }.values()
         ]
+        
+        # If no roles matched, take first 5 unique names
+        if not eps_by_role and team:
+            eps_by_role = [
+                {'name': member['name'], 'role': 'Executive Producer'}
+                for member in {m['name']: m for m in team[:5]}.values()  # First 5 unique names
+            ]
+        
+        show['team_members'] = eps_by_role
         
         # Map id to show_id for TMDBMatchState
         show['show_id'] = show['id']

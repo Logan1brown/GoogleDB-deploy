@@ -364,7 +364,7 @@ def render_tmdb_matches():
                 # Get our EPs first
                 team_members = show_data.get('team_members', [])
                 our_eps = [member['name'] for member in team_members 
-                         if member['role'].lower() == 'executive producer']
+                         if member['role'] == 'Executive Producer']
                 
                 # Get TMDB matches
                 matches = match_service.search_and_match(show_data)
