@@ -52,7 +52,9 @@ def validate_match(match: TMDBMatchState) -> bool:
         match_service.validate_match(match)
         
         # Set success message and clear UI state
-        matching.success_message = f"Successfully validated match for {match.our_show_title}"
+        success_msg = f"Successfully validated match for {match.our_show_title}"
+        st.success(success_msg)  # Show success immediately
+        matching.success_message = success_msg
         matching.search_query = ""
         matching.matches = []
         matching.validated_show_id = match.our_show_id  # Track which show was validated
@@ -67,23 +69,25 @@ def validate_match(match: TMDBMatchState) -> bool:
         return True
         
     except Exception as e:
+        # Log the error
+        error_msg = str(e) if str(e) else "Unknown error occurred"
+        st.error(error_msg)  # Show error immediately
+        
         # Update error in state
         state = get_admin_state()
         matching = state.tmdb_matching
-        matching.error_message = str(e) if str(e) else "Unknown error occurred"
+        matching.error_message = error_msg
         
-        # Update state
-        update_admin_state(state)
-        return False
-        
-    except Exception as e:
-        st.error(f"Error validating match: {str(e)}")
-        # Attempt rollback
+        # Attempt rollback if needed
         try:
+            client = get_admin_client()
             client.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
         except Exception as rollback_error:
             st.error(f"Failed to rollback changes: {str(rollback_error)}")
             st.error("Manual database check required")
+        
+        # Update state
+        update_admin_state(state)
         return False
 
 
@@ -427,10 +431,11 @@ def render_tmdb_matches():
         # Show success message after container disappears
         st.subheader(f"Matches for '{matching.search_query}'")
         st.success(matching.success_message)
+        # Clear all state after successful validation
         matching.success_message = None
-        # Clear matches after successful validation
         matching.matches = []
         matching.search_query = ""
+        matching.validated_show_id = None  # Clear validated show ID
         update_admin_state(state)
 
     # Save state
