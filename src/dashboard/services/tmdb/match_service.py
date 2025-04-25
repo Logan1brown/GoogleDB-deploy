@@ -22,6 +22,26 @@ class TMDBMatchService:
         self.client = client or TMDBClient()
         self.supabase = supabase_client or get_supabase_client()
     
+    def mark_as_no_match(self, show_id: int) -> bool:
+        """Mark a show as having no TMDB match.
+        
+        Args:
+            show_id: ID of the show to mark as no match
+            
+        Returns:
+            bool: True if successful
+        """
+        try:
+            self.supabase.table('no_tmdb_matches').insert({
+                'show_id': show_id,
+                'reason': 'Manual validation - No match found',
+                'created_at': datetime.now().isoformat()
+            }).execute()
+            return True
+        except Exception as e:
+            st.error(f"Error marking show as no match: {e}")
+            return False
+
     def validate_match(self, match: TMDBMatchState) -> bool:
         """Validate a TMDB match and save the data.
         
@@ -62,14 +82,6 @@ class TMDBMatchService:
             if existing_show.get('tmdb_id'):
                 raise ValueError(f"Show {match.our_show_title} already has TMDB ID {existing_show['tmdb_id']}")
             
-            if match.tmdb_id == -1:
-                # Insert into no_tmdb_matches
-                self.supabase.table('no_tmdb_matches').insert({
-                    'show_id': match.our_show_id,
-                    'reason': 'Manual validation - No match found',
-                    'created_at': datetime.now().isoformat()
-                }).execute()
-                return True
             
             # Check if TMDB ID already exists in success metrics
             metrics_response = self.supabase.table('tmdb_success_metrics').select('id').eq('tmdb_id', match.tmdb_id).execute()

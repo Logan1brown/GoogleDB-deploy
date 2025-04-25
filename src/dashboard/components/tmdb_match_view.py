@@ -119,23 +119,11 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
                        key=f"{card_key}_no_match",
                        type="secondary",
                        use_container_width=True):
-                if on_validate:
-                    # Create a dummy match state object with tmdb_id = -1
-                    no_match = TMDBMatchState(
-                        our_show_id=match.our_show_id,
-                        our_show_title=match.our_show_title,
-                        our_network=match.our_network,
-                        our_year=match.our_year,
-                        tmdb_id=-1,
-                        name="N/A",
-                        networks=[],
-                        first_air_date=None,
-                        status="No Match",
-                        episodes_per_season=[],
-                        executive_producers=[],
-                        confidence=100,  # We're 100% sure there's no match
-                        title_score=0,
-                        network_score=0,
-                        ep_score=0
-                    )
-                    on_validate(no_match)
+                # Mark as no match and clear state
+                match_service = TMDBMatchService()
+                if match_service.mark_as_no_match(match.our_show_id):
+                    # Clear expanded state and session state
+                    match.expanded = False
+                    clear_match_session_state(match.our_show_id)
+                    # Refresh the page
+                    st.rerun()
