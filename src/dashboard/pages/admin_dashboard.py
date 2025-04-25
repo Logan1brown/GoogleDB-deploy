@@ -480,6 +480,9 @@ def render_tmdb_matches():
             for member in team 
             if member['role_type_id'] in (2, 4)  # 2 = Producer, 4 = Creator
         ]
+        
+        # Map id to show_id for TMDBMatchState
+        show['show_id'] = show['id']
     unmatched_shows = response.data
     
     # Filter out the show that was just validated

@@ -635,6 +635,20 @@ class TMDBDataMapper:
         """Map TMDB credits to our team format."""
 ```
 
+**Status Mapping**
+```python
+status_map = {
+    'Returning Series': 1,  # active
+    'Pilot': 1,             # active
+    'Ended': 3,             # ended
+    'Canceled': 2,          # canceled
+    'Planned': 4,           # development
+    'In Production': 4      # development - note: maps to development per spec
+}
+```
+
+Note: 'In Production' shows are mapped to development (4) rather than active (1) per specification. This ensures consistent state tracking for shows that are greenlit but not yet airing.
+
 #### Data Services
 
 ##### ShowService
