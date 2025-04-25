@@ -6,8 +6,8 @@ Provides utilities for managing page-scoped state.
 __all__ = ['get_page_state', 'update_page_state', 'get_filter_state', 'update_filter_state', 'get_data_entry_state', 'update_data_entry_state', 'get_admin_state', 'update_admin_state']
 
 import streamlit as st
-from typing import Dict, Any, Optional
-from dataclasses import dataclass, asdict
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass, field, asdict
 from src.dashboard.state.show_state import DataEntryState
 from src.dashboard.state.admin_state import AdminState, TMDBMatchState, UserManagementState, AnnouncementState, TMDBMatchingState, APIMetricsState
 
@@ -94,7 +94,22 @@ def get_admin_state() -> AdminState:
     state = get_page_state("admin")
     if not state or "admin" not in state:
         state["admin"] = asdict(AdminState())
-    return AdminState(**state["admin"])
+    
+    # Convert nested dicts to proper state objects
+    admin_dict = state["admin"]
+    if "user_management" in admin_dict:
+        admin_dict["user_management"] = UserManagementState(**admin_dict["user_management"])
+    if "announcements" in admin_dict:
+        admin_dict["announcements"] = AnnouncementState(**admin_dict["announcements"])
+    if "tmdb_matching" in admin_dict:
+        matching_dict = admin_dict["tmdb_matching"]
+        if "matches" in matching_dict:
+            matching_dict["matches"] = [TMDBMatchState(**m) for m in matching_dict["matches"]]
+        admin_dict["tmdb_matching"] = TMDBMatchingState(**matching_dict)
+    if "api_metrics" in admin_dict:
+        admin_dict["api_metrics"] = APIMetricsState(**admin_dict["api_metrics"])
+    
+    return AdminState(**admin_dict)
 
 def update_admin_state(admin_state: AdminState) -> None:
     """Update admin dashboard state.
