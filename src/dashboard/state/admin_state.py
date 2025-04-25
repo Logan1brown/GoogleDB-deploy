@@ -32,12 +32,12 @@ class TMDBMatchState:
     # Required fields (no defaults)
     our_show_id: int
     our_show_title: str
+    our_network: str  # Make network required
+    our_year: str  # Make year required
     tmdb_id: int
     name: str
     
     # Optional fields (with defaults)
-    our_network: Optional[str] = None
-    our_year: Optional[str] = None
     networks: List[str] = field(default_factory=list)
     first_air_date: Optional[str] = None
     last_air_date: Optional[str] = None

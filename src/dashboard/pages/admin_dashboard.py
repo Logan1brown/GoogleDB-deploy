@@ -487,12 +487,10 @@ def render_tmdb_matches():
                 year = date.split('-')[0]
                 show['year'] = year
                 show['date'] = year  # Also store in date for TMDBMatchState
-                st.write(f"Debug - Date for {show.get('title')}: {date}, Year: {year}")
             except (AttributeError, IndexError):
                 year = str(date.year) if hasattr(date, 'year') else None
                 show['year'] = year
                 show['date'] = year  # Also store in date for TMDBMatchState
-                st.write(f"Debug - Date error for {show.get('title')}: {date}, Type: {type(date)}")
         else:
             show['year'] = None
             show['date'] = None  # Also store in date for TMDBMatchState
@@ -524,6 +522,11 @@ def render_tmdb_matches():
                     our_eps = [member['name'] for member in team_members 
                              if member['role'].lower() == 'executive producer']
                     
+                    # Debug show data
+                    st.write(f"Debug - Show data for {show_data['title']}:")
+                    st.write(f"Network: {show_data.get('network_name')}")
+                    st.write(f"Year: {show_data.get('year')}")
+                    
                     # Get TMDB matches
                     matches = match_service.search_and_match(show_data)
                     
@@ -548,7 +551,8 @@ def render_tmdb_matches():
                                 executive_producers=match.executive_producers or [],
                                 confidence=match.confidence,
                                 title_score=match.title_score,
-                                network_score=match.network_score
+                                network_score=match.network_score,
+                                ep_score=match.ep_score
                             )
                             matching.matches.append(state_obj)
                             

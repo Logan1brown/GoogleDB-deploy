@@ -102,6 +102,7 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
                         our_show_id=match.our_show_id,
                         our_show_title=match.our_show_title,
                         our_network=match.our_network,
+                        our_year=match.our_year,  # Add year
                         tmdb_id=-1,
                         name="N/A",
                         confidence=100,  # We're 100% sure there's no match
