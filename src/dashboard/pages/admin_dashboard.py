@@ -4,11 +4,18 @@ This page is only visible to admin users and provides access to administrative f
 """
 
 import streamlit as st
+import json
+import logging
 import os
 import sys
-import time
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Dict, List, Optional
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Add src to path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))

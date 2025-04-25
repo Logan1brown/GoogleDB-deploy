@@ -3,6 +3,7 @@
 import asyncio
 from typing import List, Optional
 import streamlit as st
+from datetime import datetime
 from ...state.admin_state import TMDBMatchState, MatchStatus
 from .tmdb_client import TMDBClient
 from .tmdb_models import TVShow, TVShowDetails
@@ -77,7 +78,9 @@ class TMDBMatchService:
             
             # Get full show details from TMDB
             try:
+                st.write("Debug - Getting TMDB details...")
                 details = self.client.get_tv_show_details(match.tmdb_id)
+                st.write(f"Debug - TMDB details: {details}")
             except Exception as e:
                 raise ValueError(f"Failed to get TMDB details: {str(e)}")
             
@@ -85,10 +88,12 @@ class TMDBMatchService:
                 raise ValueError(f"No TMDB details found for ID {match.tmdb_id}")
             
             # Map TMDB data to our format
+            st.write("Debug - Mapping TMDB data...")
             from .tmdb_data_mapper import map_tmdb_success_metrics, map_tmdb_show_data
             
             # Map success metrics
             metrics_data = map_tmdb_success_metrics(details)
+            st.write(f"Debug - Metrics data: {metrics_data}")
             
             # Validate required fields
             if not all(key in metrics_data for key in ['tmdb_id', 'seasons', 'episodes_per_season', 'status']):
@@ -96,20 +101,25 @@ class TMDBMatchService:
             
             # Map show updates
             show_updates = map_tmdb_show_data(details, existing_show)
+            st.write(f"Debug - Show updates: {show_updates}")
             
             # Begin transaction
             try:
+                st.write("Debug - Inserting metrics...")
                 # Insert success metrics
                 metrics_response = self.supabase.table('tmdb_success_metrics')\
                     .insert(metrics_data)\
                     .execute()
+                st.write(f"Debug - Metrics response: {metrics_response.data}")
                 
                 if not metrics_response.data:
                     # Rollback show update
+                    st.write("Debug - Failed to insert metrics, rolling back...")
                     self.supabase.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
                     raise ValueError("Failed to insert TMDB metrics")
                 
                 # Update show with TMDB data
+                st.write("Debug - Preparing show update...")
                 show_updates.update({
                     'tmdb_id': match.tmdb_id,
                     'updated_at': datetime.now().isoformat()
@@ -118,17 +128,22 @@ class TMDBMatchService:
                 # Remove any None values and tmdb_ prefixed fields
                 show_updates = {k: v for k, v in show_updates.items() 
                               if v is not None and not k.startswith('tmdb_')}
+                st.write(f"Debug - Final show updates: {show_updates}")
                 
+                st.write("Debug - Executing show update...")
                 show_response = self.supabase.table('shows')\
                     .update(show_updates)\
                     .eq('id', match.our_show_id)\
                     .execute()
+                st.write(f"Debug - Show update response: {show_response.data}")
                 
                 if not show_response.data:
                     # Rollback metrics insert
+                    st.write("Debug - Failed to update show, rolling back metrics...")
                     self.supabase.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
                     raise ValueError("Failed to update show with TMDB data")
                 
+                st.write("Debug - Successfully completed validation!")
                 return True
                 
             except Exception as e:
