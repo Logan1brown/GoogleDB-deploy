@@ -38,122 +38,17 @@ def validate_match(match: TMDBMatchState) -> bool:
     try:
         state = get_admin_state()
         matching = state.tmdb_matching
-        metrics = state.api_metrics
         
-        # Input validation
-        if not match.our_show_id or not isinstance(match.our_show_id, int):
-            matching.error_message = "Invalid show ID"
-            update_admin_state(state)
-            return False
-        if not isinstance(match.tmdb_id, int):
-            matching.error_message = "Invalid TMDB ID"
-            update_admin_state(state)
-            return False
-            
-        client = get_admin_client()
+        # Use TMDBMatchService to validate
+        match_service = TMDBMatchService(supabase_client=get_admin_client())
+        match_service.validate_match(match)
+        return True
         
-        # Check if show exists and doesn't have TMDB ID
-        show_response = client.table('shows').select('*').eq('id', match.our_show_id).execute()
-        if not show_response.data:
-            matching.error_message = f"Show {match.our_show_title} (ID: {match.our_show_id}) not found"
-            update_admin_state(state)
-            return False
-            
-        existing_show = show_response.data[0]
-        if existing_show.get('tmdb_id'):
-            matching.error_message = f"Show {match.our_show_title} already has TMDB ID {existing_show['tmdb_id']}"
-            return False
-            
-        # Handle no-match case
-        if match.tmdb_id == -1:
-            # Insert into no_tmdb_matches
-            no_match_response = client.table('no_tmdb_matches').insert({
-                'show_id': match.our_show_id
-            }).execute()
-            
-            if not no_match_response.data:
-                st.error("Failed to mark show as no-match")
-                return False
-            return True
-
-        # Check if TMDB ID already exists in success metrics
-        metrics_response = client.table('tmdb_success_metrics').select('id').eq('tmdb_id', match.tmdb_id).execute()
-        if metrics_response.data:
-            st.error(f"TMDB ID {match.tmdb_id} already exists in success metrics")
-            return False
-        
-        # Get full show details from TMDB
-        tmdb_client = TMDBClient()
-        try:
-            details = tmdb_client.get_tv_show_details(match.tmdb_id)
-        except Exception as e:
-            st.error(f"Failed to get TMDB details: {str(e)}")
-            return
-            
-        if not details:
-            st.error(f"No TMDB details found for ID {match.tmdb_id}")
-            return
-            
-        # Validate required fields
-        if not details.status:
-            st.error("Missing required field: status")
-            return
-        
-        # Use our data mapper to prepare updates
-        from ..services.tmdb.tmdb_data_mapper import map_tmdb_success_metrics, map_tmdb_show_data
-        
-        # First prepare success metrics data
-        metrics_data = map_tmdb_success_metrics(details)
-        
-        # Validate all required metrics fields exist
-        if not all(key in metrics_data for key in ['tmdb_id', 'seasons', 'episodes_per_season', 'status']):
-            st.error("Missing required metrics fields")
-            return
-        
-        # Then prepare show updates
-        show_updates = map_tmdb_show_data(details, existing_show)
-        st.write(f"Show updates to apply: {show_updates}")
-        
-        # Start transaction
-        # First update the show
-        update_response = client.table('shows')\
-            .update(show_updates)\
-            .eq('id', match.our_show_id)\
-            .execute()
-        st.write(f"Show update response: {update_response.data}")
-            
-        if not update_response.data or len(update_response.data) == 0:
-            st.error(f"Failed to update show {match.our_show_title}")
-            return
-        
-        # Then insert metrics
-        metrics_response = client.table('tmdb_success_metrics')\
-            .insert(metrics_data)\
-            .execute()
-            
-        if not metrics_response.data or len(metrics_response.data) == 0:
-            # Rollback show update
-            client.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
-            st.error("Failed to insert TMDB metrics")
-            return
-            
-        # Set last validation in matching state
-        matching.last_validation = {
-            'show_id': match.our_show_id,
-            'tmdb_id': match.tmdb_id,
-            'timestamp': time.time()
-        }
-        
-        # Set success message and clear UI state
-        matching.success_message = f"Successfully validated match for {match.our_show_title}"
-        matching.search_query = ""
-        matching.matches = []
-        matching.validated_show_id = match.our_show_id  # Track which show was validated
-        
-        # Clear any UI state and update state
-        for key in list(st.session_state.keys()):
-            if key.startswith('tmdb_'):
-                del st.session_state[key]
+    except Exception as e:
+        # Update error in state
+        state = get_admin_state()
+        matching = state.tmdb_matching
+        matching.error_message = str(e) if str(e) else "Unknown error occurred"
         
         # Update state
         update_admin_state(state)
@@ -427,75 +322,16 @@ def render_tmdb_matches():
     # Unmatched Shows section
     st.subheader("Unmatched Shows")
     
-    # Get unmatched shows, excluding ones marked as no-match
-    supabase = get_supabase_client()
-    
-    # First get all show_ids that have no matches
-    no_match_response = supabase.table('no_tmdb_matches')\
-        .select('show_id')\
-        .execute()
-    st.write("No match response:", no_match_response.data)
-    no_match_ids = [row.get('show_id') for row in no_match_response.data] if no_match_response.data else []
-    
-    # Then get all shows without tmdb_id that aren't in no_match_ids
-    response = supabase.table('shows')\
-        .select(
-            'id, title, network_id, date, network_list(*), show_team(name, role_type_id)'
-        )\
-        .is_('tmdb_id', 'null')\
-        .not_.in_('id', no_match_ids)\
-        .order('date', desc=True)\
-        .execute()
+    # Get and display unmatched shows
+    unmatched_shows = show_service.get_unmatched_shows()
     
     # Convert show_team and network data
-    for show in response.data:
+    for show in unmatched_shows:
         # Handle network name
-        try:
-            network = show.get('network_list')
-            if network:
-                # Get network name for display
-                show['network_name'] = network.get('network', '')
-                # Store search_network for TMDB matching
-                show['search_network'] = network.get('search_network', '') or network.get('network', '')
-            else:
-                show['network_name'] = ''
-        except (AttributeError, KeyError) as e:
-            st.write(f"Debug - Network error for {show.get('title', 'Unknown show')}: {str(e)}")
-            st.write(f"Network data: {show.get('network_list')}")
-            show['network_name'] = ''
-        
-        # Remove network list after using
-        show.pop('network_list', None)
-        
-        # Handle team members
-        team = show.pop('show_team', [])
-        # Include both producers and creators as EPs
-        show['team_members'] = [
-            {'name': member['name'], 'role': 'Executive Producer'}
-            for member in team 
-            if member['role_type_id'] in (2, 4)  # 2 = Producer, 4 = Creator
-        ]
-        
-        # Map id to show_id for TMDBMatchState
-        show['show_id'] = show['id']
-        
-        # Format date to year
-        date = show.get('date')
-        if date:
-            try:
-                # Store in both fields to match TMDBMatchState
-                year = date.split('-')[0]
-                show['year'] = year
-                show['date'] = year  # Also store in date for TMDBMatchState
-            except (AttributeError, IndexError):
-                year = str(date.year) if hasattr(date, 'year') else None
-                show['year'] = year
-                show['date'] = year  # Also store in date for TMDBMatchState
-        else:
-            show['year'] = None
-            show['date'] = None  # Also store in date for TMDBMatchState
-            st.write(f"Debug - No date for {show.get('title')}")
-    unmatched_shows = response.data
+        network = show.get('network_list')
+        if network:
+            # Get network name for display
+            show['network_name'] = network.get('network', '')
     
     # Filter out the show that was just validated
     if matching.validated_show_id:
@@ -522,52 +358,21 @@ def render_tmdb_matches():
                     our_eps = [member['name'] for member in team_members 
                              if member['role'].lower() == 'executive producer']
                     
-                    # Debug show data
-                    st.write(f"Debug - Show data for {show_data['title']}:")
-                    st.write(f"Network: {show_data.get('network_name')}")
-                    st.write(f"Year: {show_data.get('year')}")
+                    # Log debug info
+                    from ..services.tmdb.tmdb_logger import log_show_data, log_matches
+                    log_show_data(show_data)
                     
                     # Get TMDB matches
                     matches = match_service.search_and_match(show_data)
-                    
-                    # Debug matches
-                    st.write(f"Debug - Got {len(matches) if matches else 0} matches")
-                    if matches:
-                        for i, m in enumerate(matches):
-                            st.write(f"Match {i+1}:")
-                            st.write(f"- Title: {m.name}")
-                            st.write(f"- TMDB ID: {m.tmdb_id}")
-                            st.write(f"- Networks: {m.networks}")
-                            st.write(f"- First Air: {m.first_air_date}")
+                    log_matches(matches)
                     
                     if not matches:
                         st.warning("No matches found")
                         return
                     
-                    # Store matches and our_eps in state
+                    # Store matches in state
                     try:
-                        matching.matches = []
-                        for match in matches:
-                            # Convert match to state object with required fields
-                            state_obj = TMDBMatchState(
-                                our_show_id=show_data['id'],
-                                our_show_title=show_data['title'],
-                                our_network=show_data.get('network_name'),  # Add network
-                                our_year=show_data.get('year'),  # Add year
-                                tmdb_id=match.tmdb_id,
-                                name=match.name,
-                                networks=match.networks or [],
-                                first_air_date=match.first_air_date,
-                                status=match.status,
-                                episodes_per_season=match.episodes_per_season,
-                                executive_producers=match.executive_producers or [],
-                                confidence=match.confidence,
-                                title_score=match.title_score,
-                                network_score=match.network_score,
-                                ep_score=match.ep_score,
-                                expanded=True  # Show the side-by-side by default
-                            )
-                            matching.matches.append(state_obj)
+                        matching.matches = matches  # Use TMDBMatchState objects directly from match_service
                             
                         matching.search_query = show_data['title']
                         matching.our_eps = our_eps

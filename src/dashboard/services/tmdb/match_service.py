@@ -16,7 +16,115 @@ from .match_shows import (
 class TMDBMatchService:
     """Service for managing TMDB show matches."""
     
-    def __init__(self, client: Optional[TMDBClient] = None):
+    def __init__(self, client: Optional[TMDBClient] = None, supabase_client=None):
+        """Initialize service with optional clients."""
+        self.client = client or TMDBClient()
+        self.supabase = supabase_client or get_supabase_client()
+    
+    def validate_match(self, match: TMDBMatchState) -> bool:
+        """Validate a TMDB match and save the data.
+        
+        Args:
+            match: TMDBMatchState object containing match data and UI state
+            
+        Returns:
+            True if validation succeeded, False if there were any errors
+        """
+        try:
+            # Input validation
+            if not match.our_show_id or not isinstance(match.our_show_id, int):
+                raise ValueError("Invalid show ID")
+            if not isinstance(match.tmdb_id, int):
+                raise ValueError("Invalid TMDB ID")
+            
+            # Check if show exists and doesn't have TMDB ID
+            show_response = self.supabase.table('shows')\
+                .select('*')\
+                .eq('id', match.our_show_id)\
+                .execute()
+            
+            if not show_response.data:
+                raise ValueError(f"Show {match.our_show_title} not found")
+            
+            existing_show = show_response.data[0]
+            if existing_show.get('tmdb_id'):
+                raise ValueError(f"Show {match.our_show_title} already has TMDB ID {existing_show['tmdb_id']}")
+            
+            if match.tmdb_id == -1:
+                # Insert into no_tmdb_matches
+                self.supabase.table('no_tmdb_matches').insert({
+                    'show_id': match.our_show_id,
+                    'reason': 'Manual validation - No match found',
+                    'created_at': datetime.now().isoformat()
+                }).execute()
+                return True
+            
+            # Check if TMDB ID already exists in success metrics
+            metrics_response = self.supabase.table('tmdb_success_metrics').select('id').eq('tmdb_id', match.tmdb_id).execute()
+            if metrics_response.data:
+                raise ValueError(f"TMDB ID {match.tmdb_id} already exists in success metrics")
+            
+            # Get full show details from TMDB
+            try:
+                details = self.client.get_tv_show_details(match.tmdb_id)
+            except Exception as e:
+                raise ValueError(f"Failed to get TMDB details: {str(e)}")
+            
+            if not details:
+                raise ValueError(f"No TMDB details found for ID {match.tmdb_id}")
+            
+            # Map TMDB data to our format
+            from .tmdb_data_mapper import map_tmdb_success_metrics, map_tmdb_show_data
+            
+            # Map success metrics
+            metrics_data = map_tmdb_success_metrics(details)
+            
+            # Validate required fields
+            if not all(key in metrics_data for key in ['tmdb_id', 'seasons', 'episodes_per_season', 'status']):
+                raise ValueError("Missing required fields in TMDB data")
+            
+            # Map show updates
+            show_updates = map_tmdb_show_data(details, existing_show)
+            
+            # Begin transaction
+            try:
+                # Insert success metrics
+                metrics_response = self.supabase.table('tmdb_success_metrics')\
+                    .insert(metrics_data)\
+                    .execute()
+                
+                if not metrics_response.data:
+                    # Rollback show update
+                    self.supabase.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
+                    raise ValueError("Failed to insert TMDB metrics")
+                
+                # Update show with TMDB data
+                show_updates.update({
+                    'tmdb_id': match.tmdb_id,
+                    'updated_at': datetime.now().isoformat()
+                })
+                
+                # Remove any None values and tmdb_ prefixed fields
+                show_updates = {k: v for k, v in show_updates.items() 
+                              if v is not None and not k.startswith('tmdb_')}
+                
+                show_response = self.supabase.table('shows')\
+                    .update(show_updates)\
+                    .eq('id', match.our_show_id)\
+                    .execute()
+                
+                if not show_response.data:
+                    # Rollback metrics insert
+                    self.supabase.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
+                    raise ValueError("Failed to update show with TMDB data")
+                
+                return True
+                
+            except Exception as e:
+                raise ValueError(f"Database error: {str(e)}")
+                
+        except Exception as e:
+            raise ValueError(str(e))
         """Initialize service with optional client."""
         self.client = client or TMDBClient()
     

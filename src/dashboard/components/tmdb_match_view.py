@@ -8,6 +8,35 @@ import streamlit as st
 from ..state.admin_state import TMDBMatchState
 from ..state.session import clear_match_session_state
 
+def find_matches_for_show(show_data: dict, state) -> None:
+    """Find TMDB matches for a show and update state."""
+    matching = state.tmdb_matching
+    match_service = TMDBMatchService()
+    
+    try:
+        with st.spinner(f"Searching TMDB for {show_data['title']}..."):
+            # Get our EPs first
+            team_members = show_data.get('team_members', [])
+            our_eps = [member['name'] for member in team_members 
+                     if member['role'].lower() == 'executive producer']
+            
+            # Get TMDB matches
+            matches = match_service.search_and_match(show_data)
+            
+            if not matches:
+                st.warning("No matches found")
+                return
+            
+            # Store matches in state
+            matching.matches = matches
+            matching.search_query = show_data['title']
+            matching.our_eps = our_eps
+            matching.last_validation = None  # Clear any previous validation
+            update_admin_state(state)
+            
+    except Exception as e:
+        st.error(f"Error searching TMDB: {str(e)}")
+
 def render_match_card(match: TMDBMatchState, on_validate=None):
     """Render a TMDB match card with side-by-side comparison.
     

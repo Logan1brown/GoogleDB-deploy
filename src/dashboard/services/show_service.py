@@ -49,6 +49,76 @@ def load_lookup_data() -> Dict[str, List[Dict]]:
     lookups['role_types'] = [{'id': r['id'], 'name': r['role']} for r in response.data]
     
     # Load source types
+    response = supabase.table('source_types').select('id, source').execute()
+    lookups['source_types'] = [{'id': s['id'], 'name': s['source']} for s in response.data]
+    
+    return lookups
+
+def process_show_data(show: Dict) -> Dict:
+    """Process raw show data into format needed for display and matching."""
+    try:
+        # Handle network name
+        network = show.get('network_list')
+        if network:
+            show['network_name'] = network.get('network', '')
+            show['search_network'] = network.get('search_network', '') or network.get('network', '')
+        else:
+            show['network_name'] = ''
+            show['search_network'] = ''
+        
+        # Remove network list after using
+        show.pop('network_list', None)
+        
+        # Handle team members
+        team = show.pop('show_team', [])
+        # Include both producers and creators as EPs
+        show['team_members'] = [
+            {'name': member['name'], 'role': 'Executive Producer'}
+            for member in team 
+            if member['role_type_id'] in (2, 4)  # 2 = Producer, 4 = Creator
+        ]
+        
+        # Map id to show_id for TMDBMatchState
+        show['show_id'] = show['id']
+        
+        # Format date to year
+        date = show.get('date')
+        if date:
+            try:
+                year = date.split('-')[0]
+                show['year'] = year
+                show['date'] = year
+            except (AttributeError, IndexError):
+                year = str(date.year) if hasattr(date, 'year') else None
+                show['year'] = year
+                show['date'] = year
+        else:
+            show['year'] = None
+            show['date'] = None
+    except Exception as e:
+        st.error(f"Error processing show data for {show.get('title', 'Unknown show')}: {str(e)}")
+    
+    return show
+
+def get_unmatched_shows() -> List[Dict]:
+    """Get all shows without TMDB matches that haven't been marked as no-match."""
+    # First get all show_ids that have no matches
+    no_match_response = supabase.table('no_tmdb_matches')\
+        .select('show_id')\
+        .execute()
+    no_match_ids = [row.get('show_id') for row in no_match_response.data] if no_match_response.data else []
+    
+    # Then get all shows without tmdb_id that aren't in no_match_ids
+    response = supabase.table('shows')\
+        .select(
+            'id, title, network_id, date, network_list(*), show_team(name, role_type_id)'
+        )\
+        .is_('tmdb_id', 'null')\
+        .not_.in_('id', no_match_ids)\
+        .order('date', desc=True)\
+        .execute()
+    
+    return response.data
     response = supabase.table('source_types').select('id, type').execute()
     lookups['source_types'] = [{'id': s['id'], 'name': s['type']} for s in response.data]
     
