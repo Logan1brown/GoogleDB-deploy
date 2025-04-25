@@ -44,21 +44,19 @@ def validate_match(match: TMDBMatchState) -> bool:
         True if validation succeeded, False if there were any errors
     """
     try:
+        state = get_admin_state()
+        matching = state.tmdb_matching
+        
         # Use TMDBMatchService to validate
         match_service = TMDBMatchService(supabase_client=get_admin_client())
         match_service.validate_match(match)
         
-        # Show success message and clear state
-        st.success(f"Successfully validated match for {match.our_show_title}")
-        st.empty().markdown("Clearing form...")
-        
-        # Add a small delay so user can see the success message
-        import time
-        time.sleep(1.5)
+        # Set success message
+        matching.success_message = f"Successfully validated match for {match.our_show_title}"
+        update_admin_state(state)
         
         # Clear state and rerun
         from ..state.session import clear_matching_state
-        state = get_admin_state()
         clear_matching_state(state)
         st.rerun()
         
@@ -408,6 +406,12 @@ def render_tmdb_matches():
     
     # No need to show validation result here anymore
     # The success message is shown directly in validate_match
+    
+    # Show success message if we just validated
+    if matching.success_message:
+        st.success(matching.success_message)
+        matching.success_message = None
+        update_admin_state(state)
     
     # Match Results
     if matching.matches:
