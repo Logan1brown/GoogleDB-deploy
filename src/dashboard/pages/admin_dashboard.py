@@ -48,8 +48,13 @@ def validate_match(match: TMDBMatchState) -> bool:
         match_service = TMDBMatchService(supabase_client=get_admin_client())
         match_service.validate_match(match)
         
-        # Show success message
+        # Show success message and clear state
         st.success(f"Successfully validated match for {match.our_show_title}")
+        st.empty().markdown("Clearing form...")
+        
+        # Add a small delay so user can see the success message
+        import time
+        time.sleep(1.5)
         
         # Clear state and rerun
         from ..state.session import clear_matching_state
