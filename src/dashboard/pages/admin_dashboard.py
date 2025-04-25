@@ -23,7 +23,7 @@ if src_path not in sys.path:
     sys.path.append(src_path)
 
 from ..components.tmdb_match_view import render_match_card
-from ..components.unmatched_show_view import render_unmatched_show_row, render_unmatched_show_header
+from ..components.unmatched_show_view import render_unmatched_shows_table
 from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
 from ..services.tmdb.tmdb_client import TMDBClient
@@ -357,51 +357,47 @@ def render_tmdb_matches():
     # Display shows in a table with buttons
     st.write("Click 'Find Matches' to search TMDB for potential matches:")
     
-    # Render table header
-    render_unmatched_show_header()
-    st.markdown("---")
-    
-    # Create containers for each show's info and potential matches
-    for show in unmatched_shows:
-        def on_find_matches(show_data):
-            try:
-                with st.spinner(f"Searching TMDB for {show_data['title']}..."):
-                    # Get our EPs first
-                    team_members = show_data.get('team_members', [])
-                    our_eps = [member['name'] for member in team_members 
-                             if member['role'].lower() == 'executive producer']
-                    
-                    # Get TMDB matches
-                    matches = match_service.search_and_match(show_data)
-                    
-                    if not matches:
-                        st.warning("No matches found")
-                        return
-                    
-                    # Store matches in state
-                    try:
-                        matching.matches = matches  # Use TMDBMatchState objects directly from match_service
-                            
-                        matching.search_query = show_data['title']
-                        matching.our_eps = our_eps
-                        matching.last_validation = None  # Clear any previous validation
-                    except Exception as e:
-                        st.error(f"Error processing matches: {str(e)}")
-                        return
-                    
-                    # Update metrics
-                    try:
-                        metrics.calls_total += 1
-                        metrics.calls_remaining -= 1
+    # Define callback for Find Matches button
+    def on_find_matches(show_data):
+        try:
+            with st.spinner(f"Searching TMDB for {show_data['title']}..."):
+                # Get our EPs first
+                team_members = show_data.get('team_members', [])
+                our_eps = [member['name'] for member in team_members 
+                         if member['role'].lower() == 'executive producer']
+                
+                # Get TMDB matches
+                matches = match_service.search_and_match(show_data)
+                
+                if not matches:
+                    st.warning("No matches found")
+                    return
+                
+                # Store matches in state
+                try:
+                    matching.matches = matches  # Use TMDBMatchState objects directly from match_service
                         
-                        update_admin_state(state)
-                    except Exception as e:
-                        st.error(f"Error updating metrics: {str(e)}")
-                        return
-            except Exception as e:
-                st.error(f"Error searching TMDB: {str(e)}")
-        
-        render_unmatched_show_row(show, on_find_matches)
+                    matching.search_query = show_data['title']
+                    matching.our_eps = our_eps
+                    matching.last_validation = None  # Clear any previous validation
+                except Exception as e:
+                    st.error(f"Error processing matches: {str(e)}")
+                    return
+                
+                # Update metrics
+                try:
+                    metrics.calls_total += 1
+                    metrics.calls_remaining -= 1
+                    
+                    update_admin_state(state)
+                except Exception as e:
+                    st.error(f"Error updating metrics: {str(e)}")
+                    return
+        except Exception as e:
+            st.error(f"Error searching TMDB: {str(e)}")
+    
+    # Render scrollable table with all shows
+    render_unmatched_shows_table(unmatched_shows, on_find_matches)
 
     
     # No need to show validation result here anymore
