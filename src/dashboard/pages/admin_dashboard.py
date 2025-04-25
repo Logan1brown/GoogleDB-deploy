@@ -424,7 +424,6 @@ def render_tmdb_matches():
             render_match_card(match, validate_match)
     elif matching.success_message:
         # Show success message after container disappears
-        st.subheader(f"Matches for '{matching.search_query}'")
         st.success(matching.success_message)
         # Clear all state after successful validation
         matching.success_message = None
@@ -432,6 +431,7 @@ def render_tmdb_matches():
         matching.search_query = ""
         matching.validated_show_id = None  # Clear validated show ID
         update_admin_state(state)
+        st.rerun()  # Force UI refresh
 
     # Save state
     update_admin_state(state)
