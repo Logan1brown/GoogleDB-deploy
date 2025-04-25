@@ -491,20 +491,44 @@ def render_tmdb_matches():
                     matches = match_service.search_and_match(show_data)
                     
                     if not matches:
-                        st.error("No matches found")
+                        st.warning("No matches found")
                         return
                     
                     # Store matches and our_eps in state
-                    matching.matches = [TMDBMatchState(**match.__dict__) for match in matches]
-                    matching.search_query = show_data['title']
-                    matching.our_eps = our_eps
-                    matching.last_validation = None  # Clear any previous validation
+                    try:
+                        matching.matches = []
+                        for match in matches:
+                            # Convert match to state object with required fields
+                            state_obj = TMDBMatchState(
+                                our_show_id=show_data['id'],
+                                our_show_title=show_data['title'],
+                                tmdb_id=match.tmdb_id,
+                                name=match.name,
+                                networks=match.networks or [],
+                                first_air_date=match.first_air_date,
+                                executive_producers=match.executive_producers or [],
+                                confidence=match.confidence,
+                                title_score=match.title_score,
+                                network_score=match.network_score
+                            )
+                            matching.matches.append(state_obj)
+                            
+                        matching.search_query = show_data['title']
+                        matching.our_eps = our_eps
+                        matching.last_validation = None  # Clear any previous validation
+                    except Exception as e:
+                        st.error(f"Error processing matches: {str(e)}")
+                        return
                     
                     # Update metrics
-                    metrics.calls_total += 1
-                    metrics.calls_remaining -= 1
-                    
-                    update_admin_state(state)
+                    try:
+                        metrics.calls_total += 1
+                        metrics.calls_remaining -= 1
+                        
+                        update_admin_state(state)
+                    except Exception as e:
+                        st.error(f"Error updating metrics: {str(e)}")
+                        return
             except Exception as e:
                 st.error(f"Error searching TMDB: {str(e)}")
         
