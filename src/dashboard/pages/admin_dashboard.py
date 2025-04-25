@@ -440,7 +440,7 @@ def render_tmdb_matches():
     # Then get all shows without tmdb_id that aren't in no_match_ids
     response = supabase.table('shows')\
         .select(
-            'id, title, network_id, date, network_list(network), show_team(name, role_type_id)'
+            'id, title, network_id, date, network_list!inner(network, aliases, search_network), show_team(name, role_type_id)'
         )\
         .is_('tmdb_id', 'null')\
         .not_.in_('id', no_match_ids)\
