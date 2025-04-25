@@ -106,3 +106,53 @@ def update_admin_state(admin_state: AdminState) -> None:
         admin_state: New admin state to save
     """
     update_page_state("admin", asdict(admin_state))
+
+def clear_match_session_state(match_id: int):
+    """Clear all session state keys for a specific match.
+    
+    Args:
+        match_id: ID of the match to clear state for
+    """
+    prefix = f"tmdb_match_{match_id}"
+    keys_to_clear = [k for k in st.session_state.keys() if k.startswith(prefix)]
+    for k in keys_to_clear:
+        del st.session_state[k]
+
+def clear_section_state(state: AdminState, section: str) -> None:
+    """Clear state for a specific section.
+    
+    Args:
+        state: Current admin state to update
+        section: Name of section to clear ('User Management', 'Announcements', 'TMDB Matches')
+    """
+    # Reset section state
+    if section == "User Management":
+        state.user_management = UserManagementState()
+        prefix = "user_"
+    elif section == "Announcements":
+        state.announcements = AnnouncementState()
+        prefix = "announcement_"
+    elif section == "TMDB Matches":
+        state.tmdb_matching = TMDBMatchingState()
+        prefix = "tmdb_"
+    
+    # Clear section-specific session state
+    for key in list(st.session_state.keys()):
+        if key.startswith(prefix):
+            del st.session_state[key]
+    
+    update_admin_state(state)
+
+def clear_matching_state(admin_state: AdminState):
+    """Clear TMDB matching state after a successful match.
+    
+    Args:
+        admin_state: Current admin state to update
+    """
+    # Clear session state for all matches
+    for match in admin_state.tmdb_matching.matches:
+        clear_match_session_state(match.our_show_id)
+    
+    # Reset matching state
+    admin_state.tmdb_matching = TMDBMatchingState()
+    update_admin_state(admin_state)

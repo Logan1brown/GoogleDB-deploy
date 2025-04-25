@@ -5,7 +5,8 @@ It uses the TMDBMatchState class for state management and provides validation co
 """
 
 import streamlit as st
-from ..state.admin_state import TMDBMatchState, clear_match_session_state
+from ..state.admin_state import TMDBMatchState
+from ..state.session import clear_match_session_state
 
 def render_match_card(match: TMDBMatchState, on_validate=None):
     """Render a TMDB match card with side-by-side comparison.

@@ -13,14 +13,10 @@ All state changes must go through the state management functions to maintain
 consistency and traceability.
 """
 
-import streamlit as st
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from datetime import datetime
-
-# Re-export session functions
-from .session import get_admin_state, update_admin_state
 import streamlit as st
 
 class MatchStatus(Enum):
@@ -78,8 +74,6 @@ class AnnouncementState:
     content: str = ""
     announcements: List[Dict[str, Any]] = field(default_factory=list)
     selected_announcement_id: Optional[int] = None
-    error_message: Optional[str] = None
-    success_message: Optional[str] = None
 
 @dataclass
 class TMDBMatchingState:
@@ -91,8 +85,6 @@ class TMDBMatchingState:
     show_low_confidence: bool = False
     our_eps: List[str] = field(default_factory=list)
     last_validation: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
-    success_message: Optional[str] = None
 
 @dataclass
 class APIMetricsState:
@@ -115,91 +107,3 @@ class AdminState:
     announcements: AnnouncementState = field(default_factory=AnnouncementState)
     tmdb_matching: TMDBMatchingState = field(default_factory=TMDBMatchingState)
     api_metrics: APIMetricsState = field(default_factory=APIMetricsState)
-
-def get_admin_state() -> AdminState:
-    """Get admin dashboard state.
-    
-    Returns:
-        AdminState instance with all section states properly initialized.
-    """
-    state = get_page_state("admin")
-    if "admin" not in state:
-        state["admin"] = asdict(AdminState())
-    return AdminState(**state["admin"])
-
-def update_admin_state(admin_state: AdminState) -> None:
-    """Update admin dashboard state.
-    
-    This is the ONLY way state should be updated in the admin dashboard.
-    Do not modify st.session_state directly.
-    
-    Args:
-        admin_state: New admin state to save
-    """
-    state = get_page_state("admin")
-    state["admin"] = asdict(admin_state)
-    update_page_state(state)
-
-def clear_section_state(state: AdminState, section: str) -> None:
-    """Clear state for a specific section.
-    
-    Args:
-        state: Current admin state to update
-        section: Name of section to clear ('User Management', 'Announcements', 'TMDB Matches')
-    """
-    # Reset section state
-    if section == "User Management":
-        state.user_management = UserManagementState()
-        prefix = "user_"
-    elif section == "Announcements":
-        state.announcements = AnnouncementState()
-        prefix = "announcement_"
-    elif section == "TMDB Matches":
-        state.tmdb_matching = TMDBMatchingState()
-        prefix = "tmdb_"
-    
-    # Clear section-specific session state
-    for key in list(st.session_state.keys()):
-        if key.startswith(prefix):
-            del st.session_state[key]
-    
-    update_admin_state(state)
-
-def clear_match_session_state(match_id: int):
-    """Clear all session state keys for a specific match.
-    
-    Args:
-        match_id: ID of the match to clear state for
-    """
-    prefix = f"tmdb_match_{match_id}"
-    keys_to_clear = [k for k in st.session_state.keys() if k.startswith(prefix)]
-    for k in keys_to_clear:
-        del st.session_state[k]
-
-def clear_matching_state(admin_state: AdminState):
-    """Clear TMDB matching state after a successful match.
-    
-    Args:
-        admin_state: Current admin state to update
-    """
-    # Clear session state for all matches
-    for match in admin_state.tmdb_matching.matches:
-        clear_match_session_state(match.our_show_id)
-    
-    # Reset matching state
-    admin_state.tmdb_matching = TMDBMatchingState()
-    update_admin_state(admin_state)
-
-    # TMDB Integration
-    tmdb_search_query: str = ""
-    tmdb_matches: List[TMDBMatch] = field(default_factory=list)
-    selected_match_ids: List[int] = field(default_factory=list)  # For batch operations
-    match_filter: MatchStatus = MatchStatus.PENDING  # Filter view by status
-    show_low_confidence: bool = False  # Whether to show low confidence matches
-    
-    # TMDB API Metrics
-    api_calls_total: int = field(default=0)  # Total API calls made
-    api_calls_remaining: int = field(default=40)  # Remaining calls in current window
-    api_window_reset_time: float = field(default=0.0)  # When rate limit window resets
-    cache_hits: int = field(default=0)  # Number of cache hits
-    cache_misses: int = field(default=0)  # Number of cache misses
