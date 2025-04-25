@@ -122,19 +122,15 @@ def validate_match(match: TMDBMatch) -> bool:
             st.error("Failed to insert TMDB metrics")
             return
             
-        # Clear state and show success message
-        state.tmdb_matches = None
-        state.tmdb_search_query = None
-        state.our_eps = None
+        # Set last validation in state
+        state.last_validation = {
+            'show_id': match.our_show_id,
+            'tmdb_id': match.tmdb_id,
+            'timestamp': time.time()
+        }
         update_admin_state(state)
         
-        # Clear Streamlit session state
-        for key in list(st.session_state.keys()):
-            if key.startswith('tmdb_') or key in ['our_eps']:
-                del st.session_state[key]
-        
         st.success(f"Successfully validated match for {match.our_show_title}")
-        st.experimental_rerun()
         return True
         
     except Exception as e:
@@ -461,27 +457,28 @@ def render_tmdb_matches():
     
     # Match Results
     if state.tmdb_matches and state.tmdb_search_query:
-        # Check if the show is still unmatched
-        show_response = supabase.table('shows') \
-            .select('tmdb_id') \
-            .eq('title', state.tmdb_search_query) \
-            .execute()
-            
-        if show_response.data and show_response.data[0].get('tmdb_id'):
-            # Show was matched, clear all state and rerun
-            state.tmdb_matches = None
-            state.tmdb_search_query = None
-            state.our_eps = None
-            update_admin_state(state)
-            
-            # Clear Streamlit session state
-            for key in list(st.session_state.keys()):
-                if key.startswith('tmdb_') or key in ['our_eps']:
-                    del st.session_state[key]
-                    
-            st.experimental_rerun()
-        else:
-            # Show still unmatched, display matches
+        # Check if we just validated a match
+        if state.last_validation:
+            validation_age = time.time() - state.last_validation['timestamp']
+            if validation_age < 5:  # Within last 5 seconds
+                # Clear all state
+                state.tmdb_matches = None
+                state.tmdb_search_query = None
+                state.our_eps = None
+                state.last_validation = None
+                update_admin_state(state)
+                
+                # Clear Streamlit session state
+                for key in list(st.session_state.keys()):
+                    if key.startswith('tmdb_') or key in ['our_eps']:
+                        del st.session_state[key]
+                        
+                time.sleep(0.5)  # Brief pause to ensure state is cleared
+                st.experimental_rerun()
+                return
+        
+        # Show matches if we have them
+        if state.tmdb_matches:
             st.subheader(f"Matches for '{state.tmdb_search_query}'")
             
             for match in state.tmdb_matches:
