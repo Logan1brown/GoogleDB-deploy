@@ -125,6 +125,8 @@ def validate_match(match: TMDBMatch) -> bool:
         # Clear matches and set success message
         state = get_admin_state()
         state.tmdb_matches = None
+        state.tmdb_search_query = None
+        state.our_eps = None
         state.last_validation = {
             "success": True,
             "show_title": match.our_show_title,
@@ -464,15 +466,29 @@ def render_tmdb_matches():
         update_admin_state(state)
     
     # Match Results
-    if state.tmdb_matches:
-        st.subheader(f"Matches for '{state.tmdb_search_query}'")
-        
-        for match in state.tmdb_matches:
-            # Add our_eps to match object for template
-            match.our_eps = state.our_eps
+    if state.tmdb_matches and state.tmdb_search_query:
+        # Check if the show is still unmatched
+        show_response = supabase.table('shows') \
+            .select('tmdb_id') \
+            .eq('title', state.tmdb_search_query) \
+            .execute()
             
-            # Use template to render match card
-            render_match_card(match, validate_match)
+        if show_response.data and show_response.data[0].get('tmdb_id'):
+            # Show was matched, clear the state
+            state.tmdb_matches = None
+            state.tmdb_search_query = None
+            state.our_eps = None
+            update_admin_state(state)
+        else:
+            # Show still unmatched, display matches
+            st.subheader(f"Matches for '{state.tmdb_search_query}'")
+            
+            for match in state.tmdb_matches:
+                # Add our_eps to match object for template
+                match.our_eps = state.our_eps
+                
+                # Use template to render match card
+                render_match_card(match, validate_match)
 
     # Save state
     update_admin_state(state)
