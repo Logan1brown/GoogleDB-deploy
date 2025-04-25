@@ -52,6 +52,14 @@ def load_lookup_data() -> Dict[str, List[Dict]]:
     response = supabase.table('source_types').select('id, type').execute()
     lookups['source_types'] = [{'id': s['id'], 'name': s['type']} for s in response.data]
     
+    # Load status types
+    response = supabase.table('status_types').select('id, status').execute()
+    lookups['status_types'] = [{'id': s['id'], 'name': s['status']} for s in response.data]
+    
+    # Load order types
+    response = supabase.table('order_types').select('id, type').execute()
+    lookups['order_types'] = [{'id': o['id'], 'name': o['type']} for o in response.data]
+    
     return lookups
 
 def process_show_data(show: Dict) -> Dict:
