@@ -449,8 +449,8 @@ def render_tmdb_matches():
     # Convert show_team and network data
     for show in response.data:
         # Handle network name
-        network = show.pop('network_list', [None])[0]
-        show['network_name'] = network['network'] if network else ''
+        network_list = show.pop('network_list', [])
+        show['network_name'] = network_list[0]['network'] if network_list else ''
         
         # Handle team members
         team = show.pop('show_team', [])
