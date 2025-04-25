@@ -439,6 +439,7 @@ def render_tmdb_matches():
                     state.tmdb_matches = matches
                     state.tmdb_search_query = show_data['title']
                     state.our_eps = our_eps
+                    state.last_validation = None  # Clear any previous validation
                     update_admin_state(state)
                     
                     # Update metrics
@@ -452,15 +453,15 @@ def render_tmdb_matches():
 
     
     # Show validation result if any
-    if hasattr(state, 'last_validation') and state.last_validation:
+    if state.last_validation:
         if state.last_validation["success"]:
             if state.last_validation.get("is_no_match"):
                 st.success(f"Marked '{state.last_validation['show_title']}' as having no TMDB match")
             else:
                 st.success(f"Successfully validated match for {state.last_validation['show_title']}")
-            # Clear the message after showing
-            state.last_validation = None
-            update_admin_state(state)
+        # Clear the message after showing
+        state.last_validation = None
+        update_admin_state(state)
     
     # Match Results
     if state.tmdb_matches:

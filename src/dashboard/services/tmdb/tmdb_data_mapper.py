@@ -45,8 +45,10 @@ def map_order_type(tmdb_status: str, episodes_per_season: List[int]) -> Optional
     if not episodes_per_season:
         return None
         
-    if tmdb_status == 'Returning Series' and len(episodes_per_season) > 1:
+    # If it has multiple seasons, it's ongoing regardless of status
+    if len(episodes_per_season) > 1:
         return 1  # ongoing
+    # If it has one season and is ended, it's limited
     elif len(episodes_per_season) == 1 and tmdb_status == 'Ended':
         return 2  # limited
         
