@@ -49,8 +49,8 @@ def load_lookup_data() -> Dict[str, List[Dict]]:
     lookups['role_types'] = [{'id': r['id'], 'name': r['role']} for r in response.data]
     
     # Load source types
-    response = supabase.table('source_types').select('id, source').execute()
-    lookups['source_types'] = [{'id': s['id'], 'name': s['source']} for s in response.data]
+    response = supabase.table('source_types').select('id, type').execute()
+    lookups['source_types'] = [{'id': s['id'], 'name': s['type']} for s in response.data]
     
     return lookups
 
