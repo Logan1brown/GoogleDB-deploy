@@ -119,6 +119,7 @@ class TMDBMatchService:
                         episodes_per_season=[s.episode_count for s in details.seasons if s.episode_count],
                         status=details.status,
                         networks=[n.name for n in details.networks],
+                        ep_score=ep_score,
                         executive_producers=tmdb_eps,
                         confidence=total_score,
                         title_score=title_score,

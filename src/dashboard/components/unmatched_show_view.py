@@ -33,7 +33,7 @@ def render_unmatched_show_row(
         with col2:
             st.write(show.get('network_name', ''))
         with col3:
-            st.write(show.get('date', ''))
+            st.write(show.get('year', ''))
         with col4:
             # Only show Find Matches button
             if st.button("Find Matches", 
