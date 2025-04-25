@@ -25,14 +25,8 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     # Generate unique key for this match card
     card_key = f"tmdb_match_{match.our_show_id}_{match.tmdb_id}"
     
-    # Initialize or get expanded state
-    if f"{card_key}_expanded" not in st.session_state:
-        st.session_state[f"{card_key}_expanded"] = match.expanded
-    
-    # Update match state from session state
-    match.expanded = st.session_state[f"{card_key}_expanded"]
-    
-    with st.expander(f"{match.name}", expanded=match.expanded):
+    # Always show expander by default
+    with st.expander(f"{match.name}", expanded=True):
         col1, col2 = st.columns(2)
         
         # Our Show Details
