@@ -7,48 +7,48 @@ following the rules defined in the TMDB integration documentation.
 from typing import Dict, List, Optional
 from .tmdb_models import TVShowDetails
 
-def map_tmdb_status(tmdb_status: str) -> Optional[str]:
-    """Map TMDB status to our status.
+def map_tmdb_status(tmdb_status: str) -> Optional[int]:
+    """Map TMDB status to our status_id.
     
-    Only returns a value if our status field is empty.
+    Only returns a value if our status_id field is empty.
     
     Args:
         tmdb_status: Status from TMDB API
         
     Returns:
-        Our status value or None if no mapping
+        Our status_id value or None if no mapping
     """
     status_map = {
-        'Returning Series': 'active',
-        'In Production': 'active',
-        'Pilot': 'active',
-        'Ended': 'ended',
-        'Canceled': 'canceled',
-        'Planned': 'development',
+        'Returning Series': 1,  # active
+        'In Production': 1,     # active
+        'Pilot': 1,             # active
+        'Ended': 3,             # ended
+        'Canceled': 2,          # canceled
+        'Planned': 4,           # development
         # In Production is intentionally mapped twice as per spec
-        'In Production': 'development'
+        'In Production': 4      # development
     }
     return status_map.get(tmdb_status)
 
-def map_order_type(tmdb_status: str, episodes_per_season: List[int]) -> Optional[str]:
-    """Map TMDB data to our order type.
+def map_order_type(tmdb_status: str, episodes_per_season: List[int]) -> Optional[int]:
+    """Map TMDB data to our order_type_id.
     
-    Only returns a value if our order_type field is empty.
+    Only returns a value if our order_type_id field is empty.
     
     Args:
         tmdb_status: Status from TMDB API
         episodes_per_season: List of episode counts per season
         
     Returns:
-        Our order type value or None if no mapping
+        Our order_type_id value or None if no mapping
     """
     if not episodes_per_season:
         return None
         
     if tmdb_status == 'Returning Series' and len(episodes_per_season) > 1:
-        return 'ongoing'
+        return 1  # ongoing
     elif len(episodes_per_season) == 1 and tmdb_status == 'Ended':
-        return 'limited'
+        return 2  # limited
         
     return None
 
@@ -137,20 +137,20 @@ def map_tmdb_show_data(
     # Always set tmdb_id as this is the core mapping field
     updates['tmdb_id'] = tmdb_show.id
     
-    # Only map status if current status is empty
-    if not existing_show.get('status'):
+    # Only map status if current status_id is empty
+    if not existing_show.get('status_id'):
         status = map_tmdb_status(tmdb_show.status)
         if status:
-            updates['status'] = status
+            updates['status_id'] = status
     
-    # Only map order type if current order type is empty
-    if not existing_show.get('order_type'):
+    # Only map order type if current order_type_id is empty
+    if not existing_show.get('order_type_id'):
         order_type = map_order_type(
             tmdb_show.status,
             episodes_per_season
         )
         if order_type:
-            updates['order_type'] = order_type
+            updates['order_type_id'] = order_type
     
     # Only map description if current description is empty
     if not existing_show.get('description') and tmdb_show.overview:
