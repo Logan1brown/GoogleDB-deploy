@@ -107,14 +107,12 @@ class TMDBMatchService:
             try:
                 # Update show with TMDB data first
                 st.write("Debug - Preparing show update...")
-                show_updates.update({
-                    'tmdb_id': match.tmdb_id,
-                    'updated_at': datetime.now().isoformat()
-                })
+                # Add updated_at timestamp
+                show_updates['updated_at'] = datetime.now().isoformat()
                 
-                # Remove any None values and tmdb_ prefixed fields
+                # Remove any None values but keep tmdb_id
                 show_updates = {k: v for k, v in show_updates.items() 
-                              if v is not None and not k.startswith('tmdb_')}
+                              if v is not None and (k == 'tmdb_id' or not k.startswith('tmdb_'))}
                 st.write(f"Debug - Final show updates: {show_updates}")
                 
                 st.write("Debug - Executing show update...")
