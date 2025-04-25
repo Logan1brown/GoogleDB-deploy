@@ -134,9 +134,6 @@ class TMDBClient:
         url = f"{self.BASE_URL}{endpoint}"
         response = requests.get(url, headers=self.headers, params=params)
         
-        if response.status_code != 200:
-            st.error(f"Error making TMDB API request: {response.status_code}")
-        
         if response.status_code == 429:
             retry_after = int(response.headers.get('Retry-After', 10))
             raise TMDBRateLimitError(f"Rate limit exceeded. Retry after {retry_after} seconds")
