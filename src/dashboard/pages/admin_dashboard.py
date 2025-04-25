@@ -121,6 +121,15 @@ def validate_match(match: TMDBMatch) -> bool:
             st.error("Failed to insert TMDB metrics")
             return
             
+        # Clear matches and set success message
+        state = get_admin_state()
+        state.tmdb_matches = None
+        state.last_validation = {
+            "success": True,
+            "show_title": match.our_show_title,
+            "is_no_match": False
+        }
+        update_admin_state(state)
         return True
         
     except Exception as e:
