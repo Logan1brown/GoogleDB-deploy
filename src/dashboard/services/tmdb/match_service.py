@@ -64,11 +64,11 @@ class TMDBMatchService:
             print(f"Failed to propose match: {str(e)}")
             return False
             
-    def search_and_match(self, query: str, confidence_threshold: float = 0.8) -> List[TMDBMatch]:
+    def search_and_match(self, show_data: dict, confidence_threshold: float = 0.8) -> List[TMDBMatch]:
         """Search TMDB and find potential matches for our shows.
         
         Args:
-            query: Show title to search for
+            show_data: Dictionary containing our show data (title, network_name, etc)
             confidence_threshold: Minimum confidence score for automatic matches
             
         Returns:
@@ -76,24 +76,15 @@ class TMDBMatchService:
         """
         matches = []
         # Search TMDB with variations
-        variations = get_search_variations(query)
+        variations = get_search_variations(show_data['title'])
         
         for search_title in variations:
             results = self.client.search_tv_show(search_title)
             if not results:
                 continue
-                
-            # Get our show data first
-            supabase = get_supabase_client()
-            response = supabase.table('api_tmdb_match') \
-                .select('show_id, title, network_name, date, team_members') \
-                .eq('title', query) \
-                .execute()
-            
-            our_show = response.data[0] if response.data else None
             
             # Extract our executive producers
-            team_members = our_show.get('team_members', []) if our_show else []
+            team_members = show_data.get('team_members', [])
             our_eps = [member['name'] for member in team_members 
                      if member.get('role', '').lower() == 'executive producer']
             
@@ -106,8 +97,8 @@ class TMDBMatchService:
                     tmdb_eps = get_tmdb_eps(credits)
                     
                     # Calculate scores
-                    title_score = score_title_match(query, details.name)
-                    network_score = score_network_match(our_show['network_name'] if our_show else None, details.networks)
+                    title_score = score_title_match(show_data['title'], details.name)
+                    network_score = score_network_match(show_data.get('network_name'), details.networks)
                     ep_score, _ = score_ep_matches(our_eps, tmdb_eps)
                     
                     total_score = title_score + network_score + ep_score
@@ -115,10 +106,10 @@ class TMDBMatchService:
                     
                     # Create TMDBMatch
                     match = TMDBMatch(
-                        our_show_id=our_show['show_id'] if our_show else 0,
-                        our_show_title=our_show['title'] if our_show else query,
-                        our_network=our_show['network_name'] if our_show else None,
-                        our_year=our_show['date'] if our_show else None,
+                        our_show_id=show_data['show_id'],
+                        our_show_title=show_data['title'],
+                        our_network=show_data.get('network_name'),
+                        our_year=show_data.get('date'),
                         tmdb_id=details.id,
                         name=details.name,
                         first_air_date=str(details.first_air_date) if details.first_air_date else None,

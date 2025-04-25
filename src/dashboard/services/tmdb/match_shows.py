@@ -89,11 +89,27 @@ def score_title_match(our_title: str, tmdb_title: str) -> int:
 
 def score_network_match(our_network: str, tmdb_networks: List[Network]) -> int:
     """Score network match (0-25 points)."""
+    if not our_network or not tmdb_networks:
+        return 0
+        
+    # Normalize our network name
     our_network = our_network.lower()
+    our_network = our_network.replace('plus', '+')
+    our_network = our_network.replace(' ', '')
+    
+    # Check each TMDB network
     for network in tmdb_networks:
-        if (our_network in network.name.lower() or 
-            network.name.lower() in our_network):
-            return 25
+        # Normalize TMDB network name
+        tmdb_name = network.name.lower()
+        tmdb_name = tmdb_name.replace('plus', '+')
+        tmdb_name = tmdb_name.replace(' ', '')
+        
+        # Check for match
+        if our_network == tmdb_name:
+            return 25  # Exact match
+        elif our_network in tmdb_name or tmdb_name in our_network:
+            return 20  # Partial match
+            
     return 0
 
 def score_ep_matches(our_eps: List[str], tmdb_eps: List[str], max_points: int = 15) -> Tuple[int, List[str]]:

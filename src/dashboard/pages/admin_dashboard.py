@@ -429,7 +429,7 @@ def render_tmdb_matches():
                              if member['role'].lower() == 'executive producer']
                     
                     # Get TMDB matches
-                    matches = match_service.search_and_match(show_data['title'])
+                    matches = match_service.search_and_match(show_data)
                     
                     if not matches:
                         st.error("No matches found")
