@@ -20,6 +20,7 @@ from ..components.unmatched_show_view import render_unmatched_show_row, render_u
 from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
 from ..services.tmdb.tmdb_client import TMDBClient
+from ..services import show_service
 from ..state.admin_state import TMDBMatchState
 from ..state.session import get_admin_state, update_admin_state, clear_section_state
 from src.shared.auth import auth_required
