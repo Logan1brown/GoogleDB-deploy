@@ -105,20 +105,7 @@ class TMDBMatchService:
             
             # Begin transaction
             try:
-                st.write("Debug - Inserting metrics...")
-                # Insert success metrics
-                metrics_response = self.supabase.table('tmdb_success_metrics')\
-                    .insert(metrics_data)\
-                    .execute()
-                st.write(f"Debug - Metrics response: {metrics_response.data}")
-                
-                if not metrics_response.data:
-                    # Rollback show update
-                    st.write("Debug - Failed to insert metrics, rolling back...")
-                    self.supabase.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
-                    raise ValueError("Failed to insert TMDB metrics")
-                
-                # Update show with TMDB data
+                # Update show with TMDB data first
                 st.write("Debug - Preparing show update...")
                 show_updates.update({
                     'tmdb_id': match.tmdb_id,
@@ -138,10 +125,20 @@ class TMDBMatchService:
                 st.write(f"Debug - Show update response: {show_response.data}")
                 
                 if not show_response.data:
-                    # Rollback metrics insert
-                    st.write("Debug - Failed to update show, rolling back metrics...")
-                    self.supabase.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
                     raise ValueError("Failed to update show with TMDB data")
+                
+                # Now insert metrics since show has tmdb_id
+                st.write("Debug - Inserting metrics...")
+                metrics_response = self.supabase.table('tmdb_success_metrics')\
+                    .insert(metrics_data)\
+                    .execute()
+                st.write(f"Debug - Metrics response: {metrics_response.data}")
+                
+                if not metrics_response.data:
+                    # Rollback show update if metrics fail
+                    st.write("Debug - Failed to insert metrics, rolling back show update...")
+                    self.supabase.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
+                    raise ValueError("Failed to insert TMDB metrics")
                 
                 st.write("Debug - Successfully completed validation!")
                 return True
