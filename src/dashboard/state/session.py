@@ -97,16 +97,16 @@ def get_admin_state() -> AdminState:
     
     # Convert nested dicts to proper state objects
     admin_dict = state["admin"]
-    if "user_management" in admin_dict:
+    if isinstance(admin_dict["user_management"], dict):
         admin_dict["user_management"] = UserManagementState(**admin_dict["user_management"])
-    if "announcements" in admin_dict:
+    if isinstance(admin_dict["announcements"], dict):
         admin_dict["announcements"] = AnnouncementState(**admin_dict["announcements"])
-    if "tmdb_matching" in admin_dict:
+    if isinstance(admin_dict["tmdb_matching"], dict):
         matching_dict = admin_dict["tmdb_matching"]
-        if "matches" in matching_dict:
-            matching_dict["matches"] = [TMDBMatchState(**m) for m in matching_dict["matches"]]
+        if isinstance(matching_dict.get("matches", []), list):
+            matching_dict["matches"] = [TMDBMatchState(**m) if isinstance(m, dict) else m for m in matching_dict["matches"]]
         admin_dict["tmdb_matching"] = TMDBMatchingState(**matching_dict)
-    if "api_metrics" in admin_dict:
+    if isinstance(admin_dict["api_metrics"], dict):
         admin_dict["api_metrics"] = APIMetricsState(**admin_dict["api_metrics"])
     
     return AdminState(**admin_dict)
