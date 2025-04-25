@@ -122,8 +122,19 @@ def validate_match(match: TMDBMatch) -> bool:
             st.error("Failed to insert TMDB metrics")
             return
             
-        # Just show success message - state will be cleared in render_tmdb_matches
+        # Clear state and show success message
+        state.tmdb_matches = None
+        state.tmdb_search_query = None
+        state.our_eps = None
+        update_admin_state(state)
+        
+        # Clear Streamlit session state
+        for key in list(st.session_state.keys()):
+            if key.startswith('tmdb_') or key in ['our_eps']:
+                del st.session_state[key]
+        
         st.success(f"Successfully validated match for {match.our_show_title}")
+        st.experimental_rerun()
         return True
         
     except Exception as e:
@@ -457,15 +468,18 @@ def render_tmdb_matches():
             .execute()
             
         if show_response.data and show_response.data[0].get('tmdb_id'):
-            # Show was matched, clear all TMDB-related state
-            for key in list(st.session_state.keys()):
-                if key.startswith('tmdb_') or key in ['our_eps']:
-                    del st.session_state[key]
-            # Also clear admin state
+            # Show was matched, clear all state and rerun
             state.tmdb_matches = None
             state.tmdb_search_query = None
             state.our_eps = None
             update_admin_state(state)
+            
+            # Clear Streamlit session state
+            for key in list(st.session_state.keys()):
+                if key.startswith('tmdb_') or key in ['our_eps']:
+                    del st.session_state[key]
+                    
+            st.experimental_rerun()
         else:
             # Show still unmatched, display matches
             st.subheader(f"Matches for '{state.tmdb_search_query}'")

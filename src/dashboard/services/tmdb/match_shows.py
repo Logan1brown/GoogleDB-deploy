@@ -124,28 +124,33 @@ def score_title_match(our_title: str, tmdb_title: str) -> int:
     return 0
 
 def score_network_match(our_network: str, tmdb_networks: List[Network]) -> int:
-    """Score network match (0-25 points)."""
+    """Score network match (0-25 points).
+    
+    Uses fuzzy matching to handle inconsistent network names in TMDB data.
+    Common variations like 'BBC One' vs 'BBC 1' or 'Showtime' vs 'Showcase' should still score points.
+    """
     if not our_network or not tmdb_networks:
         return 0
         
     # Normalize our network name
-    our_network = our_network.lower()
-    our_network = our_network.replace('plus', '+')
-    our_network = our_network.replace(' ', '')
+    our_network = our_network.lower().strip()
     
-    # Check each TMDB network
-    for network in tmdb_networks:
-        # Normalize TMDB network name
-        tmdb_name = network.name.lower()
-        tmdb_name = tmdb_name.replace('plus', '+')
-        tmdb_name = tmdb_name.replace(' ', '')
+    # Get normalized network names from TMDB
+    tmdb_network_names = [n.name.lower().strip() for n in tmdb_networks]
+    
+    # Check for exact match first
+    if our_network in tmdb_network_names:
+        return 25
         
-        # Check for match
-        if our_network == tmdb_name:
-            return 25  # Exact match
-        elif our_network in tmdb_name or tmdb_name in our_network:
-            return 20  # Partial match
-            
+    # Try fuzzy matching
+    for tmdb_network in tmdb_network_names:
+        ratio = fuzz.ratio(our_network, tmdb_network)
+        if ratio >= 80:  # High similarity
+            return 25
+        elif ratio >= 60:  # Medium similarity
+            return 15
+        
+    # No good match found
     return 0
 
 def score_ep_matches(our_eps: List[str], tmdb_eps: List[str], max_points: int = 15) -> Tuple[int, List[str]]:
