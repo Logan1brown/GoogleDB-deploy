@@ -69,30 +69,47 @@ def load_show_eps(show_name: str, team_csv_path: str) -> List[str]:
     return sorted(list(set(eps)))  # Remove duplicates and sort
 
 def get_tmdb_eps(credits: Dict) -> List[str]:
-    """Extract executive producer names from TMDB credits."""
+    """Extract executive producer and creator names from TMDB credits.
+    
+    Note: Creators are always considered executive producers, even if not explicitly listed as such.
+    """
     producer_titles = [
         'Executive Producer',
         'Co-Executive Producer',
         'Consulting Producer',
         'Producer',
         'Co-Producer',
-        'Supervising Producer'
+        'Supervising Producer',
+        'Creator',  # Added Creator since they are always EPs
+        'Created By'
     ]
     
-    # First try exact matches
-    eps = [
-        person['name'] for person in credits.get('crew', [])
+    crew = credits.get('crew', [])
+    eps = set()  # Use set to avoid duplicates
+    
+    # Get creators first since they're always EPs
+    creators = [
+        person['name'] for person in crew
+        if person['job'] in ['Creator', 'Created By']
+    ]
+    eps.update(creators)
+    
+    # Then get producers with exact matches
+    producers = [
+        person['name'] for person in crew
         if person['job'] in producer_titles
     ]
+    eps.update(producers)
     
-    # If no exact matches, try case-insensitive partial matches
+    # If still no matches, try case-insensitive partial matches
     if not eps:
-        eps = [
-            person['name'] for person in credits.get('crew', [])
+        partial_matches = [
+            person['name'] for person in crew
             if any(title.lower() in person['job'].lower() for title in producer_titles)
         ]
+        eps.update(partial_matches)
     
-    return eps
+    return sorted(list(eps))  # Convert back to sorted list
 
 def score_title_match(our_title: str, tmdb_title: str) -> int:
     """Score title match (0-60 points)."""

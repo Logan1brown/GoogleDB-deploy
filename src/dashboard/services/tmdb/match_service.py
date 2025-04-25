@@ -127,10 +127,18 @@ class TMDBMatchService:
                     st.error(f"Error processing result: {str(e)}")
                     continue
         
-        # Sort by confidence score
-        matches.sort(key=lambda m: m.confidence, reverse=True)
+        # Deduplicate matches by TMDB ID and sort by confidence score
+        seen_ids = set()
+        unique_matches = []
+        for match in matches:
+            if match.tmdb_id not in seen_ids:
+                seen_ids.add(match.tmdb_id)
+                unique_matches.append(match)
         
-        return matches
+        # Sort by confidence score
+        unique_matches.sort(key=lambda m: m.confidence, reverse=True)
+        
+        return unique_matches
     
     def update_match_status(self, match_ids: List[int], status: MatchStatus, notes: str = "") -> None:
         """Update status for multiple matches.
