@@ -42,7 +42,10 @@ def render_unmatched_shows_table(
             st.write(show.get('year', ''))
         with col4:
             # Stack buttons vertically
-            if st.button("Find Matches", key=f"find_{show['id']}", use_container_width=True):
+            if st.button("Find Matches",
+                       key=f"find_{show['id']}",
+                       type="primary",
+                       use_container_width=True):
                 on_find_matches(show)
             
             match_service = TMDBMatchService()
