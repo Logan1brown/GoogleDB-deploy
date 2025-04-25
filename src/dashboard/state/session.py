@@ -170,10 +170,14 @@ def clear_matching_state(admin_state: AdminState):
     Args:
         admin_state: Current admin state to update
     """
+    # Preserve success message if present
+    success_message = admin_state.tmdb_matching.success_message
+    
     # Clear session state for all matches
     for match in admin_state.tmdb_matching.matches:
         clear_match_session_state(match.our_show_id)
     
-    # Reset matching state
+    # Reset matching state but restore success message
     admin_state.tmdb_matching = TMDBMatchingState()
+    admin_state.tmdb_matching.success_message = success_message
     update_admin_state(admin_state)
