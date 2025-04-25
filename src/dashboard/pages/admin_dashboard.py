@@ -51,21 +51,14 @@ def validate_match(match: TMDBMatchState) -> bool:
         match_service = TMDBMatchService(supabase_client=get_admin_client())
         match_service.validate_match(match)
         
-        # Set success message and clear UI state
+        # Show success message
         success_msg = f"Successfully validated match for {match.our_show_title}"
-        st.success(success_msg)  # Show success immediately
-        matching.success_message = success_msg
-        matching.search_query = ""
-        matching.matches = []
-        matching.validated_show_id = match.our_show_id  # Track which show was validated
+        st.success(success_msg)
         
-        # Clear any UI state
-        for key in list(st.session_state.keys()):
-            if key.startswith('tmdb_'):
-                del st.session_state[key]
-                
-        # Update state
-        update_admin_state(state)
+        # Clear all state in one place
+        from ..state.session import clear_matching_state
+        clear_matching_state(state)
+        
         return True
         
     except Exception as e:
@@ -422,16 +415,10 @@ def render_tmdb_matches():
             
             # Use template to render match card
             render_match_card(match, validate_match)
-    elif matching.success_message:
-        # Show success message after container disappears
-        st.success(matching.success_message)
-        # Clear all state after successful validation
-        matching.success_message = None
-        matching.matches = []
-        matching.search_query = ""
-        matching.validated_show_id = None  # Clear validated show ID
-        update_admin_state(state)
-        st.rerun()  # Force UI refresh
+            
+        # Rerun if we just validated a show
+        if matching.validated_show_id:
+            st.rerun()
 
     # Save state
     update_admin_state(state)
