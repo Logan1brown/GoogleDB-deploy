@@ -21,7 +21,7 @@ from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
 from ..services.tmdb.tmdb_client import TMDBClient
 from ..state.admin_state import TMDBMatchState
-from ..state.session import get_admin_state, update_admin_state
+from ..state.session import get_admin_state, update_admin_state, clear_section_state
 from src.shared.auth import auth_required
 from supabase import create_client
 from dataclasses import dataclass
