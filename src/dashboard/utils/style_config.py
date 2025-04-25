@@ -48,22 +48,5 @@ DIMENSIONS = {
         'width': 800,
         'height': 500,
         'margin': CHART_DEFAULTS['margin']['section']
-    },
-    'scrollable_table': {
-        'max_height': 400,
-        'padding': 10,
-        'margin_bottom': 20
     }
-}
-
-CSS_CLASSES = {
-    'unmatched_shows': f"""
-        .unmatched-shows {{
-            max-height: {DIMENSIONS['scrollable_table']['max_height']}px;
-            overflow-y: auto;
-            border: 1px solid {COLORS['text']['secondary']};
-            padding: {DIMENSIONS['scrollable_table']['padding']}px;
-            margin-bottom: {DIMENSIONS['scrollable_table']['margin_bottom']}px;
-        }}
-    """
 }

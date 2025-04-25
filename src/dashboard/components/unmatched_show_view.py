@@ -7,7 +7,7 @@ def render_unmatched_shows_table(
     shows: List[Dict[str, Any]], 
     on_find_matches: Callable[[Dict[str, Any]], None]
 ):
-    """Render all unmatched shows in a scrollable table.
+    """Render all unmatched shows in a table.
     
     Args:
         shows: List of show dictionaries
@@ -24,16 +24,15 @@ def render_unmatched_shows_table(
     with col4:
         st.markdown("**Actions**")
     
-    # Render each show row in a container
+    # Render each show row
     for show in shows:
-        with st.container():
-            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
-            with col1:
-                st.write(show['title'])
-            with col2:
-                st.write(show.get('network_name', ''))
-            with col3:
-                st.write(show.get('year', ''))
-            with col4:
-                if st.button("Find Matches", key=f"find_{show['id']}", use_container_width=True):
-                    on_find_matches(show)
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+        with col1:
+            st.write(show['title'])
+        with col2:
+            st.write(show.get('network_name', ''))
+        with col3:
+            st.write(show.get('year', ''))
+        with col4:
+            if st.button("Find Matches", key=f"find_{show['id']}", use_container_width=True):
+                on_find_matches(show)
