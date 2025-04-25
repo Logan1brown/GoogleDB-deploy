@@ -438,10 +438,20 @@ def render_tmdb_matches():
     
     # Then get all shows without tmdb_id that aren't in no_match_ids
     response = supabase.table('shows')\
-        .select('id, title, network_id, date, team_members')\
+        .select(
+            'id, title, network_id, date, show_team(name, role_type_id)'
+        )\
         .is_('tmdb_id', 'null')\
         .not_.in_('id', no_match_ids)\
         .execute()
+    
+    # Convert show_team to team_members format
+    for show in response.data:
+        team = show.pop('show_team', [])
+        show['team_members'] = [
+            {'name': member['name'], 'role': 'Executive Producer'}
+            for member in team if member['role_type_id'] == 2  # 2 = Producer
+        ]
     unmatched_shows = response.data
     
     # Filter out the show that was just validated
