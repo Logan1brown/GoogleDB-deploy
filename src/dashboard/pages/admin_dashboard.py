@@ -39,12 +39,13 @@ def validate_match(match: TMDBMatch) -> bool:
         client = get_admin_client()
         
         # Check if show exists and doesn't have TMDB ID
-        show_response = client.table('shows').select('tmdb_id').eq('id', match.our_show_id).execute()
+        show_response = client.table('shows').select('*').eq('id', match.our_show_id).execute()
         if not show_response.data:
             st.error(f"Show {match.our_show_title} (ID: {match.our_show_id}) not found")
             return
-        if show_response.data[0].get('tmdb_id'):
-            st.error(f"Show {match.our_show_title} already has TMDB ID {show_response.data[0]['tmdb_id']}")
+        existing_show = show_response.data[0]
+        if existing_show.get('tmdb_id'):
+            st.error(f"Show {match.our_show_title} already has TMDB ID {existing_show['tmdb_id']}")
             return
             
         # Handle no-match case
@@ -76,64 +77,38 @@ def validate_match(match: TMDBMatch) -> bool:
         if not details:
             st.error(f"No TMDB details found for ID {match.tmdb_id}")
             return
-        
-        # Calculate metrics with validation
-        episodes_per_season = []
-        total_episodes = 0
-        average_episodes = None
-        
-        try:
-            # Get episode counts from each season
-            for season in details.seasons:
-                if season.season_number > 0:  # Skip season 0 (specials)
-                    if season.episode_count:
-                        episodes_per_season.append(season.episode_count)
-            
-            # Only calculate totals if we have episode counts
-            if episodes_per_season:
-                total_episodes = sum(episodes_per_season)
-                average_episodes = round(total_episodes / len(episodes_per_season), 2)
-
-            else:
-                st.warning("No episode counts found in TMDB data")
-        except (AttributeError, TypeError, ZeroDivisionError) as e:
-            st.error(f"Error calculating episode metrics: {str(e)}")
-            return
             
         # Validate required fields
         if not details.status:
             st.error("Missing required field: status")
             return
         
+        # Use our data mapper to prepare updates
+        from ..services.tmdb.tmdb_data_mapper import map_tmdb_success_metrics, map_tmdb_show_data
+        
+        # First prepare success metrics data
+        metrics_data = map_tmdb_success_metrics(details)
+        
+        # Validate all required metrics fields exist
+        if not all(key in metrics_data for key in ['tmdb_id', 'seasons', 'episodes_per_season', 'status']):
+            st.error("Missing required metrics fields")
+            return
+        
+        # Then prepare show updates
+        show_updates = map_tmdb_show_data(details, existing_show)
+        
         # Start transaction
-        # Update show's tmdb_id
+        # First update the show
         update_response = client.table('shows')\
-            .update({"tmdb_id": match.tmdb_id})\
+            .update(show_updates)\
             .eq('id', match.our_show_id)\
             .execute()
             
         if not update_response.data or len(update_response.data) == 0:
-            st.error(f"Failed to update show {match.our_show_title} with TMDB ID")
+            st.error(f"Failed to update show {match.our_show_title}")
             return
         
-        # Prepare and validate metrics data
-        metrics_data = {
-            "tmdb_id": match.tmdb_id,
-            "seasons": details.number_of_seasons,
-            "episodes_per_season": episodes_per_season,
-            "total_episodes": total_episodes or None,
-            "average_episodes": average_episodes,
-            "status": details.status,
-            "last_air_date": details.last_air_date.isoformat() if details.last_air_date else None
-        }
-        
-        # Validate all metrics data fields
-        if not all(key in metrics_data for key in ['tmdb_id', 'seasons', 'episodes_per_season', 'status']):
-            client.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
-            st.error("Missing required metrics fields")
-            return
-        
-        # Insert into tmdb_success_metrics
+        # Then insert metrics
         metrics_response = client.table('tmdb_success_metrics')\
             .insert(metrics_data)\
             .execute()
