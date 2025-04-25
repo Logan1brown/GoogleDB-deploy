@@ -122,17 +122,13 @@ def validate_match(match: TMDBMatch) -> bool:
             st.error("Failed to insert TMDB metrics")
             return
             
-        # Clear matches and set success message
-        state = get_admin_state()
-        state.tmdb_matches = None
-        state.tmdb_search_query = None
-        state.our_eps = None
-        state.last_validation = {
-            "success": True,
-            "show_title": match.our_show_title,
-            "is_no_match": False
-        }
-        update_admin_state(state)
+        # Show success message and clear state
+        st.success(f"Successfully validated match for {match.our_show_title}")
+        
+        # Clear all TMDB-related state
+        for key in list(st.session_state.keys()):
+            if key.startswith('tmdb_') or key in ['our_eps']:
+                del st.session_state[key]
         return True
         
     except Exception as e:
@@ -454,16 +450,8 @@ def render_tmdb_matches():
         render_unmatched_show_row(show, on_find_matches)
 
     
-    # Show validation result if any
-    if state.last_validation:
-        if state.last_validation["success"]:
-            if state.last_validation.get("is_no_match"):
-                st.success(f"Marked '{state.last_validation['show_title']}' as having no TMDB match")
-            else:
-                st.success(f"Successfully validated match for {state.last_validation['show_title']}")
-        # Clear the message after showing
-        state.last_validation = None
-        update_admin_state(state)
+    # No need to show validation result here anymore
+    # The success message is shown directly in validate_match
     
     # Match Results
     if state.tmdb_matches and state.tmdb_search_query:
