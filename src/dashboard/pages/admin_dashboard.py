@@ -539,6 +539,8 @@ def render_tmdb_matches():
                             state_obj = TMDBMatchState(
                                 our_show_id=show_data['id'],
                                 our_show_title=show_data['title'],
+                                our_network=show_data.get('network_name'),  # Add network
+                                our_year=show_data.get('year'),  # Add year
                                 tmdb_id=match.tmdb_id,
                                 name=match.name,
                                 networks=match.networks or [],
