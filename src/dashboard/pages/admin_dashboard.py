@@ -530,6 +530,16 @@ def render_tmdb_matches():
                     # Get TMDB matches
                     matches = match_service.search_and_match(show_data)
                     
+                    # Debug matches
+                    st.write(f"Debug - Got {len(matches) if matches else 0} matches")
+                    if matches:
+                        for i, m in enumerate(matches):
+                            st.write(f"Match {i+1}:")
+                            st.write(f"- Title: {m.name}")
+                            st.write(f"- TMDB ID: {m.tmdb_id}")
+                            st.write(f"- Networks: {m.networks}")
+                            st.write(f"- First Air: {m.first_air_date}")
+                    
                     if not matches:
                         st.warning("No matches found")
                         return
