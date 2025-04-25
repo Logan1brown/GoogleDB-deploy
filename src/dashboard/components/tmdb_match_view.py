@@ -7,7 +7,6 @@ It uses the TMDBMatchState class for state management and provides validation co
 import streamlit as st
 from ..state.admin_state import TMDBMatchState
 from ..state.session import clear_match_session_state
-from ..services.tmdb.match_service import TMDBMatchService
 
 def find_matches_for_show(show_data: dict, state) -> None:
     """Find TMDB matches for a show and update state."""
@@ -100,11 +99,11 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
         # Action buttons - side by side at bottom
         st.markdown("---")
         
-        # Two equal columns for the buttons
-        button_col1, button_col2 = st.columns(2)
+        # Center the validate button
+        col1, col2, col3 = st.columns([1, 2, 1])
         
-        # Validate Match button
-        with button_col1:
+        # Validate Match button in center column
+        with col2:
             if st.button(f"Validate Match ({match.confidence}%)", 
                        key=f"{card_key}_validate",
                        use_container_width=True):
@@ -113,18 +112,3 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
                     match.expanded = False
                     clear_match_session_state(match.our_show_id)
                     on_validate(match)
-        
-        # No Match button
-        with button_col2:
-            if st.button("No Match", 
-                       key=f"{card_key}_no_match",
-                       type="secondary",
-                       use_container_width=True):
-                # Mark as no match and clear state
-                match_service = TMDBMatchService()
-                if match_service.mark_as_no_match(match.our_show_id):
-                    # Clear expanded state and session state
-                    match.expanded = False
-                    clear_match_session_state(match.our_show_id)
-                    # Refresh the page
-                    st.rerun()

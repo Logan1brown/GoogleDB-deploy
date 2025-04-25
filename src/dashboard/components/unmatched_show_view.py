@@ -4,6 +4,7 @@ import streamlit as st
 from typing import Dict, Any, Callable, List
 from ..state.admin_state import TMDBMatchState
 from .tmdb_match_view import render_match_card
+from ..services.tmdb.match_service import TMDBMatchService
 
 def render_unmatched_shows_table(
     shows: List[Dict[str, Any]], 
@@ -40,8 +41,17 @@ def render_unmatched_shows_table(
         with col3:
             st.write(show.get('year', ''))
         with col4:
+            # Stack buttons vertically
             if st.button("Find Matches", key=f"find_{show['id']}", use_container_width=True):
                 on_find_matches(show)
+            
+            match_service = TMDBMatchService()
+            if st.button("No Matches", 
+                       key=f"no_match_{show['id']}",
+                       type="secondary",
+                       use_container_width=True):
+                if match_service.mark_as_no_match(show['id']):
+                    st.rerun()
         
         # Show matches right after this row if this is the show we just searched
         if matching.matches and matching.search_query == show['title']:
