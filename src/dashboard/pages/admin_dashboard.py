@@ -325,13 +325,7 @@ def render_tmdb_matches():
     # Get and display unmatched shows
     unmatched_shows = show_service.get_unmatched_shows()
     
-    # Convert show_team and network data
-    for show in unmatched_shows:
-        # Handle network name
-        network = show.get('network_list')
-        if network:
-            # Get network name for display
-            show['network_name'] = network.get('network', '')
+    # Show data is already processed by show_service.process_show_data
     
     # Filter out the show that was just validated
     if matching.validated_show_id:
