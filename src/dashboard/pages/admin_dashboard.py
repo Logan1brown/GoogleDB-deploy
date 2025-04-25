@@ -377,13 +377,8 @@ def render_tmdb_matches():
                     our_eps = [member['name'] for member in team_members 
                              if member['role'].lower() == 'executive producer']
                     
-                    # Log debug info
-                    from ..services.tmdb.tmdb_logger import log_show_data, log_matches
-                    log_show_data(show_data)
-                    
                     # Get TMDB matches
                     matches = match_service.search_and_match(show_data)
-                    log_matches(matches)
                     
                     if not matches:
                         st.warning("No matches found")
