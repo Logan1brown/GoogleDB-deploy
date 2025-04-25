@@ -133,6 +133,7 @@ class TMDBMatchService:
                     self.supabase.table('shows').update({"tmdb_id": None}).eq('id', match.our_show_id).execute()
                     raise ValueError("Failed to insert TMDB metrics")
                 
+                st.success("Show successfully matched with TMDB")
                 return True
                 
             except Exception as e:
