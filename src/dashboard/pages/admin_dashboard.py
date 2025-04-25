@@ -548,6 +548,8 @@ def render_tmdb_matches():
                                 name=match.name,
                                 networks=match.networks or [],
                                 first_air_date=match.first_air_date,
+                                status=match.status,
+                                episodes_per_season=match.episodes_per_season,
                                 executive_producers=match.executive_producers or [],
                                 confidence=match.confidence,
                                 title_score=match.title_score,
