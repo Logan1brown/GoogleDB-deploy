@@ -34,7 +34,7 @@ class TMDBMatchService:
         try:
             self.supabase.table('no_tmdb_matches').insert({
                 'show_id': show_id,
-                'reason': 'Manual validation - No match found',
+                'notes': 'Manual validation - No match found',
                 'created_at': datetime.now().isoformat()
             }).execute()
             return True
