@@ -720,6 +720,7 @@ def handle_submit(show_form: ShowFormState):
         state.form_started = False
         state.show_form = ShowFormState()
         update_data_entry_state(state)
+        st.rerun()
             
     else:
         try:
@@ -734,6 +735,7 @@ def handle_submit(show_form: ShowFormState):
                 del st.session_state[search_key]
                 
             update_data_entry_state(state)
+            st.rerun()
             
         except Exception as e:
             st.error(f"Error saving show: {str(e)}")
