@@ -440,7 +440,7 @@ def render_tmdb_matches():
     # Then get all shows without tmdb_id that aren't in no_match_ids
     response = supabase.table('shows')\
         .select(
-            'id, title, network_id, date, network_list!inner(network, aliases, search_network), show_team(name, role_type_id)'
+            'id, title, network_id, date, network_list(*), show_team(name, role_type_id)'
         )\
         .is_('tmdb_id', 'null')\
         .not_.in_('id', no_match_ids)\
@@ -451,22 +451,20 @@ def render_tmdb_matches():
     for show in response.data:
         # Handle network name
         try:
-            network_list = show.get('network_list', [])
-            # Check if we have any networks
-            first_network = network_list[0] if network_list else None
-            if first_network:
-                # Get network name from first network
-                network_name = first_network.get('network', '')
+            network = show.get('network_list')
+            if network:
+                # Get network name
+                network_name = network.get('network', '')
                 # Also get aliases and search network for better matching
-                aliases = first_network.get('aliases', [])
-                search_network = first_network.get('search_network', '')
+                aliases = network.get('aliases', [])
+                search_network = network.get('search_network', '')
                 # Use search_network if available, otherwise network name
                 show['network_name'] = search_network or network_name
             else:
                 show['network_name'] = ''
-        except (IndexError, AttributeError, KeyError) as e:
+        except (AttributeError, KeyError) as e:
             st.write(f"Debug - Network error for {show.get('title', 'Unknown show')}: {str(e)}")
-            st.write(f"Network list: {show.get('network_list')}")
+            st.write(f"Network data: {show.get('network_list')}")
             show['network_name'] = ''
         
         # Remove network list after using
