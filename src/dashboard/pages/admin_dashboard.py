@@ -144,8 +144,10 @@ def validate_match(match: TMDBMatchState) -> bool:
             'timestamp': time.time()
         }
         
-        # Set success message
+        # Set success message and clear UI state
         matching.success_message = f"Successfully validated match for {match.our_show_title}"
+        matching.search_query = ""
+        matching.matches = []
         
         # Update state
         update_admin_state(state)
@@ -154,6 +156,11 @@ def validate_match(match: TMDBMatchState) -> bool:
         for key in list(st.session_state.keys()):
             if key.startswith('tmdb_'):
                 del st.session_state[key]
+        
+        # Update state again after clearing
+        state = get_admin_state()
+        state.tmdb_matching.success_message = matching.success_message
+        update_admin_state(state)
         
         return True
         

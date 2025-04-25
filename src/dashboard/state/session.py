@@ -120,8 +120,12 @@ def update_admin_state(admin_state: AdminState) -> None:
     Args:
         admin_state: New admin state to save
     """
+    # Convert nested state objects to dicts
+    admin_dict = asdict(admin_state)
+    
+    # Update the page state
     state = get_page_state("admin")
-    state["admin"] = asdict(admin_state)
+    state["admin"] = admin_dict
     update_page_state("admin", state)
 
 def clear_match_session_state(match_id: int):
