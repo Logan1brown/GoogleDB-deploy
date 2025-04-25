@@ -28,6 +28,7 @@ from dataclasses import dataclass
 def validate_match(match: TMDBMatch) -> bool:
     """Validate a TMDB match and save the data."""
     try:
+        state = get_admin_state()
         # Input validation
         if not match.our_show_id or not isinstance(match.our_show_id, int):
             st.error("Invalid show ID")
