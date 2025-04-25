@@ -118,19 +118,8 @@ def get_unmatched_shows() -> List[Dict]:
         .order('date', desc=True)\
         .execute()
     
-    return response.data
-    response = supabase.table('source_types').select('id, type').execute()
-    lookups['source_types'] = [{'id': s['id'], 'name': s['type']} for s in response.data]
-    
-    # Load order types
-    response = supabase.table('order_types').select('id, type').execute()
-    lookups['order_types'] = [{'id': o['id'], 'name': o['type']} for o in response.data]
-    
-    # Load status types
-    response = supabase.table('status_types').select('id, status').execute()
-    lookups['status_types'] = [{'id': s['id'], 'name': s['status']} for s in response.data]
-    
-    return lookups
+    # Process each show's data
+    return [process_show_data(show) for show in response.data]
 
 @st.cache_data(ttl=60)
 def search_shows(title: str) -> List[str]:
