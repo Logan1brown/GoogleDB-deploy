@@ -70,16 +70,25 @@ class MarketAnalyzer:
         # Only select columns we need, keeping studio_names for vertical integration
         needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
                       'tmdb_status', 'status_name', 'studio_names', 'active']
+        st.write("")
+        st.write("=== MarketAnalyzer Init ===")
+        st.write("Initial titles_df columns:", list(self.titles_df.columns))
         available_cols = [col for col in needed_cols if col in self.titles_df.columns]
-        logger.info(f"Available columns from needed: {available_cols}")
+        st.write("Available columns from needed:", available_cols)
         if not available_cols:
             raise ValueError(f"None of the required columns {needed_cols} found in titles_df")
         self.titles_df = self.titles_df[available_cols].copy(deep=True)
+        st.write("Columns after selecting needed:", list(self.titles_df.columns))
         
         # Reset index to ensure clean data
         self.titles_df = self.titles_df.reset_index(drop=True)
         
         # Calculate average episodes per season for success scoring
+        st.write("")
+        st.write("=== Before Calculating tmdb_avg_eps ===")
+        st.write("Columns:", list(self.titles_df.columns))
+        st.write("Sample data:", self.titles_df.head().to_dict())
+        
         self.titles_df['tmdb_avg_eps'] = self.titles_df.apply(
             lambda x: x['tmdb_total_episodes'] / x['tmdb_seasons'] 
             if pd.notna(x['tmdb_total_episodes']) and pd.notna(x['tmdb_seasons']) and x['tmdb_seasons'] > 0 
