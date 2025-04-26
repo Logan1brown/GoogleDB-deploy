@@ -311,24 +311,31 @@ def render_announcements():
         )
     with col2:
         if st.button("Fetch New", type="primary"):
-            deadline = DeadlineClient()
-            articles = deadline.search_straight_to_series()
-            
-            # Add new articles to database
-            client = get_admin_client()
-            for article in articles:
-                try:
-                    client.table('announcements').insert({
-                        'url': article['url'],
-                        'title': article['title'],
-                        'published_date': article['published_date'],
-                        'reviewed': False
-                    }).execute()
-                except Exception as e:
-                    if "duplicate key value" not in str(e):
-                        st.error(f"Error adding article: {e}")
-            st.success(f"Fetched {len(articles)} articles from Deadline")
-            st.rerun()
+            with st.spinner("Fetching articles..."):
+                deadline = DeadlineClient()
+                articles = deadline.search_straight_to_series()
+                
+                # Add new articles to database
+                client = get_admin_client()
+                new_count = 0
+                for article in articles:
+                    try:
+                        client.table('announcements').insert({
+                            'url': article['url'],
+                            'title': article['title'],
+                            'published_date': article['published_date'],
+                            'reviewed': False
+                        }).execute()
+                        new_count += 1
+                    except Exception as e:
+                        if "duplicate key value" not in str(e):
+                            st.error(f"Error adding article: {e}")
+                
+                if new_count > 0:
+                    st.success(f"Added {new_count} new articles")
+                else:
+                    st.info("No new articles found")
+                st.rerun()
     
     # Get announcements based on filter
     client = get_admin_client()

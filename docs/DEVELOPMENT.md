@@ -38,8 +38,11 @@
    - [TMDBClient](#tmdbclient)
    - [TMDBMatchService](#tmdbmatchservice)
    - [TMDBDataMapper](#tmdbdatamapper)
-2. [External Services](#external-services)
-3. [API Rate Limiting](#api-rate-limiting)
+2. [Deadline Integration](#deadline-integration)
+   - [DeadlineClient](#deadlineclient)
+   - [Announcements](#announcements)
+3. [External Services](#external-services)
+4. [API Rate Limiting](#api-rate-limiting)
 
 ### IV. Development Workflow
 1. [Best Practices](#best-practices)
@@ -771,6 +774,61 @@ status_map = {
 ```
 
 Note: 'In Production' shows are mapped to development (4) rather than active (1) per specification. This ensures consistent state tracking for shows that are greenlit but not yet airing.
+
+#### Deadline Integration
+
+##### DeadlineClient
+Handles interaction with Deadline's WordPress API to fetch "straight to series" announcements.
+
+```python
+class DeadlineClient:
+    """Client for accessing Deadline's WordPress API with retries and error handling."""
+    
+    def search_straight_to_series(self) -> List[Dict]:
+        """Search for 'straight to series' articles.
+        
+        Returns:
+            List of dicts with article info (title, url, published_date)
+        """
+```
+
+**Features:**
+- Rate limiting (30 requests/10s)
+- Retries with exponential backoff
+- Error handling for common API issues
+- Title cleaning (HTML entities)
+
+**Error Types:**
+- `DeadlineError`: Base exception
+- `DeadlineRateLimitError`: Rate limit exceeded
+- `DeadlineAuthenticationError`: Auth failed
+
+##### Announcements
+The admin dashboard includes an announcements section for tracking "straight to series" articles:
+
+**Database Schema:**
+```sql
+CREATE TABLE announcements (
+    id SERIAL PRIMARY KEY,
+    url TEXT UNIQUE NOT NULL,  -- For deduplication
+    title TEXT NOT NULL,
+    published_date DATE NOT NULL,
+    reviewed BOOLEAN DEFAULT FALSE,
+    reviewed_at TIMESTAMP
+);
+```
+
+**Features:**
+- Automatic deduplication by URL
+- Review status tracking
+- Ordered by publish date
+- Filter by review status
+
+**UI Components:**
+- "Fetch New" button to get latest articles
+- Review status filters (Unreviewed/Reviewed/All)
+- Article links with hover effects
+- "Mark Reviewed" action
 
 #### Data Services
 
