@@ -75,6 +75,7 @@ class ShowsAnalyzer:
             logger.error(f"Error during initialization: {str(e)}")
             raise
 
+    @st.cache_data(ttl=3600)
     def fetch_market_data(self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Fetch data needed for market analysis.
         

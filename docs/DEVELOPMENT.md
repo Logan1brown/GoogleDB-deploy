@@ -21,6 +21,8 @@
      - [Core Tables](#core-tables)
      - [Support Tables](#support-tables)
      - [Views](#views)
+       - [API Views](#api-views)
+       - [Materialized Views](#materialized-views)
    - [Querying](#querying)
 2. [Services](#services)
    - [TMDB Integration](#tmdb-integration)
@@ -295,6 +297,127 @@ JOIN show_team st ON s.id = st.show_id
 WHERE st.active = true
 GROUP BY st.show_id, s.title;
 
+### Views
+
+#### API Views
+
+##### 1. api_market_analysis
+```sql
+-- Market analysis view for aggregated show data
+CREATE VIEW api_market_analysis AS
+SELECT 
+    s.tmdb_id,
+    s.title,
+    n.network AS network_name,
+    array_agg(DISTINCT st.studio) AS studio_names,
+    st2.status AS status_name,
+    s.episode_count,
+    tm.seasons AS tmdb_seasons,
+    tm.total_episodes AS tmdb_total_episodes,
+    tm.status AS tmdb_status,
+    tm.last_air_date AS tmdb_last_air_date,
+    s.date AS announced_date
+FROM shows s
+LEFT JOIN network_list n ON s.network_id = n.id
+LEFT JOIN studio_list st ON st.id = ANY(s.studios)
+LEFT JOIN status_types st2 ON s.status_id = st2.id
+LEFT JOIN tmdb_success_metrics tm ON s.tmdb_id = tm.tmdb_id
+GROUP BY s.tmdb_id, s.title, n.network, st2.status, s.episode_count, 
+         tm.seasons, tm.total_episodes, tm.status, tm.last_air_date, s.date;
+
+##### 2. api_network_stats
+```sql
+-- Network statistics from get_network_stats() function
+CREATE VIEW api_network_stats AS
+SELECT * FROM get_network_stats();
+```
+
+##### 3. api_show_details
+```sql
+-- Detailed show information from get_show_details() function
+CREATE VIEW api_show_details AS
+SELECT * FROM get_show_details();
+```
+
+##### 4. api_show_team
+```sql
+-- Show team members with show and network context
+CREATE VIEW api_show_team AS
+SELECT 
+    st.*,
+    s.title,
+    n.network AS network_name
+FROM show_team st
+JOIN shows s ON st.show_id = s.id
+LEFT JOIN network_list n ON s.network_id = n.id;
+```
+
+##### 5. api_team_summary
+```sql
+-- Aggregated team roles by show
+CREATE VIEW api_team_summary AS
+SELECT 
+    st.show_id,
+    s.title,
+    array_agg(DISTINCT st.name) FILTER (WHERE role_type_id = 1) AS writers,
+    array_agg(DISTINCT st.name) FILTER (WHERE role_type_id = 2) AS producers,
+    array_agg(DISTINCT st.name) FILTER (WHERE role_type_id = 3) AS directors,
+    array_agg(DISTINCT st.name) FILTER (WHERE role_type_id = 4) AS creators
+FROM shows s
+JOIN show_team st ON s.id = st.show_id
+WHERE st.active = true
+GROUP BY st.show_id, s.title;
+```
+
+##### 6. api_tmdb_match
+```sql
+-- TMDB matching data for shows without tmdb_id
+CREATE VIEW api_tmdb_match AS
+WITH distinct_shows AS (
+    SELECT DISTINCT ON (s.id)
+        s.id AS show_id,
+        s.title,
+        nl.network AS network_name,
+        s.date,
+        s.tmdb_id,
+        array_agg(jsonb_build_object(
+            'name', st.name,
+            'role', COALESCE(rt.role, 'Unknown'),
+            'team_order', st.team_order
+        ) ORDER BY st.team_order) FILTER (WHERE st.name IS NOT NULL) AS team_members,
+        tma.tmdb_id AS potential_tmdb_id,
+        tma.tmdb_name,
+        tma.tmdb_network_name,
+        tma.tmdb_executive_producers,
+        tma.confidence_score,
+        tma.confidence_level,
+        tma.title_match_score,
+        tma.network_match_score,
+        tma.year_match_score,
+        tma.status,
+        tma.validated_at,
+        tma.validated_by
+    FROM shows s
+    LEFT JOIN network_list nl ON s.network_id = nl.id
+    LEFT JOIN show_team st ON s.id = st.show_id
+    LEFT JOIN role_types rt ON st.role_type_id = rt.id
+    LEFT JOIN tmdb_match_attempts tma ON s.id = tma.show_id
+    WHERE s.tmdb_id IS NULL
+    GROUP BY s.id, s.title, nl.network, s.date, s.tmdb_id,
+             tma.tmdb_id, tma.tmdb_name, tma.tmdb_network_name,
+             tma.tmdb_executive_producers, tma.confidence_score,
+             tma.confidence_level, tma.title_match_score,
+             tma.network_match_score, tma.year_match_score,
+             tma.status, tma.validated_at, tma.validated_by
+)
+SELECT * FROM distinct_shows;
+```
+
+#### Materialized Views
+
+##### 1. show_details
+```sql
+-- Materialized view for show details with all related data
 CREATE MATERIALIZED VIEW show_details AS
 SELECT 
     s.id,

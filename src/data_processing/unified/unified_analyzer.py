@@ -36,8 +36,11 @@ class UnifiedAnalyzer:
             Args:
                 success_analyzer: Optional SuccessAnalyzer instance
             """
-            # Create our own shows_analyzer instance
+            # Create our own shows_analyzer instance with cache TTL
             self.shows_analyzer = ShowsAnalyzer()
+            
+            # Set up caching with TTL
+            self._get_data = st.cache_data(ttl=3600)(self._get_data_uncached)
             
             try:
                 # Get role types mapping first

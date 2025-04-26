@@ -93,15 +93,6 @@ class TMDBMatchingState:
     validated_show_id: Optional[int] = None  # Track which show was just validated
 
 @dataclass
-class APIMetricsState:
-    """State for API metrics tracking."""
-    calls_total: int = 0
-    calls_remaining: int = 40
-    window_reset_time: datetime = field(default_factory=datetime.now)
-    cache_hits: int = 0
-    cache_misses: int = 0
-
-@dataclass
 class AdminState:
     """Top-level state for admin dashboard.
     
@@ -112,4 +103,3 @@ class AdminState:
     user_management: UserManagementState = field(default_factory=UserManagementState)
     announcements: AnnouncementState = field(default_factory=AnnouncementState)
     tmdb_matching: TMDBMatchingState = field(default_factory=TMDBMatchingState)
-    api_metrics: APIMetricsState = field(default_factory=APIMetricsState)

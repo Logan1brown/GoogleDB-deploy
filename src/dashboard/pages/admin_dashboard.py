@@ -310,7 +310,6 @@ def render_tmdb_matches():
     """
     state = get_admin_state()
     matching = state.tmdb_matching
-    metrics = state.api_metrics
     match_service = TMDBMatchService()
     
     # Show any error messages
@@ -318,17 +317,6 @@ def render_tmdb_matches():
         st.error(matching.error_message)
         matching.error_message = None
         update_admin_state(state)
-    
-    # API Status
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("API Calls", f"{metrics.calls_total} total", f"{metrics.calls_remaining} remaining")
-    with col2:
-        cache_ratio = (metrics.cache_hits / (metrics.cache_hits + metrics.cache_misses)) * 100 if metrics.cache_hits + metrics.cache_misses > 0 else 0
-        st.metric("Cache", f"{metrics.cache_hits} hits", f"{cache_ratio:.1f}% hit rate")
-    with col3:
-        reset_in = max(0, (metrics.window_reset_time.timestamp() - datetime.now().timestamp()))
-        st.metric("Rate Limit", f"{metrics.calls_remaining}/40", f"Reset in {reset_in:.1f}s")
     
     # Search TMDB
     st.text_input("Search Shows", 
@@ -384,15 +372,7 @@ def render_tmdb_matches():
                     st.error(f"Error processing matches: {str(e)}")
                     return
                 
-                # Update metrics
-                try:
-                    metrics.calls_total += 1
-                    metrics.calls_remaining -= 1
-                    
-                    update_admin_state(state)
-                except Exception as e:
-                    st.error(f"Error updating metrics: {str(e)}")
-                    return
+                update_admin_state(state)
         except Exception as e:
             st.error(f"Error searching TMDB: {str(e)}")
     
