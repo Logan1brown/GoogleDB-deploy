@@ -226,10 +226,16 @@ def render_market_snapshot(market_analyzer):
         
         if creative_filter.sum() > 0:
             matched_rows = market_analyzer.team_df[creative_filter]
+            # Join with shows table to get titles
+            shows_df = market_analyzer.titles_df[['id', 'title']]
+            matched_with_titles = pd.merge(matched_rows, shows_df, left_on='show_id', right_on='id', how='inner')
             st.write("\nMatched rows:")
-            st.write(matched_rows[['name', 'title']].head(10).to_dict())
+            st.write(matched_with_titles[['name', 'title']].head(10).to_dict())
         
-        creative_titles = market_analyzer.team_df[creative_filter]['title'].unique()
+        # Get show IDs for selected creatives
+        creative_show_ids = market_analyzer.team_df[creative_filter]['show_id'].unique()
+        # Get titles for those show IDs
+        creative_titles = market_analyzer.titles_df[market_analyzer.titles_df['id'].isin(creative_show_ids)]['title'].unique()
         st.write("Shows found:", list(creative_titles))
         
         st.write("Main df before filter:", filtered_df.shape)
