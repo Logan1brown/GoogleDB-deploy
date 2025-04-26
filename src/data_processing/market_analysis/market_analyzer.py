@@ -48,13 +48,16 @@ class MarketAnalyzer:
                 from ..analyze_shows import ShowsAnalyzer
                 shows_analyzer = ShowsAnalyzer()
                 self.titles_df, self.team_df, self.network_df = shows_analyzer.fetch_market_data(force=True)
-                
-                if len(self.titles_df) == 0:
-                    raise ValueError("No shows data available from Supabase")
-                if len(self.team_df) == 0:
-                    raise ValueError("No team data available from Supabase")
-                if len(self.network_df) == 0:
-                    raise ValueError("No network data available from Supabase")
+            
+            # Log available columns
+            logger.info(f"Available columns in titles_df: {list(self.titles_df.columns)}")
+            
+            if len(self.titles_df) == 0:
+                raise ValueError("No shows data available from Supabase")
+            if len(self.team_df) == 0:
+                raise ValueError("No team data available from Supabase")
+            if len(self.network_df) == 0:
+                raise ValueError("No network data available from Supabase")
             
             # Filter for active shows only
             if 'active' in self.titles_df.columns:
@@ -68,6 +71,9 @@ class MarketAnalyzer:
         needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
                       'tmdb_status', 'status_name', 'studio_names', 'active']
         available_cols = [col for col in needed_cols if col in self.titles_df.columns]
+        logger.info(f"Available columns from needed: {available_cols}")
+        if not available_cols:
+            raise ValueError(f"None of the required columns {needed_cols} found in titles_df")
         self.titles_df = self.titles_df[available_cols].copy(deep=True)
         
         # Reset index to ensure clean data
