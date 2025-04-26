@@ -273,7 +273,7 @@ class MarketAnalyzer:
             if network_scores:  # Only process networks with valid scores
                 avg_score = sum(network_scores) / len(network_scores)
                 network_success[network] = avg_score
-                st.write(f"Network {network}: {len(network_scores)} valid shows, avg score {avg_score}")
+
 
         # Initialize studio insights
         studio_insights = {}
@@ -297,9 +297,7 @@ class MarketAnalyzer:
         show_count_25th = network_show_counts.quantile(0.25)
         avg_shows = network_show_counts.mean()
         
-        st.write("=== Network Stats ===")
-        st.write(f"Network show counts: {network_show_counts}")
-        st.write(f"25th percentile: {show_count_25th}, Average shows: {avg_shows}")
+
         
         # Track top networks with combined success and volume score
         network_combined_scores = {}
@@ -318,10 +316,7 @@ class MarketAnalyzer:
             # Combined score uses volume multiplier
             combined_score = avg_score * volume_multiplier
             
-            st.write(f"Network: {network}")
-            st.write(f"  Shows: {show_count} (25th: {show_count_25th}, Avg: {avg_shows:.1f})")
-            st.write(f"  Success: {avg_score:.1f}, Multiplier: {volume_multiplier:.2f}")
-            st.write(f"  Combined: {combined_score:.1f}")
+
             
             network_combined_scores[network] = {
                 'combined_score': combined_score,
