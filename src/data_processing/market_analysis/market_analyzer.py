@@ -59,7 +59,7 @@ class MarketAnalyzer:
         
         # Create deep copies to avoid modifying original data
         # Only select columns we need, keeping studio_names for vertical integration
-        needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
+        needed_cols = ['id', 'title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
                       'tmdb_status', 'status_name', 'studio_names', 'active']
         
         # First check if we have any of the needed columns
