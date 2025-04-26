@@ -59,9 +59,6 @@ class MarketAnalyzer:
             if len(self.network_df) == 0:
                 raise ValueError("No network data available from Supabase")
             
-            # Filter for active shows only
-            if 'active' in self.titles_df.columns:
-                self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
         except Exception as e:
             logger.error(f"Error initializing MarketAnalyzer: {str(e)}")
             raise
@@ -70,6 +67,10 @@ class MarketAnalyzer:
         # Only select columns we need, keeping studio_names for vertical integration
         needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
                       'tmdb_status', 'status_name', 'studio_names', 'active']
+        
+        # Filter for active shows only - moved after column selection
+        if 'active' in self.titles_df.columns:
+            self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
         st.write("")
         st.write("=== MarketAnalyzer Init ===")
         st.write("Initial titles_df columns:", list(self.titles_df.columns))
