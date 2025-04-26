@@ -103,7 +103,7 @@ class ShowsAnalyzer:
                 raise ValueError(f"No data returned from {_self.VIEWS['titles']}")
                 
             titles_df = pd.DataFrame(titles_data.data)
-            logger.info(f"Fetched {len(titles_df)} rows from {self.VIEWS['titles']}")
+            logger.info(f"Fetched {len(titles_df)} rows from {_self.VIEWS['titles']}")
             
             # Verify required columns for market analysis
             required_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 

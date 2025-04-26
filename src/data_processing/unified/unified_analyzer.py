@@ -41,9 +41,9 @@ class UnifiedAnalyzer:
             
             # Set up caching with TTL
             @st.cache_data(ttl=3600)
-            def _get_data_uncached():
+            def _get_data():
                 return self.details_df
-            self._get_data = _get_data_uncached
+            self._get_data = _get_data
             
             try:
                 # Get role types mapping first
