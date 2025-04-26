@@ -122,7 +122,7 @@ class MarketAnalyzer:
             Series with show counts by network
         """
         # Create a DataFrame with only scalar columns needed for this operation
-        df = self.titles_df[['network_name']].copy()
+        df = self.titles_df[['network_name', 'title']].copy()
         return df['network_name'].value_counts()
     
     def get_network_success_scores(self) -> pd.Series:
@@ -132,7 +132,7 @@ class MarketAnalyzer:
             Series of success scores indexed by network
         """
         # Create a DataFrame with only scalar columns needed for this operation
-        df = self.titles_df[['network_name', 'success_score']].copy()
+        df = self.titles_df[['network_name', 'success_score', 'title']].copy()
         return df.groupby('network_name')['success_score'].mean().sort_values(ascending=False)
     
     def get_unique_creatives(self) -> int:
