@@ -27,7 +27,7 @@ from ..components.unmatched_show_view import render_unmatched_shows_table
 from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
 from ..services.tmdb.tmdb_client import TMDBClient
-from ..services import show_service
+from ..services import show_service, announcement_service
 from ..state.admin_state import TMDBMatchState
 from ..state.session import get_admin_state, update_admin_state, clear_section_state
 from src.shared.auth import auth_required
@@ -298,7 +298,40 @@ def render_user_management():
 def render_announcements():
     """Render the announcements section."""
     st.subheader("Announcements")
-    st.info("Coming soon: Review and manage announcements from Deadline and other sources")
+    
+    # Filter selection
+    filter_status = st.selectbox(
+        "Show announcements",
+        ["Unreviewed", "Reviewed", "All"],
+        index=0
+    )
+    
+    # Get announcements based on filter
+    reviewed = None
+    if filter_status == "Unreviewed":
+        reviewed = False
+    elif filter_status == "Reviewed":
+        reviewed = True
+        
+    announcements = announcement_service.get_announcements(reviewed=reviewed)
+    
+    if not announcements:
+        st.info(f"No {filter_status.lower()} announcements")
+        return
+    
+    # Show announcements
+    for ann in announcements:
+        with st.container():
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                st.markdown(f"### [{ann['title']}]({ann['url']})")
+                st.caption(f"Published: {ann['published_date']}")
+            
+            with col2:
+                if st.button("Mark Reviewed", key=f"review_{ann['id']}"):
+                    announcement_service.mark_reviewed(ann['id'])
+                    st.rerun()
 
 
 def render_tmdb_matches():
