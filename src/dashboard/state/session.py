@@ -85,13 +85,26 @@ def update_data_entry_state(data_entry: DataEntryState) -> None:
     state = get_page_state("data_entry")
     state["data_entry"] = asdict(data_entry)
 
+def clear_admin_state() -> None:
+    """Clear admin dashboard state.
+    
+    This is useful when the state schema changes and we need to reset to defaults.
+    """
+    if "admin" in st.session_state:
+        del st.session_state["admin"]
+
 def get_admin_state() -> AdminState:
     """Get admin dashboard state.
     
     Returns:
         AdminState instance with all section states properly initialized.
     """
+    # Clear state if api_metrics is present (schema migration)
     state = get_page_state("admin")
+    if state and "admin" in state and "api_metrics" in state["admin"]:
+        clear_admin_state()
+        state = get_page_state("admin")
+    
     if not state or "admin" not in state:
         state["admin"] = asdict(AdminState())
     
