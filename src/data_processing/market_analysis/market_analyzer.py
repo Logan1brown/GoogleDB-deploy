@@ -103,9 +103,9 @@ class MarketAnalyzer:
         self.titles_df['success_score'] = self.titles_df.apply(self.success_analyzer.calculate_success, axis=1)
         
         # Log initial state
-        logger.info("Market overview:")
-        logger.info(f"Total shows: {len(self.titles_df)}")
-        logger.info(f"Total networks: {len(self.titles_df['network_name'].unique())}")
+        st.write("=== Market Overview ===")
+        st.write(f"Total shows: {len(self.titles_df)}")
+        st.write(f"Total networks: {len(self.titles_df['network_name'].unique())}")
         
     
     def get_network_distribution(self) -> pd.Series:
@@ -138,15 +138,15 @@ class MarketAnalyzer:
             Series of success scores indexed by network
         """
         try:
-            logger.info(f"Getting network success scores. Available columns: {list(self.titles_df.columns)}")
-            # Create a DataFrame with only scalar columns needed for this operation
-            df = self.titles_df[['network_name', 'success_score', 'title']].copy()
-            logger.info(f"Success scores df shape: {df.shape}")
-            logger.info(f"Sample data:\n{df.head().to_dict()}")
+            st.write("=== Network Success Scores ===")
+            st.write(f"Available columns: {list(self.titles_df.columns)}")
+            df = self.titles_df[['network_name', 'success_score']].copy()
+            st.write(f"Success scores df shape: {df.shape}")
+            st.write(f"Sample data:\n{df.head().to_dict()}")
             return df.groupby('network_name')['success_score'].mean().sort_values(ascending=False)
         except Exception as e:
             error_msg = f"Error getting network success scores: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-            logger.error(error_msg)
+            st.error(error_msg)
             st.error(error_msg)
             raise
     
@@ -279,7 +279,7 @@ class MarketAnalyzer:
             if network_scores:  # Only process networks with valid scores
                 avg_score = sum(network_scores) / len(network_scores)
                 network_success[network] = avg_score
-                logger.info(f"Network {network}: {len(network_scores)} valid shows, avg score {avg_score}")
+                st.write(f"Network {network}: {len(network_scores)} valid shows, avg score {avg_score}")
 
         # Initialize studio insights
         studio_insights = {}
@@ -303,8 +303,9 @@ class MarketAnalyzer:
         show_count_25th = network_show_counts.quantile(0.25)
         avg_shows = network_show_counts.mean()
         
-        logger.info(f"Network show counts: {network_show_counts}")
-        logger.info(f"25th percentile: {show_count_25th}, Average shows: {avg_shows}")
+        st.write("=== Network Stats ===")
+        st.write(f"Network show counts: {network_show_counts}")
+        st.write(f"25th percentile: {show_count_25th}, Average shows: {avg_shows}")
         
         # Track top networks with combined success and volume score
         network_combined_scores = {}
@@ -323,10 +324,10 @@ class MarketAnalyzer:
             # Combined score uses volume multiplier
             combined_score = avg_score * volume_multiplier
             
-            logger.info(f"Network: {network}")
-            logger.info(f"  Shows: {show_count} (25th: {show_count_25th}, Avg: {avg_shows:.1f})")
-            logger.info(f"  Success: {avg_score:.1f}, Multiplier: {volume_multiplier:.2f}")
-            logger.info(f"  Combined: {combined_score:.1f}")
+            st.write(f"Network: {network}")
+            st.write(f"  Shows: {show_count} (25th: {show_count_25th}, Avg: {avg_shows:.1f})")
+            st.write(f"  Success: {avg_score:.1f}, Multiplier: {volume_multiplier:.2f}")
+            st.write(f"  Combined: {combined_score:.1f}")
             
             network_combined_scores[network] = {
                 'combined_score': combined_score,
