@@ -9,21 +9,17 @@ This module provides market overview analytics including network distribution an
 4. Studio Names: We use 'studio_names' column
 """
 
-import logging
 from pathlib import Path
 from typing import Dict, List, Tuple, Any, Optional
 import os
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-import traceback
 
 from ..success_analysis.success_analyzer import SuccessAnalyzer, SuccessConfig
 from ..external.tmdb.tmdb_models import ShowStatus
 from src.utils.profiling import profiler
 
-
-logger = logging.getLogger(__name__)
 
 class MarketAnalyzer:
     """Analyzer for market overview and network patterns."""
@@ -50,9 +46,6 @@ class MarketAnalyzer:
                 shows_analyzer = ShowsAnalyzer()
                 self.titles_df, self.team_df, self.network_df = shows_analyzer.fetch_market_data(force=True)
             
-            # Log available columns
-            logger.info(f"Available columns in titles_df: {list(self.titles_df.columns)}")
-            
             if len(self.titles_df) == 0:
                 raise ValueError("No shows data available from Supabase")
             if len(self.team_df) == 0:
@@ -61,9 +54,7 @@ class MarketAnalyzer:
                 raise ValueError("No network data available from Supabase")
             
         except Exception as e:
-            error_msg = f"Error initializing MarketAnalyzer: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-            logger.error(error_msg)
-            st.error(error_msg)
+            st.error(f"Error initializing MarketAnalyzer: {str(e)}")
             raise
         
         # Create deep copies to avoid modifying original data
@@ -76,22 +67,16 @@ class MarketAnalyzer:
             self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
             
         available_cols = [col for col in needed_cols if col in self.titles_df.columns]
-        logger.info(f"Available columns from needed: {available_cols}")
         
         if not available_cols:
             error_msg = f"None of the required columns {needed_cols} found in titles_df.\nAvailable columns: {list(self.titles_df.columns)}"
-            logger.error(error_msg)
             st.error(error_msg)
             raise ValueError(error_msg)
             
         self.titles_df = self.titles_df[available_cols].copy(deep=True)
-        logger.info(f"Columns after selecting needed: {list(self.titles_df.columns)}")
         
         # Reset index to ensure clean data
         self.titles_df = self.titles_df.reset_index(drop=True)
-        
-        # Calculate average episodes per season for success scoring
-        logger.info(f"Before calculating tmdb_avg_eps - Sample data:\n{self.titles_df.head().to_dict()}")
         
         self.titles_df['tmdb_avg_eps'] = self.titles_df.apply(
             lambda x: x['tmdb_total_episodes'] / x['tmdb_seasons'] 
