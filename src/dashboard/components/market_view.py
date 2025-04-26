@@ -188,6 +188,11 @@ def render_market_snapshot(market_analyzer):
     # Filter data based on success level
     # Include all needed columns including studio_names for vertical integration
     needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'tmdb_avg_eps', 'studio_names', 'status_name']
+    
+    st.write("=== Network Distribution Debug ===")
+    st.write("Available columns:", list(market_analyzer.titles_df.columns))
+    st.write("Needed columns:", needed_cols)
+    
     filtered_df = market_analyzer.titles_df[needed_cols].copy()
     
     # Get success metrics for all shows
@@ -266,10 +271,17 @@ def render_market_snapshot(market_analyzer):
         filtered_df = filtered_df[filtered_df['network_name'].isin(networks_with_scores)]
     
     # Get network distribution
+    st.write("=== Before Network Grouping ===")
+    st.write("Filtered df columns:", list(filtered_df.columns))
+    st.write("Sample data:", filtered_df.head().to_dict())
+    
     titles_by_group = filtered_df.groupby('network_name').size().reset_index()
     titles_by_group.columns = ['network_name', 'count']
     x_title = "Network"
     group_col = 'network_name'
+    
+    st.write("=== After Network Grouping ===")
+    st.write("Grouped data:", titles_by_group.head().to_dict())
     
     # Sort by count
     titles_by_group = titles_by_group.sort_values('count', ascending=False)
