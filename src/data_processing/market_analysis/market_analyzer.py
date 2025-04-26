@@ -128,9 +128,18 @@ class MarketAnalyzer:
         Returns:
             Series with show counts by network
         """
-        # Create a DataFrame with only scalar columns needed for this operation
-        df = self.titles_df[['network_name', 'title']].copy()
-        return df['network_name'].value_counts()
+        try:
+            logger.info(f"Getting network distribution. Available columns: {list(self.titles_df.columns)}")
+            # Create a DataFrame with only scalar columns needed for this operation
+            df = self.titles_df[['network_name', 'title']].copy()
+            logger.info(f"Network distribution df shape: {df.shape}")
+            logger.info(f"Sample data:\n{df.head().to_dict()}")
+            return df['network_name'].value_counts()
+        except Exception as e:
+            error_msg = f"Error getting network distribution: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            st.error(error_msg)
+            raise
     
     def get_network_success_scores(self) -> pd.Series:
         """Get average success scores by network.
@@ -138,9 +147,18 @@ class MarketAnalyzer:
         Returns:
             Series of success scores indexed by network
         """
-        # Create a DataFrame with only scalar columns needed for this operation
-        df = self.titles_df[['network_name', 'success_score', 'title']].copy()
-        return df.groupby('network_name')['success_score'].mean().sort_values(ascending=False)
+        try:
+            logger.info(f"Getting network success scores. Available columns: {list(self.titles_df.columns)}")
+            # Create a DataFrame with only scalar columns needed for this operation
+            df = self.titles_df[['network_name', 'success_score', 'title']].copy()
+            logger.info(f"Success scores df shape: {df.shape}")
+            logger.info(f"Sample data:\n{df.head().to_dict()}")
+            return df.groupby('network_name')['success_score'].mean().sort_values(ascending=False)
+        except Exception as e:
+            error_msg = f"Error getting network success scores: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            st.error(error_msg)
+            raise
     
     def get_unique_creatives(self) -> int:
         """Get number of unique creatives.
