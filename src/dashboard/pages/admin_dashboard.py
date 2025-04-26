@@ -29,6 +29,7 @@ from ..services.tmdb.match_service import TMDBMatchService
 from ..services.tmdb.tmdb_client import TMDBClient
 from ..services import show_service
 from ..services.deadline.deadline_client import DeadlineClient
+from ..utils.style_config import COLORS, FONTS
 from ..state.admin_state import TMDBMatchState
 from ..state.session import get_admin_state, update_admin_state, clear_section_state
 from src.shared.auth import auth_required
@@ -298,7 +299,7 @@ def render_user_management():
 
 def render_announcements():
     """Render the announcements section."""
-    st.subheader("Announcements")
+    st.markdown(f"### Announcements")
     
     # Add refresh button
     col1, col2 = st.columns([4, 1])
@@ -309,7 +310,7 @@ def render_announcements():
             index=0
         )
     with col2:
-        if st.button("🔄 Fetch New"):
+        if st.button("Fetch New", type="primary"):
             deadline = DeadlineClient()
             articles = deadline.search_straight_to_series()
             
@@ -345,21 +346,44 @@ def render_announcements():
         st.info(f"No {filter_status.lower()} announcements")
         return
     
+    # Add spacing
+    st.write("")
+    
     # Show announcements
     for ann in announcements:
         with st.container():
             col1, col2 = st.columns([4, 1])
             
             with col1:
-                st.markdown(f"### [{ann['title']}]({ann['url']})")
-                st.caption(f"Published: {ann['published_date']}")
+                title_color = COLORS['text']['primary']
+                date_color = COLORS['text']['secondary']
+                
+                st.markdown(
+                    f"<div style='font-family: {FONTS['primary']['family']};'>"
+                    f"<h4 style='margin: 0; color: {title_color}; font-size: {FONTS['primary']['sizes']['header']}px;'>"
+                    f"<a href='{ann['url']}' target='_blank' "
+                    f"style='color: {title_color}; text-decoration: none; transition: all 0.2s ease;' "
+                    f"onmouseover=\"this.style.textDecoration='underline'; this.style.opacity='0.8';\" "
+                    f"onmouseout=\"this.style.textDecoration='none'; this.style.opacity='1.0';\">"
+                    f"{ann['title']}</a>"
+                    f"</h4>"
+                    f"<p style='margin: 4px 0 0 0; color: {date_color}; font-size: {FONTS['primary']['sizes']['small']}px;'>"
+                    f"Published: {ann['published_date']}"
+                    f"</p>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
             
             with col2:
-                if not ann['reviewed'] and st.button("Mark Reviewed", key=f"review_{ann['id']}"):
-                    client.table('announcements').update(
-                        {"reviewed": True, "reviewed_at": datetime.now().isoformat()}
-                    ).eq('id', ann['id']).execute()
-                    st.rerun()
+                if not ann['reviewed']:
+                    if st.button("Mark Reviewed", key=f"review_{ann['id']}", type="primary"):
+                        client.table('announcements').update(
+                            {"reviewed": True, "reviewed_at": datetime.now().isoformat()}
+                        ).eq('id', ann['id']).execute()
+                        st.rerun()
+            
+            # Add spacing between announcements
+            st.write("")
 
 
 def render_tmdb_matches():
