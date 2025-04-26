@@ -18,9 +18,7 @@ import logging
 import time
 from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.utils.style_config import COLORS
-from src.config.logging_config import setup_logging
 
-setup_logging()
 logger = logging.getLogger(__name__)
 
 
