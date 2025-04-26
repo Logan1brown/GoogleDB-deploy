@@ -23,7 +23,7 @@ def setup_logging(name: str) -> logging.Logger:
         
         # File handler with DEBUG level
         file_handler = logging.FileHandler(
-            log_dir / 'sheets_api.log',
+            log_dir / 'app.log',
             encoding='utf-8'
         )
         file_handler.setLevel(logging.DEBUG)

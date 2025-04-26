@@ -125,17 +125,21 @@ class MarketAnalyzer:
         Returns:
             Series with show counts by network
         """
+        st.write("=== Network Distribution Debug ===")
+        st.write("Available columns:", list(self.titles_df.columns))
+        st.write("Sample data before copy:", self.titles_df[['network_name', 'title']].head().to_dict())
+        
+        # Create a DataFrame with only scalar columns needed for this operation
+        df = self.titles_df[['network_name', 'title']].copy()
+        st.write("DataFrame after copy shape:", df.shape)
+        st.write("Sample after copy:", df.head().to_dict())
+        
         try:
-            logger.info(f"Getting network distribution. Available columns: {list(self.titles_df.columns)}")
-            # Create a DataFrame with only scalar columns needed for this operation
-            df = self.titles_df[['network_name', 'title']].copy()
-            logger.info(f"Network distribution df shape: {df.shape}")
-            logger.info(f"Sample data:\n{df.head().to_dict()}")
-            return df['network_name'].value_counts()
+            result = df['network_name'].value_counts()
+            st.write("Value counts result:", result.head().to_dict())
+            return result
         except Exception as e:
-            error_msg = f"Error getting network distribution: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-            logger.error(error_msg)
-            st.error(error_msg)
+            st.error(f"Error in network distribution: {str(e)}")
             raise
     
     def get_network_success_scores(self) -> pd.Series:
