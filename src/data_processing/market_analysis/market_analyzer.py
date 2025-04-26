@@ -16,6 +16,7 @@ import os
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import traceback
 
 from ..success_analysis.success_analyzer import SuccessAnalyzer, SuccessConfig
 from ..external.tmdb.tmdb_models import ShowStatus
@@ -60,7 +61,9 @@ class MarketAnalyzer:
                 raise ValueError("No network data available from Supabase")
             
         except Exception as e:
-            logger.error(f"Error initializing MarketAnalyzer: {str(e)}")
+            error_msg = f"Error initializing MarketAnalyzer: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            st.error(error_msg)
             raise
         
         # Create deep copies to avoid modifying original data
@@ -77,7 +80,10 @@ class MarketAnalyzer:
         available_cols = [col for col in needed_cols if col in self.titles_df.columns]
         st.write("Available columns from needed:", available_cols)
         if not available_cols:
-            raise ValueError(f"None of the required columns {needed_cols} found in titles_df")
+            error_msg = f"None of the required columns {needed_cols} found in titles_df.\nAvailable columns: {list(self.titles_df.columns)}"
+            logger.error(error_msg)
+            st.error(error_msg)
+            raise ValueError(error_msg)
         self.titles_df = self.titles_df[available_cols].copy(deep=True)
         st.write("Columns after selecting needed:", list(self.titles_df.columns))
         
