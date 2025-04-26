@@ -74,10 +74,7 @@ class MarketAnalyzer:
         
         # Then filter for active shows if that column exists
         if 'active' in available_cols:
-            st.write("Filtering for active shows...")
-            st.write("Before active filter:", len(self.titles_df))
             self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
-            st.write("After active filter:", len(self.titles_df))
         
         # Reset index to ensure clean data
         self.titles_df = self.titles_df.reset_index(drop=True)
@@ -102,10 +99,7 @@ class MarketAnalyzer:
         # Calculate success scores for all shows
         self.titles_df['success_score'] = self.titles_df.apply(self.success_analyzer.calculate_success, axis=1)
         
-        # Log initial state
-        st.write("=== Market Overview ===")
-        st.write(f"Total shows: {len(self.titles_df)}")
-        st.write(f"Total networks: {len(self.titles_df['network_name'].unique())}")
+
         
     
     def get_network_distribution(self) -> pd.Series:

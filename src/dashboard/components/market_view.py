@@ -183,10 +183,6 @@ def render_market_snapshot(market_analyzer):
     # Include all needed columns including studio_names for vertical integration
     needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'tmdb_avg_eps', 'studio_names', 'status_name']
     
-    st.write("=== Network Distribution Debug ===")
-    st.write("Available columns:", list(market_analyzer.titles_df.columns))
-    st.write("Needed columns:", needed_cols)
-    
     filtered_df = market_analyzer.titles_df[needed_cols].copy()
     
     # Get success metrics for all shows
@@ -212,41 +208,22 @@ def render_market_snapshot(market_analyzer):
     
     # First apply creative filters if selected
     if selected_creatives:
-        st.write("=== Debug: Creative Filtering ===")
-        st.write("Selected creatives:", selected_creatives)
-        st.write("Team df info:")
-        st.write("- Shape:", market_analyzer.team_df.shape)
-        st.write("- Columns:", market_analyzer.team_df.columns.tolist())
-        st.write("- Sample rows:", market_analyzer.team_df.head(3).to_dict())
-        st.write("- Unique names:", sorted(market_analyzer.team_df['name'].unique())[:10])
-        
-        # Get titles where selected creatives work
         creative_filter = market_analyzer.team_df['name'].isin(selected_creatives)
-        st.write("\nMatches found:", creative_filter.sum())
-        
         if creative_filter.sum() > 0:
             matched_rows = market_analyzer.team_df[creative_filter]
             # Join with shows table to get titles
             shows_df = market_analyzer.titles_df[['id', 'title']]
             matched_with_titles = pd.merge(matched_rows, shows_df, left_on='show_id', right_on='id', how='inner')
-            st.write("\nMatched rows:")
-            st.write(matched_with_titles[['name', 'title']].head(10).to_dict())
         
         # Get show IDs for selected creatives
         creative_show_ids = market_analyzer.team_df[creative_filter]['show_id'].unique()
         # Get titles for those show IDs
         creative_titles = market_analyzer.titles_df[market_analyzer.titles_df['id'].isin(creative_show_ids)]['title'].unique()
-        st.write("Shows found:", list(creative_titles))
-        
-        st.write("Main df before filter:", filtered_df.shape)
-        st.write("Main df columns:", filtered_df.columns.tolist())
+
         
         # Filter to only titles with selected creatives
         filtered_df = filtered_df[filtered_df['title'].isin(creative_titles)]
-        st.write("Main df after filter:", filtered_df.shape)
-        st.write("- Shape:", filtered_df.shape)
-        st.write("- Columns:", list(filtered_df.columns))
-        st.write("- Sample:", filtered_df[['title', 'network_name']].head().to_dict())
+
         
         if len(filtered_df) == 0:
             st.info("No titles found for selected creatives.")
@@ -293,17 +270,11 @@ def render_market_snapshot(market_analyzer):
         filtered_df = filtered_df[filtered_df['network_name'].isin(networks_with_scores)]
     
     # Get network distribution
-    st.write("=== Before Network Grouping ===")
-    st.write("Filtered df columns:", list(filtered_df.columns))
-    st.write("Sample data:", filtered_df.head().to_dict())
-    
+
     titles_by_group = filtered_df.groupby('network_name').size().reset_index()
     titles_by_group.columns = ['network_name', 'count']
     x_title = "Network"
     group_col = 'network_name'
-    
-    st.write("=== After Network Grouping ===")
-    st.write("Grouped data:", titles_by_group.head().to_dict())
     
     # Sort by count
     titles_by_group = titles_by_group.sort_values('count', ascending=False)
