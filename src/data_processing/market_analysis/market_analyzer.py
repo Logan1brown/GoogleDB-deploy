@@ -74,27 +74,24 @@ class MarketAnalyzer:
         # Filter for active shows only - moved after column selection
         if 'active' in self.titles_df.columns:
             self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
-        st.write("")
-        st.write("=== MarketAnalyzer Init ===")
-        st.write("Initial titles_df columns:", list(self.titles_df.columns))
+            
         available_cols = [col for col in needed_cols if col in self.titles_df.columns]
-        st.write("Available columns from needed:", available_cols)
+        logger.info(f"Available columns from needed: {available_cols}")
+        
         if not available_cols:
             error_msg = f"None of the required columns {needed_cols} found in titles_df.\nAvailable columns: {list(self.titles_df.columns)}"
             logger.error(error_msg)
             st.error(error_msg)
             raise ValueError(error_msg)
+            
         self.titles_df = self.titles_df[available_cols].copy(deep=True)
-        st.write("Columns after selecting needed:", list(self.titles_df.columns))
+        logger.info(f"Columns after selecting needed: {list(self.titles_df.columns)}")
         
         # Reset index to ensure clean data
         self.titles_df = self.titles_df.reset_index(drop=True)
         
         # Calculate average episodes per season for success scoring
-        st.write("")
-        st.write("=== Before Calculating tmdb_avg_eps ===")
-        st.write("Columns:", list(self.titles_df.columns))
-        st.write("Sample data:", self.titles_df.head().to_dict())
+        logger.info(f"Before calculating tmdb_avg_eps - Sample data:\n{self.titles_df.head().to_dict()}")
         
         self.titles_df['tmdb_avg_eps'] = self.titles_df.apply(
             lambda x: x['tmdb_total_episodes'] / x['tmdb_seasons'] 
