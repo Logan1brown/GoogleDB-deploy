@@ -104,6 +104,8 @@ class ShowsAnalyzer:
                 
             titles_df = pd.DataFrame(titles_data.data)
             logger.info(f"Fetched {len(titles_df)} rows from {_self.VIEWS['titles']}")
+            logger.info(f"Raw titles_df columns: {titles_df.columns.tolist()}")
+            logger.info(f"Raw titles_df sample: {titles_df.head().to_dict()}")
             
             # Verify required columns for market analysis
             required_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
@@ -115,13 +117,28 @@ class ShowsAnalyzer:
             # Log available columns
             logger.info(f"Market analysis columns: {titles_df.columns.tolist()}")
             
+            # Verify title column has data
+            if 'title' in titles_df.columns and titles_df['title'].isna().any():
+                logger.warning("Some rows have missing titles")
+                logger.warning(f"Rows with missing titles: {titles_df[titles_df['title'].isna()]}")
+            
             # Get active status and IDs directly from shows table
             shows_data = supabase.table('shows').select('id,title,active').execute()
             if not hasattr(shows_data, 'data') or not shows_data.data:
                 raise ValueError("No data returned from shows table")
             shows_df = pd.DataFrame(shows_data.data)
+            logger.info(f"Shows table columns: {shows_df.columns.tolist()}")
+            logger.info(f"Shows table sample: {shows_df.head().to_dict()}")
+            
+            # Verify shows_df has required columns
+            if 'id' not in shows_df.columns or 'title' not in shows_df.columns:
+                raise ValueError(f"Missing required columns in shows table. Available: {shows_df.columns.tolist()}")
+            
             titles_df = titles_df.merge(shows_df[['id', 'title', 'active']], on='title', how='left')
             titles_df['active'] = titles_df['active'].fillna(False)  # Default to inactive for any shows not in shows table
+            
+            logger.info(f"After merge - titles_df columns: {titles_df.columns.tolist()}")
+            logger.info(f"After merge - titles_df sample: {titles_df.head().to_dict()}")
             
             # Fetch team data with pagination
             page_size = 1000
