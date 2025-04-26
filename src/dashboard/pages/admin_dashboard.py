@@ -24,6 +24,7 @@ if src_path not in sys.path:
 
 from ..components.tmdb_match_view import render_match_card
 from ..components.unmatched_show_view import render_unmatched_shows_table
+from ..components.announcement_view import render_announcements_list
 from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
 from ..services.tmdb.tmdb_client import TMDBClient
@@ -352,45 +353,8 @@ def render_announcements():
     if not announcements:
         st.info(f"No {filter_status.lower()} announcements")
         return
-    
-    # Add spacing
+    # Add spacing between announcements
     st.write("")
-    
-    # Show announcements
-    for ann in announcements:
-        with st.container():
-            col1, col2 = st.columns([4, 1])
-            
-            with col1:
-                title_color = COLORS['text']['primary']
-                date_color = COLORS['text']['secondary']
-                
-                st.markdown(
-                    f"<div style='font-family: {FONTS['primary']['family']};'>"
-                    f"<h4 style='margin: 0; color: {title_color}; font-size: {FONTS['primary']['sizes']['header']}px;'>"
-                    f"<a href='{ann['url']}' target='_blank' "
-                    f"style='color: {title_color}; text-decoration: none; transition: all 0.2s ease;' "
-                    f"onmouseover=\"this.style.textDecoration='underline'; this.style.opacity='0.8';\" "
-                    f"onmouseout=\"this.style.textDecoration='none'; this.style.opacity='1.0';\">"
-                    f"{ann['title']}</a>"
-                    f"</h4>"
-                    f"<p style='margin: 4px 0 0 0; color: {date_color}; font-size: {FONTS['primary']['sizes']['small']}px;'>"
-                    f"Published: {ann['published_date']}"
-                    f"</p>"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
-            
-            with col2:
-                if not ann['reviewed']:
-                    if st.button("Mark Reviewed", key=f"review_{ann['id']}", type="primary"):
-                        client.table('announcements').update(
-                            {"reviewed": True, "reviewed_at": datetime.now().isoformat()}
-                        ).eq('id', ann['id']).execute()
-                        st.rerun()
-            
-            # Add spacing between announcements
-            st.write("")
 
 
 def render_tmdb_matches():
