@@ -27,7 +27,8 @@ from ..components.unmatched_show_view import render_unmatched_shows_table
 from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
 from ..services.tmdb.tmdb_client import TMDBClient
-from ..services import show_service, announcement_service
+from ..services import show_service
+from ..services.deadline.deadline_client import DeadlineClient
 from ..state.admin_state import TMDBMatchState
 from ..state.session import get_admin_state, update_admin_state, clear_section_state
 from src.shared.auth import auth_required
@@ -299,21 +300,46 @@ def render_announcements():
     """Render the announcements section."""
     st.subheader("Announcements")
     
-    # Filter selection
-    filter_status = st.selectbox(
-        "Show announcements",
-        ["Unreviewed", "Reviewed", "All"],
-        index=0
-    )
+    # Add refresh button
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        filter_status = st.selectbox(
+            "Show announcements",
+            ["Unreviewed", "Reviewed", "All"],
+            index=0
+        )
+    with col2:
+        if st.button("🔄 Fetch New"):
+            deadline = DeadlineClient()
+            articles = deadline.search_straight_to_series()
+            
+            # Add new articles to database
+            client = get_admin_client()
+            for article in articles:
+                try:
+                    client.table('announcements').insert({
+                        'url': article['url'],
+                        'title': article['title'],
+                        'published_date': article['published_date'],
+                        'reviewed': False
+                    }).execute()
+                except Exception as e:
+                    if "duplicate key value" not in str(e):
+                        st.error(f"Error adding article: {e}")
+            st.success(f"Fetched {len(articles)} articles from Deadline")
+            st.rerun()
     
     # Get announcements based on filter
-    reviewed = None
+    client = get_admin_client()
+    query = client.table('announcements').select('*')
+    
     if filter_status == "Unreviewed":
-        reviewed = False
+        query = query.eq('reviewed', False)
     elif filter_status == "Reviewed":
-        reviewed = True
-        
-    announcements = announcement_service.get_announcements(reviewed=reviewed)
+        query = query.eq('reviewed', True)
+    
+    result = query.order('published_date', desc=True).execute()
+    announcements = result.data
     
     if not announcements:
         st.info(f"No {filter_status.lower()} announcements")
@@ -329,8 +355,10 @@ def render_announcements():
                 st.caption(f"Published: {ann['published_date']}")
             
             with col2:
-                if st.button("Mark Reviewed", key=f"review_{ann['id']}"):
-                    announcement_service.mark_reviewed(ann['id'])
+                if not ann['reviewed'] and st.button("Mark Reviewed", key=f"review_{ann['id']}"):
+                    client.table('announcements').update(
+                        {"reviewed": True, "reviewed_at": datetime.now().isoformat()}
+                    ).eq('id', ann['id']).execute()
                     st.rerun()
 
 
