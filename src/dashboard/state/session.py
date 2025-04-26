@@ -9,7 +9,7 @@ import streamlit as st
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field, asdict
 from src.dashboard.state.show_state import DataEntryState
-from src.dashboard.state.admin_state import AdminState, TMDBMatchState, UserManagementState, AnnouncementState, TMDBMatchingState, APIMetricsState
+from src.dashboard.state.admin_state import AdminState, TMDBMatchState, UserManagementState, AnnouncementState, TMDBMatchingState
 
 @dataclass
 class FilterState:
@@ -106,8 +106,6 @@ def get_admin_state() -> AdminState:
         if isinstance(matching_dict.get("matches", []), list):
             matching_dict["matches"] = [TMDBMatchState(**m) if isinstance(m, dict) else m for m in matching_dict["matches"]]
         admin_dict["tmdb_matching"] = TMDBMatchingState(**matching_dict)
-    if isinstance(admin_dict["api_metrics"], dict):
-        admin_dict["api_metrics"] = APIMetricsState(**admin_dict["api_metrics"])
     
     return AdminState(**admin_dict)
 
