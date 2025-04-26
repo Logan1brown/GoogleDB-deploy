@@ -218,13 +218,27 @@ def render_market_snapshot(market_analyzer):
     
     # First apply creative filters if selected
     if selected_creatives:
+        st.write("=== Creative Filter Debug ===")
+        st.write("Team df columns:", list(market_analyzer.team_df.columns))
+        st.write("Selected creatives:", selected_creatives)
+        
         # Get titles where selected creatives work
         creative_titles = market_analyzer.team_df[
             market_analyzer.team_df['name'].isin(selected_creatives)
         ]['title'].unique()
+        st.write("Found creative titles:", list(creative_titles))
+        
+        st.write("Filtered df before creative filter:")
+        st.write("- Columns:", list(filtered_df.columns))
+        st.write("- Sample:", filtered_df[['title', 'network_name']].head().to_dict())
         
         # Filter to only titles with selected creatives
         filtered_df = filtered_df[filtered_df['title'].isin(creative_titles)]
+        
+        st.write("Filtered df after creative filter:")
+        st.write("- Shape:", filtered_df.shape)
+        st.write("- Columns:", list(filtered_df.columns))
+        st.write("- Sample:", filtered_df[['title', 'network_name']].head().to_dict())
         
         if len(filtered_df) == 0:
             st.info("No titles found for selected creatives.")
