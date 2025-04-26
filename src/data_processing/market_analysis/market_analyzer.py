@@ -62,18 +62,22 @@ class MarketAnalyzer:
         needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
                       'tmdb_status', 'status_name', 'studio_names', 'active']
         
-        # Filter for active shows only - moved after column selection
-        if 'active' in self.titles_df.columns:
-            self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
-            
+        # First check if we have any of the needed columns
         available_cols = [col for col in needed_cols if col in self.titles_df.columns]
-        
         if not available_cols:
             error_msg = f"None of the required columns {needed_cols} found in titles_df.\nAvailable columns: {list(self.titles_df.columns)}"
             st.error(error_msg)
             raise ValueError(error_msg)
-            
+        
+        # Keep only the columns we need
         self.titles_df = self.titles_df[available_cols].copy(deep=True)
+        
+        # Then filter for active shows if that column exists
+        if 'active' in available_cols:
+            st.write("Filtering for active shows...")
+            st.write("Before active filter:", len(self.titles_df))
+            self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
+            st.write("After active filter:", len(self.titles_df))
         
         # Reset index to ensure clean data
         self.titles_df = self.titles_df.reset_index(drop=True)
