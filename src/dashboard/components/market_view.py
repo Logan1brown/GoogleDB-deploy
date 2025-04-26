@@ -213,13 +213,21 @@ def render_market_snapshot(market_analyzer):
     # First apply creative filters if selected
     if selected_creatives:
         st.write("=== Debug: Creative Filtering ===")
-        st.write("Team df shape:", market_analyzer.team_df.shape)
-        st.write("Team df columns:", market_analyzer.team_df.columns.tolist())
-        st.write("Sample team data:", market_analyzer.team_df.head().to_dict())
+        st.write("Selected creatives:", selected_creatives)
+        st.write("Team df info:")
+        st.write("- Shape:", market_analyzer.team_df.shape)
+        st.write("- Columns:", market_analyzer.team_df.columns.tolist())
+        st.write("- Sample rows:", market_analyzer.team_df.head(3).to_dict())
+        st.write("- Unique names:", sorted(market_analyzer.team_df['name'].unique())[:10])
         
         # Get titles where selected creatives work
         creative_filter = market_analyzer.team_df['name'].isin(selected_creatives)
-        st.write("Matches found:", creative_filter.sum())
+        st.write("\nMatches found:", creative_filter.sum())
+        
+        if creative_filter.sum() > 0:
+            matched_rows = market_analyzer.team_df[creative_filter]
+            st.write("\nMatched rows:")
+            st.write(matched_rows[['name', 'title']].head(10).to_dict())
         
         creative_titles = market_analyzer.team_df[creative_filter]['title'].unique()
         st.write("Shows found:", list(creative_titles))
