@@ -76,7 +76,7 @@ class ShowsAnalyzer:
             raise
 
     @st.cache_data(ttl=3600)
-    def fetch_market_data(self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def fetch_market_data(_self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Fetch data needed for market analysis.
         
         Args:
@@ -93,14 +93,14 @@ class ShowsAnalyzer:
                 raise ValueError("Supabase client not initialized. Check your environment variables.")
                 
             # Fetch titles data from market analysis
-            logger.info(f"Fetching data from {self.VIEWS['titles']}...")
-            titles_data = supabase.table(self.VIEWS['titles']).select('*').execute()
-            logger.info(f"Raw response from {self.VIEWS['titles']}: {titles_data}")
+            logger.info(f"Fetching data from {_self.VIEWS['titles']}...")
+            titles_data = supabase.table(_self.VIEWS['titles']).select('*').execute()
+            logger.info(f"Raw response from {_self.VIEWS['titles']}: {titles_data}")
             
             if not hasattr(titles_data, 'data'):
-                raise ValueError(f"Invalid response from {self.VIEWS['titles']}: missing 'data' attribute")
+                raise ValueError(f"Invalid response from {_self.VIEWS['titles']}: missing 'data' attribute")
             if not titles_data.data:
-                raise ValueError(f"No data returned from {self.VIEWS['titles']}")
+                raise ValueError(f"No data returned from {_self.VIEWS['titles']}")
                 
             titles_df = pd.DataFrame(titles_data.data)
             logger.info(f"Fetched {len(titles_df)} rows from {self.VIEWS['titles']}")
@@ -128,7 +128,7 @@ class ShowsAnalyzer:
             start = 0
             all_team_data = []
             while True:
-                team_data = supabase.table(self.VIEWS['team']).select('*').range(start, start + page_size - 1).execute()
+                team_data = supabase.table(_self.VIEWS['team']).select('*').range(start, start + page_size - 1).execute()
                 if not hasattr(team_data, 'data') or not team_data.data:
                     break
                 all_team_data.extend(team_data.data)
@@ -137,7 +137,7 @@ class ShowsAnalyzer:
                 start += page_size
             
             if not all_team_data:
-                raise ValueError(f"No data returned from {self.VIEWS['team']}")
+                raise ValueError(f"No data returned from {_self.VIEWS['team']}")
             team_df = pd.DataFrame(all_team_data)
             
             # Filter team_df to only include members from active shows
@@ -145,9 +145,9 @@ class ShowsAnalyzer:
             team_df = team_df[team_df['show_id'].isin(active_show_ids)]
             
             # Fetch network data
-            network_data = supabase.table(self.VIEWS['networks']).select('*').execute()
+            network_data = supabase.table(_self.VIEWS['networks']).select('*').execute()
             if not hasattr(network_data, 'data') or not network_data.data:
-                raise ValueError(f"No data returned from {self.VIEWS['networks']}")
+                raise ValueError(f"No data returned from {_self.VIEWS['networks']}")
             network_df = pd.DataFrame(network_data.data)
             
             # Log success
