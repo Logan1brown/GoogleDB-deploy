@@ -14,12 +14,9 @@ Uses secure Supabase views for data access.
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-import logging
 import time
 from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.utils.style_config import COLORS
-
-logger = logging.getLogger(__name__)
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
@@ -67,8 +64,6 @@ def render_market_snapshot(market_analyzer):
         
         # Use the cached insights
     except Exception as e:
-        logger.error("Error generating market insights:")
-        logger.error(f"Error generating market insights: {str(e)}")
         st.error(f"Error generating market insights: {str(e)}")
         return
     
@@ -111,7 +106,6 @@ def render_market_snapshot(market_analyzer):
                 key="market_filter_titles"
             )
     except Exception as e:
-        logger.error(f"Error displaying metrics: {str(e)}")
         st.error(f"Error displaying metrics: {str(e)}")
         return
     with col2:
@@ -218,24 +212,24 @@ def render_market_snapshot(market_analyzer):
     
     # First apply creative filters if selected
     if selected_creatives:
-        st.write("=== Creative Filter Debug ===")
-        st.write("Team df columns:", list(market_analyzer.team_df.columns))
-        st.write("Selected creatives:", selected_creatives)
+        st.write("=== Debug: Creative Filtering ===")
+        st.write("Team df shape:", market_analyzer.team_df.shape)
+        st.write("Team df columns:", market_analyzer.team_df.columns.tolist())
+        st.write("Sample team data:", market_analyzer.team_df.head().to_dict())
         
         # Get titles where selected creatives work
-        creative_titles = market_analyzer.team_df[
-            market_analyzer.team_df['name'].isin(selected_creatives)
-        ]['title'].unique()
-        st.write("Found creative titles:", list(creative_titles))
+        creative_filter = market_analyzer.team_df['name'].isin(selected_creatives)
+        st.write("Matches found:", creative_filter.sum())
         
-        st.write("Filtered df before creative filter:")
-        st.write("- Columns:", list(filtered_df.columns))
-        st.write("- Sample:", filtered_df[['title', 'network_name']].head().to_dict())
+        creative_titles = market_analyzer.team_df[creative_filter]['title'].unique()
+        st.write("Shows found:", list(creative_titles))
+        
+        st.write("Main df before filter:", filtered_df.shape)
+        st.write("Main df columns:", filtered_df.columns.tolist())
         
         # Filter to only titles with selected creatives
         filtered_df = filtered_df[filtered_df['title'].isin(creative_titles)]
-        
-        st.write("Filtered df after creative filter:")
+        st.write("Main df after filter:", filtered_df.shape)
         st.write("- Shape:", filtered_df.shape)
         st.write("- Columns:", list(filtered_df.columns))
         st.write("- Sample:", filtered_df[['title', 'network_name']].head().to_dict())
@@ -269,7 +263,7 @@ def render_market_snapshot(market_analyzer):
         try:
             title_id = int(float(title_id))
         except (ValueError, TypeError):
-            logger.warning(f"Invalid tmdb_id: {title_id}")
+            st.warning(f"Invalid tmdb_id: {title_id}")
             continue
         title = filtered_df[filtered_df['tmdb_id'] == title_id].iloc[0] if len(filtered_df[filtered_df['tmdb_id'] == title_id]) > 0 else None
         if title is not None:
