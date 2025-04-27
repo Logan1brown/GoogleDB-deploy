@@ -180,10 +180,7 @@ def show():
             # Show scoring explanation
             st.write("")
             with st.expander("ℹ️ Match Score Calculation"):
-                st.markdown("""
-    ℹ️ Match Score Calculation
-
-    Shows are matched based on these factors (100 points total):
+                st.markdown("""Shows are matched based on these factors (100 points total):
 
     Content Match (85 points):
     - Genre (45 points): 30 for primary genre match, +10 for first subgenre, +5 for second subgenre
