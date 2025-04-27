@@ -127,21 +127,33 @@ def show():
     similar_content = show_analyzer.find_similar_shows(show_id)
     if similar_content:
         # Create a dataframe of similar shows
-        similar_df = pd.DataFrame(similar_content)
+        similar_content_df = pd.DataFrame([
+            {
+                'Show': show.title,
+                'Network': show.network_name,
+                'Success Score': show.success_score or 0,
+                'Similarity': show.match_score['total'] / 100
+            }
+            for show in similar_content[:25]  # Limit to top 25 shows
+        ])
         
-        # Format the similarity scores as percentages
-        similar_df['similarity'] = similar_df['similarity'].apply(lambda x: f"{x:.0%}")
-        
-        # Display up to 25 similar shows in a table
+        # Display the similar shows in a table
         st.dataframe(
-            similar_df[['title', 'similarity', 'tmdb_status', 'success_score']].head(25),
+            similar_content_df,
             column_config={
-                'title': 'Title',
-                'similarity': 'Match',
-                'tmdb_status': 'Status',
-                'success_score': st.column_config.NumberColumn(
-                    'Success Score',
-                    format="%.1f"
+                "Show": st.column_config.TextColumn("Show"),
+                "Network": st.column_config.TextColumn("Network"),
+                "Success Score": st.column_config.ProgressColumn(
+                    "Success",
+                    min_value=0,
+                    max_value=100,
+                    format="%.0f%%"
+                ),
+                "Similarity": st.column_config.ProgressColumn(
+                    "Similarity",
+                    min_value=0,
+                    max_value=1,
+                    format="%.0f%%"
                 )
             },
             hide_index=True
