@@ -188,21 +188,19 @@ def show():
         st.info("No similar shows found")
         
     # Network pattern analysis
-    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Network Pattern Analysis</p>', unsafe_allow_html=True)
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: {CHART_DEFAULTS["margin"]["section"]["t"]}px 0 {CHART_DEFAULTS["margin"]["section"]["b"]}px;">Network Pattern Analysis</p>', unsafe_allow_html=True)
     network_patterns = show_analyzer.analyze_network_patterns(similar_content)
     if network_patterns:
-        st.write("**Network Success Metrics**")
-        for network in network_patterns.similar_show_counts.keys():
+        st.markdown(f'<p style="margin: 0 0 10px;">**Network Analysis**</p>', unsafe_allow_html=True)
+        for i, network in enumerate(network_patterns.similar_show_counts.keys()):
             score = network_patterns.success_scores[network]
             rate = network_patterns.success_rates[network]
-            st.write(f"- {network}:")
+            count = network_patterns.similar_show_counts[network]
+            if i > 0:
+                st.write("")
+            st.write(f"- {network}: {count} similar shows")
             st.write(f"  * Average Score: {score:.0f} pts")
             st.write(f"  * Success Rate: {rate:.0%} of shows score 70+ pts")
-            
-        st.write("")
-        st.write("**Network Distribution**")
-        for network, count in network_patterns.similar_show_counts.items():
-            st.write(f"- {network}: {count} similar shows")
     else:
         st.info("No network patterns found")
 
