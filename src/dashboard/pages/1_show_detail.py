@@ -126,10 +126,8 @@ def show():
     show_id = show_data['show_id']
     similar_content = show_analyzer.find_similar_shows(show_id)
     if similar_content:
-        # Create a dataframe of similar shows
         similar_content_df = pd.DataFrame([
             {
-                'Show': show.title,
                 'Network': show.network_name,
                 'Success Score': show.success_score or 0,
                 'Similarity': show.match_score['total'] / 100
