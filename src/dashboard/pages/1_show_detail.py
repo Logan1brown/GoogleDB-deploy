@@ -121,10 +121,8 @@ def show():
         st.write("**Canceled show penalty:** _Score multiplied by 0.8_")
     
     # Similar shows
-    st.header("Similar Shows")
-    
-    # Content-based similar shows
-    st.subheader("Based on Content")
+    st.write("")
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Similar Shows</p>', unsafe_allow_html=True)
     show_id = show_data['show_id']
     similar_content = show_analyzer.find_similar_shows(show_id)
     if similar_content:
@@ -158,19 +156,18 @@ def show():
             hide_index=True
         )
     else:
-        st.info("No similar shows found based on content")
+        st.info("No similar shows found")
         
     # Network pattern analysis
-    st.subheader("Network Pattern Analysis")
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Network Pattern Analysis</p>', unsafe_allow_html=True)
     network_patterns = show_analyzer.analyze_network_patterns(similar_content)
     if network_patterns:
-        # Show network stats
-        st.write("**Network Success Rates:**")
+        st.write("**Network Success Rates**")
         for network, rate in network_patterns.success_rates.items():
             st.write(f"- {network}: {rate:.0%} success rate")
             
-        # Show network counts
-        st.write("\n**Network Distribution:**")
+        st.write("")
+        st.write("**Network Distribution**")
         for network, count in network_patterns.similar_show_counts.items():
             st.write(f"- {network}: {count} similar shows")
     else:
