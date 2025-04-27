@@ -304,27 +304,26 @@ def render_announcements():
     """Render the announcements section."""
     st.markdown(f"### Announcements")
     
-    # First row: Filter and Search
-    col1, col2 = st.columns([1, 2])
+    # Controls row with consistent spacing
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
+        st.caption("Filter")
         filter_status = st.selectbox(
-            "Filter",  # Shorter label
+            "##",  # Hidden label
             ["Unreviewed", "Reviewed", "All"],
-            index=0
+            index=0,
+            label_visibility="collapsed"
         )
     with col2:
-        # Add show search with label
-        st.text("Search Shows")
+        st.caption("Search Shows")
         selected_show = st_searchbox(
             search_shows,
             key="admin_show_search",
             placeholder="Search existing shows...",
             clear_on_submit=True
         )
-    
-    # Second row: Action buttons and search result
-    col1, col2 = st.columns([1, 2])
-    with col1:
+    with col3:
+        st.write("")
         if st.button("Fetch New", type="primary"):
                 with st.spinner("Fetching articles..."):
                     deadline = DeadlineClient()
@@ -351,9 +350,8 @@ def render_announcements():
                     else:
                         st.info("No new articles found")
                     st.rerun()
-        with col2:
-            if selected_show:
-                st.info(f"✨ Found show: {selected_show} - Add it in Data Entry if needed")
+    if selected_show:
+        st.info(f"✨ Found show: {selected_show} - Add it in Data Entry if needed")
     
     # Add divider before announcements
     st.markdown("---")

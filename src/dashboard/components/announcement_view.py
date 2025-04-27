@@ -16,7 +16,7 @@ def render_announcement_card(announcement: Dict[str, Any], on_review: callable =
     
     # Add consistent card styling
     st.markdown(
-        f"<div style='padding: 1em; border-radius: 4px; background: white; margin-bottom: 1em;'>"
+        f"<div style='padding: 0.75em; border-radius: 4px; background: white; margin-bottom: 0.5em;'>"
         f"<div style='display: flex; justify-content: space-between; align-items: flex-start;'>"
         f"<div style='flex: 4; font-family: {FONTS['primary']['family']};'>"
         f"<h4 style='margin: 0; color: {title_color}; font-size: {FONTS['primary']['sizes']['header']}px;'>"
