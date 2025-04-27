@@ -130,9 +130,9 @@ def show():
         # Create a dataframe of similar shows with scores
         similar_content_df = pd.DataFrame([
             {
+                'Show': show.title,
                 'Network': show.network_name,
                 'Match Score': show.match_score['total'],
-                'Show': show.title,
                 'Success Score': show.success_score or 0
             }
             for show in similar_content[:25]  # Limit to top 25 shows
@@ -145,6 +145,10 @@ def show():
         st.dataframe(
             similar_content_df,
             column_config={
+                "Show": st.column_config.TextColumn(
+                    "Show",
+                    help="Title of the similar show"
+                ),
                 "Network": st.column_config.TextColumn(
                     "Network",
                     help="Network or platform"
@@ -155,10 +159,6 @@ def show():
                     min_value=0,
                     max_value=100,
                     format="%.0f%%"
-                ),
-                "Show": st.column_config.TextColumn(
-                    "Show",
-                    help="Title of the similar show"
                 ),
                 "Success Score": st.column_config.ProgressColumn(
                     "Success",
