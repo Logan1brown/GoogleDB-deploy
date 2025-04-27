@@ -195,9 +195,11 @@ class ShowDetailAnalyzer:
         """
         scores = {
             # Content Match (85 points)
-            'genre_score': 0,      # 45 points
-            'team_score': 0,       # 25 points
+            'genre_score': 0,      # 40 points
+            'team_score': 0,       # 20 points
             'source_score': 0,     # 15 points
+            'network_score': 0,    # 7 points
+            'studio_score': 0,     # 3 points
             
             # Format Match (15 points)
             'episode_score': 0,    # 8 points
@@ -230,34 +232,42 @@ class ShowDetailAnalyzer:
             }
         }
         
-        # Genre match (45 points)
-        # Primary genre match (30 points)
+        # Genre match (40 points)
+        # Primary genre match (27 points)
         primary_match = show1['genre_name'] == show2['genre_name']
         if primary_match:
-            scores['genre_score'] += 30
+            scores['genre_score'] += 27
             scores['details']['genre']['primary_match'] = True
-            scores['details']['genre']['primary_points'] = 30
+            scores['details']['genre']['primary_points'] = 27
         scores['details']['genre']['primary'] = show1['genre_name']
         
-        # Subgenre matches (15 points)
+        # Subgenre matches (13 points)
         subgenres1 = set(show1.get('subgenres', []) or [])
         subgenres2 = set(show2.get('subgenres', []) or [])
         shared_subgenres = subgenres1 & subgenres2
         scores['details']['genre']['shared_subgenres'] = list(shared_subgenres)
         
         if len(shared_subgenres) >= 1:
-            scores['genre_score'] += 10  # First subgenre match
-            scores['details']['genre']['subgenre_points'] += 10
+            scores['genre_score'] += 8  # First subgenre match
+            scores['details']['genre']['subgenre_points'] += 8
         if len(shared_subgenres) >= 2:
             scores['genre_score'] += 5   # Second subgenre match
             scores['details']['genre']['subgenre_points'] += 5
         
-        # Team overlap (25 points)
+        # Team overlap (20 points)
         team1 = [(m['name'], m.get('role', 'Unknown')) for m in show1.get('team_members', []) or []]
         team2 = [(m['name'], m.get('role', 'Unknown')) for m in show2.get('team_members', []) or []]
         shared_members = set(team1) & set(team2)
         scores['details']['team']['shared_members'] = list(shared_members)
-        scores['team_score'] = min(len(shared_members) * 8, 25)  # 8 points per member
+        scores['team_score'] = min(len(shared_members) * 6.7, 20)  # 6.7 points per member
+        
+        # Network match (7 points)
+        network_match = show1['network_name'] == show2['network_name']
+        scores['network_score'] = 7 if network_match else 0
+        
+        # Studio match (3 points)
+        studio_match = show1.get('studio_name') == show2.get('studio_name')
+        scores['studio_score'] = 3 if studio_match and show1.get('studio_name') else 0
         
         # Source match (15 points)
         source_match = show1['source_name'] == show2['source_name']
@@ -294,8 +304,11 @@ class ShowDetailAnalyzer:
             years_apart = abs(date1 - date2)
             scores['date_score'] = max(3 - years_apart, 0)  # -1 point per year apart
         
-        # Calculate group totals
-        scores['content_total'] = scores['genre_score'] + scores['team_score'] + scores['source_score']
+        # Calculate totals
+        scores['content_total'] = (
+            scores['genre_score'] + scores['team_score'] + 
+            scores['source_score'] + scores['network_score'] + scores['studio_score']
+        )
         scores['format_total'] = scores['episode_score'] + scores['order_score'] + scores['date_score']
         scores['total'] = scores['content_total'] + scores['format_total']
         

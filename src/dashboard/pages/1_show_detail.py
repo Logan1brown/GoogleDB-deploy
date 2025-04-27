@@ -183,9 +183,11 @@ def show():
                 st.markdown("""Shows are matched based on these factors (100 points total):
 
     Content Match (85 points):
-    - Genre (45 points): 30 for primary genre match, +10 for first subgenre, +5 for second subgenre
-    - Team (25 points): 8 points per shared team member (max 25)
+    - Genre (40 points): 27 for primary genre match, +8 for first subgenre, +5 for second subgenre
+    - Team (20 points): 6.7 points per shared team member (max 20)
     - Source (15 points): Same source type
+    - Network (7 points): Same network
+    - Studio (3 points): Same production studio
 
     Format Match (15 points):
     - Episodes (8 points): Based on episodes per season difference
