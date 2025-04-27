@@ -394,6 +394,8 @@ def render_tmdb_matches():
     1. Search for shows in TMDB
     2. Review and approve/reject matches
     """
+    st.markdown("### Match TMDB")
+    
     state = get_admin_state()
     matching = state.tmdb_matching
     match_service = TMDBMatchService()
@@ -404,16 +406,20 @@ def render_tmdb_matches():
         matching.error_message = None
         update_admin_state(state)
     
-    # Search TMDB
-    st.text_input("Search Shows", 
+    # Add search box with caption
+    st.caption("Search for shows to match with TMDB")
+    st.text_input("##", 
                  value=matching.search_query,
                  placeholder="Enter show title...",
-                 key="tmdb_search_bar")
-    if not matching.matches or matching.validated_show_id:
-        st.info("Search for shows to see potential matches")
+                 key="tmdb_search_bar",
+                 label_visibility="collapsed")
     
-    # Unmatched Shows section
-    st.subheader("Unmatched Shows")
+    # Add tip about search
+    if not matching.matches or matching.validated_show_id:
+        st.info("💡 Search for shows to see potential matches")
+    
+    # Add divider before unmatched shows
+    st.markdown("---")
     
     # Get and display unmatched shows
     unmatched_shows = show_service.get_unmatched_shows()
