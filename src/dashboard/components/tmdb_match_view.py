@@ -59,7 +59,7 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     
     # Add consistent card styling
     st.markdown(
-        f"<div style='padding: 0.75em; border-radius: 4px; background: white; margin-bottom: 0.5em;'>",
+        f"<div style='padding: 1em; border-radius: 4px; background: white; margin-bottom: 1em;'>",
         unsafe_allow_html=True
     )
     
@@ -67,9 +67,9 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     title_col, score_col = st.columns([3, 1])
     with title_col:
         st.markdown(
-            f"<h4 style='margin: 0; font-size: {FONTS['primary']['sizes']['header']}px;'>"
+            f"<h4 style='margin: 0; font-size: {FONTS['primary']['sizes']['title']}px;'>"
             f"{match.name}"
-            f"<span style='color: {COLORS['text']['secondary']}; font-size: {FONTS['primary']['sizes']['small']}px;'>"
+            f"<span style='color: {COLORS['text']['secondary']}; font-size: {FONTS['primary']['sizes']['body']}px;'>"
             f" ({match.first_air_date or 'Unknown'})"
             f"</span>"
             f"</h4>",
@@ -80,12 +80,14 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     with score_col:
         st.metric("Match Score", f"{match.ep_score}%")
     
+    st.markdown("")
+    
     # Show details in columns
     col1, col2 = st.columns(2)
     
     # Our Show Details
     with col1:
-        st.markdown("**Our Show Data**")
+        st.markdown(f"##### Our Show Data")
         st.markdown(f"**Title:** {match.our_show_title}")
         st.markdown(f"**Network:** {match.our_network or 'Unknown'}")
         st.markdown(f"**Year:** {match.our_year or 'Unknown'}")
@@ -99,7 +101,8 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     
     # TMDB Details
     with col2:
-        st.markdown("**TMDB Data**")
+        st.markdown(f"##### TMDB Data")
+        st.markdown(f"**Title:** {match.name}")
         st.markdown(f"**Network:** {', '.join(match.networks) if match.networks else 'Unknown'}")
         st.markdown("**Executive Producers:**")
         if match.executive_producers:
@@ -109,11 +112,16 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
         else:
             st.markdown("*No executive producers found*")
     
-    # Score details in small text
-    st.caption(
-        f"Title Match: {match.title_score}% · "
-        f"Network Match: {match.network_score}% · "
-        f"EP Match: {match.ep_score}%"
+    # Score details
+    st.markdown("")
+    st.markdown(
+        f"<div style='font-size: {FONTS['primary']['sizes']['body']}px;'>"
+        f"<strong>Match Scores:</strong> "
+        f"Title {match.title_score}% · "
+        f"Network {match.network_score}% · "
+        f"EP {match.ep_score}%"
+        f"</div>",
+        unsafe_allow_html=True
     )
     
     # Center the validate button
