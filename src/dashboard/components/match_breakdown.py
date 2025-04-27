@@ -85,4 +85,7 @@ def show_match_breakdown(show, expanded=False):
         # Timing
         st.write(f"    Timing: {scores['date_score']}/3")
         
-
+        # Show description
+        if show.description:
+            st.write("\n---")
+            st.write(show.description)

@@ -19,6 +19,7 @@ class SimilarShow:
     show_id: int
     title: str
     network_name: str
+    description: Optional[str]
     success_score: Optional[float]
     match_score: Dict[str, int] = field(default_factory=lambda: {
         # Content Match (85 points)
@@ -297,6 +298,7 @@ class ShowDetailAnalyzer:
                     show_id=show['show_id'],
                     title=show['title'],
                     network_name=show['network_name'],
+                    description=show.get('description'),
                     success_score=show.get('success_score'),
                     match_score=scores
                 ))
