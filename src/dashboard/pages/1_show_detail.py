@@ -134,7 +134,7 @@ def show():
                     "Show": show.title,
                     "Network": show.network_name,
                     "Match Score": show.match_score['total'],
-                    "Success Score": show.success_score or 0
+                    "Success Score": show.success_score if show.success_score is not None else 'N/A'
                 }
                 for show in similar_content[:25]  # Limit to top 25 shows
             ])
@@ -164,12 +164,12 @@ def show():
                         max_value=100,
                         format="%.0f%%"
                     ),
-                    "Success Score": st.column_config.ProgressColumn(
+                    "Success Score": st.column_config.NumberColumn(
                         "Success",
-                        help="Overall success score based on renewals and episodes",
+                        help="Overall success score based on renewals and episodes (N/A means not enough data)",
                         min_value=0,
                         max_value=100,
-                        format="%.0f%%"
+                        format="%.1f"
                     )
                 },
                 hide_index=True
