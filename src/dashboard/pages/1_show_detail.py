@@ -180,13 +180,24 @@ def show():
             # Show scoring explanation
             st.write("")
             with st.expander("ℹ️ Match Score Calculation"):
-                st.write("""
-                Shows are matched based on these factors:
-                - Genre (40 points): 30 for first genre match (main or sub), +5 for second match, +5 for third match
-                - Creative Team (30 points): 10 points per shared team member
-                - Source Material (20 points): Same source type
-                - Release Window (10 points): -2 points per year apart
-                """)
+                st.markdown("""
+    ℹ️ Match Score Calculation
+
+    Shows are matched based on these factors (100 points total):
+
+    Content Match (85 points):
+    - Genre (45 points): 30 for primary genre match, +10 for first subgenre, +5 for second subgenre
+    - Team (25 points): 8 points per shared team member (max 25)
+    - Source (15 points): Same source type
+
+    Format Match (15 points):
+    - Episodes (8 points): Based on episodes per season difference
+        * ≤2 eps: 8 points
+        * ≤4 eps: 5 points
+        * ≤6 eps: 2 points
+    - Order Type (4 points): Same release pattern
+    - Timing (3 points): Based on announcement date proximity
+    """)
                 
             # Show top 10 matches with detailed breakdown
             st.write("")
