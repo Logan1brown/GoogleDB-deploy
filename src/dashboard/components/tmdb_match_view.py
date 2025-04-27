@@ -5,9 +5,11 @@ It uses the TMDBMatchState class for state management and provides validation co
 """
 
 import streamlit as st
+
+from ..services.tmdb.match_service import TMDBMatchService
 from ..state.admin_state import TMDBMatchState
-from ..state.session import clear_match_session_state
-from ..utils.style_config import FONTS, COLORS
+from ..state.session import clear_match_session_state, update_admin_state
+from ..utils.style_config import COLORS, FONTS
 
 def find_matches_for_show(show_data: dict, state) -> None:
     """Find TMDB matches for a show and update state."""
