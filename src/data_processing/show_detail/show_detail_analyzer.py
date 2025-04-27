@@ -226,21 +226,7 @@ class ShowDetailAnalyzer:
         scores['format_total'] = scores['episode_score'] + scores['order_score'] + scores['date_score']
         scores['total'] = scores['content_total'] + scores['format_total']
         
-        return {
-            'total': genre_score + team_score + source_score + date_score,
-            'genre_score': genre_score,
-            'genre_details': {
-                'main_genre_match': show1['genre_name'] == show2['genre_name'],
-                'has_subgenre_match': shared_subgenres
-            },
-            'team_score': team_score,
-            'source_score': source_score,
-            'date_score': date_score,
-            'details': {
-                'team_overlap': team_overlap,
-                'years_apart': years_apart
-            }
-        }
+        return scores
     
     def find_similar_shows(self, show_id: int, min_score: int = 30, max_shows: int = 15) -> List[SimilarShow]:
         """Find shows similar to the given show.
