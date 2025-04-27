@@ -353,8 +353,9 @@ def render_announcements():
     if not announcements:
         st.info(f"No {filter_status.lower()} announcements")
         return
-    # Add spacing between announcements
-    st.write("")
+
+    # Render announcements in scrollable container
+    render_announcements_list(announcements)
 
 
 def render_tmdb_matches():
