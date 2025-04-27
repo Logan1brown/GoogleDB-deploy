@@ -29,12 +29,16 @@ def render_announcement_card(announcement: Dict[str, Any]) -> None:
         unsafe_allow_html=True
     )
 
-def render_announcements_list(announcements: List[Dict[str, Any]]) -> None:
-    """Render a list of announcements.
+def render_announcements_list(announcements: List[Dict[str, Any]], max_height: int = 400) -> None:
+    """Render a list of announcements in a scrollable container.
     
     Args:
         announcements: List of announcement dictionaries
+        max_height: Maximum height of the container in pixels
     """
-    for ann in announcements:
-        render_announcement_card(ann)
-        st.write("")  # Add spacing between announcements
+    scroll_container = st.container(height=max_height)
+    
+    with scroll_container:
+        for ann in announcements:
+            render_announcement_card(ann)
+            st.write("")  # Add spacing between announcements
