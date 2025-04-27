@@ -12,7 +12,7 @@ if src_path not in sys.path:
 
 from src.shared.auth import auth_required
 from src.dashboard.utils.timing import time_page
-from src.dashboard.utils.style_config import COLORS, FONTS
+from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS
 
 @auth_required()
 def show():
@@ -188,7 +188,7 @@ def show():
         st.info("No similar shows found")
         
     # Network pattern analysis
-    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: {CHART_DEFAULTS["margin"]["section"]["t"]}px 0 {CHART_DEFAULTS["margin"]["section"]["b"]}px;">Network Pattern Analysis</p>', unsafe_allow_html=True)
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Network Pattern Analysis</p>', unsafe_allow_html=True)
     network_patterns = show_analyzer.analyze_network_patterns(similar_content)
     if network_patterns:
         st.markdown(f'<p style="margin: 0 0 10px;">**Network Analysis**</p>', unsafe_allow_html=True)
