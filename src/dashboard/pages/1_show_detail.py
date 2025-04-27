@@ -43,7 +43,7 @@ def show():
     show_data = shows_df[shows_df['title'] == selected_show].iloc[0]
     
     # Show information
-    st.header("Show Information")
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Show Information</p>', unsafe_allow_html=True)
     st.write(f"**Title:** {show_data['title']}")
     
     col1, col2 = st.columns(2)
@@ -66,14 +66,14 @@ def show():
     # Studios section
     if show_data.get('studios'):
         st.write("")
-        st.write("### Studios")
+        st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Studios</p>', unsafe_allow_html=True)
         for studio in show_data['studios']:
             st.write(f"- {studio}")
             
     # Team members section
     if show_data.get('team_members'):
         st.write("")
-        st.write("### Team Members")
+        st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Team Members</p>', unsafe_allow_html=True)
         
         # Group members by name
         members_by_name = {}
@@ -89,42 +89,36 @@ def show():
             st.write(f"- **{name}** ({', '.join(roles)})")
         
     # Success metrics
-    st.header("Success Metrics")
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Success Metrics</p>', unsafe_allow_html=True)
     success_score = show_data['success_score']
     st.metric("Success Score", f"{success_score:.1f}/100")
     
     # Score breakdown
-    st.subheader("Score Breakdown")
-    col1, col2 = st.columns(2)
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Score Breakdown</p>', unsafe_allow_html=True)
     
-    with col1:
-        if pd.notna(show_data['tmdb_seasons']):
-            seasons = int(show_data['tmdb_seasons'])
-            st.write(f"**Seasons:** {seasons}")
-            if seasons >= 2:
-                st.write("✓ **Renewed for Season 2** _(+40 points)_")
-                extra_seasons = seasons - 2
-                if extra_seasons > 0:
-                    bonus = min(extra_seasons * 20, 40)
-                    st.write(f"✓ **Additional seasons bonus** _(+{bonus} points)_")
-                    
-    with col2:
-        if pd.notna(show_data['tmdb_avg_eps']):
-            avg_eps = float(show_data['tmdb_avg_eps'])
-            st.write(f"**Average Episodes/Season:** {avg_eps:.1f}")
-            if avg_eps >= 10:
-                st.write("✓ **High episode volume** _(+40 points)_")
-            elif avg_eps >= 8:
-                st.write("✓ **Standard episode volume** _(+20 points)_")
-                
-    # Status modifier
+    # Only show scoring factors that contribute points
+    if pd.notna(show_data['tmdb_seasons']):
+        seasons = int(show_data['tmdb_seasons'])
+        if seasons >= 2:
+            st.write("**Renewed for Season 2** _(+40 points)_")
+            extra_seasons = seasons - 2
+            if extra_seasons > 0:
+                bonus = min(extra_seasons * 20, 40)
+                st.write(f"**Additional seasons bonus** _(+{bonus} points)_")
+    
+    if pd.notna(show_data['tmdb_avg_eps']):
+        avg_eps = float(show_data['tmdb_avg_eps'])
+        if avg_eps >= 10:
+            st.write("**High episode volume** _(+40 points)_")
+        elif avg_eps >= 8:
+            st.write("**Standard episode volume** _(+20 points)_")
+    
+    # Status modifier (only show if it affects score)
     status = show_data['tmdb_status']
     if status == 'Returning Series':
-        st.write("📈 **Active show bonus:** _Score multiplied by 1.2_")
-    elif status == 'Ended':
-        st.write("📊 **Completed show:** _No modifier_")
+        st.write("**Active show bonus:** _Score multiplied by 1.2_")
     elif status == 'Canceled':
-        st.write("📉 **Canceled show penalty:** _Score multiplied by 0.8_")
+        st.write("**Canceled show penalty:** _Score multiplied by 0.8_")
     
     # Similar shows
     st.header("Similar Shows")
