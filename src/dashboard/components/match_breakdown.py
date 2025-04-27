@@ -4,10 +4,9 @@ This component handles the display of match score breakdowns in an expandable co
 """
 
 import streamlit as st
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from src.data_processing.show_detail.show_detail_analyzer import SimilarShow
-from ..utils.style_config import COLORS, FONTS
 
 def render_match_breakdown(
     show: SimilarShow,
@@ -19,45 +18,34 @@ def render_match_breakdown(
         show: SimilarShow object containing match data
         expanded: Whether the container should be expanded by default
     """
-    # Format title with scores
-    title = f"{show.title} "
-    title += f"(Match: {show.match_score['total']}, "
-    title += f"Success: {show.success_score if show.success_score is not None else 'N/A'})"
+    show_match_breakdown(show, expanded)
+
+def show_match_breakdown(show, expanded=False):
+    """Show match breakdown for a show in an expander.
+    
+    Args:
+        show: SimilarShow object
+        expanded: Whether expander should be expanded by default
+    """
+    scores = show.match_score
+    success = show.success_score if show.success_score is not None else 'N/A'
+    
+    # Build title
+    title = f"{show.title} (Match: {scores['total']}, Success: {success})"
     
     with st.expander(title, expanded=expanded):
-        # Header
-        st.markdown(
-            f'<p style="font-family: {FONTS["primary"]["family"]}; '
-            f'font-size: {FONTS["primary"]["sizes"]["header"]}px; '
-            f'font-weight: 600; color: {COLORS["text"]["primary"]}; '
-            f'margin-bottom: 10px;">Match Score Breakdown</p>',
-            unsafe_allow_html=True
-        )
+        st.markdown(f"**Network:** {show.network_name}\n")
         
-        # Use columns for better layout
-        col1, col2 = st.columns(2)
+        # Content Match section
+        st.write(f"Content Match ({scores['content_total']}/85 points)")
+        st.write(f"    Genre: {scores['genre_score']}/45")
+        st.write(f"    Source Type: {scores['source_score']}/15")
+        st.write(f"    Team: {scores['team_score']}/25")
         
-        # Style for score items
-        score_style = (
-            f'font-family: {FONTS["primary"]["family"]}; '
-            f'font-size: {FONTS["primary"]["sizes"]["body"]}px; '
-            f'color: {COLORS["text"]["secondary"]}; '
-            f'margin: 5px 0;'
-        )
+        # Format Match section
+        st.write(f"\nFormat Match ({scores['format_total']}/15 points)")
+        st.write(f"    Episodes: {scores['episode_score']}/8")
+        st.write(f"    Order Type: {scores['order_score']}/4")
+        st.write(f"    Timing: {scores['date_score']}/3")
         
-        with col1:
-            st.markdown(f'<p style="{score_style}">Genre Score: {show.match_score["genre_score"]} points</p>', unsafe_allow_html=True)
-            st.markdown(f'<p style="{score_style}">Team Score: {show.match_score["team_score"]} points</p>', unsafe_allow_html=True)
-            
-        with col2:
-            st.markdown(f'<p style="{score_style}">Source Score: {show.match_score["source_score"]} points</p>', unsafe_allow_html=True)
-            st.markdown(f'<p style="{score_style}">Release Window Score: {show.match_score["date_score"]} points</p>', unsafe_allow_html=True)
-        
-        # Total score with primary color
-        st.markdown(
-            f'<p style="font-family: {FONTS["primary"]["family"]}; '
-            f'font-size: {FONTS["primary"]["sizes"]["body"]}px; '
-            f'font-weight: 600; color: {COLORS["text"]["primary"]}; '
-            f'margin-top: 10px;">Total Match Score: {show.match_score["total"]} points</p>',
-            unsafe_allow_html=True
-        )
+

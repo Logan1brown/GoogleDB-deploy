@@ -21,11 +21,20 @@ class SimilarShow:
     network_name: str
     success_score: Optional[float]
     match_score: Dict[str, int] = field(default_factory=lambda: {
-        'genre_score': 0,
-        'team_score': 0,
-        'source_score': 0,
-        'date_score': 0,
-        'total': 0
+        # Content Match (85 points)
+        'genre_score': 0,      # 45 points
+        'team_score': 0,       # 25 points
+        'source_score': 0,     # 15 points
+        
+        # Format Match (15 points)
+        'episode_score': 0,    # 8 points
+        'order_score': 0,      # 4 points
+        'date_score': 0,       # 3 points
+        
+        # Group totals
+        'content_total': 0,    # Sum of content scores
+        'format_total': 0,     # Sum of format scores
+        'total': 0            # Overall total
     })
 
 
@@ -155,42 +164,67 @@ class ShowDetailAnalyzer:
         Returns:
             Dictionary with score components and total
         """
-        # Genre match (40 points total)
-        genre_score = 0
+        scores = {
+            # Content Match (85 points)
+            'genre_score': 0,      # 45 points
+            'team_score': 0,       # 25 points
+            'source_score': 0,     # 15 points
+            
+            # Format Match (15 points)
+            'episode_score': 0,    # 8 points
+            'order_score': 0,      # 4 points
+            'date_score': 0,       # 3 points
+        }
         
-        # Primary genre match (25 points)
-        primary_match = show1['genre_name'] == show2['genre_name']
-        if primary_match:
-            genre_score += 25
+        # Genre match (45 points)
+        # Primary genre match (30 points)
+        if show1['genre_name'] == show2['genre_name']:
+            scores['genre_score'] += 30
         
-        # Subgenre matches (up to 15 points)
+        # Subgenre matches (15 points)
         subgenres1 = set(show1.get('subgenres', []) or [])
         subgenres2 = set(show2.get('subgenres', []) or [])
         shared_subgenres = subgenres1 & subgenres2
-        
-        # 10 points for first subgenre match
-        # +5 points for second subgenre match
         if len(shared_subgenres) >= 1:
-            genre_score += 10
+            scores['genre_score'] += 10  # First subgenre match
         if len(shared_subgenres) >= 2:
-            genre_score += 5
+            scores['genre_score'] += 5   # Second subgenre match
         
-        # Team overlap (30 points)
+        # Team overlap (25 points)
         team1 = {member['name'] for member in show1.get('team_members', []) or []}
         team2 = {member['name'] for member in show2.get('team_members', []) or []}
         team_overlap = len(team1 & team2)
-        # Each team member overlap worth 10 points, max 30
-        team_score = min(team_overlap * 10, 30)
+        scores['team_score'] = min(team_overlap * 8, 25)  # 8 points per member
         
-        # Source match (20 points)
-        source_score = 20 if show1['source_name'] == show2['source_name'] else 0
+        # Source match (15 points)
+        scores['source_score'] = 15 if show1['source_name'] == show2['source_name'] else 0
         
-        # Date proximity (10 points)
+        # Episode format match (8 points)
+        eps1 = pd.to_numeric(show1['tmdb_total_episodes'], errors='coerce') / pd.to_numeric(show1['tmdb_seasons'], errors='coerce')
+        eps2 = pd.to_numeric(show2['tmdb_total_episodes'], errors='coerce') / pd.to_numeric(show2['tmdb_seasons'], errors='coerce')
+        if pd.notna(eps1) and pd.notna(eps2):
+            eps_diff = abs(eps1 - eps2)
+            if eps_diff <= 2:
+                scores['episode_score'] = 8
+            elif eps_diff <= 4:
+                scores['episode_score'] = 5
+            elif eps_diff <= 6:
+                scores['episode_score'] = 2
+        
+        # Order type match (4 points)
+        scores['order_score'] = 4 if show1['order_name'] == show2['order_name'] else 0
+        
+        # Date proximity (3 points)
         date1 = pd.to_datetime(show1['announced_date']).year if pd.notna(show1.get('announced_date')) else None
         date2 = pd.to_datetime(show2['announced_date']).year if pd.notna(show2.get('announced_date')) else None
-        years_apart = abs(date1 - date2) if date1 and date2 else 5
-        # Lose 2 points per year apart, minimum 0
-        date_score = max(10 - (years_apart * 2), 0)
+        if date1 and date2:
+            years_apart = abs(date1 - date2)
+            scores['date_score'] = max(3 - years_apart, 0)  # -1 point per year apart
+        
+        # Calculate group totals
+        scores['content_total'] = scores['genre_score'] + scores['team_score'] + scores['source_score']
+        scores['format_total'] = scores['episode_score'] + scores['order_score'] + scores['date_score']
+        scores['total'] = scores['content_total'] + scores['format_total']
         
         return {
             'total': genre_score + team_score + source_score + date_score,
