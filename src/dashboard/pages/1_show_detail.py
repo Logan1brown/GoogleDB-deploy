@@ -52,13 +52,14 @@ def show():
         col1, col2 = st.columns(2)
         with col1:
             st.write(f"**Network:** {show_data['network_name']}")
-            st.write(f"**Genres:** {show_data['genres']}")
-            st.write(f"**Source Type:** {show_data['source_type']}")
+            st.write(f"**Genre:** {show_data['genre_name']}")
+            st.write(f"**Subgenres:** {', '.join(show_data['subgenres']) if show_data.get('subgenres') else 'None'}")
+            st.write(f"**Source Type:** {show_data['source_name']}")
         
         with col2:
             st.write(f"**Status:** {show_data['tmdb_status']}")
             st.write(f"**Seasons:** {show_data['tmdb_seasons']}")
-            st.write(f"**Episodes/Season:** {show_data['avg_episodes_per_season']:.1f}")
+            st.write(f"**Episodes:** {show_data['tmdb_total_episodes']}")
         
         st.write("")
         # Success metrics
