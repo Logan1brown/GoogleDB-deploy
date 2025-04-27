@@ -54,6 +54,13 @@ def main_page():
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Dashboard Sections</p>', unsafe_allow_html=True)
 
     st.markdown("""
+    **Show Detail** *(Coming Soon)*  
+    Search and explore detailed information about specific shows:
+    - Comprehensive show information including title, network, studios, and creative team
+    - View similar shows in the market
+    - Analyze network patterns across similar show groups
+    - Identify trends and relationships in show packaging and development
+
     **Market Snapshot**  
     Track the pulse of the straight-to-series market with real-time metrics and trends. Analyze order volumes, 
     network activities, and success rates through interactive visualizations. Filter by shows, creators, genres, 
@@ -71,13 +78,6 @@ def main_page():
     Visualize studio relationships and performance metrics through an interactive network graph. Track studio 
     collaborations, success rates, and partnership patterns. Identify key players and emerging trends in the 
     production landscape.
-
-    **Show Detail** *(Coming Soon)*  
-    Search and explore detailed information about specific shows:
-    - Comprehensive show information including title, network, studios, and creative team
-    - View similar shows in the market
-    - Analyze network patterns across similar show groups
-    - Identify trends and relationships in show packaging and development
     """)
 
     # Dataset section
