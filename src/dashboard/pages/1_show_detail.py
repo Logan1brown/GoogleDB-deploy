@@ -169,7 +169,7 @@ def show():
                         help="Overall success score based on renewals and episodes (N/A means not enough data)",
                         min_value=0,
                         max_value=100,
-                        format="%.1f"
+                        format="%.0f"
                     )
                 },
                 hide_index=True
