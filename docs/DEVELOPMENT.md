@@ -926,20 +926,55 @@ def admin_show():
 - Activity tracking
 
 ##### TMDB Matching
-- Search unmatched shows
-- Review potential matches
-- Validate/reject matches
-- Match metrics
+Card-based layout with:
+```
+[Search Box]
+Search for shows to match...
+
+[Match Cards]
+Title + Air Date         Match Score
+---------------------------------
+Our Show Data    |    TMDB Data
+- Title          |    - Network
+- Network        |    - Executive
+- Year           |      Producers
+- Executive      |
+  Producers      |
+
+Detailed Scores:
+Title Match | Network Match | EP Match
+
+[Validate Match]
+```
+
+Features:
+- Search box for finding shows
+- Clean card layout:
+  - Title and air date in header
+  - Overall match score in top right
+  - Side-by-side comparison
+  - Detailed scores in caption
+  - Centered validate button
+- Consistent styling with announcements
+- Visual indicators for matched EPs (🟢)
+- Quick validation workflow
 
 ##### Announcements
-- System notifications
-- Maintenance alerts
-- Feature updates
+Modern card-based list view:
+- Article title with publish date
+- Link opens in new window
+- Status indicator (new/reviewed)
+- Mark as reviewed button on same line
+- Consistent card styling:
+  - White background
+  - 0.75em padding
+  - 0.5em margin between cards
 
-##### API Metrics
-- Rate limit tracking
-- Usage statistics
-- Error monitoring
+Features:
+- Sort by date (newest first)
+- Filter by status
+- Auto-refresh for new articles
+- Clean, modern UI
 
 #### Data Entry (/data_entry)
 ```python
