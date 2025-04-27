@@ -155,10 +155,28 @@ class ShowDetailAnalyzer:
             Dictionary with score components and total
         """
         # Genre match (40 points total)
-        genre_score = 35 if show1['genre_name'] == show2['genre_name'] else 0
-        # 5 points if they share any subgenre
-        shared_subgenres = bool(set(show1.get('subgenres', []) or []) & set(show2.get('subgenres', []) or []))
-        genre_score += 5 if shared_subgenres else 0
+        # Get all genre matches (main genre and subgenres)
+        genre_matches = []
+        if show1['genre_name'] == show2['genre_name']:
+            genre_matches.append('main')
+        
+        # Get shared subgenres
+        subgenres1 = set(show1.get('subgenres', []) or [])
+        subgenres2 = set(show2.get('subgenres', []) or [])
+        shared_subgenres = subgenres1 & subgenres2
+        genre_matches.extend(['sub'] * len(shared_subgenres))
+        
+        # Calculate genre score:
+        # 30 points for first match (main or sub)
+        # +5 points for second match
+        # +5 points for third match
+        genre_score = 0
+        if len(genre_matches) >= 1:
+            genre_score = 30
+        if len(genre_matches) >= 2:
+            genre_score += 5
+        if len(genre_matches) >= 3:
+            genre_score += 5
         
         # Team overlap (30 points)
         team1 = {member['name'] for member in show1.get('team_members', []) or []}

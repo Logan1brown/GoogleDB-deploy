@@ -123,34 +123,58 @@ def show():
     # Comp List
     st.write("")
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Comp List</p>', unsafe_allow_html=True)
+    
+    # Show scoring explanation
+    with st.expander("ℹ️ Match Score Calculation"):
+        st.write("""
+        Shows are matched based on these factors:
+        - Genre (40 points): 30 for first genre match (main or sub), +5 for second match, +5 for third match
+        - Creative Team (30 points): 10 points per shared team member
+        - Source Material (20 points): Same source type
+        - Release Window (10 points): -2 points per year apart
+        """)
+    
     show_id = show_data['show_id']
     similar_content = show_analyzer.find_similar_shows(show_id)
     if similar_content:
+        # Create a dataframe of similar shows with scores
         similar_content_df = pd.DataFrame([
             {
+                'Show': show.title,
                 'Network': show.network_name,
                 'Success Score': show.success_score or 0,
-                'Similarity': show.match_score['total'] / 100
+                'Match Score': show.match_score['total']
             }
             for show in similar_content[:25]  # Limit to top 25 shows
         ])
+        
+        # Sort by match score then success score
+        similar_content_df = similar_content_df.sort_values(['Match Score', 'Success Score'], ascending=[False, False])
         
         # Display the similar shows in a table
         st.dataframe(
             similar_content_df,
             column_config={
-                "Show": st.column_config.TextColumn("Show"),
-                "Network": st.column_config.TextColumn("Network"),
+                "Show": st.column_config.TextColumn(
+                    "Show",
+                    help="Title of the similar show"
+                ),
+                "Network": st.column_config.TextColumn(
+                    "Network",
+                    help="Network or platform"
+                ),
                 "Success Score": st.column_config.ProgressColumn(
                     "Success",
+                    help="Overall success score based on renewals and episodes",
                     min_value=0,
                     max_value=100,
                     format="%.0f%%"
                 ),
-                "Similarity": st.column_config.ProgressColumn(
-                    "Similarity",
+                "Match Score": st.column_config.ProgressColumn(
+                    "Match",
+                    help="Similarity score based on genre, team, source, and timing",
                     min_value=0,
-                    max_value=1,
+                    max_value=100,
                     format="%.0f%%"
                 )
             },
