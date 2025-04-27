@@ -54,7 +54,8 @@ class ShowsAnalyzer:
         'titles': 'api_market_analysis',  # Use market analysis view for market snapshot
         'networks': 'api_network_stats',
         'team': 'show_team',  # Use raw team table to get all team members
-        'details': 'api_show_details'  # Additional show details for content analysis
+        'details': 'api_show_details',  # Additional show details for content analysis
+        'summary': 'api_show_summary'  # Summary view for show detail page
     }
     
     def __init__(self, cache_dir: Optional[str] = None):
@@ -248,57 +249,7 @@ class ShowsAnalyzer:
             logger.error(f"Error fetching content data: {str(e)}")
             raise  # Re-raise the error so UnifiedAnalyzer can handle it properly
     
-    def fetch_studio_data(self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Internal implementation of fetch_studio_data."""
 
-        try:
-            # Get Supabase client with service key for full access
-            supabase = get_client(use_service_key=True)
-            
-            if supabase is None:
-                raise ValueError("Supabase client not initialized. Check your environment variables.")
-                
-            # Fetch show details with studio names
-            logger.info(f"Fetching data from {self.VIEWS['details']}...")
-            details_data = supabase.table(self.VIEWS['details']).select(
-                'title',
-                'network_name',
-                'studio_names',
-                'status_name',
-                'tmdb_id',
-                'genre_name'
-            ).execute()
-            
-            # Fetch studio categories
-            studio_list_data = supabase.table('studio_list').select(
-                'id',
-                'studio',
-                'type',
-                'parent_company',
-                'division',
-                'platform',
-                'category',
-                'aliases',
-                'active'
-            ).execute()
-            
-            if not hasattr(details_data, 'data') or not details_data.data:
-                raise ValueError(f"No data returned from {self.VIEWS['details']}")
-                
-            details_df = pd.DataFrame(details_data.data)
-            logger.info(f"Fetched {len(details_df)} rows from {self.VIEWS['details']}")
-            
-            # Process studio list data
-            if not hasattr(studio_list_data, 'data') or not studio_list_data.data:
-                raise ValueError("No data returned from studio_list")
-                
-            studio_list_df = pd.DataFrame(studio_list_data.data)
-            # Get active status directly from shows table
-            shows_data = supabase.table('shows').select('title,active').execute()
-            if not hasattr(shows_data, 'data') or not shows_data.data:
-                raise ValueError("No data returned from shows table")
-            shows_df = pd.DataFrame(shows_data.data)
-            
             # Get success metrics
             logger.info(f"Fetching data from {self.VIEWS['titles']}...")
             success_data = supabase.table(self.VIEWS['titles']).select(
@@ -347,6 +298,35 @@ class ShowsAnalyzer:
                 for alias in aliases:
                     if alias:  # Skip empty aliases
                         alias_to_studio[alias] = studio
+                        
+    @st.cache_data(ttl=3600)
+    def fetch_show_data(_self, force: bool = False) -> pd.DataFrame:
+        """Fetch show data from api_show_summary view.
+        
+        Args:
+            force: If True, bypass cache and fetch fresh data
+            
+        Returns:
+            DataFrame with show details from api_show_summary
+        """
+        try:
+            # Get Supabase client with service key for full access
+            supabase = get_client(use_service_key=True)
+            if not supabase:
+                raise ValueError("Supabase client not initialized")
+                
+            # Fetch from api_show_summary view
+            result = supabase.table(_self.VIEWS['summary']).select('*').execute()
+            if not hasattr(result, 'data') or not result.data:
+                raise ValueError("No data returned from api_show_summary")
+                
+            shows_df = pd.DataFrame(result.data)
+            st.write(f"Fetched {len(shows_df)} shows with details")
+            return shows_df
+            
+        except Exception as e:
+            st.write(f"Error fetching show data: {str(e)}")
+            raise
             
             # Helper function to normalize studio names
             def normalize_studio_names(studios):
@@ -367,73 +347,6 @@ class ShowsAnalyzer:
             logger.error(traceback.format_exc())
             return pd.DataFrame(), pd.DataFrame()
             
-    def fetch_team_data(self, force: bool = False) -> pd.DataFrame:
-        """Fetch team member data.
-        
-        Args:
-            force (bool): If True, bypass cache and fetch fresh data
-
-        Returns:
-            pd.DataFrame: Team DataFrame
-        """
-        try:
-            # Get Supabase client with service key for full access
-            supabase = get_client(use_service_key=True)
-            
-            if supabase is None:
-                raise ValueError("Supabase client not initialized. Check your environment variables.")
-                
-            # Fetch all pages for team data (pagination)
-            all_team_rows = []
-            start = 0
-            page_size = 1000
-            page_num = 1
-            while True:
-                page = supabase.table(self.VIEWS['team']).select('*').range(start, start + page_size - 1).execute()
-                if not page.data:
-                    break
-                all_team_rows.extend(page.data)
-                if len(page.data) < page_size:
-                    break
-                start += page_size
-                page_num += 1
-            team_df = pd.DataFrame(all_team_rows)
-            logger.info(f"Fetched {len(team_df)} team members")
-            
-            return team_df
-        except Exception as e:
-            logger.error(f"Error fetching team data: {str(e)}")
-            return pd.DataFrame()
-    
-    def fetch_data(self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """DEPRECATED: Use fetch_market_data(), fetch_content_data(), or fetch_team_data() instead.
-        
-        This method will be removed in a future version. It attempts to merge data that should
-        be kept separate for different analysis components.
-        
-        Args:
-            force (bool): If True, bypass cache and fetch fresh data
-
-        Returns:
-            Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: titles_df, team_df, network_df
-        """
-        logger.warning("fetch_data() is deprecated. Use fetch_market_data(), fetch_content_data(), or fetch_team_data() instead.")
-        
-        if not force and self.titles_df is not None and self.team_df is not None and self.network_df is not None:
-            return self.titles_df, self.team_df, self.network_df
-
-        try:
-            # Get market data
-            self.titles_df, self.network_df = self.fetch_market_data(force)
-            
-            # Get team data
-            self.team_df = self.fetch_team_data(force)
-            
-            return self.titles_df, self.team_df, self.network_df
-        except Exception as e:
-            logger.error(f"Error in deprecated fetch_data: {str(e)}")
-            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-
     def convert_to_list(self, x):
         """Convert a value to a list.
         

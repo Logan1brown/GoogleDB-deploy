@@ -372,7 +372,35 @@ WHERE st.active = true
 GROUP BY st.show_id, s.title;
 ```
 
-##### 6. api_tmdb_match
+##### 6. api_show_summary
+Provides a summary view of show details optimized for the show detail page.
+```sql
+CREATE OR REPLACE VIEW api_show_summary AS
+SELECT
+    show_id,
+    title,
+    description,
+    announced_date,
+    episode_count,
+    tmdb_id,
+    network_name,
+    network_type,
+    parent_company,
+    status_name,
+    genre_name,
+    subgenres,
+    source_name,
+    order_name,
+    tmdb_seasons,
+    tmdb_total_episodes,
+    tmdb_status,
+    tmdb_last_air_date,
+    studios,
+    team_members
+FROM shows_enriched;
+```
+
+##### 7. api_tmdb_match
 ```sql
 -- TMDB matching data for shows without tmdb_id
 CREATE VIEW api_tmdb_match AS

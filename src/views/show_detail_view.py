@@ -1,27 +1,22 @@
-"""Show Detail page for the TV Series Database Dashboard."""
+"""Show Detail View.
+
+This view displays detailed information about a TV show, including:
+1. Basic show information (title, network, status)
+2. Success metrics and performance analysis
+3. Similar shows based on content and network patterns
+"""
 
 import streamlit as st
 import pandas as pd
-import sys
-import os
 
-# Add src to path
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-if src_path not in sys.path:
-    sys.path.append(src_path)
+from src.data_processing.show_detail.show_detail_analyzer import ShowDetailAnalyzer
+from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
 
-from src.shared.auth import auth_required
-from src.dashboard.utils.timing import time_page
-from src.dashboard.utils.style_config import COLORS, FONTS
-
-@auth_required()
-def show():
-    """Main page content."""
-    # Page title using style from style_config
-    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Detail</p>', unsafe_allow_html=True)
+def render_show_detail_view():
+    """Render the show detail view."""
+    st.title("Show Details")
     
     # Initialize analyzers
-    from src.data_processing.show_detail.show_detail_analyzer import ShowDetailAnalyzer
     show_analyzer = ShowDetailAnalyzer()
     
     # Get all shows for selection
@@ -132,6 +127,3 @@ def show():
                 st.write("Examples:", ", ".join(pattern['examples'][:3]))
     else:
         st.info("No network patterns found")
-
-if __name__ == "__main__":
-    show()
