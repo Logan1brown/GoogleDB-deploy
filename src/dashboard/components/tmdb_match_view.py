@@ -61,10 +61,12 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     title_col, score_col = st.columns([3, 1])
     with title_col:
         st.markdown(
+            f"<h3 style='margin: 0; font-size: {FONTS['primary']['sizes']['title']}px;'>"
             f"{match.name}"
-            f"<span style='color: {COLORS['text']['secondary']}'>"
+            f"<span style='color: {COLORS['text']['secondary']}; font-size: {FONTS['primary']['sizes']['body']}px;'>"
             f" ({match.first_air_date or 'Unknown'})"
-            f"</span>",
+            f"</span>"
+            f"</h3>",
             unsafe_allow_html=True
         )
     
@@ -107,11 +109,14 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     
     # Score details
     st.markdown(
-        "Title Match: {title}% · Network Match: {network}% · EP Match: {ep}%".format(
+        f"<div style='font-size: {FONTS['primary']['sizes']['header']}px; margin-top: 1em;'>"
+        "Title Match: {title}% · Network Match: {network}% · EP Match: {ep}%"
+        f"</div>".format(
             title=int(match.title_score),
             network=int(match.network_score),
             ep=int(match.ep_score)
-        )
+        ),
+        unsafe_allow_html=True
     )
     
     # Add validation controls
