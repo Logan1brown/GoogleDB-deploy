@@ -41,6 +41,9 @@ def show_login():
 
 def main_page():
     """Main dashboard page."""
+    # Page title
+    st.markdown(f'<h1 style="font-family: {FONTS["primary"]["family"]}; color: {COLORS["accent"]}; margin-bottom: 1em;">STS Sales Analysis</h1>', unsafe_allow_html=True)
+
     # Welcome message
     st.markdown("""
         Explore straight-to-series TV shows through multiple lenses: market dynamics, content strategies, and studio relationships. 
@@ -58,7 +61,7 @@ def main_page():
 
     **Content Analysis**  
     Deep dive into content strategies across three key phases:
-    - Acquisition: Analyze network preferences and creator track records
+    - Acquisition: Analyze network preferences
     - Packaging: Explore successful creative team combinations
     - Development: Understand format decisions and their impact
 
@@ -68,6 +71,13 @@ def main_page():
     Visualize studio relationships and performance metrics through an interactive network graph. Track studio 
     collaborations, success rates, and partnership patterns. Identify key players and emerging trends in the 
     production landscape.
+
+    **Show Detail** *(Coming Soon)*  
+    Search and explore detailed information about specific shows:
+    - Comprehensive show information including title, network, studios, and creative team
+    - View similar shows in the market
+    - Analyze network patterns across similar show groups
+    - Identify trends and relationships in show packaging and development
     """)
 
     # Dataset section
