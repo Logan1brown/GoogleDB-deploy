@@ -57,28 +57,21 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     # Generate unique key for this match card
     card_key = f"tmdb_match_{match.our_show_id}_{match.tmdb_id}"
     
-    # Add consistent card styling
-    st.markdown(
-        f"<div style='padding: 0.75em; border-radius: 4px; background: white; margin-bottom: 0.5em;'>",
-        unsafe_allow_html=True
-    )
-    
     # Show title and first air date
     title_col, score_col = st.columns([3, 1])
     with title_col:
         st.markdown(
-            f"<h4 style='margin: 0; font-size: {FONTS['primary']['sizes']['header']}px;'>"
             f"{match.name}"
-            f"<span style='color: {COLORS['text']['secondary']}; font-size: {FONTS['primary']['sizes']['small']}px;'>"
+            f"<span style='color: {COLORS['text']['secondary']}'>"
             f" ({match.first_air_date or 'Unknown'})"
-            f"</span>"
-            f"</h4>",
+            f"</span>",
             unsafe_allow_html=True
         )
     
     # Show match scores
     with score_col:
-        st.metric("Match Score", f"{match.ep_score}%")
+        total_score = int((match.title_score + match.network_score + match.ep_score) / 3)
+        st.metric("Match Score", f"{total_score}%")
     
     # Show details in columns
     col1, col2 = st.columns(2)
@@ -113,21 +106,17 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     
     # Score details
     st.markdown(
-        f"<div style='font-size: {FONTS['primary']['sizes']['header']}px;'>"
-        f"Title Match: {match.title_score}% · "
-        f"Network Match: {match.network_score}% · "
-        f"EP Match: {match.ep_score}%"
-        f"</div>",
-        unsafe_allow_html=True
+        "Title Match: {title}% · Network Match: {network}% · EP Match: {ep}%".format(
+            title=int(match.title_score),
+            network=int(match.network_score),
+            ep=int(match.ep_score)
+        )
     )
     
     # Add validation controls
-    st.markdown("")
     if not match.validated:
         if st.button("Validate Match", key=f"validate_{card_key}", type="primary", use_container_width=True):
             if on_validate:
                 on_validate(match)
     else:
         st.success("Match validated!")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
