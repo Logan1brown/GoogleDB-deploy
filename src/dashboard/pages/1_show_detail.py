@@ -54,10 +54,10 @@ def show():
         st.write(f"**Source Type:** {show_data['source_name']}")
     
     with col2:
-        st.write(f"**Order Type:** {show_data['order_type_name']}")
-        st.write(f"**Status:** {show_data['tmdb_status']}")
+        st.write(f"**Order Type:** {show_data['order_name']}")
+        st.write(f"**Status:** {show_data['status_name']}")
         st.write(f"**Episode Count:** {show_data['episode_count']}")
-        st.write(f"**Announcement Date:** {show_data['announced_date']}")
+        st.write(f"**Announced Date:** {show_data['announced_date']}")
         
     st.write("")
     st.write("**Description**")
