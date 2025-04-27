@@ -191,8 +191,11 @@ def show():
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Network Pattern Analysis</p>', unsafe_allow_html=True)
     network_patterns = show_analyzer.analyze_network_patterns(similar_content)
     if network_patterns:
-        st.markdown(f'<p style="margin: 0 0 10px;">**Network Analysis**</p>', unsafe_allow_html=True)
-        for i, network in enumerate(network_patterns.similar_show_counts.keys()):
+        # Sort networks by number of shows (descending)
+        sorted_networks = sorted(network_patterns.similar_show_counts.keys(),
+                                key=lambda x: network_patterns.similar_show_counts[x],
+                                reverse=True)
+        for i, network in enumerate(sorted_networks):
             score = network_patterns.success_scores[network]
             rate = network_patterns.success_rates[network]
             count = network_patterns.similar_show_counts[network]
