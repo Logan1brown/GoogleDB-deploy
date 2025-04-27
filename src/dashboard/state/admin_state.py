@@ -52,6 +52,9 @@ class TMDBMatchState:
     network_score: float = 0.0
     ep_score: float = 0.0
     
+    # Match status
+    validated: bool = False
+    
     # UI state
     expanded: bool = False
     validation_error: Optional[str] = None
