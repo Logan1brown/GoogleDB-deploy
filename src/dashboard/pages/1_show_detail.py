@@ -42,19 +42,51 @@ def show():
     # Get show details
     show_data = shows_df[shows_df['title'] == selected_show].iloc[0]
     
-    # Basic show information
+    # Show information
     st.header("Show Information")
-    col1, col2 = st.columns(2)
+    st.write(f"**Title:** {show_data['title']}")
     
+    col1, col2 = st.columns(2)
     with col1:
-        st.write("**Network:**", show_data['network_name'])
-        st.write("**Status:**", show_data['tmdb_status'])
-        st.write("**Genre:**", show_data['genre_name'])
-        
+        st.write(f"**Network:** {show_data['network_name']}")
+        st.write(f"**Genre:** {show_data['genre_name']}")
+        st.write(f"**Subgenres:** {show_data['subgenres'] or 'None'}")
+        st.write(f"**Source Type:** {show_data['source_name']}")
+    
     with col2:
-        st.write("**Source:**", show_data['source_name'])
-        st.write("**Episodes:**", show_data['episode_count'])
-        st.write("**Announced:**", show_data['announced_date'])
+        st.write(f"**Order Type:** {show_data['order_type_name']}")
+        st.write(f"**Status:** {show_data['tmdb_status']}")
+        st.write(f"**Episode Count:** {show_data['episode_count']}")
+        st.write(f"**Announcement Date:** {show_data['announced_date']}")
+        
+    st.write("")
+    st.write("**Description**")
+    st.write(show_data.get('description') or 'None')
+    
+    # Studios section
+    if show_data.get('studios'):
+        st.write("")
+        st.write("### Studios")
+        for studio in show_data['studios']:
+            st.write(f"- {studio}")
+            
+    # Team members section
+    if show_data.get('team_members'):
+        st.write("")
+        st.write("### Team Members")
+        
+        # Group members by name
+        members_by_name = {}
+        for member in show_data['team_members']:
+            name = member.get('name')
+            role = member.get('role')
+            if name not in members_by_name:
+                members_by_name[name] = []
+            members_by_name[name].append(role)
+            
+        # Display each person with their roles
+        for name, roles in sorted(members_by_name.items()):
+            st.write(f"- **{name}** ({', '.join(roles)})")
         
     # Success metrics
     st.header("Success Metrics")
