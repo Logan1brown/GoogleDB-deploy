@@ -267,10 +267,11 @@ class ShowDetailAnalyzer:
                     network_success_shows[network] = []
                 network_success_shows[network].append(show.success_score)
         
-        # Calculate success rates
+        # Calculate success rates (as percentages)
         success_rates = {}
         for network, scores in network_success_shows.items():
-            success_rates[network] = sum(scores) / len(scores) if scores else 0
+            # Convert to percentage (0-100)
+            success_rates[network] = (sum(scores) / len(scores) * 100) if scores else 0
         
         return NetworkAnalysis(
             similar_show_counts=network_counts,
