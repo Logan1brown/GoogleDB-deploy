@@ -18,7 +18,7 @@ def time_page(func):
         script_path = inspect.getfile(func)
         page_name = script_path.split('/')[-1].replace('.py', '').replace('_', ' ').title()
         if page_name == 'Main':
-            page_name = 'Overview'
+            page_name = 'Show Detail'
         
         # Keep only last 5 timings per page to avoid memory bloat
         if page_name not in st.session_state.page_metrics:

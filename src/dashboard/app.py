@@ -122,7 +122,7 @@ def main():
         pages = {
             "Home": [st.Page(main_page)],
             "Dashboard": [
-                st.Page("src/dashboard/pages/1_overview.py"),
+                st.Page("src/dashboard/pages/1_show_detail.py"),
                 st.Page("src/dashboard/pages/2_market_snapshot.py"),
                 st.Page("src/dashboard/pages/3_content_analysis.py"),
                 st.Page("src/dashboard/pages/4_studio_performance.py")
