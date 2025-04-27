@@ -200,15 +200,15 @@ def show():
             rate = network_patterns.success_rates[network]
             count = network_patterns.similar_show_counts[network]
             if i > 0:
-                st.markdown("---")
+                st.write("")
             st.markdown(f"**{network}**")
-            st.markdown(f"_{count} similar shows_")
             st.markdown("""
-            <div style="margin-left: 20px; margin-top: 5px;">
+            <div style="margin-top: 5px;">
+            • {count} similar shows<br>
             • Average Score: {score:.0f} pts<br>
             • Success Rate: {rate:.0%} of shows score 70+ pts
             </div>
-            """.format(score=score, rate=rate), unsafe_allow_html=True)
+            """.format(count=count, score=score, rate=rate), unsafe_allow_html=True)
     else:
         st.info("No network patterns found")
 
