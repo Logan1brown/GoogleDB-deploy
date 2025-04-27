@@ -50,7 +50,7 @@ def show():
     with col1:
         st.write(f"**Network:** {show_data['network_name']}")
         st.write(f"**Genre:** {show_data['genre_name']}")
-        st.write(f"**Subgenres:** {show_data['subgenres'] or 'None'}")
+        st.write(f"**Subgenres:** {', '.join(show_data['subgenres']) if show_data['subgenres'] else 'None'}")
         st.write(f"**Source Type:** {show_data['source_name']}")
     
     with col2:
@@ -102,29 +102,29 @@ def show():
             seasons = int(show_data['tmdb_seasons'])
             st.write(f"**Seasons:** {seasons}")
             if seasons >= 2:
-                st.success("✓ Renewed for Season 2 (+40 points)")
+                st.write("✓ **Renewed for Season 2** _(+40 points)_")
                 extra_seasons = seasons - 2
                 if extra_seasons > 0:
                     bonus = min(extra_seasons * 20, 40)
-                    st.success(f"✓ Additional seasons bonus (+{bonus} points)")
+                    st.write(f"✓ **Additional seasons bonus** _(+{bonus} points)_")
                     
     with col2:
         if pd.notna(show_data['tmdb_avg_eps']):
             avg_eps = float(show_data['tmdb_avg_eps'])
             st.write(f"**Average Episodes/Season:** {avg_eps:.1f}")
             if avg_eps >= 10:
-                st.success("✓ High episode volume (+40 points)")
+                st.write("✓ **High episode volume** _(+40 points)_")
             elif avg_eps >= 8:
-                st.success("✓ Standard episode volume (+20 points)")
+                st.write("✓ **Standard episode volume** _(+20 points)_")
                 
     # Status modifier
     status = show_data['tmdb_status']
     if status == 'Returning Series':
-        st.info("📈 Active show bonus: Score multiplied by 1.2")
+        st.write("📈 **Active show bonus:** _Score multiplied by 1.2_")
     elif status == 'Ended':
-        st.info("📊 Completed show: No modifier")
+        st.write("📊 **Completed show:** _No modifier_")
     elif status == 'Canceled':
-        st.warning("📉 Canceled show penalty: Score multiplied by 0.8")
+        st.write("📉 **Canceled show penalty:** _Score multiplied by 0.8_")
     
     # Similar shows
     st.header("Similar Shows")
