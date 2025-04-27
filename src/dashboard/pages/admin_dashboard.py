@@ -304,51 +304,61 @@ def render_announcements():
     """Render the announcements section."""
     st.markdown(f"### Announcements")
     
-    # Add search and refresh buttons
-    col1, col2, col3 = st.columns([3, 2, 1])
-    with col1:
-        filter_status = st.selectbox(
-            "Show announcements",
-            ["Unreviewed", "Reviewed", "All"],
-            index=0
-        )
-    with col2:
-        # Add show search
-        selected_show = st_searchbox(
-            search_shows,
-            key="admin_show_search",
-            placeholder="Search existing shows...",
-            clear_on_submit=True
-        )
-        if selected_show:
-            st.info(f"✨ Found show: {selected_show} - Add it in Data Entry if needed")
-    with col3:
-        if st.button("Fetch New", type="primary"):
-            with st.spinner("Fetching articles..."):
-                deadline = DeadlineClient()
-                articles = deadline.search_straight_to_series()
-                
-                # Add new articles to database
-                client = get_admin_client()
-                new_count = 0
-                for article in articles:
-                    try:
-                        client.table('announcements').insert({
-                            'url': article['url'],
-                            'title': article['title'],
-                            'published_date': article['published_date'],
-                            'reviewed': False
-                        }).execute()
-                        new_count += 1
-                    except Exception as e:
-                        if "duplicate key value" not in str(e):
-                            st.error(f"Error adding article: {e}")
-                
-                if new_count > 0:
-                    st.success(f"Added {new_count} new articles")
-                else:
-                    st.info("No new articles found")
-                st.rerun()
+    # Add controls in a container with padding
+    with st.container():
+        st.markdown(f"<div style='padding: 1em 0;'>", unsafe_allow_html=True)
+        
+        # First row: Filter and Search
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            filter_status = st.selectbox(
+                "Filter",  # Shorter label
+                ["Unreviewed", "Reviewed", "All"],
+                index=0
+            )
+        with col2:
+            # Add show search
+            selected_show = st_searchbox(
+                search_shows,
+                key="admin_show_search",
+                placeholder="Search existing shows...",
+                clear_on_submit=True
+            )
+        
+        # Second row: Action buttons and search result
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            if st.button("Fetch New", type="primary"):
+                with st.spinner("Fetching articles..."):
+                    deadline = DeadlineClient()
+                    articles = deadline.search_straight_to_series()
+                    
+                    # Add new articles to database
+                    client = get_admin_client()
+                    new_count = 0
+                    for article in articles:
+                        try:
+                            client.table('announcements').insert({
+                                'url': article['url'],
+                                'title': article['title'],
+                                'published_date': article['published_date'],
+                                'reviewed': False
+                            }).execute()
+                            new_count += 1
+                        except Exception as e:
+                            if "duplicate key value" not in str(e):
+                                st.error(f"Error adding article: {e}")
+                    
+                    if new_count > 0:
+                        st.success(f"Added {new_count} new articles")
+                    else:
+                        st.info("No new articles found")
+                    st.rerun()
+        with col2:
+            if selected_show:
+                st.info(f"✨ Found show: {selected_show} - Add it in Data Entry if needed")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Get announcements based on filter
     client = get_admin_client()
