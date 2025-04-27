@@ -191,9 +191,13 @@ def show():
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin-bottom: 1em;">Network Pattern Analysis</p>', unsafe_allow_html=True)
     network_patterns = show_analyzer.analyze_network_patterns(similar_content)
     if network_patterns:
-        st.write("**Network Success Rates**")
-        for network, rate in network_patterns.success_rates.items():
-            st.write(f"- {network}: {rate:.0%} success rate")
+        st.write("**Network Success Metrics**")
+        for network in network_patterns.similar_show_counts.keys():
+            score = network_patterns.success_scores[network]
+            rate = network_patterns.success_rates[network]
+            st.write(f"- {network}:")
+            st.write(f"  * Average Score: {score:.0f} pts")
+            st.write(f"  * Success Rate: {rate:.0%} of shows score 70+ pts")
             
         st.write("")
         st.write("**Network Distribution**")

@@ -32,7 +32,8 @@ class SimilarShow:
 @dataclass
 class NetworkAnalysis:
     similar_show_counts: Dict[str, int]  # network -> count
-    success_rates: Dict[str, float]      # network -> success rate
+    success_scores: Dict[str, float]     # network -> average success score
+    success_rates: Dict[str, float]      # network -> % of shows with high success
 
 
 class ShowDetailAnalyzer:
@@ -267,13 +268,21 @@ class ShowDetailAnalyzer:
                     network_success_shows[network] = []
                 network_success_shows[network].append(show.success_score)
         
-        # Calculate success rates (as percentages)
+        # Calculate average success scores and rates
+        success_scores = {}
         success_rates = {}
+        HIGH_SUCCESS_THRESHOLD = 70  # Shows with 70+ points considered highly successful
+        
         for network, scores in network_success_shows.items():
-            # Convert to percentage (0-100)
-            success_rates[network] = (sum(scores) / len(scores) * 100) if scores else 0
+            # Average score
+            success_scores[network] = sum(scores) / len(scores) if scores else 0
+            
+            # Success rate (% of shows above threshold)
+            high_success_count = sum(1 for score in scores if score >= HIGH_SUCCESS_THRESHOLD)
+            success_rates[network] = (high_success_count / len(scores)) if scores else 0
         
         return NetworkAnalysis(
             similar_show_counts=network_counts,
+            success_scores=success_scores,
             success_rates=success_rates
         )
