@@ -174,34 +174,75 @@ class ShowDetailAnalyzer:
             'episode_score': 0,    # 8 points
             'order_score': 0,      # 4 points
             'date_score': 0,       # 3 points
+            
+            # Match Details
+            'details': {
+                'genre': {
+                    'primary': show1['genre_name'],
+                    'primary_match': False,
+                    'primary_points': 0,
+                    'shared_subgenres': [],
+                    'subgenre_points': 0
+                },
+                'source': {
+                    'type1': show1['source_name'],
+                    'type2': show2['source_name'],
+                    'match': False
+                },
+                'team': {
+                    'shared_members': []
+                },
+                'format': {
+                    'eps_per_season1': None,
+                    'eps_per_season2': None,
+                    'order_type1': show1['order_name'],
+                    'order_type2': show2['order_name']
+                }
+            }
         }
         
         # Genre match (45 points)
         # Primary genre match (30 points)
-        if show1['genre_name'] == show2['genre_name']:
+        primary_match = show1['genre_name'] == show2['genre_name']
+        if primary_match:
             scores['genre_score'] += 30
+            scores['details']['genre']['primary_match'] = True
+            scores['details']['genre']['primary_points'] = 30
+        scores['details']['genre']['primary'] = show1['genre_name']
         
         # Subgenre matches (15 points)
         subgenres1 = set(show1.get('subgenres', []) or [])
         subgenres2 = set(show2.get('subgenres', []) or [])
         shared_subgenres = subgenres1 & subgenres2
+        scores['details']['genre']['shared_subgenres'] = list(shared_subgenres)
+        
         if len(shared_subgenres) >= 1:
             scores['genre_score'] += 10  # First subgenre match
+            scores['details']['genre']['subgenre_points'] += 10
         if len(shared_subgenres) >= 2:
             scores['genre_score'] += 5   # Second subgenre match
+            scores['details']['genre']['subgenre_points'] += 5
         
         # Team overlap (25 points)
-        team1 = {member['name'] for member in show1.get('team_members', []) or []}
-        team2 = {member['name'] for member in show2.get('team_members', []) or []}
-        team_overlap = len(team1 & team2)
-        scores['team_score'] = min(team_overlap * 8, 25)  # 8 points per member
+        team1 = [(m['name'], m.get('role', 'Unknown')) for m in show1.get('team_members', []) or []]
+        team2 = [(m['name'], m.get('role', 'Unknown')) for m in show2.get('team_members', []) or []]
+        shared_members = set(team1) & set(team2)
+        scores['details']['team']['shared_members'] = list(shared_members)
+        scores['team_score'] = min(len(shared_members) * 8, 25)  # 8 points per member
         
         # Source match (15 points)
-        scores['source_score'] = 15 if show1['source_name'] == show2['source_name'] else 0
+        source_match = show1['source_name'] == show2['source_name']
+        scores['source_score'] = 15 if source_match else 0
+        scores['details']['source']['type1'] = show1['source_name']
+        scores['details']['source']['type2'] = show2['source_name']
+        scores['details']['source']['match'] = source_match
         
         # Episode format match (8 points)
         eps1 = pd.to_numeric(show1['tmdb_total_episodes'], errors='coerce') / pd.to_numeric(show1['tmdb_seasons'], errors='coerce')
         eps2 = pd.to_numeric(show2['tmdb_total_episodes'], errors='coerce') / pd.to_numeric(show2['tmdb_seasons'], errors='coerce')
+        scores['details']['format']['eps_per_season1'] = eps1 if pd.notna(eps1) else None
+        scores['details']['format']['eps_per_season2'] = eps2 if pd.notna(eps2) else None
+        
         if pd.notna(eps1) and pd.notna(eps2):
             eps_diff = abs(eps1 - eps2)
             if eps_diff <= 2:
@@ -212,7 +253,10 @@ class ShowDetailAnalyzer:
                 scores['episode_score'] = 2
         
         # Order type match (4 points)
-        scores['order_score'] = 4 if show1['order_name'] == show2['order_name'] else 0
+        order_match = show1['order_name'] == show2['order_name']
+        scores['order_score'] = 4 if order_match else 0
+        scores['details']['format']['order_type1'] = show1['order_name']
+        scores['details']['format']['order_type2'] = show2['order_name']
         
         # Date proximity (3 points)
         date1 = pd.to_datetime(show1['announced_date']).year if pd.notna(show1.get('announced_date')) else None
