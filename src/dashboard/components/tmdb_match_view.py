@@ -70,7 +70,8 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
     
     # Show match scores
     with score_col:
-        total_score = int((match.title_score + match.network_score + match.ep_score) / 3)
+        # Title: 60%, Network: 25%, EP: 15%
+        total_score = int(match.title_score + match.network_score + match.ep_score)
         st.metric("Match Score", f"{total_score}%")
     
     # Show details in columns
