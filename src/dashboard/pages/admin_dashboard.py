@@ -22,6 +22,7 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
+from streamlit_searchbox import st_searchbox
 from ..components.tmdb_match_view import render_match_card
 from ..components.unmatched_show_view import render_unmatched_shows_table
 from ..components.announcement_view import render_announcements_list
@@ -29,6 +30,7 @@ from ..services.supabase import get_supabase_client
 from ..services.tmdb.match_service import TMDBMatchService
 from ..services.tmdb.tmdb_client import TMDBClient
 from ..services import show_service
+from ..services.show_service import search_shows
 from ..services.deadline.deadline_client import DeadlineClient
 from ..utils.style_config import COLORS, FONTS
 from ..state.admin_state import TMDBMatchState
@@ -302,8 +304,8 @@ def render_announcements():
     """Render the announcements section."""
     st.markdown(f"### Announcements")
     
-    # Add refresh button
-    col1, col2 = st.columns([4, 1])
+    # Add search and refresh buttons
+    col1, col2, col3 = st.columns([3, 2, 1])
     with col1:
         filter_status = st.selectbox(
             "Show announcements",
@@ -311,6 +313,16 @@ def render_announcements():
             index=0
         )
     with col2:
+        # Add show search
+        selected_show = st_searchbox(
+            search_shows,
+            key="admin_show_search",
+            placeholder="Search existing shows...",
+            clear_on_submit=True
+        )
+        if selected_show:
+            st.info(f"✨ Found show: {selected_show} - Add it in Data Entry if needed")
+    with col3:
         if st.button("Fetch New", type="primary"):
             with st.spinner("Fetching articles..."):
                 deadline = DeadlineClient()
@@ -354,8 +366,19 @@ def render_announcements():
         st.info(f"No {filter_status.lower()} announcements")
         return
 
-    # Render announcements in scrollable container
-    render_announcements_list(announcements)
+    def handle_review(announcement: Dict[str, Any]):
+        """Handle review button click"""
+        client.table('announcements')\
+            .update({
+                'reviewed': True,
+                'reviewed_at': datetime.now().isoformat()
+            })\
+            .eq('id', announcement['id'])\
+            .execute()
+        st.rerun()
+
+    # Render announcements with review callback
+    render_announcements_list(announcements, on_review=handle_review)
 
 
 def render_tmdb_matches():
