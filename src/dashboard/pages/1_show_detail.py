@@ -141,6 +141,9 @@ def show():
         # Sort by match score then success score
         similar_content_df = similar_content_df.sort_values(['Match Score', 'Success Score'], ascending=[False, False])
         
+        # Ensure correct column order
+        similar_content_df = similar_content_df.reindex(columns=['Show', 'Network', 'Match Score', 'Success Score'])
+        
         # Display the similar shows in a table
         st.dataframe(
             similar_content_df,
