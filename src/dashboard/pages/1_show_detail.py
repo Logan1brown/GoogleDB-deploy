@@ -99,20 +99,33 @@ def show():
     
     # Content-based similar shows
     st.subheader("Based on Content")
-    similar_content = show_analyzer.find_similar_shows(selected_show)
-    if not similar_content.empty:
-        similar_content_df = pd.DataFrame({
-            'Show': similar_content.index,
-            'Similarity Score': similar_content.values
-        })
+    show_id = show_data['show_id']
+    similar_content = show_analyzer.find_similar_shows(show_id)
+    if similar_content:
+        similar_content_df = pd.DataFrame([
+            {
+                'Show': show.title,
+                'Network': show.network_name,
+                'Success Score': show.success_score or 0,
+                'Similarity': show.match_score['total'] / 100
+            }
+            for show in similar_content
+        ])
         st.dataframe(
             similar_content_df,
             column_config={
                 "Show": st.column_config.TextColumn("Show"),
-                "Similarity Score": st.column_config.ProgressColumn(
-                    "Similarity",
+                "Network": st.column_config.TextColumn("Network"),
+                "Success Score": st.column_config.ProgressColumn(
+                    "Success",
                     min_value=0,
                     max_value=100,
+                    format="%.0f%%"
+                ),
+                "Similarity": st.column_config.ProgressColumn(
+                    "Similarity",
+                    min_value=0,
+                    max_value=1,
                     format="%.0f%%"
                 )
             },
@@ -123,13 +136,17 @@ def show():
         
     # Network pattern analysis
     st.subheader("Network Pattern Analysis")
-    network_patterns = show_analyzer.analyze_network_patterns(selected_show)
+    network_patterns = show_analyzer.analyze_network_patterns(similar_content)
     if network_patterns:
-        for pattern in network_patterns:
-            st.write(f"**{pattern['pattern']}**")
-            st.write(f"Confidence: {pattern['confidence']:.0%}")
-            if pattern.get('examples'):
-                st.write("Examples:", ", ".join(pattern['examples'][:3]))
+        # Show network stats
+        st.write("**Network Success Rates:**")
+        for network, rate in network_patterns.success_rates.items():
+            st.write(f"- {network}: {rate:.0%} success rate")
+            
+        # Show network counts
+        st.write("\n**Network Distribution:**")
+        for network, count in network_patterns.similar_show_counts.items():
+            st.write(f"- {network}: {count} similar shows")
     else:
         st.info("No network patterns found")
 
