@@ -850,7 +850,7 @@ def show():
             
             # Show remove button
             st.divider()
-            if st.button("Remove Show (Click Twice)", type="primary", use_container_width=True):
+            if st.button("Remove Show", type="primary", use_container_width=True):
                 handle_submit(state.show_form)
         else:
             # Form tabs for add/edit
@@ -872,9 +872,9 @@ def show():
             if not state.read_only:
                 st.divider()
                 submit_label = {
-                    "Add Show": "Add Show (Click Twice)",
-                    "Edit Show": "Update Show (Click Twice)",
-                    "Remove Show": "Remove Show (Click Twice)"
+                    "Add Show": "Add Show",
+                    "Edit Show": "Update Show",
+                    "Remove Show": "Remove Show"
                 }.get(state.operation, 'Submit')
                 
                 if st.button(submit_label, type="primary", use_container_width=True):
