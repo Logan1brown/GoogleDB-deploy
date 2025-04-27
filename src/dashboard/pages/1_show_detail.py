@@ -1,4 +1,4 @@
-"""Overview page for the TV Series Database Dashboard."""
+"""Show Detail page for the TV Series Database Dashboard."""
 
 import streamlit as st
 import sys
@@ -17,7 +17,7 @@ from src.dashboard.utils.style_config import COLORS, FONTS
 def show():
     """Main page content."""
     # Page title using style from style_config
-    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Overview</p>', unsafe_allow_html=True)
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Detail</p>', unsafe_allow_html=True)
 
     # Welcome message
     st.markdown("""
