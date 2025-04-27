@@ -314,7 +314,7 @@ def render_announcements():
         )
     with col2:
         # Add show search with label
-        st.markdown("Search Shows")
+        st.text("Search Shows")
         selected_show = st_searchbox(
             search_shows,
             key="admin_show_search",
@@ -354,8 +354,9 @@ def render_announcements():
         with col2:
             if selected_show:
                 st.info(f"✨ Found show: {selected_show} - Add it in Data Entry if needed")
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Add divider before announcements
+    st.markdown("---")
     
     # Get announcements based on filter
     client = get_admin_client()
