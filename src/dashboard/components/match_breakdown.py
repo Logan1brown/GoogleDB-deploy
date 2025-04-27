@@ -34,16 +34,16 @@ def show_match_breakdown(show, expanded=False):
     title = f"{show.title} (Match: {scores['total']}, Success: {success})"
     
     with st.expander(title, expanded=expanded):
-        st.markdown(f"**Network:** {show.network_name}\n")
+        st.write(f"Network: {show.network_name}\n")
         
         # Content Match section
-        st.write(f"Content Match ({scores['content_total']}/85 points)")
+        st.markdown(f"**Content Match** ({scores['content_total']}/85 points)")
         st.write(f"    Genre: {scores['genre_score']}/45")
         st.write(f"    Source Type: {scores['source_score']}/15")
         st.write(f"    Team: {scores['team_score']}/25")
         
         # Format Match section
-        st.write(f"\nFormat Match ({scores['format_total']}/15 points)")
+        st.markdown(f"\n**Format Match** ({scores['format_total']}/15 points)")
         st.write(f"    Episodes: {scores['episode_score']}/8")
         st.write(f"    Order Type: {scores['order_score']}/4")
         st.write(f"    Timing: {scores['date_score']}/3")
