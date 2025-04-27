@@ -157,13 +157,41 @@ class ShowDetailAnalyzer:
     
     def compute_similarity(self, show1: pd.Series, show2: pd.Series) -> Dict:
         """Compute similarity score between two shows.
-        
+
+        Scoring System (100 points total):
+        Content Match (85 points):
+            - Genre (45 points):
+                * Primary genre match: 30 points
+                * Subgenre matches: Up to 15 points
+                    - First match: 10 points
+                    - Second match: 5 points
+            - Team (25 points):
+                * 8 points per shared team member
+                * Maximum 25 points
+            - Source (15 points):
+                * Full match: 15 points
+                * No match: 0 points
+
+        Format Match (15 points):
+            - Episodes (8 points):
+                * ≤2 eps difference: 8 points
+                * ≤4 eps difference: 5 points
+                * ≤6 eps difference: 2 points
+            - Order Type (4 points):
+                * Same order type: 4 points
+            - Timing (3 points):
+                * Based on announcement date proximity
+
         Args:
-            show1: First show data
-            show2: Second show data
-            
+            show1: First show to compare
+            show2: Second show to compare
+
         Returns:
-            Dictionary with score components and total
+            Dictionary containing:
+                - total: Overall similarity score (0-100)
+                - content_total: Content match score (0-85)
+                - format_total: Format match score (0-15)
+                - Individual component scores and match details
         """
         scores = {
             # Content Match (85 points)
