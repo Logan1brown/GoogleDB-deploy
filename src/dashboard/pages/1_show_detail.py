@@ -62,6 +62,35 @@ def show():
             st.write(f"**Episodes:** {show_data['tmdb_total_episodes']}")
         
         st.write("")
+        st.write("**Description**")
+        st.write(show_data.get('description') or 'None')
+        
+        # Studios section
+        if show_data.get('studios'):
+            st.write("")
+            st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Studios</p>', unsafe_allow_html=True)
+            for studio in show_data['studios']:
+                st.write(f"- {studio}")
+                
+        # Team members section
+        if show_data.get('team_members'):
+            st.write("")
+            st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Team Members</p>', unsafe_allow_html=True)
+            
+            # Group members by name
+            members_by_name = {}
+            for member in show_data['team_members']:
+                name = member.get('name')
+                role = member.get('role')
+                if name not in members_by_name:
+                    members_by_name[name] = []
+                members_by_name[name].append(role)
+                
+            # Display each person with their roles
+            for name, roles in sorted(members_by_name.items()):
+                st.write(f"- **{name}** ({', '.join(roles)})")
+        
+        st.write("")
         # Success metrics
         st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Success Metrics</p>', unsafe_allow_html=True)
         success_score = show_data['success_score']
