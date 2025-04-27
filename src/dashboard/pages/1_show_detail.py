@@ -5,6 +5,8 @@ import pandas as pd
 import sys
 import os
 
+from src.dashboard.components.match_breakdown import render_match_breakdown
+
 # Add src to path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if src_path not in sys.path:
@@ -185,6 +187,24 @@ def show():
                 - Source Material (20 points): Same source type
                 - Release Window (10 points): -2 points per year apart
                 """)
+                
+            # Show top 10 matches with detailed breakdown
+            st.write("")
+            # Section header
+            st.markdown(
+                f'<p style="font-family: {FONTS["primary"]["family"]}; '
+                f'font-size: {FONTS["primary"]["sizes"]["header"]}px; '
+                f'font-weight: 600; color: {COLORS["text"]["primary"]}; '
+                f'margin: 20px 0;">Top Matches Breakdown</p>',
+                unsafe_allow_html=True
+            )
+            
+            # Sort by match score and take top 10
+            top_matches = sorted(similar_content[:10], key=lambda x: x.match_score['total'], reverse=True)
+            
+            # Render each match breakdown
+            for i, show in enumerate(top_matches):
+                render_match_breakdown(show, expanded=(i == 0))  # Auto-expand first match
         else:
             st.info("No similar shows found")
     
