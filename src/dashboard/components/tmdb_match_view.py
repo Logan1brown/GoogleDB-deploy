@@ -112,22 +112,22 @@ def render_match_card(match: TMDBMatchState, on_validate=None):
             st.markdown("*No executive producers found*")
     
     # Score details
-    st.caption(
+    st.markdown(
+        f"<div style='font-size: {FONTS['primary']['sizes']['header']}px;'>"
         f"Title Match: {match.title_score}% · "
         f"Network Match: {match.network_score}% · "
         f"EP Match: {match.ep_score}%"
+        f"</div>",
+        unsafe_allow_html=True
     )
     
-    # Center the validate button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    # Validate Match button in center column
-    with col2:
-        if not match.validated:
-            if st.button("Validate Match", key=f"validate_{card_key}"):
-                if on_validate:
-                    on_validate(match)
-        else:
-            st.success("Match validated!")
+    # Add validation controls
+    st.markdown("")
+    if not match.validated:
+        if st.button("Validate Match", key=f"validate_{card_key}", type="primary", use_container_width=True):
+            if on_validate:
+                on_validate(match)
+    else:
+        st.success("Match validated!")
     
     st.markdown("</div>", unsafe_allow_html=True)
