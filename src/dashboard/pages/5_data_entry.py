@@ -590,16 +590,17 @@ def handle_team_remove(member_key: str):
     state = get_data_entry_state()
     show_form = state.show_form
     
-    # Parse index from key if it's numeric
+    # Split the key into name and role_id
     try:
-        index = int(member_key)
-        # Remove by index for legacy members
-        if 0 <= index < len(show_form.team_members):
-            show_form.team_members.pop(index)
-    except ValueError:
-        # Remove by ID for new members
+        name, role_id = member_key.rsplit('_', 1)
+        role_id = int(role_id)
+        # Remove the specific member with matching name and role
         show_form.team_members = [m for m in show_form.team_members 
-                                if m.get('id', '') != member_key]
+                                if not (m['name'] == name and 
+                                       m['role_type_id'] == role_id)]
+    except (ValueError, AttributeError):
+        # Fallback for any malformed keys
+        pass
     
     # Update state and mark as modified
     state.form_modified = True
@@ -697,8 +698,8 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
             # Remove button
             if not readonly:
                 with col2:
-                    # Use index for legacy members, ID for new ones
-                    member_key = member.get('id', str(i))
+                    # Create a unique key using name and role
+                    member_key = f"{member['name']}_{member['role_type_id']}"
                     if st.button("✕", key=f"remove_team_{member_key}"):
                         handle_team_remove(member_key)
     
