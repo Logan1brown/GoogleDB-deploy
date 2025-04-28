@@ -567,7 +567,7 @@ def handle_team_save():
     state.form_error = None
     
     # Add team member for each role
-    for role_id, _ in role_types:
+    for role_id in role_types:
         member_id = f"{name.lower().replace(' ', '_')}_{role_id}_{int(time.time())}"
         show_form.team_members.append({
             'id': member_id,
@@ -575,15 +575,16 @@ def handle_team_save():
             'role_type_id': role_id
         })
     
-    # Clear form
-    if 'team_member_name' in st.session_state:
-        del st.session_state['team_member_name']
-    if 'team_member_role_types' in st.session_state:
-        del st.session_state['team_member_role_types']
+    # Clear form (will happen automatically since we use empty defaults)
+    st.session_state.team_member_name = ""
+    st.session_state.team_member_role_types = []
     
     # Mark form as modified
     state.form_modified = True
     update_data_entry_state(state)
+    
+    # Force rerun to clear the form
+    st.rerun()
 
 def handle_team_remove(member_key: str):
     """Handle removing a team member"""
@@ -645,40 +646,39 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
         with st.form("new_team_member_form"):
             col1, col2 = st.columns([3,1])
             with col1:
-                st.text_input(
+                name_input = st.text_input(
                     "Add Team Member",
                     key="team_member_name",
-                    value=st.session_state.get('team_member_name', ''),
+                    value="",  # Always start empty
                     placeholder="Enter team member name"
                 )
+            
+            # Move role selection inside form
+            role_options = [(r['id'], r['name']) for r in lookups.get('role_types', [])]
+            roles = st.multiselect(
+                "Select Roles",
+                options=role_options,
+                format_func=lambda x: x[1],
+                key="team_member_role_types",
+                default=[],  # Always start empty
+                disabled=readonly
+            )
+            
             with col2:
                 st.write("")
-                st.form_submit_button(
+                submitted = st.form_submit_button(
                     "Add Member",
-                    on_click=handle_team_save,
                     type="primary",
                     use_container_width=True
                 )
-    
-
-    # Then select roles
-    role_options = [(r['id'], r['name']) for r in lookups.get('role_types', [])]
-    # Convert default IDs to tuples
-    default_roles = []
-    saved_roles = st.session_state.get('team_member_role_types', [])
-    if saved_roles:
-        role_map = {r[0]: r for r in role_options}
-        default_roles = [role_map[role_id] for role_id in saved_roles if role_id in role_map]
-    
-    st.multiselect(
-        "Select Roles",
-        options=role_options,
-        format_func=lambda x: x[1],
-        key="team_member_role_types",
-        default=default_roles,
-        disabled=readonly,
-        on_change=lambda: handle_team_select(st.session_state.team_member_role_types)
-    )
+                
+            # Handle form submission
+            if submitted:
+                # Save values to session state
+                st.session_state.team_member_name = name_input
+                st.session_state.team_member_role_types = roles
+                # Call save handler
+                handle_team_save()
     
     # Display existing team members
     if show_form.team_members:
