@@ -406,9 +406,11 @@ def render_tmdb_matches():
         matching.error_message = None
         update_admin_state(state)
     
-    # Show unmatched shows count
+    # Get unmatched shows and show count
     unmatched_shows = show_service.get_unmatched_shows()
-    st.metric("Unmatched Shows", len(unmatched_shows))
+    col1, col2, col3 = st.columns([1,1,1])
+    with col2:
+        st.metric("Unmatched Shows", len(unmatched_shows))
     st.write("")
     
     # Add search box with caption
