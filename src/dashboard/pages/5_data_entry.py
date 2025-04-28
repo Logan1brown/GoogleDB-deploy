@@ -585,13 +585,21 @@ def handle_team_save():
     state.form_modified = True
     update_data_entry_state(state)
 
-def handle_team_remove(member_id: str):
-    """Handle removing a team member by their ID"""
+def handle_team_remove(member_key: str):
+    """Handle removing a team member"""
     state = get_data_entry_state()
     show_form = state.show_form
     
-    # Find and remove the team member by ID
-    show_form.team_members = [m for m in show_form.team_members if m['id'] != member_id]
+    # Parse index from key if it's numeric
+    try:
+        index = int(member_key)
+        # Remove by index for legacy members
+        if 0 <= index < len(show_form.team_members):
+            show_form.team_members.pop(index)
+    except ValueError:
+        # Remove by ID for new members
+        show_form.team_members = [m for m in show_form.team_members 
+                                if m.get('id', '') != member_key]
     
     # Update state and mark as modified
     state.form_modified = True
@@ -689,9 +697,10 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
             # Remove button
             if not readonly:
                 with col2:
-                    member_id = member.get('id', str(i))  # Fallback to index if no ID
-                    if st.button("✕", key=f"remove_team_{member_id}"):
-                        handle_team_remove(member_id)
+                    # Use index for legacy members, ID for new ones
+                    member_key = member.get('id', str(i))
+                    if st.button("✕", key=f"remove_team_{member_key}"):
+                        handle_team_remove(member_key)
     
     # Apply Changes button
     if st.button(
