@@ -6,14 +6,83 @@ Analyzes studio performance metrics including:
 - Show volume and success rates
 """
 
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
+from pathlib import Path
 import pandas as pd
 import logging
 import streamlit as st
-logger = logging.getLogger(__name__)
-# No longer using Google Sheets
-# from src.dashboard.utils.sheets_client import sheets_client
+from ..analyze_shows import ShowsAnalyzer
+from ...dashboard.utils.supabase_client import get_client
 
+logger = logging.getLogger(__name__)
+
+
+class StudioAnalyzer:
+    """Analyzer for studio performance metrics.
+    
+    This class handles fetching and analyzing studio data from Supabase.
+    Results are cached to avoid unnecessary recomputation.
+    """
+    
+    def __init__(self, cache_dir: Optional[str] = None):
+        """Initialize the analyzer.
+        
+        Args:
+            cache_dir: Directory to store cached results. Defaults to 'cache' in current dir.
+        """
+        try:
+            self.cache_dir = Path(cache_dir) if cache_dir else Path.cwd() / 'cache'
+            self.cache_dir.mkdir(exist_ok=True)
+            
+            self.shows_df: Optional[pd.DataFrame] = None
+            self.studio_categories_df: Optional[pd.DataFrame] = None
+            self.last_fetch: Optional[datetime] = None
+        except Exception as e:
+            logger.error(f"Error during initialization: {str(e)}")
+            raise
+
+    @st.cache_data(ttl=3600)
+    def fetch_studio_data(_self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Fetch data needed for studio analysis.
+        
+        Args:
+            force (bool): If True, bypass cache and fetch fresh data
+
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]: shows_df (with market data), studio_categories_df
+        """
+        try:
+            # Get Supabase client with service key for full access
+            supabase = get_client(use_service_key=True)
+            
+            if supabase is None:
+                raise ValueError("Supabase client not initialized. Check your environment variables.")
+            
+            # First get shows data from ShowsAnalyzer
+            shows_analyzer = ShowsAnalyzer()
+            shows_df, _, _ = shows_analyzer.fetch_market_data(force=force)
+            
+            # Fetch studio_list from Supabase
+            studio_list_data = supabase.table('studio_list').select('*').execute()
+            if not hasattr(studio_list_data, 'data') or not studio_list_data.data:
+                raise ValueError("No data returned from studio_list table")
+                
+            studio_categories_df = pd.DataFrame(studio_list_data.data)
+            
+            # Verify required columns
+            required_cols = ['studio', 'category', 'active']
+            missing_cols = [col for col in required_cols if col not in studio_categories_df.columns]
+            if missing_cols:
+                raise ValueError(f"Missing required columns in studio_categories_df: {missing_cols}")
+            
+            # Filter for active studios
+            studio_categories_df = studio_categories_df[studio_categories_df['active'] == True].copy()
+            
+            return shows_df, studio_categories_df
+            
+        except Exception as e:
+            logger.error(f"Error fetching studio data: {str(e)}")
+            raise
 
 def filter_active_shows(shows_df: pd.DataFrame) -> pd.DataFrame:
     """Filter for active shows if the active column exists.
@@ -65,8 +134,20 @@ def get_shows_for_studio(shows_df: pd.DataFrame, studio: str, studio_categories_
     Returns:
         DataFrame containing only shows that include this studio
     """
-    # Get active studios from categories
-    active_studios = set(studio_categories_df[studio_categories_df['active']]['studio'].unique())
+    # Check if studio is active in categories if we have them
+    if studio_categories_df is not None:
+        if not studio_categories_df[studio_categories_df['active']]['studio'].str.contains(studio).any():
+            return pd.DataFrame()
+    
+    # Get active studios from categories if available, otherwise use all studios
+    if studio_categories_df is not None:
+        active_studios = set(studio_categories_df[studio_categories_df['active']]['studio'].unique())
+    else:
+        # Get all unique studios from shows_df
+        active_studios = set()
+        for studios in shows_df['studio_names']:
+            if studios:  # Check if not None/empty
+                active_studios.update(studios)
     
     # Only proceed if this studio is active
     if studio not in active_studios:
@@ -107,7 +188,15 @@ def analyze_studio_relationships(shows_df: pd.DataFrame, studio_categories_df: p
     shows_df = filter_active_shows(shows_df)
     
     # Get active studios from categories
-    active_studios = set(studio_categories_df[studio_categories_df['active']]['studio'].unique())
+    # Get active studios from categories if available, otherwise use all studios
+    if studio_categories_df is not None:
+        active_studios = set(studio_categories_df[studio_categories_df['active']]['studio'].unique())
+    else:
+        # Get all unique studios from shows_df
+        active_studios = set()
+        for studios in shows_df['studio_names']:
+            if studios:  # Check if not None/empty
+                active_studios.update(studios)
     
     # Get studio sizes by show count
     studio_sizes = {}

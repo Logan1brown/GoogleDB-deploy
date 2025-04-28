@@ -16,7 +16,7 @@ if src_path not in sys.path:
 from src.shared.auth import auth_required
 from src.dashboard.utils.timing import time_page
 from src.dashboard.utils.style_config import COLORS, FONTS
-from src.data_processing.analyze_shows import ShowsAnalyzer
+from src.data_processing.studio_performance.studio_analyzer import StudioAnalyzer
 from src.dashboard.components.studio_view import render_studio_performance_dashboard
 from src.dashboard.state.session import get_page_state
 
@@ -30,12 +30,9 @@ def show():
         # Get page state
         state = get_page_state("studio_performance")
         
-        # Initialize ShowsAnalyzer and fetch data
-        shows_analyzer = ShowsAnalyzer()
-        shows_df, _, _ = shows_analyzer.fetch_market_data()
-        
-        # For now, pass None for studio_categories_df since we haven't implemented it yet
-        studio_categories_df = None
+        # Initialize StudioAnalyzer and fetch data
+        studio_analyzer = StudioAnalyzer()
+        shows_df, studio_categories_df = studio_analyzer.fetch_studio_data()
         
         # Render the studio performance dashboard
         render_studio_performance_dashboard(shows_df, studio_categories_df)
