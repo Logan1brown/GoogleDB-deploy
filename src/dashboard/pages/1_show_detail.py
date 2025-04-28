@@ -181,8 +181,6 @@ def show():
             st.write("")
             with st.expander("ℹ️ Match Score Calculation"):
                 st.markdown("""
-        ℹ️ Match Score Calculation
-
         Shows are matched based on these factors (100 points total):
 
         Content Match (55 points):

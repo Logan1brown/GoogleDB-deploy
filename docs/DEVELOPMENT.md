@@ -41,21 +41,25 @@
 #### Match Breakdown
 The match breakdown component displays similarity scores between shows:
 
-1. **Content Match** (85 points)
+1. **Content Match** (55 points)
    - Genre (40 points)
      - Primary genre match: 27 points
-     - Subgenres: up to 13 points
+     - First subgenre: 8 points
+     - Second subgenre: 5 points
    - Source (15 points)
 
 2. **Production** (30 points)
    - Network (7 points)
    - Studio (3 points)
    - Team (20 points)
-     - 6.7 points per shared team member
+     - 6.7 points per shared team member (max 20)
      - Includes creators and executive producers
 
 3. **Format Match** (15 points)
    - Episodes (8 points)
+     - ≤2 eps difference: 8 points
+     - ≤4 eps difference: 5 points
+     - ≤6 eps difference: 2 points
    - Order Type (4 points)
    - Timing (3 points)
 
