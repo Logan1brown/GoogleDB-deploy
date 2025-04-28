@@ -406,6 +406,11 @@ def render_tmdb_matches():
         matching.error_message = None
         update_admin_state(state)
     
+    # Show unmatched shows count
+    unmatched_shows = show_service.get_unmatched_shows()
+    st.metric("Unmatched Shows", len(unmatched_shows))
+    st.write("")
+    
     # Add search box with caption
     st.caption("Search for shows to match with TMDB")
     selected_title = st_searchbox(
@@ -419,27 +424,40 @@ def render_tmdb_matches():
     if selected_title:
         # Get show data and search for matches
         with st.spinner(f"Searching TMDB for {selected_title}..."):
-            # Get our show data
-            show_data = show_service.load_show(selected_title)
-            if show_data:
-                # Get TMDB matches
-                matches = match_service.search_and_match(show_data)
-                
-                if not matches:
-                    st.warning("No matches found")
-                else:
-                    # Store matches in state
-                    matching.matches = matches
-                    matching.search_query = show_data['title']
-                    matching.our_eps = []  # We'll get EPs from TMDB match
-                    matching.last_validation = None  # Clear any previous validation
-                    update_admin_state(state)
+            try:
+                # Get our show data
+                show_data = show_service.load_show(selected_title)
+                if show_data:
+                    # Make sure we have an ID
+                    if 'id' not in show_data:
+                        st.error(f"No ID found for show {selected_title}")
+                        return
+                        
+                    # Store show ID for matching
+                    show_data['show_id'] = show_data['id']  # Add show_id for match service
+                    matching.our_show_id = show_data['id']
+                    matching.our_show_title = show_data['title']
                     
-                    # Only clear search box after successful match
-                    if 'tmdb_search_bar' in st.session_state:
-                        del st.session_state['tmdb_search_bar']
-            else:
-                st.error(f"Could not load show data for {selected_title}")
+                    # Get TMDB matches
+                    matches = match_service.search_and_match(show_data)
+                    
+                    if not matches:
+                        st.warning("No matches found")
+                    else:
+                        # Store matches in state
+                        matching.matches = matches
+                        matching.search_query = show_data['title']
+                        matching.our_eps = []  # We'll get EPs from TMDB match
+                        matching.last_validation = None  # Clear any previous validation
+                        update_admin_state(state)
+                        
+                        # Only clear search box after successful match
+                        if 'tmdb_search_bar' in st.session_state:
+                            del st.session_state['tmdb_search_bar']
+                else:
+                    st.error(f"Could not load show data for {selected_title}")
+            except Exception as e:
+                st.error(f"Error loading show: {str(e)}")
     
     # Add tip about search
     if not matching.matches or matching.validated_show_id:
