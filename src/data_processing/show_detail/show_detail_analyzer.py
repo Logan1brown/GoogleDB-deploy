@@ -228,6 +228,16 @@ class ShowDetailAnalyzer:
                     'eps_per_season2': None,
                     'order_type1': show1['order_name'],
                     'order_type2': show2['order_name']
+                },
+                'network': {
+                    'name1': show1['network_name'],
+                    'name2': show2['network_name'],
+                    'match': show1['network_name'] == show2['network_name']
+                },
+                'studio': {
+                    'name1': show1.get('studio_name'),
+                    'name2': show2.get('studio_name'),
+                    'match': show1.get('studio_name') == show2.get('studio_name') and show1.get('studio_name') is not None
                 }
             }
         }
