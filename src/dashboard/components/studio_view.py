@@ -453,7 +453,7 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame, studio_categorie
                     "Select Studio",
                     studio_options,
                     help="Choose a studio to analyze",
-                    key="studio_filter_studio"
+                    key="studio_filter_tab_studio"
                 )
                 
             with content_col:
