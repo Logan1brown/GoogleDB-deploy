@@ -408,9 +408,22 @@ def render_tmdb_matches():
     
     # Get unmatched shows and show count
     unmatched_shows = show_service.get_unmatched_shows()
-    col1, col2, col3 = st.columns([1,1,1])
+    
+    # Get matched shows count
+    matched_response = supabase.table('shows')\
+        .select('id', count='exact')\
+        .not_.is_('tmdb_id', 'null')\
+        .execute()
+    matched_count = matched_response.count if matched_response.count is not None else 0
+    
+    # Display metrics
+    col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        st.metric("Unmatched Shows", len(unmatched_shows))
+        mcol1, mcol2 = st.columns(2)
+        with mcol1:
+            st.metric("Unmatched Shows", len(unmatched_shows))
+        with mcol2:
+            st.metric("Matched Shows", matched_count)
     st.write("")
     
     # Add search box with caption
