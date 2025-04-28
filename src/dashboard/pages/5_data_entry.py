@@ -575,18 +575,13 @@ def handle_team_save():
             'role_type_id': role_id
         })
     
-    # Clear form
-    if 'team_member_name' in st.session_state:
-        del st.session_state['team_member_name']
-    if 'team_member_role_types' in st.session_state:
-        del st.session_state['team_member_role_types']
+    # Reset form by setting empty values
+    st.session_state.team_member_name = ""
+    st.session_state.team_member_role_types = []
     
     # Mark form as modified
     state.form_modified = True
     update_data_entry_state(state)
-    
-    # Force rerun to clear the form
-    st.rerun()
 
 def handle_team_remove(member_key: str):
     """Handle removing a team member"""
@@ -648,29 +643,27 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
         # Role options outside form to avoid reinitialization
         role_options = [(r['id'], r['name']) for r in lookups.get('role_types', [])]
         
-        with st.form("new_team_member_form"):
+        # Initialize form keys if not present
+        if 'team_member_name' not in st.session_state:
+            st.session_state.team_member_name = ""
+        if 'team_member_role_types' not in st.session_state:
+            st.session_state.team_member_role_types = []
+            
+        with st.form("new_team_member_form", clear_on_submit=True):
             col1, col2 = st.columns([3,1])
             with col1:
                 st.text_input(
                     "Add Team Member",
                     key="team_member_name",
-                    value=st.session_state.get('team_member_name', ''),
                     placeholder="Enter team member name"
                 )
-            
-            # Convert default IDs to tuples
-            default_roles = []
-            saved_roles = st.session_state.get('team_member_role_types', [])
-            if saved_roles:
-                role_map = {r[0]: r for r in role_options}
-                default_roles = [role_map[role_id] for role_id in saved_roles if role_id in role_map]
             
             st.multiselect(
                 "Select Roles",
                 options=role_options,
                 format_func=lambda x: x[1],
                 key="team_member_role_types",
-                default=default_roles,
+                default=[],
                 disabled=readonly
             )
             
