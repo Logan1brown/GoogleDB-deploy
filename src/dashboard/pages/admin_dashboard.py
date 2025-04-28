@@ -409,7 +409,8 @@ def render_tmdb_matches():
     # Get unmatched shows and show count
     unmatched_shows = show_service.get_unmatched_shows()
     
-    # Get matched shows count
+    # Get matched shows count using admin client
+    supabase = get_supabase_client()
     matched_response = supabase.table('shows')\
         .select('id', count='exact')\
         .not_.is_('tmdb_id', 'null')\
