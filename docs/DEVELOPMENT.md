@@ -32,6 +32,38 @@
    - [Admin Dashboard](#admin-dashboard)
    - [Data Entry](#data-entry)
    - [Market Analysis](#market-analysis)
+   - [Show Detail](#show-detail)
+     - [Match Breakdown](#match-breakdown)
+     - [Similar Shows](#similar-shows)
+
+### Show Detail
+
+#### Match Breakdown
+The match breakdown component displays similarity scores between shows:
+
+1. **Content Match** (85 points)
+   - Genre (40 points)
+     - Primary genre match: 27 points
+     - Subgenres: up to 13 points
+   - Source (15 points)
+
+2. **Production** (30 points)
+   - Network (7 points)
+   - Studio (3 points)
+   - Team (20 points)
+     - 6.7 points per shared team member
+     - Includes creators and executive producers
+
+3. **Format Match** (15 points)
+   - Episodes (8 points)
+   - Order Type (4 points)
+   - Timing (3 points)
+
+Layout:
+- Expandable sections for each show
+- Two-column layout for better space utilization
+- Clear score breakdowns with match/mismatch indicators
+- Handles missing data gracefully (especially for TMDB gaps)
 
 ### III. Integration & APIs
 1. [TMDB Integration](#tmdb-integration-1)
