@@ -32,7 +32,10 @@ def show():
         
         # Initialize ShowsAnalyzer and fetch data
         shows_analyzer = ShowsAnalyzer()
-        shows_df, studio_categories_df = shows_analyzer.fetch_studio_data()
+        shows_df, _, _ = shows_analyzer.fetch_market_data()
+        
+        # For now, pass None for studio_categories_df since we haven't implemented it yet
+        studio_categories_df = None
         
         # Render the studio performance dashboard
         render_studio_performance_dashboard(shows_df, studio_categories_df)
