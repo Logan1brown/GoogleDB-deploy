@@ -34,13 +34,16 @@ def show_match_breakdown(show, expanded=False):
     title = f"{show.title} (Match: {int(scores['total'])}, Success: {int(success) if success is not None else 'N/A'})"
     
     with st.expander(title, expanded=expanded):
-        st.write(f"Network: {show.network_name}")
+        # Title as a header
+        st.markdown(f"### {show.title}")
+        st.markdown(f"Match: {int(scores['total'])}, Success: {int(success) if success is not None else 'N/A'}")
         
         # Content Match section
         st.markdown(f"**Content Match** ({scores['content_total']}/85 points)")
         
-        details = scores['details']
+        # Genre and Source (core content)
         col1, col2 = st.columns(2)
+        details = scores['details']
         
         with col1:
             # Genre details
@@ -52,21 +55,6 @@ def show_match_breakdown(show, expanded=False):
                 points = genre['subgenre_points']
                 genres = ', '.join(genre['shared_subgenres'])
                 st.write(f"✓ Subgenres: {genres} (+{points})")
-            
-            # Team details
-            team = details['team']
-            st.write(f"\nTeam: {scores['team_score']}/20")
-            if team['shared_members']:
-                for name, role in team['shared_members']:
-                    st.write(f"✓ {name} ({role})")
-            
-            # Network details
-            network = details['network']
-            st.write(f"\nNetwork: {scores['network_score']}/7")
-            if network['match']:
-                st.write(f"✓ Both {network['name1']}")
-            else:
-                st.write(f"× {network['name1']} vs {network['name2']}")
         
         with col2:
             # Source details
@@ -76,6 +64,28 @@ def show_match_breakdown(show, expanded=False):
                 st.write(f"✓ Both {source['type1']}")
             else:
                 st.write(f"× {source['type1']} vs {source['type2']}")
+        
+        # Production section
+        st.markdown(f"\n**Production** ({scores['team_score'] + scores['network_score'] + scores['studio_score']}/30 points)")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Team details
+            team = details['team']
+            st.write(f"Team: {scores['team_score']}/20")
+            if team['shared_members']:
+                for name, role in team['shared_members']:
+                    st.write(f"✓ {name} ({role})")
+        
+        with col2:
+            # Network details
+            network = details['network']
+            st.write(f"Network: {scores['network_score']}/7")
+            if network['match']:
+                st.write(f"✓ Both {network['name1']}")
+            else:
+                st.write(f"× {network['name1']} vs {network['name2']}")
             
             # Studio details
             studio = details['studio']
@@ -98,7 +108,7 @@ def show_match_breakdown(show, expanded=False):
             st.write(f"Episodes: {scores['episode_score']}/8")
             eps1, eps2 = format['eps_per_season1'], format['eps_per_season2']
             if eps1 is not None and eps2 is not None:
-                st.write(f"{eps1:.1f} vs {eps2:.1f} eps/season")
+                st.write(f"{int(eps1)} vs {int(eps2)} eps/season")
             
             # Order type
             st.write(f"\nOrder Type: {scores['order_score']}/4")
