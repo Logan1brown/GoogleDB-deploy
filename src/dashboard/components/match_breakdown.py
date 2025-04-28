@@ -65,30 +65,34 @@ def show_match_breakdown(show, expanded=False):
         # Production section
         st.markdown(f"\n**Production** ({scores['team_score'] + scores['network_score'] + scores['studio_score']}/30 points)")
         
-        # Network details
-        network = details['network']
-        st.write(f"Network: {scores['network_score']}/7")
-        if network['match']:
-            st.write(f"✓ Both {network['name1']}")
-        else:
-            st.write(f"× {network['name1']} vs {network['name2']}")
+        col1, col2 = st.columns(2)
         
-        # Studio details
-        studio = details['studio']
-        st.write(f"\nStudio: {scores['studio_score']}/3")
-        if studio['match']:
-            st.write(f"✓ Both {studio['name1']}")
-        elif studio['name1'] and studio['name2']:
-            st.write(f"× {studio['name1']} vs {studio['name2']}")
-        else:
-            st.write(f"× Missing studio data")
+        with col1:
+            # Network details
+            network = details['network']
+            st.write(f"Network: {scores['network_score']}/7")
+            if network['match']:
+                st.write(f"✓ Both {network['name1']}")
+            else:
+                st.write(f"× {network['name1']} vs {network['name2']}")
+            
+            # Studio details
+            studio = details['studio']
+            st.write(f"\nStudio: {scores['studio_score']}/3")
+            if studio['match']:
+                st.write(f"✓ Both {studio['name1']}")
+            elif studio['name1'] and studio['name2']:
+                st.write(f"× {studio['name1']} vs {studio['name2']}")
+            else:
+                st.write(f"× Missing studio data")
         
-        # Team details
-        team = details['team']
-        st.write(f"\nTeam: {scores['team_score']}/20")
-        if team['shared_members']:
-            for name, role in team['shared_members']:
-                st.write(f"✓ {name} ({role})")
+        with col2:
+            # Team details
+            team = details['team']
+            st.write(f"Team: {scores['team_score']}/20")
+            if team['shared_members']:
+                for name, role in team['shared_members']:
+                    st.write(f"✓ {name} ({role})")
         
         # Format Match section
         st.markdown(f"\n**Format Match** ({scores['format_total']}/15 points)")
