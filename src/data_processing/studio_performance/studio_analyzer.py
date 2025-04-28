@@ -12,8 +12,8 @@ from datetime import datetime
 import pandas as pd
 import logging
 import streamlit as st
-from ..analyze_shows import ShowsAnalyzer
-from ...dashboard.utils.supabase_client import get_client
+from data_processing.analyze_shows import ShowsAnalyzer
+from dashboard.utils.supabase_client import get_client
 
 logger = logging.getLogger(__name__)
 
