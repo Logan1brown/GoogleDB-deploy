@@ -413,14 +413,10 @@ def render_tmdb_matches():
         label="Search existing shows",
         placeholder="Start typing show title (3+ characters)...",
         key="tmdb_search_bar",
-        clear_on_submit=True
+        clear_on_submit=False  # Don't clear until we've found matches
     )
     
     if selected_title:
-        # Clear search box immediately
-        if 'tmdb_search_bar' in st.session_state:
-            del st.session_state['tmdb_search_bar']
-            
         # Get show data and search for matches
         with st.spinner(f"Searching TMDB for {selected_title}..."):
             # Get our show data
@@ -438,6 +434,10 @@ def render_tmdb_matches():
                     matching.our_eps = []  # We'll get EPs from TMDB match
                     matching.last_validation = None  # Clear any previous validation
                     update_admin_state(state)
+                    
+                    # Only clear search box after successful match
+                    if 'tmdb_search_bar' in st.session_state:
+                        del st.session_state['tmdb_search_bar']
             else:
                 st.error(f"Could not load show data for {selected_title}")
     
