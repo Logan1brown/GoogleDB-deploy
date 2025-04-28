@@ -408,11 +408,39 @@ def render_tmdb_matches():
     
     # Add search box with caption
     st.caption("Search for shows to match with TMDB")
-    st.text_input("##", 
-                 value=matching.search_query,
-                 placeholder="Enter show title...",
-                 key="tmdb_search_bar",
-                 label_visibility="collapsed")
+    selected_show = st_searchbox(
+        search_function=search_shows,
+        label="Search existing shows",
+        placeholder="Start typing show title (3+ characters)...",
+        key="tmdb_search_bar",
+        clear_on_submit=True
+    )
+    
+    if selected_show:
+        # Get show data and search for matches
+        with st.spinner(f"Searching TMDB for {selected_show}..."):
+            # Get our show data
+            show_data = show_service.load_show(selected_show)
+            if show_data:
+                # Get our EPs
+                team_members = show_data.get('team_members', [])
+                our_eps = [member['name'] for member in team_members 
+                         if member['role'] == 'Executive Producer']
+                
+                # Get TMDB matches
+                matches = match_service.search_and_match(show_data)
+                
+                if not matches:
+                    st.warning("No matches found")
+                else:
+                    # Store matches in state
+                    matching.matches = matches
+                    matching.search_query = show_data['title']
+                    matching.our_eps = our_eps
+                    matching.last_validation = None  # Clear any previous validation
+                    update_admin_state(state)
+            else:
+                st.error(f"Could not load show data for {selected_show}")
     
     # Add tip about search
     if not matching.matches or matching.validated_show_id:
