@@ -417,16 +417,15 @@ def render_tmdb_matches():
     )
     
     if selected_title:
+        # Clear search box immediately
+        if 'tmdb_search_bar' in st.session_state:
+            del st.session_state['tmdb_search_bar']
+            
         # Get show data and search for matches
         with st.spinner(f"Searching TMDB for {selected_title}..."):
             # Get our show data
             show_data = show_service.load_show(selected_title)
             if show_data:
-                # Get our EPs
-                team_members = show_data.get('team_members', [])
-                our_eps = [member['name'] for member in team_members 
-                         if member.get('role') == 'Executive Producer']
-                
                 # Get TMDB matches
                 matches = match_service.search_and_match(show_data)
                 
@@ -436,7 +435,7 @@ def render_tmdb_matches():
                     # Store matches in state
                     matching.matches = matches
                     matching.search_query = show_data['title']
-                    matching.our_eps = our_eps
+                    matching.our_eps = []  # We'll get EPs from TMDB match
                     matching.last_validation = None  # Clear any previous validation
                     update_admin_state(state)
             else:
