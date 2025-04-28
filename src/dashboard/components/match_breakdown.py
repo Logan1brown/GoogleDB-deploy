@@ -30,13 +30,10 @@ def show_match_breakdown(show, expanded=False):
     scores = show.match_score
     success = show.success_score if show.success_score is not None else 'N/A'
     
-    # Build title
+    # Build expander title - this appears in the collapsed view
     title = f"{show.title} (Match: {int(scores['total'])}, Success: {int(success) if success is not None else 'N/A'})"
     
     with st.expander(title, expanded=expanded):
-        # Title as a header
-        st.markdown(f"### {show.title}")
-        st.markdown(f"Match: {int(scores['total'])}, Success: {int(success) if success is not None else 'N/A'}")
         
         # Content Match section
         st.markdown(f"**Content Match** ({scores['content_total']}/85 points)")
@@ -68,34 +65,30 @@ def show_match_breakdown(show, expanded=False):
         # Production section
         st.markdown(f"\n**Production** ({scores['team_score'] + scores['network_score'] + scores['studio_score']}/30 points)")
         
-        col1, col2 = st.columns(2)
+        # Network details
+        network = details['network']
+        st.write(f"Network: {scores['network_score']}/7")
+        if network['match']:
+            st.write(f"✓ Both {network['name1']}")
+        else:
+            st.write(f"× {network['name1']} vs {network['name2']}")
         
-        with col1:
-            # Team details
-            team = details['team']
-            st.write(f"Team: {scores['team_score']}/20")
-            if team['shared_members']:
-                for name, role in team['shared_members']:
-                    st.write(f"✓ {name} ({role})")
+        # Studio details
+        studio = details['studio']
+        st.write(f"\nStudio: {scores['studio_score']}/3")
+        if studio['match']:
+            st.write(f"✓ Both {studio['name1']}")
+        elif studio['name1'] and studio['name2']:
+            st.write(f"× {studio['name1']} vs {studio['name2']}")
+        else:
+            st.write(f"× Missing studio data")
         
-        with col2:
-            # Network details
-            network = details['network']
-            st.write(f"Network: {scores['network_score']}/7")
-            if network['match']:
-                st.write(f"✓ Both {network['name1']}")
-            else:
-                st.write(f"× {network['name1']} vs {network['name2']}")
-            
-            # Studio details
-            studio = details['studio']
-            st.write(f"\nStudio: {scores['studio_score']}/3")
-            if studio['match']:
-                st.write(f"✓ Both {studio['name1']}")
-            elif studio['name1'] and studio['name2']:
-                st.write(f"× {studio['name1']} vs {studio['name2']}")
-            else:
-                st.write(f"× Missing studio data")
+        # Team details
+        team = details['team']
+        st.write(f"\nTeam: {scores['team_score']}/20")
+        if team['shared_members']:
+            for name, role in team['shared_members']:
+                st.write(f"✓ {name} ({role})")
         
         # Format Match section
         st.markdown(f"\n**Format Match** ({scores['format_total']}/15 points)")
