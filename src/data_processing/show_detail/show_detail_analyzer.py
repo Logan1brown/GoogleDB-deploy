@@ -269,7 +269,8 @@ class ShowDetailAnalyzer:
         team2 = [(m['name'], m.get('role', 'Unknown')) for m in show2.get('team_members', []) or []]
         shared_members = set(team1) & set(team2)
         scores['details']['team']['shared_members'] = list(shared_members)
-        scores['team_score'] = min(len(shared_members) * 6.7, 20)  # 6.7 points per member
+        # Round to nearest integer, max 20 points
+        scores['team_score'] = min(round(len(shared_members) * 6.7), 20)
         
         # Network match (7 points)
         network_match = show1['network_name'] == show2['network_name']
