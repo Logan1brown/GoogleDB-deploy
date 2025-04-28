@@ -31,7 +31,7 @@ def show_match_breakdown(show, expanded=False):
     success = show.success_score if show.success_score is not None else 'N/A'
     
     # Build title
-    title = f"{show.title} (Match: {scores['total']}, Success: {success})"
+    title = f"{show.title} (Match: {int(scores['total'])}, Success: {int(success) if success is not None else 'N/A'})"
     
     with st.expander(title, expanded=expanded):
         st.write(f"Network: {show.network_name}")
@@ -54,6 +54,7 @@ def show_match_breakdown(show, expanded=False):
                 st.write(f"✓ Subgenres: {genres} (+{points})")
             
             # Team details
+            team = details['team']
             st.write(f"\nTeam: {scores['team_score']}/20")
             if team['shared_members']:
                 for name, role in team['shared_members']:
