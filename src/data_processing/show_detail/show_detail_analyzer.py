@@ -235,9 +235,10 @@ class ShowDetailAnalyzer:
                     'match': show1['network_name'] == show2['network_name']
                 },
                 'studio': {
-                    'name1': show1.get('studio_name'),
-                    'name2': show2.get('studio_name'),
-                    'match': show1.get('studio_name') == show2.get('studio_name') and show1.get('studio_name') is not None
+                    'name1': show1.get('studio_names', [])[0] if show1.get('studio_names') else None,
+                    'name2': show2.get('studio_names', [])[0] if show2.get('studio_names') else None,
+                    'match': bool(show1.get('studio_names')) and bool(show2.get('studio_names')) and \
+                            any(s1 == s2 for s1 in show1['studio_names'] for s2 in show2['studio_names'])
                 }
             }
         }
@@ -277,8 +278,9 @@ class ShowDetailAnalyzer:
         scores['network_score'] = 7 if network_match else 0
         
         # Studio match (3 points)
-        studio_match = show1.get('studio_name') == show2.get('studio_name')
-        scores['studio_score'] = 3 if studio_match and show1.get('studio_name') else 0
+        studio_match = bool(show1.get('studio_names')) and bool(show2.get('studio_names')) and \
+                      any(s1 == s2 for s1 in show1['studio_names'] for s2 in show2['studio_names'])
+        scores['studio_score'] = 3 if studio_match else 0
         
         # Source match (15 points)
         source_match = show1['source_name'] == show2['source_name']
