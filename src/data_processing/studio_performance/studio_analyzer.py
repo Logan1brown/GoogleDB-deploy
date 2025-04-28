@@ -8,6 +8,7 @@ Analyzes studio performance metrics including:
 
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
+from datetime import datetime
 import pandas as pd
 import logging
 import streamlit as st
@@ -15,6 +16,8 @@ from ..analyze_shows import ShowsAnalyzer
 from ...dashboard.utils.supabase_client import get_client
 
 logger = logging.getLogger(__name__)
+
+__all__ = ['StudioAnalyzer', 'analyze_studio_relationships', 'get_studio_insights']
 
 
 class StudioAnalyzer:
