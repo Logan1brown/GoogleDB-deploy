@@ -547,50 +547,68 @@ def handle_team_save():
     """Handle adding a new team member"""
     state = get_data_entry_state()
     show_form = state.show_form
-    name = st.session_state.team_member_name
-    roles = st.session_state.team_member_role_types
+    
+    # Get form values
+    name = st.session_state.get('team_member_name', '')
+    role_types = st.session_state.get('team_member_role_types', [])
     
     # Validate
     if not name:
-        state.form_error = "Name is required"
+        state.form_error = "Team member name is required"
+        update_data_entry_state(state)
+        return
+        
+    if not role_types:
+        state.form_error = "At least one role must be selected"
         update_data_entry_state(state)
         return
     
-    if not roles:
-        state.form_error = "At least one role is required"
-        update_data_entry_state(state)
-        return
+    # Clear error if any
+    state.form_error = None
     
-    # Add team member
-    for role in roles:
+    # Add team member for each role
+    for role_id, _ in role_types:
+        member_id = f"{name.lower().replace(' ', '_')}_{role_id}_{int(time.time())}"
         show_form.team_members.append({
+            'id': member_id,
             'name': name,
-            'role_type_id': role[0]  # Extract ID from tuple
+            'role_type_id': role_id
         })
     
     # Clear form
-    st.session_state.team_member_name = ""
-    st.session_state.team_member_role_types = []
+    if 'team_member_name' in st.session_state:
+        del st.session_state['team_member_name']
+    if 'team_member_role_types' in st.session_state:
+        del st.session_state['team_member_role_types']
     
-    # Update state
+    # Mark form as modified
+    state.form_modified = True
     update_data_entry_state(state)
 
-def handle_team_remove(index: int):
-    """Handle removing a team member"""
+def handle_team_remove(member_id: str):
+    """Handle removing a team member by their ID"""
     state = get_data_entry_state()
     show_form = state.show_form
     
-    # Remove team member
-    show_form.team_members.pop(index)
+    # Find and remove the team member by ID
+    show_form.team_members = [m for m in show_form.team_members if m['id'] != member_id]
     
-    # Update state
+    # Update state and mark as modified
+    state.form_modified = True
     update_data_entry_state(state)
 
 def handle_team_apply():
     """Handle applying team changes"""
     state = get_data_entry_state()
     
-    # Set success message
+    # Validate team members
+    if not state.show_form.team_members:
+        state.form_error = "No team members added"
+        update_data_entry_state(state)
+        return
+    
+    # Mark form as modified and ready to save
+    state.form_modified = True
     state.success_message = "Team member changes applied successfully"
     
     update_data_entry_state(state)
@@ -671,8 +689,9 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
             # Remove button
             if not readonly:
                 with col2:
-                    if st.button("✕", key=f"remove_team_{i}"):
-                        handle_team_remove(i)
+                    member_id = member.get('id', str(i))  # Fallback to index if no ID
+                    if st.button("✕", key=f"remove_team_{member_id}"):
+                        handle_team_remove(member_id)
     
     # Apply Changes button
     if st.button(
