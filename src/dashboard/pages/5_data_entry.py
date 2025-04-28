@@ -549,8 +549,8 @@ def handle_team_save():
     show_form = state.show_form
     
     # Get form values
-    name = st.session_state.get('team_member_name', '')
-    role_types = st.session_state.get('team_member_role_types', [])
+    name = st.session_state.team_member_name
+    role_types = st.session_state.team_member_role_types
     
     # Validate
     if not name:
@@ -575,16 +575,13 @@ def handle_team_save():
             'role_type_id': role_id
         })
     
-    # Clear form (will happen automatically since we use empty defaults)
+    # Clear form by initializing empty values for next render
     st.session_state.team_member_name = ""
     st.session_state.team_member_role_types = []
     
     # Mark form as modified
     state.form_modified = True
     update_data_entry_state(state)
-    
-    # Force rerun to clear the form
-    st.rerun()
 
 def handle_team_remove(member_key: str):
     """Handle removing a team member"""
@@ -646,22 +643,20 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
         with st.form("new_team_member_form"):
             col1, col2 = st.columns([3,1])
             with col1:
-                name_input = st.text_input(
+                st.text_input(
                     "Add Team Member",
                     key="team_member_name",
-                    value="",  # Always start empty
                     placeholder="Enter team member name"
                 )
             
             # Move role selection inside form
             role_options = [(r['id'], r['name']) for r in lookups.get('role_types', [])]
-            roles = st.multiselect(
+            st.multiselect(
                 "Select Roles",
                 options=role_options,
                 format_func=lambda x: x[1],
                 key="team_member_role_types",
-                default=[],  # Always start empty
-                disabled=readonly
+                default=[]
             )
             
             with col2:
@@ -669,16 +664,9 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
                 submitted = st.form_submit_button(
                     "Add Member",
                     type="primary",
-                    use_container_width=True
+                    use_container_width=True,
+                    on_click=handle_team_save
                 )
-                
-            # Handle form submission
-            if submitted:
-                # Save values to session state
-                st.session_state.team_member_name = name_input
-                st.session_state.team_member_role_types = roles
-                # Call save handler
-                handle_team_save()
     
     # Display existing team members
     if show_form.team_members:
