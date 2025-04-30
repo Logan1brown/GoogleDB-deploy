@@ -317,6 +317,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Show details as key-value pairs
                     details = {
                         'Genre': match['genre_name'],
+                        'Subgenres': ', '.join(match['subgenre_names']),
                         'Source': match['source_type_name'],
                         'Network': match['network_name'],
                         'Studios': ', '.join(match['studio_names']),
