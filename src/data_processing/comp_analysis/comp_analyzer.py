@@ -252,7 +252,7 @@ class CompAnalyzer:
                 ('time_settings', 'time_setting_id', 'time_setting_name'),
                 ('locations', 'location_setting_id', 'location_setting_name'),
                 ('networks', 'network_id', 'network_name'),
-                ('studios', 'studio_ids', 'studio_names'),
+                ('studios', 'studios', 'studio_names'),
                 ('order_types', 'order_type_id', 'order_type_name')
             ]
             
@@ -260,13 +260,13 @@ class CompAnalyzer:
             for field_name, id_col, name_col in field_mappings:
                 # Handle array fields (studios, character_types, plot_elements, thematic_elements)
                 if field_name in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
-                    array_col = f"{field_name[:-1]}_ids" if not field_name.endswith('s_types') else f"{field_name[:-6]}_ids"
+                    array_col = 'studios' if field_name == 'studios' else f"{field_name[:-1]}_ids"
                     tuples = []
                     for _, row in self.comp_data.iterrows():
-                        if isinstance(row[array_col], list) and row[array_col] and isinstance(row[name_col], list) and row[name_col]:
-                            for item_id, name in zip(row[array_col], row[name_col]):
-                                if pd.notna(item_id) and pd.notna(name):
-                                    tuples.append((int(item_id), str(name)))
+                        if isinstance(row[array_col], list) and row[array_col]:
+                            for item_id in row[array_col]:
+                                if pd.notna(item_id) and pd.notna(row[name_col]):
+                                    tuples.append((int(item_id), str(row[name_col])))
                 else:
                     # Handle regular fields
                     tuples = [(int(row[id_col]), str(row[name_col]))
