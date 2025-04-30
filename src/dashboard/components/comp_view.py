@@ -276,19 +276,27 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             # Create expandable section for each match
             for i, match in enumerate(top_matches, 1):
                 with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
-                    # Success Metrics
-                    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Success Metrics</p>', unsafe_allow_html=True)
+                    st.markdown("### Success Metrics")
+                    st.write("")
                     
                     st.markdown("**Success Score**")
-                    st.metric(label="", value=f"{int(match.get('success_score', 0))}/100")
+                    st.write("")
+                    st.markdown(f"{match.get('success_score', 0):.1f}/100")
                     
                     st.markdown("**Score Breakdown**")
+                    st.write("")
+                    
                     if match.get('tmdb_seasons', 0) >= 2:
                         st.write(f"Renewed for Season {match.get('tmdb_seasons')} (+40 points)")
+                        st.write("")
+                    
                     if match.get('episode_count', 0) >= 12:
                         st.write("Standard episode volume (+20 points)")
+                        st.write("")
+                    
                     if match.get('is_active', False):
                         st.write("Active show bonus: Score multiplied by 1.2")
+                        st.write("")
                     if match.get('longevity_score', 0) > 0:
                         st.markdown(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
                     
