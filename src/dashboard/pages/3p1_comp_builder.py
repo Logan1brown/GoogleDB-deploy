@@ -17,7 +17,7 @@ if src_path not in sys.path:
 from src.shared.auth import auth_required
 from src.dashboard.utils.style_config import COLORS, FONTS
 from src.dashboard.components.comp_view import render_comp_builder
-from src.dashboard.utils.page_state import get_page_state
+from src.dashboard.state.session import get_page_state
 
 
 @auth_required()

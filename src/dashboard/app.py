@@ -125,7 +125,7 @@ def main():
                 st.Page("src/dashboard/pages/1_show_detail.py"),
                 st.Page("src/dashboard/pages/2_market_snapshot.py"),
                 st.Page("src/dashboard/pages/3_content_analysis.py"),
-                st.Page("src/dashboard/pages/3_1_comp_builder.py"),
+                st.Page("src/dashboard/pages/3p1_comp_builder.py"),
                 st.Page("src/dashboard/pages/4_studio_performance.py")
             ],
             "Data Management": [st.Page("src/dashboard/pages/5_data_entry.py")],
