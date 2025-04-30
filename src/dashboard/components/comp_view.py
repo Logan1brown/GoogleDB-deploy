@@ -323,181 +323,112 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Get comp score components
                     comp_score = match['comp_score']
                     
-                    # Content Match
-                    st.markdown("**Content Match** _(70 points)_")
-                    st.metric("Total Content Score", f"{comp_score.content_score}/70")
-                    st.write("")
+                    col1, col2 = st.columns(2)
                     
-                    # Genre
-                    st.markdown("Genre")
-                    st.write(f"⚫ {match.get('genre_name', 'None')} ({comp_score.genre_base + comp_score.genre_overlap}/17)")
+                    with col1:
+                        # Content Match
+                        st.markdown("**Content Match** _(70 points)_")
+                        st.metric("Total Content Score", f"{comp_score.content_score}/70")
+                        st.write("")
+                        
+                        # Genre
+                        st.markdown("Genre")
+                        st.write(f"⚫ {match.get('genre_name', 'None')} ({comp_score.genre_base + comp_score.genre_overlap}/17)")
+                        
+                        # Subgenres
+                        st.markdown("Subgenres")
+                        subgenres = match.get('subgenre_names', [])
+                        if subgenres:
+                            for subgenre in subgenres:
+                                st.write(f"⚫ {subgenre}")
+                        else:
+                            st.write("None")
+                        
+                        # Source Type
+                        st.markdown("Source Type")
+                        st.write(f"⚫ {match.get('source_type_name', 'None')} ({comp_score.source_type}/8)")
+                        
+                        # Character Types
+                        st.markdown("Character Types")
+                        char_types = match.get('character_type_names', [])
+                        if char_types:
+                            for char_type in char_types:
+                                st.write(f"⚫ {char_type}")
+                        st.write(f"({comp_score.character_types}/14)")
+                        
+                        # Plot Elements
+                        st.markdown("Plot Elements")
+                        plot_elements = match.get('plot_element_names', [])
+                        if plot_elements:
+                            for element in plot_elements:
+                                st.write(f"⚫ {element}")
+                        st.write(f"({comp_score.plot_elements}/12)")
+                        
+                        # Theme Elements
+                        st.markdown("Theme Elements")
+                        theme_elements = match.get('thematic_element_names', [])
+                        if theme_elements:
+                            for element in theme_elements:
+                                st.write(f"⚫ {element}")
+                        st.write(f"({comp_score.theme_elements}/13)")
+                        
+                        # Tone
+                        st.markdown("Tone")
+                        st.write(f"⚫ {match.get('tone_name', 'None')} ({comp_score.tone}/8)")
                     
-                    # Subgenres
-                    st.markdown("Subgenres")
-                    subgenres = match.get('subgenre_names', [])
-                    if subgenres:
-                        for subgenre in subgenres:
-                            st.write(f"⚫ {subgenre}")
-                    else:
-                        st.write("None")
-                    
-                    # Source Type
-                    st.markdown("Source Type")
-                    st.write(f"⚫ {match.get('source_type_name', 'None')} ({comp_score.source_type}/8)")
-                    
-                    # Character Types
-                    st.markdown("Character Types")
-                    char_types = match.get('character_type_names', [])
-                    if char_types:
-                        for char_type in char_types:
-                            st.write(f"⚫ {char_type}")
-                    st.write(f"({comp_score.character_types}/14)")
-                    
-                    # Plot Elements
-                    st.markdown("Plot Elements")
-                    plot_elements = match.get('plot_element_names', [])
-                    if plot_elements:
-                        for element in plot_elements:
-                            st.write(f"⚫ {element}")
-                    st.write(f"({comp_score.plot_elements}/12)")
-                    
-                    # Theme Elements
-                    st.markdown("Theme Elements")
-                    theme_elements = match.get('thematic_element_names', [])
-                    if theme_elements:
-                        for element in theme_elements:
-                            st.write(f"⚫ {element}")
-                    st.write(f"({comp_score.theme_elements}/13)")
-                    
-                    # Tone
-                    st.markdown("Tone")
-                    st.write(f"⚫ {match.get('tone_name', 'None')} ({comp_score.tone}/8)")
-                    
-                    st.write("")
-                    
-                    # Production Match
-                    st.markdown("**Production Match** _(13 points)_")
-                    st.metric("Total Production Score", f"{comp_score.production_score}/13")
-                    st.write("")
-                    
-                    # Network
-                    st.markdown("Network")
-                    st.write(f"⚫ {match.get('network_name', 'None')} ({comp_score.network}/5)")
-                    
-                    # Studios
-                    st.markdown("Studios")
-                    studios = match.get('studio_names', [])
-                    if studios:
-                        for studio in studios:
-                            st.write(f"⚫ {studio}")
-                    st.write(f"({comp_score.studio}/3)")
-                    
-                    # Team
-                    st.markdown("Team")
-                    st.write(f"({comp_score.team}/5)")
-                    
-                    st.write("")
-                    
-                    # Format Match
-                    st.markdown("**Format Match** _(3 points)_")
-                    st.metric("Total Format Score", f"{comp_score.format_score}/3")
-                    st.write("")
-                    
-                    # Episodes
-                    st.markdown("Episodes")
-                    st.write(f"⚫ {match.get('tmdb_avg_eps', 'None')} ({comp_score.episodes}/2)")
-                    
-                    # Order Type
-                    st.markdown("Order Type")
-                    st.write(f"⚫ {match.get('order_type_name', 'None')} ({comp_score.order_type}/1)")
-                    
-                    st.write("")
-                    
-                    # Setting Match
-                    st.markdown("**Setting Match** _(7 points)_")
-                    st.write("")
-                    
-                    # Time Setting
-                    st.markdown("Time Setting")
-                    st.write(f"⚫ {match.get('time_setting_name', 'None')} ({comp_score.time_setting}/4)")
-                    
-                    # Location
-                    st.markdown("Location")
-                    st.write(f"⚫ {match.get('location_setting_name', 'None')} ({comp_score.location}/3)")
-                    
-                    st.write("")
+                    with col2:
+                        # Production Match
+                        st.markdown("**Production Match** _(13 points)_")
+                        st.metric("Total Production Score", f"{comp_score.production_score}/13")
+                        st.write("")
+                        
+                        # Network
+                        st.markdown("Network")
+                        st.write(f"⚫ {match.get('network_name', 'None')} ({comp_score.network}/5)")
+                        
+                        # Studios
+                        st.markdown("Studios")
+                        studios = match.get('studio_names', [])
+                        if studios:
+                            for studio in studios:
+                                st.write(f"⚫ {studio}")
+                        st.write(f"({comp_score.studio}/3)")
+                        
+                        # Team
+                        st.markdown("Team")
+                        st.write(f"({comp_score.team}/5)")
+                        
+                        st.write("")
+                        
+                        # Format Match
+                        st.markdown("**Format Match** _(3 points)_")
+                        st.metric("Total Format Score", f"{comp_score.format_score}/3")
+                        st.write("")
+                        
+                        # Episodes
+                        st.markdown("Episodes")
+                        st.write(f"⚫ {match.get('tmdb_avg_eps', 'None')} ({comp_score.episodes}/2)")
+                        
+                        # Order Type
+                        st.markdown("Order Type")
+                        st.write(f"⚫ {match.get('order_type_name', 'None')} ({comp_score.order_type}/1)")
+                        
+                        st.write("")
+                        
+                        # Setting Match
+                        st.markdown("**Setting Match** _(7 points)_")
+                        st.write("")
+                        
+                        # Time Setting
+                        st.markdown("Time Setting")
+                        st.write(f"⚫ {match.get('time_setting_name', 'None')} ({comp_score.time_setting}/4)")
+                        
+                        # Location
+                        st.markdown("Location")
+                        st.write(f"⚫ {match.get('location_setting_name', 'None')} ({comp_score.location}/3)")
+
                     if match.get('longevity_score', 0) > 0:
                         st.markdown(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
-                    
-                    # Match score components
-                    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Match Components</p>', unsafe_allow_html=True)
-                    
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Content", f"{int(match['comp_score'].content_score)}/70")
-                    with col2:
-                        st.metric("Production", f"{int(match['comp_score'].production_score)}/13")
-                    with col3:
-                        st.metric("Format", f"{int(match['comp_score'].format_score)}/3")
-                    
-                    # Show details
-                    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Show Details</p>', unsafe_allow_html=True)
-                    
-                    # Get field options for lookups
-                    field_options = comp_analyzer.get_field_options()
-                    
-                    # Store names in state for comparison
-                    if not state.get('genre_name') and state['criteria'].get('genre_id'):
-                        state['genre_name'] = next((name for _, name in field_options['genres'] if _ == state['criteria']['genre_id']), None)
-                    if not state.get('subgenre_names') and state['criteria'].get('subgenres'):
-                        state['subgenre_names'] = [name for _, name in field_options['subgenre_names'] if _ in state['criteria']['subgenres']]
-                    if not state.get('source_type_name') and state['criteria'].get('source_type_id'):
-                        state['source_type_name'] = next((name for _, name in field_options['source_types'] if _ == state['criteria']['source_type_id']), None)
-                    if not state.get('character_types') and state['criteria'].get('character_type_ids'):
-                        state['character_types'] = [name for _, name in field_options['character_types'] if _ in state['criteria']['character_type_ids']]
-                    if not state.get('plot_elements') and state['criteria'].get('plot_element_ids'):
-                        state['plot_elements'] = [name for _, name in field_options['plot_elements'] if _ in state['criteria']['plot_element_ids']]
-                    if not state.get('thematic_elements') and state['criteria'].get('theme_element_ids'):
-                        state['thematic_elements'] = [name for _, name in field_options['thematic_elements'] if _ in state['criteria']['theme_element_ids']]
-                    if not state.get('tone_name') and state['criteria'].get('tone_id'):
-                        state['tone_name'] = next((name for _, name in field_options['tones'] if _ == state['criteria']['tone_id']), None)
-                    if not state.get('network_name') and state['criteria'].get('network_id'):
-                        state['network_name'] = next((name for _, name in field_options['networks'] if _ == state['criteria']['network_id']), None)
-                    if not state.get('studio_names') and state['criteria'].get('studios'):
-                        state['studio_names'] = [name for _, name in field_options['studios'] if _ in state['criteria']['studios']]
-                    if not state.get('order_type_name') and state['criteria'].get('order_type_id'):
-                        state['order_type_name'] = next((name for _, name in field_options['order_types'] if _ == state['criteria']['order_type_id']), None)
-                    if not state.get('time_setting_name') and state['criteria'].get('time_setting_id'):
-                        state['time_setting_name'] = next((name for _, name in field_options['time_settings'] if _ == state['criteria']['time_setting_id']), None)
-                    if not state.get('location_setting_name') and state['criteria'].get('location_setting_id'):
-                        state['location_setting_name'] = next((name for _, name in field_options['locations'] if _ == state['criteria']['location_setting_id']), None)
-                    
-                    # Helper function to format value with match highlighting
-                    def format_value(value, is_match):
-                        return f"{'🟢' if is_match else '⚫'} {value}"
-                    
-                    # Content details
-                    content_col1, content_col2 = st.columns(2)
-                    with content_col1:
-                        # Core Content
-                        st.markdown("**Content Match** _(70 points)_")
-                        
-                        st.markdown("**Genre**")
-                        is_match = state.get('genre_name') == match['genre_name']
-                        score = int(match['comp_score'].genre_base + match['comp_score'].genre_overlap)
-                        st.markdown(f"{format_value(match['genre_name'], is_match)} ({score}/17)", unsafe_allow_html=True)
-                        
-                        st.markdown("**Subgenres**")
-                        subgenres = match.get('subgenre_names', [])
-                        selected_subgenres = state.get('subgenre_names', [])
-                        if subgenres:
-                            subgenre_texts = [format_value(name, name in selected_subgenres) for name in subgenres if name]
-                            st.markdown(' • '.join(subgenre_texts), unsafe_allow_html=True)
-                        else:
-                            st.write('None')
-                        
-                        st.markdown("**Source Type**")
-                        is_match = state.get('source_type_name') == match['source_type_name']
                         score = int(match['comp_score'].source_type)
                         st.markdown(f"{format_value(match['source_type_name'], is_match)} ({score}/8)", unsafe_allow_html=True)
                         
