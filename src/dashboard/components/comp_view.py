@@ -286,23 +286,27 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Score breakdown
                     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Score Breakdown</p>', unsafe_allow_html=True)
                     
-                    # Content score breakdown
+                    # Content score breakdown (70 points)
                     st.markdown("**Content Score**")
-                    st.markdown(f"Genre: {int(match['comp_score'].genre_score)}/20")
-                    st.markdown(f"Source Type: {int(match['comp_score'].source_type_score)}/10")
-                    st.markdown(f"Character Types: {int(match['comp_score'].character_score)}/15")
-                    st.markdown(f"Plot Elements: {int(match['comp_score'].plot_score)}/15")
-                    st.markdown(f"Theme Elements: {int(match['comp_score'].theme_score)}/10")
+                    st.markdown(f"Genre: {int(match['comp_score'].genre_base + match['comp_score'].genre_overlap)}/17 (Base: {int(match['comp_score'].genre_base)}/9, Subgenres: {int(match['comp_score'].genre_overlap)}/8)")
+                    st.markdown(f"Source Type: {int(match['comp_score'].source_type)}/8")
+                    st.markdown(f"Character Types: {int(match['comp_score'].character_types)}/14")
+                    st.markdown(f"Plot Elements: {int(match['comp_score'].plot_elements)}/12")
+                    st.markdown(f"Theme Elements: {int(match['comp_score'].theme_elements)}/13")
+                    st.markdown(f"Tone: {int(match['comp_score'].tone)}/8")
+                    st.markdown(f"Time Setting: {int(match['comp_score'].time_setting)}/4")
+                    st.markdown(f"Location: {int(match['comp_score'].location)}/3")
                     
-                    # Production score breakdown
+                    # Production score breakdown (15 points)
                     st.markdown("**Production Score**")
-                    st.markdown(f"Network: {int(match['comp_score'].network_score)}/8")
-                    st.markdown(f"Studios: {int(match['comp_score'].studio_score)}/5")
+                    st.markdown(f"Network: {int(match['comp_score'].network)}/5")
+                    st.markdown(f"Studios: {int(match['comp_score'].studio)}/3")
+                    st.markdown(f"Team: {int(match['comp_score'].team)}/5")
                     
-                    # Format score breakdown
+                    # Format score breakdown (3 points)
                     st.markdown("**Format Score**")
-                    st.markdown(f"Episodes: {int(match['comp_score'].episode_score)}/2")
-                    st.markdown(f"Order Type: {int(match['comp_score'].order_type_score)}/1")
+                    st.markdown(f"Episodes: {int(match['comp_score'].episodes)}/2")
+                    st.markdown(f"Order Type: {int(match['comp_score'].order_type)}/1")
                     
                     # Only show scoring factors that contribute points
                     if match.get('tmdb_seasons', 0) >= 2:
