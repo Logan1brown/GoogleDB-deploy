@@ -244,6 +244,7 @@ class CompAnalyzer:
             # Extract field options from comp_data
             field_mappings = [
                 ('genres', 'genre_id', 'genre_name'),
+                ('subgenres', 'subgenre_id', 'subgenre_names'),
                 ('source_types', 'source_type_id', 'source_type_name'),
                 ('character_types', 'character_type_ids', 'character_type_names'),
                 ('plot_elements', 'plot_element_ids', 'plot_element_names'),
@@ -436,7 +437,7 @@ class CompAnalyzer:
         )
         
         genre_overlap = min(
-            len(set(source['subgenres']).intersection(set(target['subgenres']))) * 1.6,
+            len(set(source['subgenre_names']).intersection(set(target['subgenre_names']))) * 1.6,
             self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
         )
         
