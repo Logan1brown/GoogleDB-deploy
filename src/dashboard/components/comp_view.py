@@ -279,36 +279,27 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     st.markdown("**Success Score**")
                     st.write("")
                     st.markdown(f"{match.get('success_score', 0):.1f}/100")
+                    st.write("")
                     
                     st.markdown("**Score Breakdown**")
                     st.write("")
                     
-                    # Season achievements
-                    if pd.notna(match.get('tmdb_seasons')):
-                        seasons = int(match['tmdb_seasons'])
-                        if seasons >= 2:
-                            st.write(f"Renewed for Season {seasons} (+40 points)")
-                            st.write("")
-                            extra_seasons = seasons - 2
-                            if extra_seasons > 0:
-                                bonus = min(extra_seasons * 20, 40)
-                                st.write(f"Additional seasons bonus (+{bonus} points)")
-                                st.write("")
+                    st.markdown("**Match Components**")
+                    st.write("")
                     
-                    # Episode volume
-                    if pd.notna(match.get('tmdb_avg_eps')):
-                        avg_eps = float(match['tmdb_avg_eps'])
-                        if avg_eps >= 10:
-                            st.write("High episode volume (+40 points)")
-                            st.write("")
-                        elif avg_eps >= 8:
-                            st.write("Standard episode volume (+20 points)")
-                            st.write("")
+                    # Get comp score components
+                    comp_score = match['comp_score']
+                    st.markdown("Content")
+                    st.write(f"{comp_score.content_score()}/70")
+                    st.write("")
                     
-                    # Status modifier
-                    if match.get('status_name') == 'Returning Series':
-                        st.write("Active show bonus: Score multiplied by 1.2")
-                        st.write("")
+                    st.markdown("Production")
+                    st.write(f"{comp_score.production_score()}/13")
+                    st.write("")
+                    
+                    st.markdown("Format")
+                    st.write(f"{comp_score.format_score()}/3")
+                    st.write("")
                     if match.get('longevity_score', 0) > 0:
                         st.markdown(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
                     
