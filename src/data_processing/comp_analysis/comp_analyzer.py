@@ -243,17 +243,17 @@ class CompAnalyzer:
             
             # Extract field options from comp_data
             field_mappings = [
-                ('genres', 'genre_id', 'genre_name'),
-                ('source_types', 'source_type_id', 'source_type_name'),
-                ('character_types', 'character_type_id', 'character_type_name'),
-                ('plot_elements', 'plot_element_id', 'plot_element_name'),
-                ('thematic_elements', 'thematic_element_id', 'thematic_element_name'),
-                ('tone_types', 'tone_id', 'tone_name'),
-                ('time_settings', 'time_setting_id', 'time_setting_name'),
-                ('locations', 'location_setting_id', 'location_setting_name'),
+                ('genres', 'genre_id', 'genre'),
+                ('source_types', 'source_type_id', 'source_type'),
+                ('character_types', 'character_type_ids', 'character_types'),
+                ('plot_elements', 'plot_element_ids', 'plot_elements'),
+                ('thematic_elements', 'thematic_element_ids', 'thematic_elements'),
+                ('tone_types', 'tone_id', 'tone'),
+                ('time_settings', 'time_setting_id', 'time_setting'),
+                ('locations', 'location_setting_id', 'location_setting'),
                 ('networks', 'network_id', 'network_name'),
-                ('studios', 'studio_id', 'studio_name'),
-                ('order_types', 'order_type_id', 'order_type_name')
+                ('studios', 'studio_ids', 'studios'),
+                ('order_types', 'order_type_id', 'order_type')
             ]
             
             # Extract all field options using a single consistent approach
