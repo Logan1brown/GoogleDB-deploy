@@ -1,11 +1,9 @@
 """View component for comp builder functionality."""
 
 import streamlit as st
-import plotly.graph_objects as go
 from typing import Dict, List, Tuple, Optional
 
 from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
-from src.dashboard.templates.defaults.table import create_table_defaults
 from src.dashboard.utils.style_config import COLORS, FONTS
 
 
@@ -52,22 +50,15 @@ def render_comp_builder(state: Dict) -> None:
     # Initialize analyzer
     comp_analyzer = CompAnalyzer()
     
-    # Create grid layout
-    from src.dashboard.templates.grids.form_results import create_form_results_grid
-    fig = create_form_results_grid(
-        title="Comp Builder",
-        form_title="Criteria",
-        results_title="Results"
-    )
-    
     # Layout
+    st.title("Comp Builder")
     criteria_col, results_col = st.columns([1, 2])
     
     with criteria_col:
         render_criteria_section(comp_analyzer, state)
         
     with results_col:
-        render_results_section(comp_analyzer, state, fig)
+        render_results_section(comp_analyzer, state)
 
 
 def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
@@ -224,7 +215,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             state["criteria"]["order_type_id"] = get_id_for_name(order_name, field_options['order_types']) if order_name else None
 
 
-def render_results_section(comp_analyzer: CompAnalyzer, state: Dict, fig: go.Figure) -> None:
+def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
     """Render comp results panel.
     
     Args:
@@ -249,59 +240,41 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict, fig: go.Fig
         results.sort(key=lambda x: x.get('success_score', 0), reverse=True)
         
         # Add results table to grid
-        fig.update_layout(template=create_table_defaults())
-        fig.add_trace(
-            go.Table(
-                header=dict(
-                    values=[
-                        "Show",
-                        "Success",
-                        "Total Score",
-                        "Content",
-                        "Production",
-                        "Format"
-                    ],
-                    font=dict(
-                        family=FONTS["primary"]["family"],
-                        size=FONTS["primary"]["sizes"]["body"],
-                        color=COLORS["text"]["primary"]
-                    ),
-                    fill_color=COLORS["background"]["secondary"],
-                    line_color=COLORS["border"]
-                ),
-                cells=dict(
-                    values=[
-                        [r["title"] for r in results],
-                        [f"{r['success_score']:.1f}%" for r in results],
-                        [f"{r['comp_score'].total:.1f}%" for r in results],
-                        [f"{r['comp_score'].content_score:.1f}%" for r in results],
-                        [f"{r['comp_score'].production_score:.1f}%" for r in results],
-                        [f"{r['comp_score'].format_score:.1f}%" for r in results]
-                    ],
-                    font=dict(
-                        family=FONTS["primary"]["family"],
-                        size=FONTS["primary"]["sizes"]["small"],
-                        color=COLORS["text"]["primary"]
-                    ),
-                    fill_color=COLORS["background"]["primary"],
-                    line_color=COLORS["border"],
-                    align=["left", "right", "right", "right", "right"]
-                )
-            )
-        )
+        st.markdown("### Similar Shows")
         
-        # Add hover effect
-        fig.update_traces(
-            cells=dict(
-                fill=dict(
-                    color=[COLORS["background"]["primary"]],
-                    line=dict(color=COLORS["border"], width=1)
-                )
-            ),
-            selector=dict(type='table')
-        )
+        # Create DataFrame for results
+        import pandas as pd
+        df = pd.DataFrame([
+            {
+                'Show': r['title'],
+                'Success': f"{r['success_score']:.1f}%",
+                'Total Score': f"{r['comp_score'].total:.1f}%",
+                'Content': f"{r['comp_score'].content_score:.1f}%",
+                'Production': f"{r['comp_score'].production_score:.1f}%",
+                'Format': f"{r['comp_score'].format_score:.1f}%"
+            } for r in results
+        ])
         
-        st.plotly_chart(fig, use_container_width=True)
+        # Display as Streamlit table with custom CSS
+        st.markdown(
+            f"""
+            <style>
+            .stDataFrame table {{ color: {COLORS['text']['primary']}; }}
+            .stDataFrame th {{ 
+                background-color: {COLORS['accent']}; 
+                color: white;
+                font-family: {FONTS['primary']['family']};
+                font-size: {FONTS['primary']['sizes']['body']}px;
+            }}
+            .stDataFrame td {{ 
+                font-family: {FONTS['primary']['family']};
+                font-size: {FONTS['primary']['sizes']['small']}px;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        st.dataframe(df, use_container_width=True)
         
         # Show detailed breakdowns for top 10 matches
         if results:
