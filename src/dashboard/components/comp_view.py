@@ -36,94 +36,94 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         state: Page state dictionary to store selections
     """
     with st.expander("Content Match Criteria (70 pts)", expanded=True):
-        # Genre (20 points)
+        # Genre (17 points)
         state["criteria"]["genre_id"] = st.selectbox(
             "Genre",
             options=comp_analyzer.get_field_options("genre_id"),
             key="comp_genre",
-            help="20 points - Full match on primary genre"
+            help="17 points - Genre match (9 base + 8 subgenre)"
         )
         
-        # Source Type (10 points)
+        # Source Type (8 points)
         state["criteria"]["source_type_id"] = st.selectbox(
             "Source Type", 
             options=comp_analyzer.get_field_options("source_type_id"),
             key="comp_source",
-            help="10 points - Match on source material type"
+            help="8 points - Direct match on source type"
         )
         
-        # Characters (15 points)
-        state["criteria"]["character_types"] = st.multiselect(
+        # Character Types (14 points)
+        state["criteria"]["character_type_ids"] = st.multiselect(
             "Character Types",
-            options=comp_analyzer.get_field_options("character_types"),
+            options=comp_analyzer.get_field_options("character_type_ids"),
             key="comp_characters",
-            help="15 points - Matching character archetypes and dynamics"
+            help="14 points - Character type matches (5 primary + 1.8 per additional up to 5)"
         )
         
-        # Plot Elements (10 points)
-        state["criteria"]["plot_elements"] = st.multiselect(
+        # Plot Elements (12 points)
+        state["criteria"]["plot_element_ids"] = st.multiselect(
             "Plot Elements",
-            options=comp_analyzer.get_field_options("plot_elements"),
+            options=comp_analyzer.get_field_options("plot_element_ids"),
             key="comp_plot",
-            help="10 points - Key plot devices and story structures"
+            help="12 points - Plot element matches (2.4 per match up to 5)"
         )
         
-        # Themes (5 points)
-        state["criteria"]["thematic_elements"] = st.multiselect(
-            "Thematic Elements",
-            options=comp_analyzer.get_field_options("thematic_elements"),
+        # Theme Elements (13 points)
+        state["criteria"]["theme_element_ids"] = st.multiselect(
+            "Theme Elements",
+            options=comp_analyzer.get_field_options("theme_element_ids"),
             key="comp_themes",
-            help="5 points - Core themes and messages"
+            help="13 points - Theme matches (2.6 per match up to 5)"
         )
         
-        # Tone (5 points)
+        # Tone (8 points)
         state["criteria"]["tone"] = st.selectbox(
             "Tone",
             options=comp_analyzer.get_field_options("tone"),
             key="comp_tone",
-            help="5 points - Overall tone and mood"
+            help="8 points - Direct match on tone"
         )
         
-        # Setting (5 points)
+        # Setting (7 points)
         col1, col2 = st.columns(2)
         with col1:
             state["criteria"]["time_setting"] = st.selectbox(
-                "Time Setting",
+                "Time Period",
                 options=comp_analyzer.get_field_options("time_setting"),
                 key="comp_time",
-                help="2.5 points - Time period setting"
+                help="4 points - Time period match"
             )
         with col2:
             state["criteria"]["location"] = st.selectbox(
                 "Location",
                 options=comp_analyzer.get_field_options("location"),
                 key="comp_location",
-                help="2.5 points - Geographic setting"
+                help="3 points - Location match"
             )
-
+        
     with st.expander("Production Match Criteria (13 pts)"):
         # Network (5 points)
         state["criteria"]["network_id"] = st.selectbox(
             "Network",
             options=comp_analyzer.get_field_options("network_id"),
             key="comp_network",
-            help="5 points - Broadcasting/streaming network"
+            help="5 points - Direct network match"
         )
         
-        # Studios (5 points)
-        state["criteria"]["studios"] = st.multiselect(
+        # Studios (3 points)
+        state["criteria"]["studio_ids"] = st.multiselect(
             "Studios",
-            options=comp_analyzer.get_field_options("studios"),
+            options=comp_analyzer.get_field_options("studio_ids"),
             key="comp_studios",
-            help="5 points - Production studios involved"
+            help="3 points - Studio matches (2 primary + 0.5 per additional up to 2)"
         )
         
-        # Team Roles (3 points)
-        state["criteria"]["team_roles"] = st.multiselect(
-            "Key Creative Roles",
-            options=comp_analyzer.get_field_options("team_roles"),
+        # Team Members (5 points)
+        state["criteria"]["team_member_ids"] = st.multiselect(
+            "Team Members",
+            options=comp_analyzer.get_field_options("team_member_ids"),
             key="comp_team",
-            help="3 points - Key creative team roles"
+            help="5 points - Team member matches (1 point per match up to 5)"
         )
 
     with st.expander("Format Match Criteria (3 pts)"):
@@ -135,9 +135,9 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                 "Episode Count",
                 min_value=1,
                 max_value=100,
-                value=13,
+                value=10,
                 key="comp_episodes",
-                help="2 points - Number of episodes per season"
+                help="2 points - Episode count proximity (2 within ±2, 1.5 within ±4, 1 within ±6)"
             )
         
         # Order Type (1 point)
@@ -146,7 +146,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                 "Order Type",
                 options=comp_analyzer.get_field_options("order_type"),
                 key="comp_order",
-                help="1 point - Series order type"
+                help="1 point - Direct order type match"
             )
 
 
@@ -158,8 +158,12 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         state: Page state dictionary containing criteria
     """
     if state.get("criteria"):
-        # Get results
-        results = comp_analyzer.get_similar_shows(state["criteria"])
+        # Get results based on criteria
+        results = comp_analyzer.find_by_criteria(state["criteria"])
+        
+        if not results:
+            st.info("No shows found matching your criteria. Try adjusting the filters.")
+            return
         
         if not results:
             st.info("No matching shows found. Try adjusting your criteria.")

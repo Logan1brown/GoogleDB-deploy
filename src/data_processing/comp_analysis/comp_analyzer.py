@@ -303,6 +303,61 @@ class CompAnalyzer:
         except Exception as e:
             raise Exception(f"Error fetching comp data: {str(e)}")
             
+    def find_by_criteria(self, criteria: Dict) -> List[Dict]:
+        """Find shows matching the given criteria.
+        
+        Args:
+            criteria: Dictionary of criteria to match against
+            
+        Returns:
+            List of shows matching the criteria with their scores
+        """
+        if self.comp_data is None:
+            self.fetch_comp_data()
+            
+        # Create a "criteria show" with the selected criteria
+        criteria_show = pd.Series({
+            'id': -1,  # Dummy ID
+            'genre_id': criteria.get('genre_id'),
+            'source_type_id': criteria.get('source_type_id'),
+            'character_type_ids': criteria.get('character_type_ids', []),
+            'plot_element_ids': criteria.get('plot_element_ids', []),
+            'theme_element_ids': criteria.get('theme_element_ids', []),
+            'tone': criteria.get('tone'),
+            'time_setting': criteria.get('time_setting'),
+            'location': criteria.get('location'),
+            'network_id': criteria.get('network_id'),
+            'studio_ids': criteria.get('studio_ids', []),
+            'team_member_ids': criteria.get('team_member_ids', []),
+            'episode_count': criteria.get('episode_count'),
+            'order_type': criteria.get('order_type')
+        })
+        
+        # Calculate scores for all shows against criteria
+        results = []
+        for _, show in self.comp_data.iterrows():
+            # Calculate match score using existing scoring logic
+            score = self._calculate_score(criteria_show, show)
+            
+            # Get success score
+            success_score = 0
+            show_data = self.success_analyzer.titles_df[
+                self.success_analyzer.titles_df['id'] == show['id']
+            ]
+            if not show_data.empty:
+                success_score = self.success_analyzer.calculate_success(show_data.iloc[0])
+                
+            # Add to results if score above threshold
+            if score.total > 0:  # Only include shows with some match
+                show_dict = show.to_dict()
+                show_dict['comp_score'] = score
+                show_dict['success_score'] = success_score
+                results.append(show_dict)
+            
+        # Sort by weighted score
+        results.sort(key=lambda x: 0.7 * x['comp_score'].total + 0.3 * x['success_score'], reverse=True)
+        return results[:10]
+        
     def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
         """Get similar shows for the given show ID.
         
