@@ -346,6 +346,7 @@ class CompAnalyzer:
         criteria_show = pd.Series({
             'id': -1,  # Dummy ID
             'genre_id': criteria.get('genre_id'),
+            'subgenres': criteria.get('subgenres', []),
             'source_type_id': criteria.get('source_type_id'),
             'character_type_ids': criteria.get('character_type_ids', []),
             'plot_element_ids': criteria.get('plot_element_ids', []),
@@ -454,8 +455,12 @@ class CompAnalyzer:
                 else 0
             )
             
+            # Get subgenre names for comparison
+            source_subgenres = [name for _, name in self.field_options['subgenre_names'] if _ in source['subgenres']]
+            target_subgenres = [name for _, name in self.field_options['subgenre_names'] if _ in target['subgenres']]
+            
             genre_overlap = min(
-                len(set(source['subgenres']).intersection(set(target['subgenres']))) * 1.6,
+                len(set(source_subgenres).intersection(set(target_subgenres))) * 1.6,
                 self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
             )
             
