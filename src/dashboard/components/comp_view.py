@@ -308,6 +308,32 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Show details
                     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Show Details</p>', unsafe_allow_html=True)
                     
+                    # Store names in state for comparison
+                    if not state.get('genre_name') and state['criteria'].get('genre_id'):
+                        state['genre_name'] = next((name for _, name in field_options['genres'] if _ == state['criteria']['genre_id']), None)
+                    if not state.get('subgenre_names') and state['criteria'].get('subgenres'):
+                        state['subgenre_names'] = [name for _, name in field_options['subgenre_names'] if _ in state['criteria']['subgenres']]
+                    if not state.get('source_type_name') and state['criteria'].get('source_type_id'):
+                        state['source_type_name'] = next((name for _, name in field_options['source_types'] if _ == state['criteria']['source_type_id']), None)
+                    if not state.get('character_types') and state['criteria'].get('character_type_ids'):
+                        state['character_types'] = [name for _, name in field_options['character_types'] if _ in state['criteria']['character_type_ids']]
+                    if not state.get('plot_elements') and state['criteria'].get('plot_element_ids'):
+                        state['plot_elements'] = [name for _, name in field_options['plot_elements'] if _ in state['criteria']['plot_element_ids']]
+                    if not state.get('thematic_elements') and state['criteria'].get('theme_element_ids'):
+                        state['thematic_elements'] = [name for _, name in field_options['thematic_elements'] if _ in state['criteria']['theme_element_ids']]
+                    if not state.get('tone_name') and state['criteria'].get('tone_id'):
+                        state['tone_name'] = next((name for _, name in field_options['tones'] if _ == state['criteria']['tone_id']), None)
+                    if not state.get('network_name') and state['criteria'].get('network_id'):
+                        state['network_name'] = next((name for _, name in field_options['networks'] if _ == state['criteria']['network_id']), None)
+                    if not state.get('studio_names') and state['criteria'].get('studios'):
+                        state['studio_names'] = [name for _, name in field_options['studios'] if _ in state['criteria']['studios']]
+                    if not state.get('order_type_name') and state['criteria'].get('order_type_id'):
+                        state['order_type_name'] = next((name for _, name in field_options['order_types'] if _ == state['criteria']['order_type_id']), None)
+                    if not state.get('time_setting_name') and state['criteria'].get('time_setting_id'):
+                        state['time_setting_name'] = next((name for _, name in field_options['time_settings'] if _ == state['criteria']['time_setting_id']), None)
+                    if not state.get('location_setting_name') and state['criteria'].get('location_setting_id'):
+                        state['location_setting_name'] = next((name for _, name in field_options['locations'] if _ == state['criteria']['location_setting_id']), None)
+                    
                     # Helper function to format value with match highlighting
                     def format_value(value, is_match):
                         return f"{'🟢' if is_match else '⚫'} {value}"
@@ -315,25 +341,56 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Content details
                     content_col1, content_col2 = st.columns(2)
                     with content_col1:
-                        # Genre
+                        # Core Content
                         st.markdown("**Genre**")
                         is_match = state.get('genre_name') == match['genre_name']
                         st.markdown(format_value(match['genre_name'], is_match), unsafe_allow_html=True)
                         
-                        # Subgenres
                         st.markdown("**Subgenres**")
                         subgenres = match.get('subgenre_names', [])
                         selected_subgenres = state.get('subgenre_names', [])
                         if subgenres:
                             subgenre_texts = [format_value(name, name in selected_subgenres) for name in subgenres if name]
-                            st.markdown(', '.join(subgenre_texts), unsafe_allow_html=True)
+                            st.markdown(' • '.join(subgenre_texts), unsafe_allow_html=True)
                         else:
                             st.write('None')
                         
-                        # Source Type
                         st.markdown("**Source Type**")
                         is_match = state.get('source_type_name') == match['source_type_name']
                         st.markdown(format_value(match['source_type_name'], is_match), unsafe_allow_html=True)
+                        
+                        # Character and Plot
+                        st.markdown("**Character Types**")
+                        char_types = match.get('character_types', [])
+                        selected_chars = state.get('character_types', [])
+                        if char_types:
+                            char_texts = [format_value(char, char in selected_chars) for char in char_types]
+                            st.markdown(' • '.join(char_texts), unsafe_allow_html=True)
+                        else:
+                            st.write('None')
+                        
+                        st.markdown("**Plot Elements**")
+                        plot_elements = match.get('plot_elements', [])
+                        selected_plots = state.get('plot_elements', [])
+                        if plot_elements:
+                            plot_texts = [format_value(plot, plot in selected_plots) for plot in plot_elements]
+                            st.markdown(' • '.join(plot_texts), unsafe_allow_html=True)
+                        else:
+                            st.write('None')
+                        
+                        st.markdown("**Theme Elements**")
+                        themes = match.get('thematic_elements', [])
+                        selected_themes = state.get('thematic_elements', [])
+                        if themes:
+                            theme_texts = [format_value(theme, theme in selected_themes) for theme in themes]
+                            st.markdown(' • '.join(theme_texts), unsafe_allow_html=True)
+                        else:
+                            st.write('None')
+                        
+                        st.markdown("**Tone**")
+                        is_match = state.get('tone_name') == match.get('tone_name')
+                        st.markdown(format_value(match.get('tone_name', 'None'), is_match), unsafe_allow_html=True)
+
                         
                         # Character Types
                         if match.get('character_types'):
