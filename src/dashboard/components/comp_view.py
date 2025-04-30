@@ -6,8 +6,6 @@ from typing import Dict, List, Tuple, Optional
 
 from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.templates.defaults.table import create_table_defaults
-from src.dashboard.templates.defaults.form import create_form_defaults
-from src.dashboard.templates.defaults.container import create_container_defaults
 from src.dashboard.utils.style_config import COLORS, FONTS
 
 
@@ -54,15 +52,12 @@ def render_comp_builder(state: Dict) -> None:
     # Initialize analyzer
     comp_analyzer = CompAnalyzer()
     
-    # Create grid layout with templates
+    # Create grid layout
     from src.dashboard.templates.grids.form_results import create_form_results_grid
     fig = create_form_results_grid(
         title="Comp Builder",
         form_title="Criteria",
         results_title="Results"
-    )
-    fig.update_layout(
-        template=create_form_defaults()  # Form styling
     )
     
     # Layout
