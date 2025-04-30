@@ -6,6 +6,8 @@ from typing import Dict, List, Tuple, Optional
 
 from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.templates.defaults.table import create_table_defaults
+from src.dashboard.templates.defaults.form import create_form_defaults
+from src.dashboard.templates.defaults.container import create_container_defaults
 from src.dashboard.utils.style_config import COLORS, FONTS
 
 
@@ -52,6 +54,17 @@ def render_comp_builder(state: Dict) -> None:
     # Initialize analyzer
     comp_analyzer = CompAnalyzer()
     
+    # Create grid layout with templates
+    from src.dashboard.templates.grids.form_results import create_form_results_grid
+    fig = create_form_results_grid(
+        title="Comp Builder",
+        form_title="Criteria",
+        results_title="Results"
+    )
+    fig.update_layout(
+        template=create_form_defaults()  # Form styling
+    )
+    
     # Layout
     criteria_col, results_col = st.columns([1, 2])
     
@@ -59,7 +72,7 @@ def render_comp_builder(state: Dict) -> None:
         render_criteria_section(comp_analyzer, state)
         
     with results_col:
-        render_results_section(comp_analyzer, state)
+        render_results_section(comp_analyzer, state, fig)
 
 
 def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
@@ -216,7 +229,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             state["criteria"]["order_type_id"] = get_id_for_name(order_name, field_options['order_types']) if order_name else None
 
 
-def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
+def render_results_section(comp_analyzer: CompAnalyzer, state: Dict, fig: go.Figure) -> None:
     """Render comp results panel.
     
     Args:
@@ -240,9 +253,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Sort by success score
         results.sort(key=lambda x: x.get('success_score', 0), reverse=True)
         
-        # Create results table
-        table_fig = go.Figure(template=create_table_defaults())
-        table_fig.add_trace(
+        # Add results table to grid
+        fig.update_layout(template=create_table_defaults())
+        fig.add_trace(
             go.Table(
                 header=dict(
                     values=[
@@ -283,16 +296,17 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         )
         
         # Add hover effect
-        table_fig.update_traces(
+        fig.update_traces(
             cells=dict(
                 fill=dict(
                     color=[COLORS["background"]["primary"]],
                     line=dict(color=COLORS["border"], width=1)
                 )
-            )
+            ),
+            selector=dict(type='table')
         )
         
-        st.plotly_chart(table_fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
         
         # Show detailed breakdowns for top 10 matches
         if results:
@@ -320,14 +334,52 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Match score summary
                     st.markdown("#### Match Score Breakdown")
-                    st.markdown(
-                        f"Content Match: {match['content_score']:.1f}% (70 pts max)\n\n"
-                        f"Production Match: {match['production_score']:.1f}% (13 pts max)\n\n"
-                        f"Format Match: {match['format_score']:.1f}% (3 pts max)"
+                    
+                    # Create score breakdown table
+                    score_fig = go.Figure()
+                    score_fig.update_layout(template=create_container_defaults())
+                    score_fig.add_trace(
+                        go.Table(
+                            header=dict(
+                                values=["Component", "Score", "Max Score"],
+                                align="left"
+                            ),
+                            cells=dict(
+                                values=[
+                                    ["Content", "Production", "Format"],
+                                    [f"{match['content_score']:.1f}%",
+                                     f"{match['production_score']:.1f}%",
+                                     f"{match['format_score']:.1f}%"],
+                                    ["70", "13", "3"]
+                                ],
+                                align="left"
+                            )
+                        )
                     )
+                    st.plotly_chart(score_fig, use_container_width=True)
                     
                     # Show details
                     st.markdown("#### Show Details")
+                    
+                    # Create details table
+                    details_fig = go.Figure()
+                    details_fig.update_layout(template=create_container_defaults())
+                    details_fig.add_trace(
+                        go.Table(
+                            header=dict(
+                                values=["Field", "Value"],
+                                align="left"
+                            ),
+                            cells=dict(
+                                values=[
+                                    list(match['show_details'].keys()),
+                                    list(match['show_details'].values())
+                                ],
+                                align="left"
+                            )
+                        )
+                    )
+                    st.plotly_chart(details_fig, use_container_width=True)
                     col1, col2 = st.columns(2)
                     
                     with col1:
