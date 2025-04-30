@@ -258,12 +258,12 @@ class CompAnalyzer:
                 ]
                 
                 # Handle subgenres separately since they're a special case
-                self.field_options['subgenres'] = []
+                self.field_options['subgenre_names'] = []
                 for _, row in self.comp_data.iterrows():
                     if isinstance(row['subgenre_names'], list):
                         for subgenre in row['subgenre_names']:
                             if pd.notna(subgenre):
-                                self.field_options['subgenres'].append((len(self.field_options['subgenres']), str(subgenre)))
+                                self.field_options['subgenre_names'].append((len(self.field_options['subgenre_names']), str(subgenre)))
                 
                 # Extract all field options using a single consistent approach
                 for field_name, id_col, name_col in field_mappings:
