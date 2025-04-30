@@ -261,12 +261,12 @@ class CompAnalyzer:
                 # Handle array fields (studios, character_types, plot_elements, thematic_elements)
                 if field_name in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
                     array_col = f"{field_name[:-1]}_ids" if not field_name.endswith('s_types') else f"{field_name[:-6]}_ids"
-                    tuples = [(int(item), str(name))
-                             for _, row in self.comp_data.iterrows()
-                             if pd.notna(row[array_col])
-                             for item in row[array_col]
-                             if pd.notna(item)
-                             for name in [row[name_col]] if pd.notna(row[name_col])]
+                    tuples = []
+                    for _, row in self.comp_data.iterrows():
+                        if isinstance(row[array_col], list) and row[array_col] and isinstance(row[name_col], list) and row[name_col]:
+                            for item_id, name in zip(row[array_col], row[name_col]):
+                                if pd.notna(item_id) and pd.notna(name):
+                                    tuples.append((int(item_id), str(name)))
                 else:
                     # Handle regular fields
                     tuples = [(int(row[id_col]), str(row[name_col]))
