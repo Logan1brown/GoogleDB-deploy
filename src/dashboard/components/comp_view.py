@@ -275,78 +275,123 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             
             # Create expandable section for each match
             for i, match in enumerate(top_matches, 1):
-                with st.expander(f"#{i}: {match['title']} - {match.get('success_score', 0):.1f}% Success, {match['comp_score'].total:.1f}% Match", expanded=(i==1)):
-                    # Success metrics
-                    st.markdown("#### Success Metrics")
-                    success_col1, success_col2 = st.columns(2)
-                    with success_col1:
-                        st.markdown(
-                            f"**Episodes:** {match.get('tmdb_total_episodes', 'Unknown')}\n\n"
-                            f"**Seasons:** {match.get('tmdb_seasons', 'Unknown')}"
-                        )
-                    with success_col2:
-                        st.markdown(
-                            f"**Longevity Score:** {match.get('longevity_score', 0):.1f}%\n\n"
-                            f"**Overall Success:** {match.get('success_score', 0):.1f}%"
-                        )
-                    
-                    # Match score summary
-                    st.markdown("#### Match Score Breakdown")
+                with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
+                    # Success and match scores
+                    metric_col1, metric_col2 = st.columns(2)
+                    with metric_col1:
+                        st.metric("Success Score", f"{match.get('success_score', 0):.1f}/100")
+                    with metric_col2:
+                        st.metric("Match Score", f"{match['comp_score'].total:.1f}/100")
                     
                     # Score breakdown
-                    col1, col2, col3 = st.columns(3)
+                    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Score Breakdown</p>', unsafe_allow_html=True)
                     
+                    # Only show scoring factors that contribute points
+                    if match.get('tmdb_seasons', 0) >= 2:
+                        st.write(f"**Renewed for Season {match.get('tmdb_seasons')}** _(+40 points)_")
+                    if match.get('tmdb_total_episodes', 0) >= 20:
+                        st.write("**20+ Episodes** _(+30 points)_")
+                    if match.get('longevity_score', 0) > 0:
+                        st.write(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
+                    
+                    # Match score components
+                    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Match Components</p>', unsafe_allow_html=True)
+                    
+                    col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.markdown("**Content**")
-                        st.write(f"{match['comp_score'].content_score:.1f}%")
-                        st.write("(70 pts max)")
-                        
+                        st.metric("Content", f"{match['comp_score'].content_score:.1f}/70")
                     with col2:
-                        st.markdown("**Production**")
-                        st.write(f"{match['comp_score'].production_score:.1f}%")
-                        st.write("(13 pts max)")
-                        
+                        st.metric("Production", f"{match['comp_score'].production_score:.1f}/13")
                     with col3:
-                        st.markdown("**Format**")
-                        st.write(f"{match['comp_score'].format_score:.1f}%")
-                        st.write("(3 pts max)")
+                        st.metric("Format", f"{match['comp_score'].format_score:.1f}/3")
                     
                     # Show details
-                    st.markdown("#### Show Details")
+                    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Show Details</p>', unsafe_allow_html=True)
                     
-                    # Show details as key-value pairs
-                    details = {
-                        'Genre': match['genre_name'],
-                        'Subgenres': ', '.join(name for name in match.get('subgenre_names', []) if name) or 'None',
-                        'Source': match['source_type_name'],
-                        'Network': match['network_name'],
-                        'Studios': ', '.join(match['studio_names']),
-                        'Episodes': match['episode_count'],
-                        'Order Type': match['order_type_name'],
-                        'Time Setting': match['time_setting_name'],
-                        'Location': match['location_setting_name']
-                    }
+                    # Helper function to format value with match highlighting
+                    def format_value(value, is_match):
+                        return f"{'🟢' if is_match else '⚫'} {value}"
                     
-                    for field, value in details.items():
-                        col1, col2 = st.columns([1, 3])
-                        with col1:
-                            st.markdown(f"**{field}**")
-                        with col2:
-                            st.write(value)
-                    # Show matching elements
-                    st.markdown("#### Matching Elements")
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
+                    # Content details
+                    content_col1, content_col2 = st.columns(2)
+                    with content_col1:
+                        # Genre
+                        st.markdown("**Genre**")
+                        is_match = state.get('genre_name') == match['genre_name']
+                        st.markdown(format_value(match['genre_name'], is_match), unsafe_allow_html=True)
+                        
+                        # Subgenres
+                        st.markdown("**Subgenres**")
+                        subgenres = match.get('subgenre_names', [])
+                        selected_subgenres = state.get('subgenre_names', [])
+                        if subgenres:
+                            subgenre_texts = [format_value(name, name in selected_subgenres) for name in subgenres if name]
+                            st.markdown(', '.join(subgenre_texts), unsafe_allow_html=True)
+                        else:
+                            st.write('None')
+                        
+                        # Source Type
+                        st.markdown("**Source Type**")
+                        is_match = state.get('source_type_name') == match['source_type_name']
+                        st.markdown(format_value(match['source_type_name'], is_match), unsafe_allow_html=True)
+                        
+                        # Character Types
                         if match.get('character_types'):
-                            st.markdown(f"**Character Types:** {', '.join(match['character_types'])}")
+                            st.markdown("**Character Types**")
+                            selected_chars = state.get('character_types', [])
+                            char_texts = [format_value(char, char in selected_chars) for char in match['character_types']]
+                            st.markdown(' • '.join(char_texts), unsafe_allow_html=True)
+                        
+                        # Plot Elements
                         if match.get('plot_elements'):
-                            st.markdown(f"**Plot Elements:** {', '.join(match['plot_elements'])}")
-                    
-                    with col2:
+                            st.markdown("**Plot Elements**")
+                            selected_plots = state.get('plot_elements', [])
+                            plot_texts = [format_value(plot, plot in selected_plots) for plot in match['plot_elements']]
+                            st.markdown(' • '.join(plot_texts), unsafe_allow_html=True)
+                        
+                        # Themes
                         if match.get('thematic_elements'):
-                            st.markdown(f"**Themes:** {', '.join(match['thematic_elements'])}")
+                            st.markdown("**Themes**")
+                            selected_themes = state.get('thematic_elements', [])
+                            theme_texts = [format_value(theme, theme in selected_themes) for theme in match['thematic_elements']]
+                            st.markdown(' • '.join(theme_texts), unsafe_allow_html=True)
+                    
+                    with content_col2:
+                        # Network
+                        st.markdown("**Network**")
+                        is_match = state.get('network_name') == match['network_name']
+                        st.markdown(format_value(match['network_name'], is_match), unsafe_allow_html=True)
+                        
+                        # Studios
+                        st.markdown("**Studios**")
+                        selected_studios = state.get('studio_names', [])
+                        studio_texts = [format_value(studio, studio in selected_studios) for studio in match['studio_names']]
+                        st.markdown(', '.join(studio_texts), unsafe_allow_html=True)
+                        
+                        # Episodes
+                        st.markdown("**Episodes**")
+                        st.write(match['episode_count'])
+                        
+                        # Order Type
+                        st.markdown("**Order Type**")
+                        is_match = state.get('order_type_name') == match['order_type_name']
+                        st.markdown(format_value(match['order_type_name'], is_match), unsafe_allow_html=True)
+                        
+                        # Time Setting
+                        st.markdown("**Time Setting**")
+                        is_match = state.get('time_setting_name') == match['time_setting_name']
+                        st.markdown(format_value(match['time_setting_name'], is_match), unsafe_allow_html=True)
+                        
+                        # Location
+                        st.markdown("**Location**")
+                        is_match = state.get('location_setting_name') == match['location_setting_name']
+                        st.markdown(format_value(match['location_setting_name'], is_match), unsafe_allow_html=True)
+                        
+                        # Key Roles
                         if match.get('team_roles'):
-                            st.markdown(f"**Key Roles:** {', '.join(match['team_roles'])}")
+                            st.markdown("**Key Roles**")
+                            selected_roles = state.get('team_roles', [])
+                            role_texts = [format_value(role, role in selected_roles) for role in match['team_roles']]
+                            st.markdown(' • '.join(role_texts), unsafe_allow_html=True)
     else:
         st.info("Select criteria on the left to find similar shows.")
