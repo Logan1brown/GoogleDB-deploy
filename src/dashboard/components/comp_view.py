@@ -279,9 +279,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Success and match scores
                     metric_col1, metric_col2 = st.columns(2)
                     with metric_col1:
-                        st.metric("Success Score", f"{match.get('success_score', 0):.1f}/100")
+                        st.metric("Success Score", f"{int(match.get('success_score', 0))}/100")
                     with metric_col2:
-                        st.metric("Match Score", f"{match['comp_score'].total:.1f}/100")
+                        st.metric("Match Score", f"{int(match['comp_score'].total)}/100")
                     
                     # Score breakdown
                     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Score Breakdown</p>', unsafe_allow_html=True)
@@ -299,11 +299,11 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("Content", f"{match['comp_score'].content_score:.1f}/70")
+                        st.metric("Content", f"{int(match['comp_score'].content_score)}/70")
                     with col2:
-                        st.metric("Production", f"{match['comp_score'].production_score:.1f}/13")
+                        st.metric("Production", f"{int(match['comp_score'].production_score)}/13")
                     with col3:
-                        st.metric("Format", f"{match['comp_score'].format_score:.1f}/3")
+                        st.metric("Format", f"{int(match['comp_score'].format_score)}/3")
                     
                     # Show details
                     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Show Details</p>', unsafe_allow_html=True)
@@ -351,38 +351,46 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         
                         # Themes
                         if match.get('thematic_elements'):
-                            st.markdown("**Themes**")
-                            selected_themes = state.get('thematic_elements', [])
-                            theme_texts = [format_value(theme, theme in selected_themes) for theme in match['thematic_elements']]
                             st.markdown(' • '.join(theme_texts), unsafe_allow_html=True)
+                        else:
+                            st.write('None')
+                        
+                        st.markdown("**Tone**")
+                        is_match = state.get('tone_name') == match.get('tone_name')
+                        st.markdown(format_value(match.get('tone_name', 'None'), is_match), unsafe_allow_html=True)
                     
                     with content_col2:
-                        # Network
+                        # Production
                         st.markdown("**Network**")
                         is_match = state.get('network_name') == match['network_name']
                         st.markdown(format_value(match['network_name'], is_match), unsafe_allow_html=True)
                         
-                        # Studios
                         st.markdown("**Studios**")
+                        studios = match.get('studio_names', [])
                         selected_studios = state.get('studio_names', [])
-                        studio_texts = [format_value(studio, studio in selected_studios) for studio in match['studio_names']]
-                        st.markdown(', '.join(studio_texts), unsafe_allow_html=True)
+                        if studios:
+                            studio_texts = [format_value(studio, studio in selected_studios) for studio in studios]
+                            st.markdown(' • '.join(studio_texts), unsafe_allow_html=True)
+                        else:
+                            st.write('None')
                         
-                        # Episodes
+                        # Format
                         st.markdown("**Episodes**")
-                        st.write(match['episode_count'])
+                        episode_count = match['episode_count']
+                        target_count = state.get('episode_count', 0)
+                        # Match if within ±6 episodes
+                        is_match = abs(episode_count - target_count) <= 6 if target_count else False
+                        st.markdown(format_value(str(episode_count), is_match), unsafe_allow_html=True)
                         
-                        # Order Type
                         st.markdown("**Order Type**")
                         is_match = state.get('order_type_name') == match['order_type_name']
                         st.markdown(format_value(match['order_type_name'], is_match), unsafe_allow_html=True)
                         
-                        # Time Setting
+                        # Settings
                         st.markdown("**Time Setting**")
                         is_match = state.get('time_setting_name') == match['time_setting_name']
                         st.markdown(format_value(match['time_setting_name'], is_match), unsafe_allow_html=True)
                         
-                        # Location
                         st.markdown("**Location**")
                         is_match = state.get('location_setting_name') == match['location_setting_name']
                         st.markdown(format_value(match['location_setting_name'], is_match), unsafe_allow_html=True)
