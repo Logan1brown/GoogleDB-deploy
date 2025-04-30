@@ -55,7 +55,8 @@ class ShowsAnalyzer:
         'networks': 'api_network_stats',
         'team': 'show_team',  # Use raw team table to get all team members
         'details': 'api_show_details',  # Additional show details for content analysis
-        'summary': 'api_show_summary'  # Summary view for show detail page
+        'summary': 'api_show_summary',  # Summary view for show detail page
+        'comp': 'api_show_comp_data'  # Comparison data for show similarity scoring
     }
     
     def __init__(self, cache_dir: Optional[str] = None):
@@ -74,6 +75,45 @@ class ShowsAnalyzer:
             self.last_fetch: Optional[datetime] = None
         except Exception as e:
             logger.error(f"Error during initialization: {str(e)}")
+            raise
+
+    @st.cache_data(ttl=3600)
+    def fetch_comp_data(_self, force: bool = False) -> pd.DataFrame:
+        """Fetch data needed for show comparisons.
+        
+        Args:
+            force (bool): If True, bypass cache and fetch fresh data
+
+        Returns:
+            DataFrame containing all data needed for show comparisons
+        """
+        try:
+            # Get Supabase client with service key for full access
+            supabase = get_client(use_service_key=True)
+            
+            if supabase is None:
+                raise ValueError("Supabase client not initialized. Check your environment variables.")
+                
+            # Fetch comparison data
+            logger.info(f"Fetching data from {_self.VIEWS['comp']}...")
+            comp_data = supabase.table(_self.VIEWS['comp']).select('*').execute()
+            
+            if not hasattr(comp_data, 'data') or not comp_data.data:
+                raise ValueError(f"No data returned from {_self.VIEWS['comp']} view")
+                
+            comp_df = pd.DataFrame(comp_data.data)
+            
+            # Convert array fields to Python lists
+            array_fields = ['subgenres', 'character_type_ids', 'plot_element_ids', 
+                          'thematic_element_ids', 'studios', 'team_member_ids']
+            for field in array_fields:
+                if field in comp_df.columns:
+                    comp_df[field] = comp_df[field].apply(_self.convert_to_list)
+            
+            return comp_df
+            
+        except Exception as e:
+            logger.error(f"Error fetching comp data: {str(e)}")
             raise
 
     @st.cache_data(ttl=3600)

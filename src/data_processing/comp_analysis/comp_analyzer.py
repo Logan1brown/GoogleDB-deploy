@@ -1,0 +1,540 @@
+"""CompAnalyzer: Source of truth for show comparison scoring.
+
+This component defines the scoring weights and rules that other components
+(like CompBuilder) must reference. It uses ShowsAnalyzer as its data provider
+to maintain consistency with our established component pattern.
+"""
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Set, Tuple
+
+import pandas as pd
+from src.data_processing.analyze_shows import ShowsAnalyzer
+from src.data_processing.success_analysis import SuccessAnalyzer
+
+
+@dataclass
+class CompScore:
+    """Score breakdown for a comparable show match (86 points total)."""
+    
+    # Content Match (70 points)
+    genre_base: float     # Base genre match (9 points)
+    genre_overlap: float  # Subgenre overlap (8 points)
+    source_type: float   # Source type match (8 points)
+    character_types: float  # Character type matches (14 points)
+    plot_elements: float   # Plot element matches (12 points)
+    theme_elements: float  # Theme element matches (13 points)
+    tone: float          # Tone match (8 points)
+    time_setting: float  # Time period match (4 points)
+    location: float      # Location match (3 points)
+    
+    # Production Match (13 points)
+    network: float       # Network match (5 points)
+    studio: float        # Studio matches (3 points)
+    team: float         # Team overlap (5 points)
+    
+    # Format Match (3 points)
+    episodes: float      # Episode count similarity (2 points)
+    order_type: float   # Order type match (1 point)
+
+    @property
+    def total(self) -> float:
+        """Calculate total score across all components."""
+        return sum([
+            # Content (70 points)
+            self.genre_base,
+            self.genre_overlap,
+            self.source_type,
+            self.character_types,
+            self.plot_elements, 
+            self.theme_elements,
+            self.tone,
+            self.time_setting,
+            self.location,
+            
+            # Production (13 points)
+            self.network,
+            self.studio,
+            self.team,
+            
+            # Format (3 points)
+            self.episodes,
+            self.order_type
+        ])
+
+    @property
+    def content_score(self) -> float:
+        """Calculate content match score (70 points)."""
+        return sum([
+            self.genre_base,
+            self.genre_overlap,
+            self.source_type,
+            self.character_types,
+            self.plot_elements,
+            self.theme_elements,
+            self.tone,
+            self.time_setting,
+            self.location
+        ])
+
+    @property
+    def production_score(self) -> float:
+        """Calculate production match score (13 points)."""
+        return sum([
+            self.network,
+            self.studio,
+            self.team
+        ])
+
+    @property
+    def format_score(self) -> float:
+        """Calculate format match score (3 points)."""
+        return sum([
+            self.episodes,
+            self.order_type
+        ])
+
+
+class CompAnalyzer:
+    """Analyzer for show comparisons and similarity scoring."""
+
+    # Scoring configuration
+    SCORING_CONFIG = {
+        # Content Match (70 points total)
+        'content': {
+            'total_points': 70,
+            'components': {
+                # Genre (17 points)
+                'genre': {
+                    'points': 17,
+                    'breakdown': {
+                        'base_match': 9,       # Direct genre match
+                        'subgenre_match': 8     # 1.6 points per subgenre match up to 5
+                    }
+                },
+                # Source Type (8 points)
+                'source_type': {
+                    'points': 8,
+                    'breakdown': {
+                        'direct_match': 8      # Direct source type match
+                    }
+                },
+                # Character Types (14 points)
+                'character_types': {
+                    'points': 14,
+                    'breakdown': {
+                        'base_match': 5,        # Primary character type
+                        'additional_match': 1.8  # Per additional match up to 5
+                    }
+                },
+                # Plot Elements (12 points)
+                'plot_elements': {
+                    'points': 12,
+                    'breakdown': {
+                        'per_match': 2.4        # 2.4 points per match up to 5
+                    }
+                },
+                # Thematic Elements (13 points)
+                'thematic_elements': {
+                    'points': 13,
+                    'breakdown': {
+                        'per_match': 2.6        # 2.6 points per match up to 5
+                    }
+                },
+                # Tone (8 points)
+                'tone': {
+                    'points': 8,
+                    'breakdown': {
+                        'direct_match': 8      # Direct tone match
+                    }
+                },
+                # Setting (7 points)
+                'setting': {
+                    'points': 7,
+                    'breakdown': {
+                        'time_period': 4,       # Time period match
+                        'location': 3           # Location type match
+                    }
+                }
+            }
+        },
+        
+        # Production Match (13 points total)
+        'production': {
+            'total_points': 13,
+            'components': {
+                # Network (5 points)
+                'network': {
+                    'points': 5,
+                    'breakdown': {
+                        'direct_match': 5       # Same network
+                    }
+                },
+                # Studio (3 points)
+                'studio': {
+                    'points': 3,
+                    'breakdown': {
+                        'primary_match': 2,     # Primary studio match
+                        'additional_match': 0.5  # Per additional match up to 2
+                    }
+                },
+                # Team (5 points)
+                'team': {
+                    'points': 5,
+                    'breakdown': {
+                        'per_match': 1          # 1 point per team member match up to 5
+                    }
+                }
+            }
+        },
+        
+        # Format Match (3 points total)
+        'format': {
+            'total_points': 3,
+            'components': {
+                # Episode Count (2 points)
+                'episodes': {
+                    'points': 2,
+                    'breakdown': {
+                        'within_2': 2,          # Within 2 episodes
+                        'within_4': 1.5,        # Within 4 episodes
+                        'within_6': 1           # Within 6 episodes
+                    }
+                },
+                # Order Type (1 point)
+                'order_type': {
+                    'points': 1,
+                    'breakdown': {
+                        'direct_match': 1        # Same order type
+                    }
+                }
+            }
+        }
+    }
+
+    def __init__(self, shows_analyzer: Optional[ShowsAnalyzer] = None, success_analyzer: Optional[SuccessAnalyzer] = None):
+        """Initialize the analyzer.
+        
+        Args:
+            shows_analyzer: Optional ShowsAnalyzer instance. If not provided,
+                          a new instance will be created.
+            success_analyzer: Optional SuccessAnalyzer instance. If not provided,
+                          a new instance will be created.
+        """
+        self.shows_analyzer = shows_analyzer or ShowsAnalyzer()
+        self.success_analyzer = success_analyzer or SuccessAnalyzer()
+        self.comp_data = None
+        self.field_options = {}
+        
+    def get_field_options(self, force: bool = False) -> Dict[str, List]:
+        """Get all unique values for dropdown fields.
+        
+        Args:
+            force: If True, bypass cache and fetch fresh data
+            
+        Returns:
+            Dictionary mapping field names to lists of unique values
+        """
+        if self.comp_data is None or force:
+            self.fetch_comp_data()
+            
+        if not self.field_options or force:
+            # Get unique values for each field
+            self.field_options = {
+                # Content fields
+                'genres': sorted([int(x) for x in self.comp_data['genre_id'].unique().tolist() if pd.notna(x)]),
+                'subgenres': sorted(list(set(
+                    int(sg) for sgs in self.comp_data['subgenres'].dropna()
+                    for sg in sgs if pd.notna(sg)
+                ))),
+                'source_types': sorted([int(x) for x in self.comp_data['source_type_id'].unique().tolist() if pd.notna(x)]),
+                'character_types': sorted(list(set(
+                    int(ct) for cts in self.comp_data['character_type_ids'].dropna()
+                    for ct in cts if pd.notna(ct)
+                ))),
+                'plot_elements': sorted(list(set(
+                    int(pe) for pes in self.comp_data['plot_element_ids'].dropna()
+                    for pe in pes if pd.notna(pe)
+                ))),
+                'thematic_elements': sorted(list(set(
+                    int(te) for tes in self.comp_data['thematic_element_ids'].dropna()
+                    for te in tes if pd.notna(te)
+                ))),
+                'tones': sorted([int(x) for x in self.comp_data['tone_id'].unique().tolist() if pd.notna(x)]),
+                'time_settings': sorted([int(x) for x in self.comp_data['time_setting_id'].unique().tolist() if pd.notna(x)]),
+                'locations': sorted([int(x) for x in self.comp_data['location_setting_id'].unique().tolist() if pd.notna(x)]),
+                
+                # Production fields
+                'networks': sorted([int(x) for x in self.comp_data['network_id'].unique().tolist() if pd.notna(x)]),
+                'studios': sorted(list(set(
+                    int(s) for studios in self.comp_data['studios'].dropna()
+                    for s in studios if pd.notna(s)
+                ))),
+                
+                # Format fields
+                'order_types': sorted([int(x) for x in self.comp_data['order_type_id'].unique().tolist() if pd.notna(x)])
+            }
+            
+        return self.field_options
+        
+    def fetch_comp_data(self) -> pd.DataFrame:
+        """Fetch show comparison data using ShowsAnalyzer.
+        
+        Returns:
+            DataFrame containing all data needed for show comparisons.
+        """
+        try:
+            # Get both comp data and market data
+            self.comp_data = self.shows_analyzer.fetch_comp_data()
+            titles_df, _, _ = self.shows_analyzer.fetch_market_data()
+            
+            # Calculate average episodes per season
+            titles_df['tmdb_avg_eps'] = titles_df.apply(
+                lambda x: x['tmdb_total_episodes'] / x['tmdb_seasons'] 
+                if pd.notna(x['tmdb_total_episodes']) and pd.notna(x['tmdb_seasons']) and x['tmdb_seasons'] > 0
+                else None,
+                axis=1
+            )
+            
+            # Initialize success analyzer with market data
+            self.success_analyzer.initialize_data(titles_df)
+            
+            return self.comp_data
+            
+        except Exception as e:
+            raise Exception(f"Error fetching comp data: {str(e)}")
+            
+    def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
+        """Get similar shows for the given show ID.
+        
+        Args:
+            show_id: ID of the show to find similar shows for
+            limit: Maximum number of similar shows to return
+            
+        Returns:
+            List of tuples containing (show_id, CompScore) for similar shows,
+            sorted by total score descending.
+        """
+        if self.comp_data is None:
+            self.fetch_comp_data()
+            
+        # Get source show data
+        source = self.comp_data[self.comp_data['id'] == show_id].iloc[0]
+        
+        # Calculate scores for all other shows
+        scores = []
+        for _, target in self.comp_data[self.comp_data['id'] != show_id].iterrows():
+            score = self._calculate_score(source, target)
+            scores.append((target['id'], score))
+            
+        # Calculate success scores for matches
+        success_scores = {}
+        for show_id, _ in scores:
+            # Look up show in market data by show id
+            show_data = self.success_analyzer.titles_df[
+                self.success_analyzer.titles_df['id'] == show_id
+            ]
+            if not show_data.empty:
+                success_scores[show_id] = self.success_analyzer.calculate_success(show_data.iloc[0])
+            
+        # Sort by weighted combination of match score and success score
+        def score_key(item):
+            show_id, comp_score = item
+            success_score = success_scores.get(show_id, 0)
+            return 0.7 * comp_score.total + 0.3 * success_score
+            
+        # Get top matches with full data
+        top_matches = sorted(scores, key=score_key, reverse=True)[:limit]
+        results = []
+        for show_id, comp_score in top_matches:
+            show_data = self.comp_data[self.comp_data['id'] == show_id].iloc[0]
+            show_data = show_data.to_dict()
+            show_data['comp_score'] = comp_score
+            show_data['success_score'] = success_scores.get(show_id, 0)
+            results.append(show_data)
+            
+        return results
+    
+    def _calculate_score(self, source: pd.Series, target: pd.Series) -> CompScore:
+        """Calculate comparison score between two shows.
+        
+        Args:
+            source: Source show data from comp_data
+            target: Target show data from comp_data
+            
+        Returns:
+            CompScore object containing score breakdown
+        """
+        # Content scores
+        genre_base = (
+            self.SCORING_CONFIG['content']['components']['genre']['breakdown']['base_match']
+            if source['genre_id'] == target['genre_id']
+            else 0
+        )
+        
+        genre_overlap = min(
+            len(set(source['subgenres']).intersection(set(target['subgenres']))) * 1.6,
+            self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
+        )
+        
+        source_type = (
+            self.SCORING_CONFIG['content']['components']['source_type']['breakdown']['direct_match']
+            if source['source_type_id'] == target['source_type_id']
+            else 0
+        )
+        
+        character_types = self._calculate_array_match(
+            source['character_type_ids'],
+            target['character_type_ids'],
+            self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['base_match'],
+            self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['additional_match'],
+            5
+        )
+        
+        plot_elements = self._calculate_array_match(
+            source['plot_element_ids'],
+            target['plot_element_ids'],
+            0,  # No base match
+            self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['per_match'],
+            5
+        )
+        
+        theme_elements = self._calculate_array_match(
+            source['thematic_element_ids'],
+            target['thematic_element_ids'],
+            0,  # No base match
+            self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['per_match'],
+            5
+        )
+        
+        tone = (
+            self.SCORING_CONFIG['content']['components']['tone']['breakdown']['direct_match']
+            if source['tone_id'] == target['tone_id']
+            else 0
+        )
+        
+        time_setting = (
+            self.SCORING_CONFIG['content']['components']['setting']['breakdown']['time_period']
+            if source['time_setting_id'] == target['time_setting_id']
+            else 0
+        )
+        
+        location = (
+            self.SCORING_CONFIG['content']['components']['setting']['breakdown']['location']
+            if source['location_setting_id'] == target['location_setting_id']
+            else 0
+        )
+        
+        # Production scores
+        network = (
+            self.SCORING_CONFIG['production']['components']['network']['breakdown']['direct_match']
+            if source['network_id'] == target['network_id']
+            else 0
+        )
+        
+        studio = self._calculate_array_match(
+            source['studios'],
+            target['studios'],
+            self.SCORING_CONFIG['production']['components']['studio']['breakdown']['primary_match'],
+            self.SCORING_CONFIG['production']['components']['studio']['breakdown']['additional_match'],
+            2
+        )
+        
+        team = self._calculate_array_match(
+            source['team_member_ids'],
+            target['team_member_ids'],
+            0,  # No base match
+            self.SCORING_CONFIG['production']['components']['team']['breakdown']['per_match'],
+            5
+        )
+        
+        # Format scores
+        episodes = self._calculate_episode_score(
+            source['episode_count'],
+            target['episode_count']
+        )
+        
+        order_type = (
+            self.SCORING_CONFIG['format']['components']['order_type']['breakdown']['direct_match']
+            if source['order_type_id'] == target['order_type_id']
+            else 0
+        )
+        
+        return CompScore(
+            # Content
+            genre_base=genre_base,
+            genre_overlap=genre_overlap,
+            source_type=source_type,
+            character_types=character_types,
+            plot_elements=plot_elements,
+            theme_elements=theme_elements,
+            tone=tone,
+            time_setting=time_setting,
+            location=location,
+            
+            # Production
+            network=network,
+            studio=studio,
+            team=team,
+            
+            # Format
+            episodes=episodes,
+            order_type=order_type
+        )
+    
+    def _calculate_array_match(
+        self,
+        source_arr: List,
+        target_arr: List,
+        base_points: float,
+        per_match_points: float,
+        max_matches: int
+    ) -> float:
+        """Calculate score for array field matches.
+        
+        Args:
+            source_arr: Source array
+            target_arr: Target array
+            base_points: Points for first match
+            per_match_points: Points per additional match
+            max_matches: Maximum number of matches to count
+            
+        Returns:
+            Total points for matches
+        """
+        if not source_arr or not target_arr:
+            return 0
+            
+        matches = len(set(source_arr).intersection(set(target_arr)))
+        if matches == 0:
+            return 0
+            
+        if base_points > 0:
+            # First match gets base points, rest get per_match
+            additional = min(matches - 1, max_matches - 1)
+            return base_points + (additional * per_match_points)
+        else:
+            # All matches get per_match points
+            return min(matches, max_matches) * per_match_points
+    
+    def _calculate_episode_score(self, source_eps: int, target_eps: int) -> float:
+        """Calculate episode count similarity score.
+        
+        Args:
+            source_eps: Source show episode count
+            target_eps: Target show episode count
+            
+        Returns:
+            Score based on episode count difference
+        """
+        if not source_eps or not target_eps:
+            return 0
+            
+        diff = abs(source_eps - target_eps)
+        if diff <= 2:
+            return self.SCORING_CONFIG['format']['components']['episodes']['breakdown']['within_2']
+        elif diff <= 4:
+            return self.SCORING_CONFIG['format']['components']['episodes']['breakdown']['within_4']
+        elif diff <= 6:
+            return self.SCORING_CONFIG['format']['components']['episodes']['breakdown']['within_6']
+        else:
+            return 0
