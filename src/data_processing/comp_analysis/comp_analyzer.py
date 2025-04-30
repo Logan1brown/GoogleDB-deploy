@@ -244,7 +244,6 @@ class CompAnalyzer:
             # Extract field options from comp_data
             field_mappings = [
                 ('genres', 'genre_id', 'genre_name'),
-                ('subgenres', 'subgenre_id', 'subgenre_names'),
                 ('source_types', 'source_type_id', 'source_type_name'),
                 ('character_types', 'character_type_ids', 'character_type_names'),
                 ('plot_elements', 'plot_element_ids', 'plot_element_names'),
@@ -256,6 +255,14 @@ class CompAnalyzer:
                 ('studios', 'studios', 'studio_names'),
                 ('order_types', 'order_type_id', 'order_type_name')
             ]
+            
+            # Handle subgenres separately since they're a special case
+            self.field_options['subgenres'] = []
+            for _, row in self.comp_data.iterrows():
+                if isinstance(row['subgenre_names'], list):
+                    for subgenre in row['subgenre_names']:
+                        if pd.notna(subgenre):
+                            self.field_options['subgenres'].append((len(self.field_options['subgenres']), str(subgenre)))
             
             # Extract all field options using a single consistent approach
             for field_name, id_col, name_col in field_mappings:
