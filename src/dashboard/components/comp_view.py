@@ -286,6 +286,24 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Score breakdown
                     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Score Breakdown</p>', unsafe_allow_html=True)
                     
+                    # Content score breakdown
+                    st.markdown("**Content Score**")
+                    st.markdown(f"Genre: {int(match['comp_score'].genre_score)}/20")
+                    st.markdown(f"Source Type: {int(match['comp_score'].source_type_score)}/10")
+                    st.markdown(f"Character Types: {int(match['comp_score'].character_score)}/15")
+                    st.markdown(f"Plot Elements: {int(match['comp_score'].plot_score)}/15")
+                    st.markdown(f"Theme Elements: {int(match['comp_score'].theme_score)}/10")
+                    
+                    # Production score breakdown
+                    st.markdown("**Production Score**")
+                    st.markdown(f"Network: {int(match['comp_score'].network_score)}/8")
+                    st.markdown(f"Studios: {int(match['comp_score'].studio_score)}/5")
+                    
+                    # Format score breakdown
+                    st.markdown("**Format Score**")
+                    st.markdown(f"Episodes: {int(match['comp_score'].episode_score)}/2")
+                    st.markdown(f"Order Type: {int(match['comp_score'].order_type_score)}/1")
+                    
                     # Only show scoring factors that contribute points
                     if match.get('tmdb_seasons', 0) >= 2:
                         st.write(f"**Renewed for Season {match.get('tmdb_seasons')}** _(+40 points)_")
@@ -307,6 +325,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Show details
                     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Show Details</p>', unsafe_allow_html=True)
+                    
+                    # Get field options for lookups
+                    field_options = comp_analyzer.get_field_options()
                     
                     # Store names in state for comparison
                     if not state.get('genre_name') and state['criteria'].get('genre_id'):
