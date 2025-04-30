@@ -572,6 +572,7 @@ class ShowsAnalyzer:
         logger.info(f"Analysis complete - {stats['total_shows']} shows processed")
         return stats
 
+
     def generate_profile_report(self, output_file: Optional[str] = None) -> None:
         """Generate comprehensive profile reports using ydata-profiling.
         

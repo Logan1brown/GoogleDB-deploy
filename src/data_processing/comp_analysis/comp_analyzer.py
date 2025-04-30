@@ -238,77 +238,41 @@ class CompAnalyzer:
             self.fetch_comp_data()
             
         if not self.field_options or force:
-            # Get Supabase client
-            supabase = get_client(use_service_key=True)
+            self.field_options = {}
             
-            # Fetch lookup tables
-            genre_data = supabase.table('genre_list').select('id,genre').eq('active', True).execute()
-            source_data = supabase.table('source_types').select('id,type').eq('active', True).execute()
-            char_data = supabase.table('character_type_types').select('id,name').execute()
-            plot_data = supabase.table('plot_element_types').select('id,name').eq('active', True).execute()
-            theme_data = supabase.table('thematic_element_types').select('id,name').eq('active', True).execute()
-            tone_data = supabase.table('tone_types').select('id,name').eq('active', True).execute()
-            time_data = supabase.table('time_setting_types').select('id,name').eq('active', True).execute()
-            loc_data = supabase.table('location_setting_types').select('id,name').eq('active', True).execute()
-            network_data = supabase.table('network_list').select('id,network').eq('active', True).execute()
-            studio_data = supabase.table('studio_list').select('id,studio').eq('active', True).execute()
-            order_data = supabase.table('order_types').select('id,type').eq('active', True).execute()
+            # Extract field options from comp_data
+            field_mappings = [
+                ('genres', 'genre_id', 'genre_name'),
+                ('source_types', 'source_type_id', 'source_type_name'),
+                ('character_types', 'character_type_id', 'character_type_name'),
+                ('plot_elements', 'plot_element_id', 'plot_element_name'),
+                ('thematic_elements', 'thematic_element_id', 'thematic_element_name'),
+                ('tone_types', 'tone_id', 'tone_name'),
+                ('time_settings', 'time_setting_id', 'time_setting_name'),
+                ('locations', 'location_setting_id', 'location_setting_name'),
+                ('networks', 'network_id', 'network_name'),
+                ('studios', 'studio_id', 'studio_name'),
+                ('order_types', 'order_type_id', 'order_type_name')
+            ]
             
-            # Create lookup dictionaries
-            genre_dict = {x['id']: x['genre'] for x in genre_data.data}
-            source_dict = {x['id']: x['type'] for x in source_data.data}
-            char_dict = {x['id']: x['name'] for x in char_data.data}
-            plot_dict = {x['id']: x['name'] for x in plot_data.data}
-            theme_dict = {x['id']: x['name'] for x in theme_data.data}
-            tone_dict = {x['id']: x['name'] for x in tone_data.data}
-            time_dict = {x['id']: x['name'] for x in time_data.data}
-            loc_dict = {x['id']: x['name'] for x in loc_data.data}
-            network_dict = {x['id']: x['network'] for x in network_data.data}
-            studio_dict = {x['id']: x['studio'] for x in studio_data.data}
-            order_dict = {x['id']: x['type'] for x in order_data.data}
-            
-            # Create options with names
-            self.field_options = {
-                # Content fields
-                'genres': [(id, genre_dict.get(id, 'Unknown')) 
-                          for id in sorted([int(x) for x in self.comp_data['genre_id'].unique().tolist() if pd.notna(x)])],
-                'source_types': [(id, source_dict.get(id, 'Unknown'))
-                                for id in sorted([int(x) for x in self.comp_data['source_type_id'].unique().tolist() if pd.notna(x)])],
-                'character_types': [(id, char_dict.get(id, 'Unknown'))
-                                  for id in sorted(list(set(
-                                      int(ct) for cts in self.comp_data['character_type_ids'].dropna()
-                                      for ct in cts if pd.notna(ct)
-                                  )))],
-                'plot_elements': [(id, plot_dict.get(id, 'Unknown'))
-                                for id in sorted(list(set(
-                                    int(pe) for pes in self.comp_data['plot_element_ids'].dropna()
-                                    for pe in pes if pd.notna(pe)
-                                )))],
-                'thematic_elements': [(id, theme_dict.get(id, 'Unknown'))
-                                    for id in sorted(list(set(
-                                        int(te) for tes in self.comp_data['thematic_element_ids'].dropna()
-                                        for te in tes if pd.notna(te)
-                                    )))],
-                'tones': [(id, tone_dict.get(id, 'Unknown'))
-                         for id in sorted([int(x) for x in self.comp_data['tone_id'].unique().tolist() if pd.notna(x)])],
-                'time_settings': [(id, time_dict.get(id, 'Unknown'))
-                                for id in sorted([int(x) for x in self.comp_data['time_setting_id'].unique().tolist() if pd.notna(x)])],
-                'locations': [(id, loc_dict.get(id, 'Unknown'))
-                            for id in sorted([int(x) for x in self.comp_data['location_setting_id'].unique().tolist() if pd.notna(x)])],
+            # Extract all field options using a single consistent approach
+            for field_name, id_col, name_col in field_mappings:
+                # Handle array fields (studios, character_types, plot_elements, thematic_elements)
+                if field_name in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
+                    array_col = f"{field_name[:-1]}_ids" if not field_name.endswith('s_types') else f"{field_name[:-6]}_ids"
+                    tuples = [(int(item), str(name))
+                             for _, row in self.comp_data.iterrows()
+                             if pd.notna(row[array_col])
+                             for item in row[array_col]
+                             if pd.notna(item)
+                             for name in [row[name_col]] if pd.notna(row[name_col])]
+                else:
+                    # Handle regular fields
+                    tuples = [(int(row[id_col]), str(row[name_col]))
+                             for _, row in self.comp_data.iterrows()
+                             if pd.notna(row[id_col]) and pd.notna(row[name_col])]
                 
-                # Production fields
-                'networks': [(id, network_dict.get(id, 'Unknown'))
-                           for id in sorted([int(x) for x in self.comp_data['network_id'].unique().tolist() if pd.notna(x)])],
-                'studios': [(id, studio_dict.get(id, 'Unknown'))
-                          for id in sorted(list(set(
-                              int(s) for studios in self.comp_data['studios'].dropna()
-                              for s in studios if pd.notna(s)
-                          )))],
-                
-                # Format fields
-                'order_types': [(id, order_dict.get(id, 'Unknown'))
-                              for id in sorted([int(x) for x in self.comp_data['order_type_id'].unique().tolist() if pd.notna(x)])]
-            }
+                self.field_options[field_name] = sorted(list(set(tuples)))
             
         return self.field_options
         
