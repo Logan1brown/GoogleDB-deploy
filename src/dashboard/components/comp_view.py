@@ -88,6 +88,15 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             )
             state["criteria"]["genre_id"] = get_id_for_name(genre_name, field_options['genres']) if genre_name else None
             
+            subgenre_names = st.multiselect(
+                "Subgenres",
+                options=[name for _, name in field_options['subgenre_names']],
+                format_func=lambda x: x,
+                key="subgenres",
+                placeholder="Select subgenres..."
+            )
+            state["criteria"]["subgenres"] = get_ids_for_names(subgenre_names, field_options['subgenre_names'])
+            
             source_name = st.selectbox(
                 "Source Type", 
                 options=[name for _, name in field_options['source_types']],
