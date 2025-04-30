@@ -263,10 +263,18 @@ class CompAnalyzer:
                     array_col = 'studios' if field_name == 'studios' else f"{field_name[:-1]}_ids"
                     tuples = []
                     for _, row in self.comp_data.iterrows():
-                        if isinstance(row[array_col], list) and row[array_col]:
-                            for item_id in row[array_col]:
-                                if pd.notna(item_id) and pd.notna(row[name_col]):
-                                    tuples.append((int(item_id), str(row[name_col])))
+                        # Get the array of IDs and names
+                        ids = row[array_col]
+                        names = row[name_col]
+                        
+                        # Skip if either is missing
+                        if not isinstance(ids, list) or not isinstance(names, list):
+                            continue
+                            
+                        # Create tuples from parallel arrays
+                        for item_id, name in zip(ids, names):
+                            if pd.notna(item_id) and pd.notna(name):
+                                tuples.append((int(item_id), str(name)))
                 else:
                     # Handle regular fields
                     tuples = [(int(row[id_col]), str(row[name_col]))
