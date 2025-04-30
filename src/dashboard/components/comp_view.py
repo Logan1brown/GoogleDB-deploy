@@ -74,145 +74,135 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         # Content criteria
         st.markdown("### Content")
-        col1, col2 = st.columns(2)
+        genre_name = st.selectbox(
+            "Genre",
+            options=[name for _, name in field_options['genres']],
+            format_func=lambda x: x,
+            key="genre_id",
+            index=None,
+            placeholder="Select genre..."
+        )
+        state["criteria"]["genre_id"] = get_id_for_name(genre_name, field_options['genres']) if genre_name else None
         
-        with col1:
-            genre_name = st.selectbox(
-                "Genre",
-                options=[name for _, name in field_options['genres']],
-                format_func=lambda x: x,
-                key="genre_id",
-                index=None,
-                placeholder="Select genre..."
-            )
-            state["criteria"]["genre_id"] = get_id_for_name(genre_name, field_options['genres']) if genre_name else None
-            
-            subgenre_names = st.multiselect(
-                "Subgenres",
-                options=[name for _, name in field_options['subgenre_names']],
-                format_func=lambda x: x,
-                key="subgenres",
-                placeholder="Select subgenres..."
-            )
-            state["criteria"]["subgenres"] = get_ids_for_names(subgenre_names, field_options['subgenre_names'])
-            
-            source_name = st.selectbox(
-                "Source Type", 
-                options=[name for _, name in field_options['source_types']],
-                format_func=lambda x: x,
-                key="source_type_id",
-                index=None,
-                placeholder="Select source type..."
-            )
-            state["criteria"]["source_type_id"] = get_id_for_name(source_name, field_options['source_types']) if source_name else None
-            
-            char_names = st.multiselect(
-                "Character Types",
-                options=[name for _, name in field_options['character_types']],
-                format_func=lambda x: x,
-                key="character_type_ids",
-                placeholder="Select character types..."
-            )
-            state["criteria"]["character_type_ids"] = get_ids_for_names(char_names, field_options['character_types'])
-            
-            plot_names = st.multiselect(
-                "Plot Elements",
-                options=[name for _, name in field_options['plot_elements']],
-                format_func=lambda x: x,
-                key="plot_element_ids",
-                placeholder="Select plot elements..."
-            )
-            state["criteria"]["plot_element_ids"] = get_ids_for_names(plot_names, field_options['plot_elements'])
-            
-            theme_names = st.multiselect(
-                "Theme Elements",
-                options=[name for _, name in field_options['thematic_elements']],
-                format_func=lambda x: x,
-                key="theme_element_ids",
-                placeholder="Select theme elements..."
-            )
-            state["criteria"]["theme_element_ids"] = get_ids_for_names(theme_names, field_options['thematic_elements'])
-            
-        with col2:
-            tone_name = st.selectbox(
-                "Tone",
-                options=[name for _, name in field_options['tones']],
-                format_func=lambda x: x,
-                key="tone",
-                index=None,
-                placeholder="Select tone..."
-            )
-            state["criteria"]["tone_id"] = get_id_for_name(tone_name, field_options['tones']) if tone_name else None
-            
-            time_name = st.selectbox(
-                "Time Setting",
-                options=[name for _, name in field_options['time_settings']],
-                format_func=lambda x: x,
-                key="time_setting",
-                index=None,
-                placeholder="Select time setting..."
-            )
-            state["criteria"]["time_setting_id"] = get_id_for_name(time_name, field_options['time_settings']) if time_name else None
-            
-            loc_name = st.selectbox(
-                "Location",
-                options=[name for _, name in field_options['locations']],
-                format_func=lambda x: x,
-                key="location",
-                index=None,
-                placeholder="Select location..."
-            )
-            state["criteria"]["location_setting_id"] = get_id_for_name(loc_name, field_options['locations']) if loc_name else None
+        subgenre_names = st.multiselect(
+            "Subgenres",
+            options=[name for _, name in field_options['subgenre_names']],
+            format_func=lambda x: x,
+            key="subgenres",
+            placeholder="Select subgenres..."
+        )
+        state["criteria"]["subgenres"] = get_ids_for_names(subgenre_names, field_options['subgenre_names'])
+        
+        source_name = st.selectbox(
+            "Source Type", 
+            options=[name for _, name in field_options['source_types']],
+            format_func=lambda x: x,
+            key="source_type_id",
+            index=None,
+            placeholder="Select source type..."
+        )
+        state["criteria"]["source_type_id"] = get_id_for_name(source_name, field_options['source_types']) if source_name else None
+        
+        char_names = st.multiselect(
+            "Character Types",
+            options=[name for _, name in field_options['character_types']],
+            format_func=lambda x: x,
+            key="character_type_ids",
+            placeholder="Select character types..."
+        )
+        state["criteria"]["character_type_ids"] = get_ids_for_names(char_names, field_options['character_types'])
+        
+        plot_names = st.multiselect(
+            "Plot Elements",
+            options=[name for _, name in field_options['plot_elements']],
+            format_func=lambda x: x,
+            key="plot_element_ids",
+            placeholder="Select plot elements..."
+        )
+        state["criteria"]["plot_element_ids"] = get_ids_for_names(plot_names, field_options['plot_elements'])
+        
+        theme_names = st.multiselect(
+            "Theme Elements",
+            options=[name for _, name in field_options['thematic_elements']],
+            format_func=lambda x: x,
+            key="theme_element_ids",
+            placeholder="Select theme elements..."
+        )
+        state["criteria"]["theme_element_ids"] = get_ids_for_names(theme_names, field_options['thematic_elements'])
+        
+        tone_name = st.selectbox(
+            "Tone",
+            options=[name for _, name in field_options['tones']],
+            format_func=lambda x: x,
+            key="tone",
+            index=None,
+            placeholder="Select tone..."
+        )
+        state["criteria"]["tone_id"] = get_id_for_name(tone_name, field_options['tones']) if tone_name else None
+        
+        time_name = st.selectbox(
+            "Time Setting",
+            options=[name for _, name in field_options['time_settings']],
+            format_func=lambda x: x,
+            key="time_setting",
+            index=None,
+            placeholder="Select time setting..."
+        )
+        state["criteria"]["time_setting_id"] = get_id_for_name(time_name, field_options['time_settings']) if time_name else None
+        
+        loc_name = st.selectbox(
+            "Location",
+            options=[name for _, name in field_options['locations']],
+            format_func=lambda x: x,
+            key="location",
+            index=None,
+            placeholder="Select location..."
+        )
+        state["criteria"]["location_setting_id"] = get_id_for_name(loc_name, field_options['locations']) if loc_name else None
         
         # Production criteria
         st.markdown("### Production")
-        col1, col2 = st.columns(2)
         
-        with col1:
-            network_name = st.selectbox(
-                "Network",
-                options=[name for _, name in field_options['networks']],
-                format_func=lambda x: x,
-                key="network_id",
-                index=None,
-                placeholder="Select network..."
-            )
-            state["criteria"]["network_id"] = get_id_for_name(network_name, field_options['networks']) if network_name else None
-            
-        with col2:
-            studio_names = st.multiselect(
-                "Studios",
-                options=[name for _, name in field_options['studios']],
-                format_func=lambda x: x,
-                key="studios",
-                placeholder="Select studios..."
-            )
-            state["criteria"]["studios"] = get_ids_for_names(studio_names, field_options['studios'])
-            
+        network_name = st.selectbox(
+            "Network",
+            options=[name for _, name in field_options['networks']],
+            format_func=lambda x: x,
+            key="network_id",
+            index=None,
+            placeholder="Select network..."
+        )
+        state["criteria"]["network_id"] = get_id_for_name(network_name, field_options['networks']) if network_name else None
+        
+        studio_names = st.multiselect(
+            "Studios",
+            options=[name for _, name in field_options['studios']],
+            format_func=lambda x: x,
+            key="studios",
+            placeholder="Select studios..."
+        )
+        state["criteria"]["studios"] = get_ids_for_names(studio_names, field_options['studios'])
+        
         # Format criteria
         st.markdown("### Format")
-        col1, col2 = st.columns(2)
         
-        with col1:
-            state["criteria"]["episode_count"] = st.number_input(
-                "Episode Count",
-                min_value=1,
-                max_value=100,
-                value=10,
-                key="episode_count",
-                help="Episode count proximity (2 within ±2, 1.5 within ±4, 1 within ±6)"
-            )
-            
-        with col2:
-            order_name = st.selectbox(
-                "Order Type",
-                options=[name for _, name in field_options['order_types']],
-                format_func=lambda x: x,
-                key="order_type_id",
-                index=None,
-                placeholder="Select order type..."
-            )
-            state["criteria"]["order_type_id"] = get_id_for_name(order_name, field_options['order_types']) if order_name else None
+        state["criteria"]["episode_count"] = st.number_input(
+            "Episode Count",
+            min_value=1,
+            max_value=100,
+            value=10,
+            key="episode_count",
+            help="Episode count proximity (2 within ±2, 1.5 within ±4, 1 within ±6)"
+        )
+        
+        order_name = st.selectbox(
+            "Order Type",
+            options=[name for _, name in field_options['order_types']],
+            format_func=lambda x: x,
+            key="order_type_id",
+            index=None,
+            placeholder="Select order type..."
+        )
+        state["criteria"]["order_type_id"] = get_id_for_name(order_name, field_options['order_types']) if order_name else None
 
 
 def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
