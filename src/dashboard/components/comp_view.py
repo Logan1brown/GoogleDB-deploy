@@ -278,43 +278,19 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                 with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
                     # Success and match scores
                     metric_col1, metric_col2 = st.columns(2)
-                    with metric_col1:
-                        st.metric("Success Score", f"{int(match.get('success_score', 0))}/100")
-                    with metric_col2:
-                        st.metric("Match Score", f"{int(match['comp_score'].total)}/100")
                     
-                    # Score breakdown
-                    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Score Breakdown</p>', unsafe_allow_html=True)
+                    st.markdown("**Success Score**")
+                    st.markdown(f"{int(match.get('success_score', 0))}/100")
                     
-                    # Content score breakdown (70 points)
-                    st.markdown("**Content Score**")
-                    st.markdown(f"Genre: {int(match['comp_score'].genre_base + match['comp_score'].genre_overlap)}/17 (Base: {int(match['comp_score'].genre_base)}/9, Subgenres: {int(match['comp_score'].genre_overlap)}/8)")
-                    st.markdown(f"Source Type: {int(match['comp_score'].source_type)}/8")
-                    st.markdown(f"Character Types: {int(match['comp_score'].character_types)}/14")
-                    st.markdown(f"Plot Elements: {int(match['comp_score'].plot_elements)}/12")
-                    st.markdown(f"Theme Elements: {int(match['comp_score'].theme_elements)}/13")
-                    st.markdown(f"Tone: {int(match['comp_score'].tone)}/8")
-                    st.markdown(f"Time Setting: {int(match['comp_score'].time_setting)}/4")
-                    st.markdown(f"Location: {int(match['comp_score'].location)}/3")
-                    
-                    # Production score breakdown (15 points)
-                    st.markdown("**Production Score**")
-                    st.markdown(f"Network: {int(match['comp_score'].network)}/5")
-                    st.markdown(f"Studios: {int(match['comp_score'].studio)}/3")
-                    st.markdown(f"Team: {int(match['comp_score'].team)}/5")
-                    
-                    # Format score breakdown (3 points)
-                    st.markdown("**Format Score**")
-                    st.markdown(f"Episodes: {int(match['comp_score'].episodes)}/2")
-                    st.markdown(f"Order Type: {int(match['comp_score'].order_type)}/1")
-                    
-                    # Only show scoring factors that contribute points
+                    st.markdown("**Score Breakdown**")
                     if match.get('tmdb_seasons', 0) >= 2:
-                        st.write(f"**Renewed for Season {match.get('tmdb_seasons')}** _(+40 points)_")
-                    if match.get('tmdb_total_episodes', 0) >= 20:
-                        st.write("**20+ Episodes** _(+30 points)_")
+                        st.markdown(f"Renewed for Season {match.get('tmdb_seasons')} (+40 points)")
+                    if match.get('episode_count', 0) >= 12:
+                        st.markdown("Standard episode volume (+20 points)")
+                    if match.get('is_active', False):
+                        st.markdown("Active show bonus: Score multiplied by 1.2")
                     if match.get('longevity_score', 0) > 0:
-                        st.write(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
+                        st.markdown(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
                     
                     # Match score components
                     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Match Components</p>', unsafe_allow_html=True)
@@ -367,9 +343,12 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     content_col1, content_col2 = st.columns(2)
                     with content_col1:
                         # Core Content
+                        st.markdown("**Content Match** _(70 points)_")
+                        
                         st.markdown("**Genre**")
                         is_match = state.get('genre_name') == match['genre_name']
-                        st.markdown(format_value(match['genre_name'], is_match), unsafe_allow_html=True)
+                        score = int(match['comp_score'].genre_base + match['comp_score'].genre_overlap)
+                        st.markdown(f"{format_value(match['genre_name'], is_match)} ({score}/17)", unsafe_allow_html=True)
                         
                         st.markdown("**Subgenres**")
                         subgenres = match.get('subgenre_names', [])
@@ -382,39 +361,44 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         
                         st.markdown("**Source Type**")
                         is_match = state.get('source_type_name') == match['source_type_name']
-                        st.markdown(format_value(match['source_type_name'], is_match), unsafe_allow_html=True)
+                        score = int(match['comp_score'].source_type)
+                        st.markdown(f"{format_value(match['source_type_name'], is_match)} ({score}/8)", unsafe_allow_html=True)
                         
                         # Character and Plot
                         st.markdown("**Character Types**")
                         char_types = match.get('character_types', [])
                         selected_chars = state.get('character_types', [])
+                        score = int(match['comp_score'].character_types)
                         if char_types:
                             char_texts = [format_value(char, char in selected_chars) for char in char_types]
-                            st.markdown(' • '.join(char_texts), unsafe_allow_html=True)
+                            st.markdown(f"{' • '.join(char_texts)} ({score}/14)", unsafe_allow_html=True)
                         else:
-                            st.write('None')
+                            st.write(f"None (0/14)")
                         
                         st.markdown("**Plot Elements**")
                         plot_elements = match.get('plot_elements', [])
                         selected_plots = state.get('plot_elements', [])
+                        score = int(match['comp_score'].plot_elements)
                         if plot_elements:
                             plot_texts = [format_value(plot, plot in selected_plots) for plot in plot_elements]
-                            st.markdown(' • '.join(plot_texts), unsafe_allow_html=True)
+                            st.markdown(f"{' • '.join(plot_texts)} ({score}/12)", unsafe_allow_html=True)
                         else:
-                            st.write('None')
+                            st.write(f"None (0/12)")
                         
                         st.markdown("**Theme Elements**")
                         themes = match.get('thematic_elements', [])
                         selected_themes = state.get('thematic_elements', [])
+                        score = int(match['comp_score'].theme_elements)
                         if themes:
                             theme_texts = [format_value(theme, theme in selected_themes) for theme in themes]
-                            st.markdown(' • '.join(theme_texts), unsafe_allow_html=True)
+                            st.markdown(f"{' • '.join(theme_texts)} ({score}/13)", unsafe_allow_html=True)
                         else:
-                            st.write('None')
+                            st.write(f"None (0/13)")
                         
                         st.markdown("**Tone**")
                         is_match = state.get('tone_name') == match.get('tone_name')
-                        st.markdown(format_value(match.get('tone_name', 'None'), is_match), unsafe_allow_html=True)
+                        score = int(match['comp_score'].tone)
+                        st.markdown(f"{format_value(match.get('tone_name', 'None'), is_match)} ({score}/8)", unsafe_allow_html=True)
 
                         
                         # Character Types
@@ -443,39 +427,55 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     with content_col2:
                         # Production
+                        st.markdown("**Production Match** _(15 points)_")
+                        
                         st.markdown("**Network**")
                         is_match = state.get('network_name') == match['network_name']
-                        st.markdown(format_value(match['network_name'], is_match), unsafe_allow_html=True)
+                        score = int(match['comp_score'].network)
+                        st.markdown(f"{format_value(match['network_name'], is_match)} ({score}/5)", unsafe_allow_html=True)
                         
                         st.markdown("**Studios**")
                         studios = match.get('studio_names', [])
                         selected_studios = state.get('studio_names', [])
+                        score = int(match['comp_score'].studio)
                         if studios:
                             studio_texts = [format_value(studio, studio in selected_studios) for studio in studios]
-                            st.markdown(' • '.join(studio_texts), unsafe_allow_html=True)
+                            st.markdown(f"{' • '.join(studio_texts)} ({score}/3)", unsafe_allow_html=True)
                         else:
-                            st.write('None')
+                            st.write(f"None (0/3)")
+                        
+                        st.markdown("**Team**")
+                        score = int(match['comp_score'].team)
+                        st.markdown(f"({score}/5)")
                         
                         # Format
+                        st.markdown("**Format Match** _(3 points)_")
+                        
                         st.markdown("**Episodes**")
                         episode_count = match['episode_count']
                         target_count = state.get('episode_count', 0)
                         # Match if within ±6 episodes
                         is_match = abs(episode_count - target_count) <= 6 if target_count else False
-                        st.markdown(format_value(str(episode_count), is_match), unsafe_allow_html=True)
+                        score = int(match['comp_score'].episodes)
+                        st.markdown(f"{format_value(str(episode_count), is_match)} ({score}/2)", unsafe_allow_html=True)
                         
                         st.markdown("**Order Type**")
                         is_match = state.get('order_type_name') == match['order_type_name']
-                        st.markdown(format_value(match['order_type_name'], is_match), unsafe_allow_html=True)
+                        score = int(match['comp_score'].order_type)
+                        st.markdown(f"{format_value(match['order_type_name'], is_match)} ({score}/1)", unsafe_allow_html=True)
                         
                         # Settings
+                        st.markdown("**Setting Match** _(7 points)_")
+                        
                         st.markdown("**Time Setting**")
                         is_match = state.get('time_setting_name') == match['time_setting_name']
-                        st.markdown(format_value(match['time_setting_name'], is_match), unsafe_allow_html=True)
+                        score = int(match['comp_score'].time_setting)
+                        st.markdown(f"{format_value(match['time_setting_name'], is_match)} ({score}/4)", unsafe_allow_html=True)
                         
                         st.markdown("**Location**")
                         is_match = state.get('location_setting_name') == match['location_setting_name']
-                        st.markdown(format_value(match['location_setting_name'], is_match), unsafe_allow_html=True)
+                        score = int(match['comp_score'].location)
+                        st.markdown(f"{format_value(match['location_setting_name'], is_match)} ({score}/3)", unsafe_allow_html=True)
                         
                         # Key Roles
                         if match.get('team_roles'):
