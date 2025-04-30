@@ -235,63 +235,73 @@ class CompAnalyzer:
         Returns:
             Dictionary mapping field names to lists of (id, name) tuples
         """
-        if self.comp_data is None or force:
-            self.fetch_comp_data()
-            
-        if not self.field_options or force:
-            self.field_options = {}
-            
-            # Extract field options from comp_data
-            field_mappings = [
-                ('genres', 'genre_id', 'genre_name'),
-                ('source_types', 'source_type_id', 'source_type_name'),
-                ('character_types', 'character_type_ids', 'character_type_names'),
-                ('plot_elements', 'plot_element_ids', 'plot_element_names'),
-                ('thematic_elements', 'thematic_element_ids', 'thematic_element_names'),
-                ('tones', 'tone_id', 'tone_name'),
-                ('time_settings', 'time_setting_id', 'time_setting_name'),
-                ('locations', 'location_setting_id', 'location_setting_name'),
-                ('networks', 'network_id', 'network_name'),
-                ('studios', 'studios', 'studio_names'),
-                ('order_types', 'order_type_id', 'order_type_name')
-            ]
-            
-            # Handle subgenres separately since they're a special case
-            self.field_options['subgenres'] = []
-            for _, row in self.comp_data.iterrows():
-                if isinstance(row['subgenres'], list):
-                    for subgenre in row['subgenres']:
-                        if pd.notna(subgenre):
-                            self.field_options['subgenres'].append((len(self.field_options['subgenres']), str(subgenre)))
-            
-            # Extract all field options using a single consistent approach
-            for field_name, id_col, name_col in field_mappings:
-                # Handle array fields (studios, character_types, plot_elements, thematic_elements)
-                if field_name in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
-                    array_col = 'studios' if field_name == 'studios' else f"{field_name[:-1]}_ids"
-                    tuples = []
-                    for _, row in self.comp_data.iterrows():
-                        # Get the array of IDs and names
-                        ids = row[array_col]
-                        names = row[name_col]
-                        
-                        # Skip if either is missing
-                        if not isinstance(ids, list) or not isinstance(names, list):
-                            continue
-                            
-                        # Create tuples from parallel arrays
-                        for item_id, name in zip(ids, names):
-                            if pd.notna(item_id) and pd.notna(name):
-                                tuples.append((int(item_id), str(name)))
-                else:
-                    # Handle regular fields
-                    tuples = [(int(row[id_col]), str(row[name_col]))
-                             for _, row in self.comp_data.iterrows()
-                             if pd.notna(row[id_col]) and pd.notna(row[name_col])]
+        try:
+            if self.comp_data is None or force:
+                self.fetch_comp_data()
                 
-                self.field_options[field_name] = sorted(list(set(tuples)))
-            
-        return self.field_options
+            if not self.field_options or force:
+                self.field_options = {}
+                
+                # Extract field options from comp_data
+                field_mappings = [
+                    ('genres', 'genre_id', 'genre_name'),
+                    ('source_types', 'source_type_id', 'source_type_name'),
+                    ('character_types', 'character_type_ids', 'character_type_names'),
+                    ('plot_elements', 'plot_element_ids', 'plot_element_names'),
+                    ('thematic_elements', 'thematic_element_ids', 'thematic_element_names'),
+                    ('tones', 'tone_id', 'tone_name'),
+                    ('time_settings', 'time_setting_id', 'time_setting_name'),
+                    ('locations', 'location_setting_id', 'location_setting_name'),
+                    ('networks', 'network_id', 'network_name'),
+                    ('studios', 'studios', 'studio_names'),
+                    ('order_types', 'order_type_id', 'order_type_name')
+                ]
+                
+                # Handle subgenres separately since they're a special case
+                self.field_options['subgenres'] = []
+                for _, row in self.comp_data.iterrows():
+                    if isinstance(row['subgenres'], list):
+                        for subgenre in row['subgenres']:
+                            if pd.notna(subgenre):
+                                self.field_options['subgenres'].append((len(self.field_options['subgenres']), str(subgenre)))
+                
+                # Extract all field options using a single consistent approach
+                for field_name, id_col, name_col in field_mappings:
+                    # Handle array fields (studios, character_types, plot_elements, thematic_elements)
+                    if field_name in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
+                        array_col = 'studios' if field_name == 'studios' else f"{field_name[:-1]}_ids"
+                        tuples = []
+                        for _, row in self.comp_data.iterrows():
+                            # Get the array of IDs and names
+                            ids = row[array_col]
+                            names = row[name_col]
+                            
+                            # Skip if either is missing
+                            if not isinstance(ids, list) or not isinstance(names, list):
+                                continue
+                                
+                            # Create tuples from parallel arrays
+                            for item_id, name in zip(ids, names):
+                                if pd.notna(item_id) and pd.notna(name):
+                                    tuples.append((int(item_id), str(name)))
+                    else:
+                        # Handle regular fields
+                        tuples = [(int(row[id_col]), str(row[name_col]))
+                                 for _, row in self.comp_data.iterrows()
+                                 if pd.notna(row[id_col]) and pd.notna(row[name_col])]
+                    
+                    # Remove duplicates while preserving order
+                    seen = set()
+                    self.field_options[field_name] = [x for x in tuples 
+                                                    if not (x in seen or seen.add(x))]
+                
+            return self.field_options
+        except Exception as e:
+            print(f"Error in get_field_options: {str(e)}")
+            print(f"Available columns: {self.comp_data.columns if self.comp_data is not None else 'No data'}")
+            import traceback
+            traceback.print_exc()
+            raise
         
     def fetch_comp_data(self) -> pd.DataFrame:
         """Fetch show comparison data using ShowsAnalyzer.
@@ -436,122 +446,120 @@ class CompAnalyzer:
         Returns:
             CompScore object containing score breakdown
         """
-        # Content scores
-        genre_base = (
-            self.SCORING_CONFIG['content']['components']['genre']['breakdown']['base_match']
-            if source['genre_id'] == target['genre_id']
-            else 0
-        )
-        
-        genre_overlap = min(
-            len(set(source['subgenres']).intersection(set(target['subgenres']))) * 1.6,
-            self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
-        )
-        
-        source_type = (
-            self.SCORING_CONFIG['content']['components']['source_type']['breakdown']['direct_match']
-            if source['source_type_id'] == target['source_type_id']
-            else 0
-        )
-        
-        character_types = self._calculate_array_match(
-            source['character_type_ids'],
-            target['character_type_ids'],
-            self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['base_match'],
-            self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['additional_match'],
-            5
-        )
-        
-        plot_elements = self._calculate_array_match(
-            source['plot_element_ids'],
-            target['plot_element_ids'],
-            0,  # No base match
-            self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['per_match'],
-            5
-        )
-        
-        theme_elements = self._calculate_array_match(
-            source['thematic_element_ids'],
-            target['thematic_element_ids'],
-            0,  # No base match
-            self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['per_match'],
-            5
-        )
-        
-        tone = (
-            self.SCORING_CONFIG['content']['components']['tone']['breakdown']['direct_match']
-            if source['tone_id'] == target['tone_id']
-            else 0
-        )
-        
-        time_setting = (
-            self.SCORING_CONFIG['content']['components']['setting']['breakdown']['time_period']
-            if source['time_setting_id'] == target['time_setting_id']
-            else 0
-        )
-        
-        location = (
-            self.SCORING_CONFIG['content']['components']['setting']['breakdown']['location']
-            if source['location_setting_id'] == target['location_setting_id']
-            else 0
-        )
-        
-        # Production scores
-        network = (
-            self.SCORING_CONFIG['production']['components']['network']['breakdown']['direct_match']
-            if source['network_id'] == target['network_id']
-            else 0
-        )
-        
-        studio = self._calculate_array_match(
-            source['studios'],
-            target['studios'],
-            self.SCORING_CONFIG['production']['components']['studio']['breakdown']['primary_match'],
-            self.SCORING_CONFIG['production']['components']['studio']['breakdown']['additional_match'],
-            2
-        )
-        
-        team = self._calculate_array_match(
-            source['team_member_ids'],
-            target['team_member_ids'],
-            0,  # No base match
-            self.SCORING_CONFIG['production']['components']['team']['breakdown']['per_match'],
-            5
-        )
-        
-        # Format scores
-        episodes = self._calculate_episode_score(
-            source['episode_count'],
-            target['episode_count']
-        )
-        
-        order_type = (
-            self.SCORING_CONFIG['format']['components']['order_type']['breakdown']['direct_match']
-            if source['order_type_id'] == target['order_type_id']
-            else 0
-        )
-        
-        return CompScore(
-            # Content
-            genre_base=genre_base,
-            genre_overlap=genre_overlap,
-            source_type=source_type,
-            character_types=character_types,
-            plot_elements=plot_elements,
-            theme_elements=theme_elements,
-            tone=tone,
-            time_setting=time_setting,
-            location=location,
+        try:
+            # Content scores
+            genre_base = (
+                self.SCORING_CONFIG['content']['components']['genre']['breakdown']['base_match']
+                if source['genre_id'] == target['genre_id']
+                else 0
+            )
             
-            # Production
-            network=network,
-            studio=studio,
-            team=team,
+            genre_overlap = min(
+                len(set(source['subgenres']).intersection(set(target['subgenres']))) * 1.6,
+                self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
+            )
             
-            # Format
-            episodes=episodes,
-            order_type=order_type
-        )
+            source_type = (
+                self.SCORING_CONFIG['content']['components']['source_type']['breakdown']['direct_match']
+                if source['source_type_id'] == target['source_type_id']
+                else 0
+            )
+            
+            character_types = self._calculate_array_match(
+                source['character_type_ids'],
+                target['character_type_ids'],
+                self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['base_match'],
+                self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['additional_match'],
+                5
+            )
+            
+            plot_elements = self._calculate_array_match(
+                source['plot_element_ids'],
+                target['plot_element_ids'],
+                0,
+                self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['per_match'],
+                5
+            )
+            
+            theme_elements = self._calculate_array_match(
+                source['thematic_element_ids'],
+                target['thematic_element_ids'],
+                0,
+                self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['per_match'],
+                5
+            )
+            
+            tone = (
+                self.SCORING_CONFIG['content']['components']['tone']['breakdown']['direct_match']
+                if source['tone_id'] == target['tone_id']
+                else 0
+            )
+            
+            time_setting = (
+                self.SCORING_CONFIG['content']['components']['setting']['breakdown']['time_period']
+                if source['time_setting_id'] == target['time_setting_id']
+                else 0
+            )
+            
+            location = (
+                self.SCORING_CONFIG['content']['components']['setting']['breakdown']['location']
+                if source['location_setting_id'] == target['location_setting_id']
+                else 0
+            )
+            
+            # Production scores
+            network = (
+                self.SCORING_CONFIG['production']['components']['network']['breakdown']['direct_match']
+                if source['network_id'] == target['network_id']
+                else 0
+            )
+            
+            studio = self._calculate_array_match(
+                source['studios'],
+                target['studios'],
+                self.SCORING_CONFIG['production']['components']['studio']['breakdown']['primary_match'],
+                self.SCORING_CONFIG['production']['components']['studio']['breakdown']['additional_match'],
+                2
+            )
+            
+            # Team score based on shared team members
+            team = 0  # TODO: Implement team scoring once team data is available
+            
+            # Format scores
+            episodes = self._calculate_episode_score(
+                source['episode_count'],
+                target['episode_count']
+            )
+            
+            order_type = (
+                self.SCORING_CONFIG['format']['components']['order_type']['breakdown']['direct_match']
+                if source['order_type_id'] == target['order_type_id']
+                else 0
+            )
+            
+            return CompScore(
+                genre_base=genre_base,
+                genre_overlap=genre_overlap,
+                source_type=source_type,
+                character_types=character_types,
+                plot_elements=plot_elements,
+                theme_elements=theme_elements,
+                tone=tone,
+                time_setting=time_setting,
+                location=location,
+                network=network,
+                studio=studio,
+                team=team,
+                episodes=episodes,
+                order_type=order_type
+            )
+        except Exception as e:
+            print(f"Error in _calculate_score: {str(e)}")
+            print(f"Source columns: {source.index}")
+            print(f"Target columns: {target.index}")
+            import traceback
+            traceback.print_exc()
+            raise
     
     def _calculate_array_match(
         self,
