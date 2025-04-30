@@ -317,7 +317,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict, fig: go.Fig
             
             # Create expandable section for each match
             for i, match in enumerate(top_matches, 1):
-                with st.expander(f"#{i}: {match['title']} - {match['success_score']:.1f}% Success, {match['comp_score'].total:.1f}% Match", expanded=(i==1)):
+                with st.expander(f"#{i}: {match['title']} - {match.get('success_score', 0):.1f}% Success, {match['comp_score'].total:.1f}% Match", expanded=(i==1)):
                     # Success metrics
                     st.markdown("#### Success Metrics")
                     success_col1, success_col2 = st.columns(2)
@@ -340,46 +340,40 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict, fig: go.Fig
                     
                     with col1:
                         st.markdown("**Content**")
-                        st.write(f"{match['content_score']:.1f}%")
+                        st.write(f"{match['comp_score'].content_score:.1f}%")
                         st.write("(70 pts max)")
                         
                     with col2:
                         st.markdown("**Production**")
-                        st.write(f"{match['production_score']:.1f}%")
+                        st.write(f"{match['comp_score'].production_score:.1f}%")
                         st.write("(13 pts max)")
                         
                     with col3:
                         st.markdown("**Format**")
-                        st.write(f"{match['format_score']:.1f}%")
+                        st.write(f"{match['comp_score'].format_score:.1f}%")
                         st.write("(3 pts max)")
                     
                     # Show details
                     st.markdown("#### Show Details")
                     
-                    for field, value in match['show_details'].items():
+                    # Show details as key-value pairs
+                    details = {
+                        'Genre': match['genre_name'],
+                        'Source': match['source_type'],
+                        'Network': match['network_name'],
+                        'Studios': ', '.join(match['studio_names']),
+                        'Episodes': match['episode_count'],
+                        'Order Type': match['order_type'],
+                        'Time Setting': match['time_setting'],
+                        'Location': match['location']
+                    }
+                    
+                    for field, value in details.items():
                         col1, col2 = st.columns([1, 3])
                         with col1:
                             st.markdown(f"**{field}**")
                         with col2:
                             st.write(value)
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.markdown(
-                            f"**Genre:** {match['genre_name']}\n\n"
-                            f"**Source:** {match['source_type']}\n\n"
-                            f"**Network:** {match['network_name']}\n\n"
-                            f"**Studios:** {', '.join(match['studio_names'])}"
-                        )
-                    
-                    with col2:
-                        st.markdown(
-                            f"**Episodes:** {match['episode_count']}\n\n"
-                            f"**Order Type:** {match['order_type']}\n\n"
-                            f"**Time Setting:** {match['time_setting']}\n\n"
-                            f"**Location:** {match['location']}"
-                        )
-                    
                     # Show matching elements
                     st.markdown("#### Matching Elements")
                     col1, col2 = st.columns(2)
