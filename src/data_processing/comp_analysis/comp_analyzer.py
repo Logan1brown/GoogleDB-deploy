@@ -455,7 +455,7 @@ class CompAnalyzer:
             )
             
             genre_overlap = min(
-                len(set(source['subgenre_names']).intersection(set(target['subgenre_names']))) * 1.6,
+                len(set(source['subgenres']).intersection(set(target['subgenres']))) * 1.6,
                 self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
             )
             
