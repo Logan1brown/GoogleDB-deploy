@@ -332,7 +332,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         'Studios': ', '.join(match['studio_names']),
                         'Episodes': match['episode_count'],
                         'Order Type': match['order_type_name'],
-                        'Time Setting': match['time_setting'],
+                        'Time Setting': match['time_setting_name'],
                         'Location': match['location']
                     }
                     
