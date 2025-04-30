@@ -317,7 +317,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Get comp score components
                     comp_score = match['comp_score']
                     st.markdown("Content")
-                    st.write(f"{comp_score.content_score()}/70")
+                    st.write(f"{comp_score.content_score}/70")
                     st.write("")
                     
                     # Content breakdown
@@ -327,11 +327,11 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     st.write("")
                     
                     st.markdown("Production")
-                    st.write(f"{comp_score.production_score()}/13")
+                    st.write(f"{comp_score.production_score}/13")
                     st.write("")
                     
                     st.markdown("Format")
-                    st.write(f"{comp_score.format_score()}/3")
+                    st.write(f"{comp_score.format_score}/3")
                     st.write("")
                     if match.get('longevity_score', 0) > 0:
                         st.markdown(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
