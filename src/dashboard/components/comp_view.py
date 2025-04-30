@@ -39,7 +39,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Genre (17 points)
         state["criteria"]["genre_id"] = st.selectbox(
             "Genre",
-            options=comp_analyzer.get_field_options("genre_id"),
+            options=comp_analyzer.get_field_options()["genres"],
             key="comp_genre",
             help="17 points - Genre match (9 base + 8 subgenre)"
         )
@@ -47,7 +47,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Source Type (8 points)
         state["criteria"]["source_type_id"] = st.selectbox(
             "Source Type", 
-            options=comp_analyzer.get_field_options("source_type_id"),
+            options=comp_analyzer.get_field_options()["source_types"],
             key="comp_source",
             help="8 points - Direct match on source type"
         )
@@ -55,7 +55,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Character Types (14 points)
         state["criteria"]["character_type_ids"] = st.multiselect(
             "Character Types",
-            options=comp_analyzer.get_field_options("character_type_ids"),
+            options=comp_analyzer.get_field_options()["character_types"],
             key="comp_characters",
             help="14 points - Character type matches (5 primary + 1.8 per additional up to 5)"
         )
@@ -63,7 +63,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Plot Elements (12 points)
         state["criteria"]["plot_element_ids"] = st.multiselect(
             "Plot Elements",
-            options=comp_analyzer.get_field_options("plot_element_ids"),
+            options=comp_analyzer.get_field_options()["plot_elements"],
             key="comp_plot",
             help="12 points - Plot element matches (2.4 per match up to 5)"
         )
@@ -71,7 +71,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Theme Elements (13 points)
         state["criteria"]["theme_element_ids"] = st.multiselect(
             "Theme Elements",
-            options=comp_analyzer.get_field_options("theme_element_ids"),
+            options=comp_analyzer.get_field_options()["thematic_elements"],
             key="comp_themes",
             help="13 points - Theme matches (2.6 per match up to 5)"
         )
@@ -79,7 +79,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Tone (8 points)
         state["criteria"]["tone"] = st.selectbox(
             "Tone",
-            options=comp_analyzer.get_field_options("tone"),
+            options=comp_analyzer.get_field_options()["tones"],
             key="comp_tone",
             help="8 points - Direct match on tone"
         )
@@ -89,14 +89,14 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         with col1:
             state["criteria"]["time_setting"] = st.selectbox(
                 "Time Period",
-                options=comp_analyzer.get_field_options("time_setting"),
+                options=comp_analyzer.get_field_options()["time_settings"],
                 key="comp_time",
                 help="4 points - Time period match"
             )
         with col2:
             state["criteria"]["location"] = st.selectbox(
                 "Location",
-                options=comp_analyzer.get_field_options("location"),
+                options=comp_analyzer.get_field_options()["locations"],
                 key="comp_location",
                 help="3 points - Location match"
             )
@@ -105,7 +105,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Network (5 points)
         state["criteria"]["network_id"] = st.selectbox(
             "Network",
-            options=comp_analyzer.get_field_options("network_id"),
+            options=comp_analyzer.get_field_options()["networks"],
             key="comp_network",
             help="5 points - Direct network match"
         )
@@ -113,7 +113,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Studios (3 points)
         state["criteria"]["studio_ids"] = st.multiselect(
             "Studios",
-            options=comp_analyzer.get_field_options("studio_ids"),
+            options=comp_analyzer.get_field_options()["studios"],
             key="comp_studios",
             help="3 points - Studio matches (2 primary + 0.5 per additional up to 2)"
         )
@@ -144,7 +144,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         with col2:
             state["criteria"]["order_type"] = st.selectbox(
                 "Order Type",
-                options=comp_analyzer.get_field_options("order_type"),
+                options=comp_analyzer.get_field_options()["order_types"],
                 key="comp_order",
                 help="1 point - Direct order type match"
             )
