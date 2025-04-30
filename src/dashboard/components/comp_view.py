@@ -335,51 +335,33 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict, fig: go.Fig
                     # Match score summary
                     st.markdown("#### Match Score Breakdown")
                     
-                    # Create score breakdown table
-                    score_fig = go.Figure()
-                    score_fig.update_layout(template=create_container_defaults())
-                    score_fig.add_trace(
-                        go.Table(
-                            header=dict(
-                                values=["Component", "Score", "Max Score"],
-                                align="left"
-                            ),
-                            cells=dict(
-                                values=[
-                                    ["Content", "Production", "Format"],
-                                    [f"{match['content_score']:.1f}%",
-                                     f"{match['production_score']:.1f}%",
-                                     f"{match['format_score']:.1f}%"],
-                                    ["70", "13", "3"]
-                                ],
-                                align="left"
-                            )
-                        )
-                    )
-                    st.plotly_chart(score_fig, use_container_width=True)
+                    # Score breakdown
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.markdown("**Content**")
+                        st.write(f"{match['content_score']:.1f}%")
+                        st.write("(70 pts max)")
+                        
+                    with col2:
+                        st.markdown("**Production**")
+                        st.write(f"{match['production_score']:.1f}%")
+                        st.write("(13 pts max)")
+                        
+                    with col3:
+                        st.markdown("**Format**")
+                        st.write(f"{match['format_score']:.1f}%")
+                        st.write("(3 pts max)")
                     
                     # Show details
                     st.markdown("#### Show Details")
                     
-                    # Create details table
-                    details_fig = go.Figure()
-                    details_fig.update_layout(template=create_container_defaults())
-                    details_fig.add_trace(
-                        go.Table(
-                            header=dict(
-                                values=["Field", "Value"],
-                                align="left"
-                            ),
-                            cells=dict(
-                                values=[
-                                    list(match['show_details'].keys()),
-                                    list(match['show_details'].values())
-                                ],
-                                align="left"
-                            )
-                        )
-                    )
-                    st.plotly_chart(details_fig, use_container_width=True)
+                    for field, value in match['show_details'].items():
+                        col1, col2 = st.columns([1, 3])
+                        with col1:
+                            st.markdown(f"**{field}**")
+                        with col2:
+                            st.write(value)
                     col1, col2 = st.columns(2)
                     
                     with col1:
