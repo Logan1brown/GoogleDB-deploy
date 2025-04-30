@@ -259,8 +259,8 @@ class CompAnalyzer:
             # Handle subgenres separately since they're a special case
             self.field_options['subgenres'] = []
             for _, row in self.comp_data.iterrows():
-                if isinstance(row['subgenre_names'], list):
-                    for subgenre in row['subgenre_names']:
+                if isinstance(row['subgenres'], list):
+                    for subgenre in row['subgenres']:
                         if pd.notna(subgenre):
                             self.field_options['subgenres'].append((len(self.field_options['subgenres']), str(subgenre)))
             
@@ -444,7 +444,7 @@ class CompAnalyzer:
         )
         
         genre_overlap = min(
-            len(set(source['subgenre_names']).intersection(set(target['subgenre_names']))) * 1.6,
+            len(set(source['subgenres']).intersection(set(target['subgenres']))) * 1.6,
             self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
         )
         
