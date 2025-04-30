@@ -325,7 +325,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Content Match
                     st.markdown("**Content Match** _(70 points)_")
-                    st.metric("Total Content Score", f"{comp_score.content_score()}/70")
+                    st.metric("Total Content Score", f"{comp_score.content_score}/70")
                     st.write("")
                     
                     # Genre
@@ -377,7 +377,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Production Match
                     st.markdown("**Production Match** _(13 points)_")
-                    st.metric("Total Production Score", f"{comp_score.production_score()}/13")
+                    st.metric("Total Production Score", f"{comp_score.production_score}/13")
                     st.write("")
                     
                     # Network
@@ -400,7 +400,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Format Match
                     st.markdown("**Format Match** _(3 points)_")
-                    st.metric("Total Format Score", f"{comp_score.format_score()}/3")
+                    st.metric("Total Format Score", f"{comp_score.format_score}/3")
                     st.write("")
                     
                     # Episodes
