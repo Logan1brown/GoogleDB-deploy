@@ -284,6 +284,33 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     st.markdown("**Score Breakdown**")
                     st.write("")
                     
+                    # Season achievements
+                    if pd.notna(match.get('tmdb_seasons')):
+                        seasons = int(match['tmdb_seasons'])
+                        if seasons >= 2:
+                            st.write(f"Renewed for Season {seasons} (+40 points)")
+                            st.write("")
+                            extra_seasons = seasons - 2
+                            if extra_seasons > 0:
+                                bonus = min(extra_seasons * 20, 40)
+                                st.write(f"Additional seasons bonus (+{bonus} points)")
+                                st.write("")
+                    
+                    # Episode volume
+                    if pd.notna(match.get('tmdb_avg_eps')):
+                        avg_eps = float(match['tmdb_avg_eps'])
+                        if avg_eps >= 10:
+                            st.write("High episode volume (+40 points)")
+                            st.write("")
+                        elif avg_eps >= 8:
+                            st.write("Standard episode volume (+20 points)")
+                            st.write("")
+                    
+                    # Status modifier
+                    if match.get('status_name') == 'Returning Series':
+                        st.write("Active show bonus: Score multiplied by 1.2")
+                        st.write("")
+                    
                     st.markdown("**Match Components**")
                     st.write("")
                     
