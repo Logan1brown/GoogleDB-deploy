@@ -36,6 +36,8 @@ def main():
     try:
         # Get page state
         state = get_page_state("comp_builder")
+        if not state:
+            state = {}
         if "criteria" not in state:
             state["criteria"] = {}
 
@@ -44,3 +46,6 @@ def main():
 
     except Exception as e:
         st.error(f"Error in comp builder: {str(e)}")
+
+# Call main directly since this is a Streamlit page
+main()
