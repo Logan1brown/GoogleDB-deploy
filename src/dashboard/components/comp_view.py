@@ -278,7 +278,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                 with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
                     st.markdown("**Success Score**")
                     st.write("")
-                    st.markdown(f"{match.get('success_score', 0):.1f}/100")
+                    success_score = match.get('success_score', 0)
+                    st.metric("Success Score", f"{success_score:.1f}/100")
                     st.write("")
                     
                     st.markdown("**Score Breakdown**")
@@ -288,27 +289,34 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     if pd.notna(match.get('tmdb_seasons')):
                         seasons = int(match['tmdb_seasons'])
                         if seasons >= 2:
-                            st.write(f"Renewed for Season {seasons} (+40 points)")
-                            st.write("")
+                            st.markdown("**Season Achievements** _(40% of score)_")
+                            st.write(f"- Renewed for Season {seasons} (+40 points)")
                             extra_seasons = seasons - 2
                             if extra_seasons > 0:
                                 bonus = min(extra_seasons * 20, 40)
-                                st.write(f"Additional seasons bonus (+{bonus} points)")
-                                st.write("")
+                                st.write(f"- Additional seasons bonus (+{bonus} points)")
+                            st.write("")
                     
                     # Episode volume
                     if pd.notna(match.get('tmdb_avg_eps')):
                         avg_eps = float(match['tmdb_avg_eps'])
+                        st.markdown("**Episode Volume** _(40% of score)_")
                         if avg_eps >= 10:
-                            st.write("High episode volume (+40 points)")
-                            st.write("")
+                            st.write("- High episode volume (+40 points)")
                         elif avg_eps >= 8:
-                            st.write("Standard episode volume (+20 points)")
-                            st.write("")
+                            st.write("- Standard episode volume (+20 points)")
+                        st.write("")
                     
                     # Status modifier
-                    if match.get('status_name') == 'Returning Series':
-                        st.write("Active show bonus: Score multiplied by 1.2")
+                    status = match.get('status_name')
+                    if status:
+                        st.markdown("**Status Modifier**")
+                        if status == 'Returning Series':
+                            st.write("- Active show bonus: Score multiplied by 1.2")
+                        elif status == 'Ended':
+                            st.write("- Completed show: No modifier")
+                        elif status == 'Canceled':
+                            st.write("- Canceled show: Score reduced by 20%")
                         st.write("")
                     
                     st.markdown("**Match Components**")
