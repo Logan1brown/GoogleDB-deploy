@@ -2,11 +2,45 @@
 
 import streamlit as st
 import plotly.graph_objects as go
-from typing import Dict
+from typing import Dict, List, Tuple, Optional
 
 from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.templates.defaults.table import create_table_defaults
 from src.dashboard.utils.style_config import COLORS, FONTS
+
+
+def get_id_for_name(name: str, options: List[Tuple[int, str]]) -> Optional[int]:
+    """Get the ID for a given display name from field options.
+    
+    Args:
+        name: Display name to look up
+        options: List of (id, name) tuples from field_options
+        
+    Returns:
+        ID if found, None if not found
+    """
+    for id, display_name in options:
+        if display_name == name:
+            return id
+    return None
+
+
+def get_ids_for_names(names: List[str], options: List[Tuple[int, str]]) -> List[int]:
+    """Get IDs for a list of display names from field options.
+    
+    Args:
+        names: List of display names to look up
+        options: List of (id, name) tuples from field_options
+        
+    Returns:
+        List of found IDs (skips any names not found)
+    """
+    ids = []
+    for name in names:
+        id = get_id_for_name(name, options)
+        if id is not None:
+            ids.append(id)
+    return ids
 
 
 def render_comp_builder(state: Dict) -> None:
@@ -36,118 +70,141 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         state: Page state dictionary to store selections
     """
     with st.expander("Content Match Criteria (70 pts)", expanded=True):
-        # Genre (17 points)
-        state["criteria"]["genre_id"] = st.selectbox(
-            "Genre",
-            options=comp_analyzer.get_field_options()["genres"],
-            key="comp_genre",
-            help="17 points - Genre match (9 base + 8 subgenre)"
-        )
+        # Get field options
+        field_options = comp_analyzer.get_field_options()
         
-        # Source Type (8 points)
-        state["criteria"]["source_type_id"] = st.selectbox(
-            "Source Type", 
-            options=comp_analyzer.get_field_options()["source_types"],
-            key="comp_source",
-            help="8 points - Direct match on source type"
-        )
-        
-        # Character Types (14 points)
-        state["criteria"]["character_type_ids"] = st.multiselect(
-            "Character Types",
-            options=comp_analyzer.get_field_options()["character_types"],
-            key="comp_characters",
-            help="14 points - Character type matches (5 primary + 1.8 per additional up to 5)"
-        )
-        
-        # Plot Elements (12 points)
-        state["criteria"]["plot_element_ids"] = st.multiselect(
-            "Plot Elements",
-            options=comp_analyzer.get_field_options()["plot_elements"],
-            key="comp_plot",
-            help="12 points - Plot element matches (2.4 per match up to 5)"
-        )
-        
-        # Theme Elements (13 points)
-        state["criteria"]["theme_element_ids"] = st.multiselect(
-            "Theme Elements",
-            options=comp_analyzer.get_field_options()["thematic_elements"],
-            key="comp_themes",
-            help="13 points - Theme matches (2.6 per match up to 5)"
-        )
-        
-        # Tone (8 points)
-        state["criteria"]["tone"] = st.selectbox(
-            "Tone",
-            options=comp_analyzer.get_field_options()["tones"],
-            key="comp_tone",
-            help="8 points - Direct match on tone"
-        )
-        
-        # Setting (7 points)
+        # Content criteria
+        st.markdown("### Content")
         col1, col2 = st.columns(2)
+        
         with col1:
-            state["criteria"]["time_setting"] = st.selectbox(
-                "Time Period",
-                options=comp_analyzer.get_field_options()["time_settings"],
-                key="comp_time",
-                help="4 points - Time period match"
+            genre_name = st.selectbox(
+                "Genre",
+                options=[name for _, name in field_options['genres']],
+                format_func=lambda x: x,
+                key="genre_id",
+                index=None,
+                placeholder="Select genre..."
             )
+            state["criteria"]["genre_id"] = get_id_for_name(genre_name, field_options['genres']) if genre_name else None
+            
+            source_name = st.selectbox(
+                "Source Type", 
+                options=[name for _, name in field_options['source_types']],
+                format_func=lambda x: x,
+                key="source_type_id",
+                index=None,
+                placeholder="Select source type..."
+            )
+            state["criteria"]["source_type_id"] = get_id_for_name(source_name, field_options['source_types']) if source_name else None
+            
+            char_names = st.multiselect(
+                "Character Types",
+                options=[name for _, name in field_options['character_types']],
+                format_func=lambda x: x,
+                key="character_type_ids",
+                placeholder="Select character types..."
+            )
+            state["criteria"]["character_type_ids"] = get_ids_for_names(char_names, field_options['character_types'])
+            
+            plot_names = st.multiselect(
+                "Plot Elements",
+                options=[name for _, name in field_options['plot_elements']],
+                format_func=lambda x: x,
+                key="plot_element_ids",
+                placeholder="Select plot elements..."
+            )
+            state["criteria"]["plot_element_ids"] = get_ids_for_names(plot_names, field_options['plot_elements'])
+            
+            theme_names = st.multiselect(
+                "Theme Elements",
+                options=[name for _, name in field_options['thematic_elements']],
+                format_func=lambda x: x,
+                key="theme_element_ids",
+                placeholder="Select theme elements..."
+            )
+            state["criteria"]["theme_element_ids"] = get_ids_for_names(theme_names, field_options['thematic_elements'])
+            
         with col2:
-            state["criteria"]["location"] = st.selectbox(
-                "Location",
-                options=comp_analyzer.get_field_options()["locations"],
-                key="comp_location",
-                help="3 points - Location match"
+            tone_name = st.selectbox(
+                "Tone",
+                options=[name for _, name in field_options['tones']],
+                format_func=lambda x: x,
+                key="tone",
+                index=None,
+                placeholder="Select tone..."
             )
+            state["criteria"]["tone_id"] = get_id_for_name(tone_name, field_options['tones']) if tone_name else None
+            
+            time_name = st.selectbox(
+                "Time Setting",
+                options=[name for _, name in field_options['time_settings']],
+                format_func=lambda x: x,
+                key="time_setting",
+                index=None,
+                placeholder="Select time setting..."
+            )
+            state["criteria"]["time_setting_id"] = get_id_for_name(time_name, field_options['time_settings']) if time_name else None
+            
+            loc_name = st.selectbox(
+                "Location",
+                options=[name for _, name in field_options['locations']],
+                format_func=lambda x: x,
+                key="location",
+                index=None,
+                placeholder="Select location..."
+            )
+            state["criteria"]["location_setting_id"] = get_id_for_name(loc_name, field_options['locations']) if loc_name else None
         
-    with st.expander("Production Match Criteria (13 pts)"):
-        # Network (5 points)
-        state["criteria"]["network_id"] = st.selectbox(
-            "Network",
-            options=comp_analyzer.get_field_options()["networks"],
-            key="comp_network",
-            help="5 points - Direct network match"
-        )
-        
-        # Studios (3 points)
-        state["criteria"]["studio_ids"] = st.multiselect(
-            "Studios",
-            options=comp_analyzer.get_field_options()["studios"],
-            key="comp_studios",
-            help="3 points - Studio matches (2 primary + 0.5 per additional up to 2)"
-        )
-        
-        # Team Members (5 points)
-        state["criteria"]["team_member_ids"] = st.multiselect(
-            "Team Members",
-            options=comp_analyzer.get_field_options("team_member_ids"),
-            key="comp_team",
-            help="5 points - Team member matches (1 point per match up to 5)"
-        )
-
-    with st.expander("Format Match Criteria (3 pts)"):
+        # Production criteria
+        st.markdown("### Production")
         col1, col2 = st.columns(2)
         
-        # Episodes (2 points)
+        with col1:
+            network_name = st.selectbox(
+                "Network",
+                options=[name for _, name in field_options['networks']],
+                format_func=lambda x: x,
+                key="network_id",
+                index=None,
+                placeholder="Select network..."
+            )
+            state["criteria"]["network_id"] = get_id_for_name(network_name, field_options['networks']) if network_name else None
+            
+        with col2:
+            studio_names = st.multiselect(
+                "Studios",
+                options=[name for _, name in field_options['studios']],
+                format_func=lambda x: x,
+                key="studios",
+                placeholder="Select studios..."
+            )
+            state["criteria"]["studios"] = get_ids_for_names(studio_names, field_options['studios'])
+            
+        # Format criteria
+        st.markdown("### Format")
+        col1, col2 = st.columns(2)
+        
         with col1:
             state["criteria"]["episode_count"] = st.number_input(
                 "Episode Count",
                 min_value=1,
                 max_value=100,
                 value=10,
-                key="comp_episodes",
-                help="2 points - Episode count proximity (2 within ±2, 1.5 within ±4, 1 within ±6)"
+                key="episode_count",
+                help="Episode count proximity (2 within ±2, 1.5 within ±4, 1 within ±6)"
             )
-        
-        # Order Type (1 point)
+            
         with col2:
-            state["criteria"]["order_type"] = st.selectbox(
+            order_name = st.selectbox(
                 "Order Type",
-                options=comp_analyzer.get_field_options()["order_types"],
-                key="comp_order",
-                help="1 point - Direct order type match"
+                options=[name for _, name in field_options['order_types']],
+                format_func=lambda x: x,
+                key="order_type_id",
+                index=None,
+                placeholder="Select order type..."
             )
+            state["criteria"]["order_type_id"] = get_id_for_name(order_name, field_options['order_types']) if order_name else None
 
 
 def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:

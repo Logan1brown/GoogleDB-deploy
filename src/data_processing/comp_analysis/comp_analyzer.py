@@ -225,53 +225,89 @@ class CompAnalyzer:
         self.comp_data = None
         self.field_options = {}
         
-    def get_field_options(self, force: bool = False) -> Dict[str, List]:
+    def get_field_options(self, force: bool = False) -> Dict[str, List[Tuple[int, str]]]:
         """Get all unique values for dropdown fields.
         
         Args:
             force: If True, bypass cache and fetch fresh data
             
         Returns:
-            Dictionary mapping field names to lists of unique values
+            Dictionary mapping field names to lists of (id, name) tuples
         """
         if self.comp_data is None or force:
             self.fetch_comp_data()
             
         if not self.field_options or force:
-            # Get unique values for each field
+            # Get Supabase client
+            supabase = get_client(use_service_key=True)
+            
+            # Fetch lookup tables
+            genre_data = supabase.table('genre_list').select('id,genre').eq('active', True).execute()
+            source_data = supabase.table('source_types').select('id,type').eq('active', True).execute()
+            char_data = supabase.table('character_type_types').select('id,name').execute()
+            plot_data = supabase.table('plot_element_types').select('id,name').eq('active', True).execute()
+            theme_data = supabase.table('thematic_element_types').select('id,name').eq('active', True).execute()
+            tone_data = supabase.table('tone_types').select('id,name').eq('active', True).execute()
+            time_data = supabase.table('time_setting_types').select('id,name').eq('active', True).execute()
+            loc_data = supabase.table('location_setting_types').select('id,name').eq('active', True).execute()
+            network_data = supabase.table('network_list').select('id,network').eq('active', True).execute()
+            studio_data = supabase.table('studio_list').select('id,studio').eq('active', True).execute()
+            order_data = supabase.table('order_types').select('id,type').eq('active', True).execute()
+            
+            # Create lookup dictionaries
+            genre_dict = {x['id']: x['genre'] for x in genre_data.data}
+            source_dict = {x['id']: x['type'] for x in source_data.data}
+            char_dict = {x['id']: x['name'] for x in char_data.data}
+            plot_dict = {x['id']: x['name'] for x in plot_data.data}
+            theme_dict = {x['id']: x['name'] for x in theme_data.data}
+            tone_dict = {x['id']: x['name'] for x in tone_data.data}
+            time_dict = {x['id']: x['name'] for x in time_data.data}
+            loc_dict = {x['id']: x['name'] for x in loc_data.data}
+            network_dict = {x['id']: x['network'] for x in network_data.data}
+            studio_dict = {x['id']: x['studio'] for x in studio_data.data}
+            order_dict = {x['id']: x['type'] for x in order_data.data}
+            
+            # Create options with names
             self.field_options = {
                 # Content fields
-                'genres': sorted([int(x) for x in self.comp_data['genre_id'].unique().tolist() if pd.notna(x)]),
-                'subgenres': sorted(list(set(
-                    int(sg) for sgs in self.comp_data['subgenres'].dropna()
-                    for sg in sgs if pd.notna(sg)
-                ))),
-                'source_types': sorted([int(x) for x in self.comp_data['source_type_id'].unique().tolist() if pd.notna(x)]),
-                'character_types': sorted(list(set(
-                    int(ct) for cts in self.comp_data['character_type_ids'].dropna()
-                    for ct in cts if pd.notna(ct)
-                ))),
-                'plot_elements': sorted(list(set(
-                    int(pe) for pes in self.comp_data['plot_element_ids'].dropna()
-                    for pe in pes if pd.notna(pe)
-                ))),
-                'thematic_elements': sorted(list(set(
-                    int(te) for tes in self.comp_data['thematic_element_ids'].dropna()
-                    for te in tes if pd.notna(te)
-                ))),
-                'tones': sorted([int(x) for x in self.comp_data['tone_id'].unique().tolist() if pd.notna(x)]),
-                'time_settings': sorted([int(x) for x in self.comp_data['time_setting_id'].unique().tolist() if pd.notna(x)]),
-                'locations': sorted([int(x) for x in self.comp_data['location_setting_id'].unique().tolist() if pd.notna(x)]),
+                'genres': [(id, genre_dict.get(id, 'Unknown')) 
+                          for id in sorted([int(x) for x in self.comp_data['genre_id'].unique().tolist() if pd.notna(x)])],
+                'source_types': [(id, source_dict.get(id, 'Unknown'))
+                                for id in sorted([int(x) for x in self.comp_data['source_type_id'].unique().tolist() if pd.notna(x)])],
+                'character_types': [(id, char_dict.get(id, 'Unknown'))
+                                  for id in sorted(list(set(
+                                      int(ct) for cts in self.comp_data['character_type_ids'].dropna()
+                                      for ct in cts if pd.notna(ct)
+                                  )))],
+                'plot_elements': [(id, plot_dict.get(id, 'Unknown'))
+                                for id in sorted(list(set(
+                                    int(pe) for pes in self.comp_data['plot_element_ids'].dropna()
+                                    for pe in pes if pd.notna(pe)
+                                )))],
+                'thematic_elements': [(id, theme_dict.get(id, 'Unknown'))
+                                    for id in sorted(list(set(
+                                        int(te) for tes in self.comp_data['thematic_element_ids'].dropna()
+                                        for te in tes if pd.notna(te)
+                                    )))],
+                'tones': [(id, tone_dict.get(id, 'Unknown'))
+                         for id in sorted([int(x) for x in self.comp_data['tone_id'].unique().tolist() if pd.notna(x)])],
+                'time_settings': [(id, time_dict.get(id, 'Unknown'))
+                                for id in sorted([int(x) for x in self.comp_data['time_setting_id'].unique().tolist() if pd.notna(x)])],
+                'locations': [(id, loc_dict.get(id, 'Unknown'))
+                            for id in sorted([int(x) for x in self.comp_data['location_setting_id'].unique().tolist() if pd.notna(x)])],
                 
                 # Production fields
-                'networks': sorted([int(x) for x in self.comp_data['network_id'].unique().tolist() if pd.notna(x)]),
-                'studios': sorted(list(set(
-                    int(s) for studios in self.comp_data['studios'].dropna()
-                    for s in studios if pd.notna(s)
-                ))),
+                'networks': [(id, network_dict.get(id, 'Unknown'))
+                           for id in sorted([int(x) for x in self.comp_data['network_id'].unique().tolist() if pd.notna(x)])],
+                'studios': [(id, studio_dict.get(id, 'Unknown'))
+                          for id in sorted(list(set(
+                              int(s) for studios in self.comp_data['studios'].dropna()
+                              for s in studios if pd.notna(s)
+                          )))],
                 
                 # Format fields
-                'order_types': sorted([int(x) for x in self.comp_data['order_type_id'].unique().tolist() if pd.notna(x)])
+                'order_types': [(id, order_dict.get(id, 'Unknown'))
+                              for id in sorted([int(x) for x in self.comp_data['order_type_id'].unique().tolist() if pd.notna(x)])]
             }
             
         return self.field_options
@@ -322,15 +358,15 @@ class CompAnalyzer:
             'source_type_id': criteria.get('source_type_id'),
             'character_type_ids': criteria.get('character_type_ids', []),
             'plot_element_ids': criteria.get('plot_element_ids', []),
-            'theme_element_ids': criteria.get('theme_element_ids', []),
-            'tone': criteria.get('tone'),
-            'time_setting': criteria.get('time_setting'),
-            'location': criteria.get('location'),
+            'thematic_element_ids': criteria.get('thematic_element_ids', []),
+            'tone_id': criteria.get('tone_id'),
+            'time_setting_id': criteria.get('time_setting_id'),
+            'location_setting_id': criteria.get('location_setting_id'),
             'network_id': criteria.get('network_id'),
-            'studio_ids': criteria.get('studio_ids', []),
+            'studios': criteria.get('studios', []),
             'team_member_ids': criteria.get('team_member_ids', []),
             'episode_count': criteria.get('episode_count'),
-            'order_type': criteria.get('order_type')
+            'order_type_id': criteria.get('order_type_id')
         })
         
         # Calculate scores for all shows against criteria
