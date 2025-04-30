@@ -276,9 +276,6 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             # Create expandable section for each match
             for i, match in enumerate(top_matches, 1):
                 with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
-                    st.markdown("### Success Metrics")
-                    st.write("")
-                    
                     st.markdown("**Success Score**")
                     st.write("")
                     st.markdown(f"{match.get('success_score', 0):.1f}/100")
@@ -286,15 +283,30 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     st.markdown("**Score Breakdown**")
                     st.write("")
                     
-                    if match.get('tmdb_seasons', 0) >= 2:
-                        st.write(f"Renewed for Season {match.get('tmdb_seasons')} (+40 points)")
-                        st.write("")
+                    # Season achievements
+                    if pd.notna(match.get('tmdb_seasons')):
+                        seasons = int(match['tmdb_seasons'])
+                        if seasons >= 2:
+                            st.write(f"Renewed for Season {seasons} (+40 points)")
+                            st.write("")
+                            extra_seasons = seasons - 2
+                            if extra_seasons > 0:
+                                bonus = min(extra_seasons * 20, 40)
+                                st.write(f"Additional seasons bonus (+{bonus} points)")
+                                st.write("")
                     
-                    if match.get('episode_count', 0) >= 12:
-                        st.write("Standard episode volume (+20 points)")
-                        st.write("")
+                    # Episode volume
+                    if pd.notna(match.get('tmdb_avg_eps')):
+                        avg_eps = float(match['tmdb_avg_eps'])
+                        if avg_eps >= 10:
+                            st.write("High episode volume (+40 points)")
+                            st.write("")
+                        elif avg_eps >= 8:
+                            st.write("Standard episode volume (+20 points)")
+                            st.write("")
                     
-                    if match.get('is_active', False):
+                    # Status modifier
+                    if match.get('status_name') == 'Returning Series':
                         st.write("Active show bonus: Score multiplied by 1.2")
                         st.write("")
                     if match.get('longevity_score', 0) > 0:
