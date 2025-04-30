@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
+from src.config.supabase_client import get_client
 from src.data_processing.analyze_shows import ShowsAnalyzer
 from src.data_processing.success_analysis import SuccessAnalyzer
 
