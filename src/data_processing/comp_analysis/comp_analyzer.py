@@ -248,7 +248,7 @@ class CompAnalyzer:
                 ('character_types', 'character_type_ids', 'character_type_names'),
                 ('plot_elements', 'plot_element_ids', 'plot_element_names'),
                 ('thematic_elements', 'thematic_element_ids', 'thematic_element_names'),
-                ('tone_types', 'tone_id', 'tone_name'),
+                ('tones', 'tone_id', 'tone_name'),
                 ('time_settings', 'time_setting_id', 'time_setting_name'),
                 ('locations', 'location_setting_id', 'location_setting_name'),
                 ('networks', 'network_id', 'network_name'),
