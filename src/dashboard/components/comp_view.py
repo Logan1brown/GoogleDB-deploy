@@ -319,27 +319,111 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             st.write("- Canceled show: Score reduced by 20%")
                         st.write("")
                     
-                    st.markdown("**Match Components**")
+                    st.markdown("### Match Components")
                     st.write("")
                     
                     # Get comp score components
                     comp_score = match['comp_score']
-                    st.markdown("Content")
-                    st.write(f"{comp_score.content_score}/70")
+                    
+                    # Content Match
+                    st.markdown("**Content Match** _(70 points)_")
                     st.write("")
                     
-                    # Content breakdown
-                    st.write(f"Character Types: {comp_score.character_types}/14")
-                    st.write(f"Plot Elements: {comp_score.plot_elements}/12")
-                    st.write(f"Theme Elements: {comp_score.theme_elements}/13")
+                    # Genre
+                    st.markdown("Genre")
+                    st.write(f"⚫ {match.get('genre_name', 'None')} ({comp_score.genre_base + comp_score.genre_overlap}/17)")
+                    
+                    # Subgenres
+                    st.markdown("Subgenres")
+                    subgenres = match.get('subgenre_names', [])
+                    if subgenres:
+                        for subgenre in subgenres:
+                            st.write(f"⚫ {subgenre}")
+                    else:
+                        st.write("None")
+                    
+                    # Source Type
+                    st.markdown("Source Type")
+                    st.write(f"⚫ {match.get('source_type_name', 'None')} ({comp_score.source_type}/8)")
+                    
+                    # Character Types
+                    st.markdown("Character Types")
+                    char_types = match.get('character_type_names', [])
+                    if char_types:
+                        for char_type in char_types:
+                            st.write(f"⚫ {char_type}")
+                    st.write(f"({comp_score.character_types}/14)")
+                    
+                    # Plot Elements
+                    st.markdown("Plot Elements")
+                    plot_elements = match.get('plot_element_names', [])
+                    if plot_elements:
+                        for element in plot_elements:
+                            st.write(f"⚫ {element}")
+                    st.write(f"({comp_score.plot_elements}/12)")
+                    
+                    # Theme Elements
+                    st.markdown("Theme Elements")
+                    theme_elements = match.get('thematic_element_names', [])
+                    if theme_elements:
+                        for element in theme_elements:
+                            st.write(f"⚫ {element}")
+                    st.write(f"({comp_score.theme_elements}/13)")
+                    
+                    # Tone
+                    st.markdown("Tone")
+                    st.write(f"⚫ {match.get('tone_name', 'None')} ({comp_score.tone}/8)")
+                    
                     st.write("")
                     
-                    st.markdown("Production")
-                    st.write(f"{comp_score.production_score}/13")
+                    # Production Match
+                    st.markdown("**Production Match** _(13 points)_")
                     st.write("")
                     
-                    st.markdown("Format")
-                    st.write(f"{comp_score.format_score}/3")
+                    # Network
+                    st.markdown("Network")
+                    st.write(f"⚫ {match.get('network_name', 'None')} ({comp_score.network}/5)")
+                    
+                    # Studios
+                    st.markdown("Studios")
+                    studios = match.get('studio_names', [])
+                    if studios:
+                        for studio in studios:
+                            st.write(f"⚫ {studio}")
+                    st.write(f"({comp_score.studio}/3)")
+                    
+                    # Team
+                    st.markdown("Team")
+                    st.write(f"({comp_score.team}/5)")
+                    
+                    st.write("")
+                    
+                    # Format Match
+                    st.markdown("**Format Match** _(3 points)_")
+                    st.write("")
+                    
+                    # Episodes
+                    st.markdown("Episodes")
+                    st.write(f"⚫ {match.get('tmdb_avg_eps', 'None')} ({comp_score.episodes}/2)")
+                    
+                    # Order Type
+                    st.markdown("Order Type")
+                    st.write(f"⚫ {match.get('order_type_name', 'None')} ({comp_score.order_type}/1)")
+                    
+                    st.write("")
+                    
+                    # Setting Match
+                    st.markdown("**Setting Match** _(7 points)_")
+                    st.write("")
+                    
+                    # Time Setting
+                    st.markdown("Time Setting")
+                    st.write(f"⚫ {match.get('time_setting_name', 'None')} ({comp_score.time_setting}/4)")
+                    
+                    # Location
+                    st.markdown("Location")
+                    st.write(f"⚫ {match.get('location_setting_name', 'None')} ({comp_score.location}/3)")
+                    
                     st.write("")
                     if match.get('longevity_score', 0) > 0:
                         st.markdown(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
