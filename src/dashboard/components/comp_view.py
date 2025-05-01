@@ -256,8 +256,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Filter out results with missing scores
         results = [r for r in results if r.get('comp_score') is not None]
         
-        # Sort by success score
-        results.sort(key=lambda x: x.get('success_score', 0), reverse=True)
+        # Already sorted by match score (primary) and success score (tiebreaker) in comp_analyzer.py
         
         if not results:
             st.info("No valid matches found. Try adjusting your criteria.")
