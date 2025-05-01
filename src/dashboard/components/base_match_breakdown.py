@@ -42,6 +42,7 @@ def render_base_match_breakdown(
         
         with col1:
             # Genre details
+            genre = details['genre']
             if genre['selected']:
                 st.write("Genre:")
                 st.write(f"Score: {scores['genre_score']}/17")
@@ -266,9 +267,9 @@ def render_base_match_breakdown(
                     time = details['time_setting']
                     st.write(f"Time Setting: {scores['time_score']}/4")
                     if time['match']:
-                        st.write(f"✓ Both {time['time1']}")
+                        st.write(f"• Both {time['time1']}")
                     else:
-                        st.write(f"× {time['time1']} vs {time['time2']}")
+                        st.write(f"• {time['time1']} vs {time['time2']}")
             
             with col2:
                 # Location setting
@@ -276,9 +277,9 @@ def render_base_match_breakdown(
                     loc = details['location']
                     st.write(f"Location: {scores['location_score']}/3")
                     if loc['match']:
-                        st.write(f"✓ Both {loc['location1']}")
+                        st.write(f"• Both {loc['location1']}")
                     else:
-                        st.write(f"× {loc['location1']} vs {loc['location2']}")
+                        st.write(f"• {loc['location1']} vs {loc['location2']}")
         
         # Show description
         if description:

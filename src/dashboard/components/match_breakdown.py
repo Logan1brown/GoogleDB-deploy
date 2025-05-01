@@ -45,22 +45,21 @@ def show_match_breakdown(show, expanded=False):
         with col1:
             # Genre details
             genre = details['genre']
-            st.write(f"Genre: {scores['genre_score']}/40")
+            st.write(f"Genre: {scores['genre_score']}/17")
             if genre['primary_match']:
-                st.write(f"✓ Primary: {genre['primary']} (+27)")
+                st.write(f"• Primary: {genre['primary']} (+9)")
             if genre['shared_subgenres']:
-                points = genre['subgenre_points']
                 genres = ', '.join(genre['shared_subgenres'])
-                st.write(f"✓ Subgenres: {genres} (+{points})")
+                st.write(f"• Subgenres: {genres} (+8)")
         
         with col2:
             # Source details
             source = details['source']
             st.write(f"Source: {scores['source_score']}/15")
             if source['match']:
-                st.write(f"✓ Both {source['type1']}")
+                st.write(f"• Both {source['type1']}")
             else:
-                st.write(f"× {source['type1']} vs {source['type2']}")
+                st.write(f"• {source['type1']} vs {source['type2']}")
         
         # Production section
         st.markdown(f"\n**Production** ({scores['team_score'] + scores['network_score'] + scores['studio_score']}/30 points)")
@@ -72,19 +71,19 @@ def show_match_breakdown(show, expanded=False):
             network = details['network']
             st.write(f"Network: {scores['network_score']}/7")
             if network['match']:
-                st.write(f"✓ Both {network['name1']}")
+                st.write(f"• Both {network['name1']}")
             else:
-                st.write(f"× {network['name1']} vs {network['name2']}")
+                st.write(f"• {network['name1']} vs {network['name2']}")
             
             # Studio details
             studio = details['studio']
             st.write(f"\nStudio: {scores['studio_score']}/3")
             if studio['match']:
-                st.write(f"✓ Both {studio['name1']}")
+                st.write(f"• Both {studio['name1']}")
             elif studio['name1'] and studio['name2']:
-                st.write(f"× {studio['name1']} vs {studio['name2']}")
+                st.write(f"• {studio['name1']} vs {studio['name2']}")
             else:
-                st.write(f"× Missing studio data")
+                st.write(f"• Missing studio data")
         
         with col2:
             # Team details
@@ -92,7 +91,7 @@ def show_match_breakdown(show, expanded=False):
             st.write(f"Team: {scores['team_score']}/20")
             if team['shared_members']:
                 for name, role in team['shared_members']:
-                    st.write(f"✓ {name} ({role})")
+                    st.write(f"• {name} ({role})")
         
         # Format Match section
         st.markdown(f"\n**Format Match** ({scores['format_total']}/15 points)")
@@ -110,9 +109,9 @@ def show_match_breakdown(show, expanded=False):
             # Order type
             st.write(f"\nOrder Type: {scores['order_score']}/4")
             if format['order_type1'] == format['order_type2']:
-                st.write(f"✓ Both {format['order_type1']}")
+                st.write(f"• Both {format['order_type1']}")
             else:
-                st.write(f"× {format['order_type1']} vs {format['order_type2']}")
+                st.write(f"• {format['order_type1']} vs {format['order_type2']}")
         
         with col2:
             # Timing
