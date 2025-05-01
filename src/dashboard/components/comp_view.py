@@ -437,10 +437,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         selected_map = dict(zip(selected_plot_ids, selected_plot_names))
                         show_map = dict(zip(show_plot_ids, show_plot_names))
                         
-                        # Find which elements match and mismatch based on both ID and name
+                        # Find which elements match and mismatch based on ID only
                         matching_ids = [plot_id for plot_id in selected_plot_ids 
-                                      if plot_id in show_plot_ids 
-                                      and selected_map.get(plot_id) == show_map.get(plot_id)]
+                                      if plot_id in show_plot_ids]
                         mismatched_ids = [plot_id for plot_id in selected_plot_ids 
                                         if plot_id not in matching_ids]
                         
