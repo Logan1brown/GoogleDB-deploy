@@ -62,8 +62,7 @@ class ShowsAnalyzer:
     # Reference tables for lookups
     REFERENCE_TABLES = {
         'character_types': 'character_type_types',
-        'genre': 'genre_list',
-        'subgenres': 'genre_list',  # Subgenres also use genre_list
+        'genre': 'genre_list',  # Use the same table for both genres and subgenres
         'source_type': 'source_types',
         'location_setting': 'location_setting_types',
         'network': 'network_list',

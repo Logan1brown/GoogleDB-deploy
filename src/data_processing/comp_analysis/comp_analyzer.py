@@ -355,10 +355,10 @@ class CompAnalyzer:
             if self.comp_data is None:
                 return {}
 
-            # Define field mappings for options
+            # Field name -> (reference table name, id column, name column)
             field_mappings = [
                 ('genre', 'genre_id', 'genre_name'),
-                ('subgenres', 'subgenres', 'subgenre_names'),  # Uses genre reference table
+                ('subgenres', 'genre_id', 'genre_name'),  # Use same genre reference table
                 ('source_type', 'source_type_id', 'source_type_name'),
                 ('character_types', 'character_type_ids', 'character_type_names'),
                 ('plot_elements', 'plot_element_ids', 'plot_element_names'),
@@ -451,8 +451,15 @@ class CompAnalyzer:
                                 unique_ids.add(int(row[id_col]))
                                 name_map[int(row[id_col])] = str(row[name_col])
                 
-                # Store IDs and name mapping
-                self.field_options[field_name] = sorted(list(unique_ids))
+                # Use a dict to track seen names and keep the first ID for each name
+                seen_names = {}
+                for id in unique_ids:
+                    name = name_map[id]
+                    if name not in seen_names:
+                        seen_names[name] = id
+                
+                # Store deduplicated IDs and name mapping
+                self.field_options[field_name] = sorted(list(seen_names.values()))
                 self.field_names[field_name] = name_map
 
             return self.field_options
