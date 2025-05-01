@@ -328,7 +328,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Build details dict
                     details = {
                         'genre': {
-                            'primary_match': True,  # We don't track this yet
+                            'primary_match': comp_score.genre_base > 0,
                             'primary': match.get('genre_name', 'Unknown'),
                             'shared_subgenres': match.get('subgenre_names', []),
                             'subgenre_points': comp_score.genre_overlap
@@ -336,40 +336,53 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         'source': {
                             'match': comp_score.source_type > 0,
                             'type1': match.get('source_type_name', 'Unknown'),
-                            'type2': 'Unknown'  # We don't track this yet
+                            'type2': match.get('source_type_name', 'Unknown')  # Same since this is base criteria
                         },
                         'character_types': {
                             'matches': match.get('character_type_names', []),
-                            'mismatches': []  # We don't track this yet
+                            'mismatches': []  # No mismatches since this is base criteria
                         },
                         'plot_elements': {
                             'matches': match.get('plot_element_names', []),
-                            'mismatches': []  # We don't track this yet
+                            'mismatches': []  # No mismatches since this is base criteria
                         },
                         'theme_elements': {
-                            'matches': match.get('thematic_element_names', []),
-                            'mismatches': []  # We don't track this yet
+                            'matches': match.get('theme_element_names', []),
+                            'mismatches': []  # No mismatches since this is base criteria
                         },
                         'tone': {
                             'match': comp_score.tone > 0,
                             'tone1': match.get('tone_name', 'Unknown'),
-                            'tone2': 'Unknown'  # We don't track this yet
+                            'tone2': match.get('tone_name', 'Unknown')  # Same since this is base criteria
                         },
                         'time_setting': {
                             'match': comp_score.time_setting > 0,
                             'time1': match.get('time_setting_name', 'Unknown'),
-                            'time2': 'Unknown'  # We don't track this yet
+                            'time2': match.get('time_setting_name', 'Unknown')  # Same since this is base criteria
                         },
                         'location': {
                             'match': comp_score.location > 0,
                             'location1': match.get('location_setting_name', 'Unknown'),
-                            'location2': 'Unknown'  # We don't track this yet
+                            'location2': match.get('location_setting_name', 'Unknown')  # Same since this is base criteria
                         },
                         'format': {
-                            'eps_per_season1': match.get('tmdb_avg_eps'),
-                            'eps_per_season2': None,  # We don't track this yet
+                            'eps_per_season1': match.get('episode_count'),
+                            'eps_per_season2': match.get('episode_count'),  # Same since this is base criteria
                             'order_type1': match.get('order_type_name', 'Unknown'),
-                            'order_type2': 'Unknown'  # We don't track this yet
+                            'order_type2': match.get('order_type_name', 'Unknown')  # Same since this is base criteria
+                        },
+                        'network': {
+                            'match': comp_score.network > 0,
+                            'name1': match.get('network_name', 'Unknown'),
+                            'name2': match.get('network_name', 'Unknown')  # Same since this is base criteria
+                        },
+                        'studio': {
+                            'match': comp_score.studio > 0,
+                            'name1': match.get('studio_name', 'Unknown'),
+                            'name2': match.get('studio_name', 'Unknown')  # Same since this is base criteria
+                        },
+                        'team': {
+                            'shared_members': [(name, 'Team Member') for name in match.get('team_names', [])]
                         }
                     }
                     
