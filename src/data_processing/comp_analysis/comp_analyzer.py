@@ -365,13 +365,13 @@ class CompAnalyzer:
                     ('order_types', 'order_type_id', 'order_type_name')
                 ]
                 
-                # Handle subgenres separately since they're a special case
+                # Handle subgenres
                 self.field_options['subgenre_names'] = []
                 for _, row in self.comp_data.iterrows():
-                    if isinstance(row['subgenre_names'], list):
-                        for subgenre in row['subgenre_names']:
-                            if pd.notna(subgenre):
-                                self.field_options['subgenre_names'].append((len(self.field_options['subgenre_names']), str(subgenre)))
+                    if isinstance(row['subgenres'], list) and isinstance(row['subgenre_names'], list):
+                        for subgenre_id, subgenre_name in zip(row['subgenres'], row['subgenre_names']):
+                            if pd.notna(subgenre_id) and pd.notna(subgenre_name):
+                                self.field_options['subgenre_names'].append((int(subgenre_id), str(subgenre_name)))
                 
                 # Extract all field options using a single consistent approach
                 for field_name, id_col, name_col in field_mappings:
@@ -570,11 +570,19 @@ class CompAnalyzer:
             criteria_subgenres = source.get('subgenres', []) if isinstance(source.get('subgenres'), list) else []
             show_subgenres = target.get('subgenres', []) if isinstance(target.get('subgenres'), list) else []
             
+            # Debug logging
+            logging.debug(f"Criteria subgenres: {criteria_subgenres}")
+            logging.debug(f"Show subgenres: {show_subgenres}")
+            logging.debug(f"Show title: {target.get('title')}")
+            
             # Check if any selected subgenre ID is in the show's subgenres
             # Only give points if we have selected subgenres and at least one matches
+            has_match = criteria_subgenres and set(criteria_subgenres).intersection(set(show_subgenres))
+            logging.debug(f"Has match: {has_match}")
+            
             genre_overlap = (
                 self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
-                if criteria_subgenres and set(criteria_subgenres).intersection(set(show_subgenres))
+                if has_match
                 else 0
             )
             
