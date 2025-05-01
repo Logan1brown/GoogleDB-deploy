@@ -72,31 +72,31 @@ class CompScore:
         """Get match details for display."""
         return {
             'genre': {
-                'primary_match': self.genre_base > 0,
-                'subgenre_points': self.genre_overlap
+                'primary_match': (self.genre_base or 0) > 0,
+                'subgenre_points': (self.genre_overlap or 0)
             },
             'source': {
-                'match': self.source_type > 0
+                'match': (self.source_type or 0) > 0
             },
             'characters': {
-                'match': self.character_types > 0
+                'match': (self.character_types or 0) > 0
             },
             'plot': {
-                'match': self.plot_elements > 0
+                'match': (self.plot_elements or 0) > 0
             },
             'themes': {
-                'match': self.theme_elements > 0
+                'match': (self.theme_elements or 0) > 0
             },
             'tone': {
-                'match': self.tone > 0
+                'match': (self.tone or 0) > 0
             },
             'setting': {
-                'time_match': self.time_setting > 0,
-                'location_match': self.location > 0
+                'time_match': (self.time_setting or 0) > 0,
+                'location_match': (self.location or 0) > 0
             },
             'format': {
-                'episode_match': self.episodes > 0,
-                'order_match': self.order_type > 0
+                'episode_match': (self.episodes or 0) > 0,
+                'order_match': (self.order_type or 0) > 0
             }
         }
 
@@ -105,24 +105,24 @@ class CompScore:
         """Calculate total score across all components."""
         return sum([
             # Content (72 points)
-            self.genre_base,
-            self.genre_overlap,
-            self.source_type,
-            self.character_types,
-            self.plot_elements, 
-            self.theme_elements,
-            self.tone,
-            self.time_setting,
-            self.location,
+            self.genre_base or 0,
+            self.genre_overlap or 0,
+            self.source_type or 0,
+            self.character_types or 0,
+            self.plot_elements or 0,
+            self.theme_elements or 0,
+            self.tone or 0,
+            self.time_setting or 0,
+            self.location or 0,
             
             # Production (23 points)
-            self.network,
-            self.studio,
-            self.team,
+            self.network or 0,
+            self.studio or 0,
+            self.team or 0,
             
             # Format (5 points)
-            self.episodes,
-            self.order_type
+            self.episodes or 0,
+            self.order_type or 0
         ])
 
     @property
