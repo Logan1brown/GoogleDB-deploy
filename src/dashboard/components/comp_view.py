@@ -504,7 +504,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         
                         # Create ID -> name mappings from field options
                         time_names = {id: name for id, name in field_options['time_settings']}
-                        location_names = {id: name for id, name in field_options['location_settings']}
+                        location_names = {id: name for id, name in field_options['locations']}
                         
                         # Get setting names from field options
                         show_time = time_names.get(show_time_id, 'Unknown')
