@@ -277,15 +277,24 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             for i, match in enumerate(top_matches, 1):
                 with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
                     # Success Score and Breakdown
-                    col1, col2 = st.columns([3, 1])
-                    with col1:
-                        st.markdown("**Success Score:**")
-                    with col2:
-                        st.metric("", f"{int(match.get('success_score', 0))}/100", label_visibility="collapsed")
+                    st.markdown("### Success Score")
+                    success_score = match.get('success_score', 0)
+                    st.metric("", f"{int(success_score)}/100", label_visibility="collapsed")
+                    
+                    # Debug: Print raw match data
+                    st.write("Debug - Raw match data:")
+                    st.write({
+                        'tmdb_seasons': match.get('tmdb_seasons'),
+                        'tmdb_avg_eps': match.get('tmdb_avg_eps'),
+                        'status_name': match.get('status_name'),
+                        'success_score': match.get('success_score')
+                    })
                     
                     # Season achievements
-                    if pd.notna(match.get('tmdb_seasons')):
-                        seasons = int(match['tmdb_seasons'])
+                    seasons = match.get('tmdb_seasons')
+                    st.write(f"Debug - Seasons: {seasons} (type: {type(seasons)})")
+                    if pd.notna(seasons):
+                        seasons = int(seasons)
                         if seasons >= 2:
                             st.write(f"⚫ Season {seasons} renewal: +40 points")
                             extra_seasons = seasons - 2
@@ -294,15 +303,20 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                                 st.write(f"⚫ Additional seasons: +{bonus} points")
                     
                     # Episode volume 
-                    if pd.notna(match.get('tmdb_avg_eps')):
-                        avg_eps = float(match['tmdb_avg_eps'])
+                    avg_eps = match.get('tmdb_avg_eps')
+                    st.write(f"Debug - Avg eps: {avg_eps} (type: {type(avg_eps)})")
+                    if pd.notna(avg_eps):
+                        avg_eps = float(avg_eps)
                         if avg_eps >= 10:
                             st.write("⚫ High episode volume: +40 points")
                         elif avg_eps >= 8:
                             st.write("⚫ Standard episode volume: +20 points")
                     
                     # Status modifier
-                    if match.get('status_name') == 'Returning Series':
+                    status = match.get('status_name')
+                    st.write(f"Debug - Status: {status} (type: {type(status)})")
+                    if status == 'Returning Series':
+                        success_score = match.get('success_score', 0)
                         bonus = int(success_score * 0.2)
                         st.write(f"⚫ Active show bonus: +{bonus} points")
                     
