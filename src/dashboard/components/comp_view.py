@@ -239,11 +239,11 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         df = pd.DataFrame([
             {
                 'Show': r['title'],
-                'Success': f"{r['success_score']:.1f}%",
-                'Total Score': f"{(r['comp_score'].total or 0):.1f}%",
-                'Content': f"{(r['comp_score'].content_score or 0):.1f}%",
-                'Production': f"{(r['comp_score'].production_score or 0):.1f}%",
-                'Format': f"{(r['comp_score'].format_score or 0):.1f}%"
+                'Success': f"{r.get('success_score', 0):.1f}%",
+                'Total Score': f"{(r.get('comp_score').total if r.get('comp_score') else 0):.1f}%",
+                'Content': f"{(r.get('comp_score').content_score if r.get('comp_score') else 0):.1f}%",
+                'Production': f"{(r.get('comp_score').production_score if r.get('comp_score') else 0):.1f}%",
+                'Format': f"{(r.get('comp_score').format_score if r.get('comp_score') else 0):.1f}%"
             } for r in results
         ])
         
