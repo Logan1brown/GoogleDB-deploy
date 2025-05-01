@@ -103,7 +103,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         )
         
         # Convert to IDs using a dictionary to ensure 1:1 mapping
-        subgenre_map = {name: id for id, name in field_options['subgenres']}
+        subgenre_map = {name: id for id, name in display_options['subgenres']}
         subgenre_ids = [subgenre_map[name] for name in subgenre_names if name in subgenre_map]
         state["criteria"]["subgenres"] = subgenre_ids
         
