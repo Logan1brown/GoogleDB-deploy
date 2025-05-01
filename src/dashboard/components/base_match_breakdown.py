@@ -173,17 +173,17 @@ def render_base_match_breakdown(
         with col1:
             # Network details
             st.write(f"Network ({scores['network_score']}/5):")
-            if 'network' in details and details['network']['selected']:
+            if 'network' in details:
                 network = details['network']
-                if network['match']:
-                    st.write(f"🟢 Both {network['name1']} (+5)")
+                if network['match'] and scores['network_score'] > 0:
+                    st.write(f"🟢 Both {network['name2']} (+5)")
                 elif network.get('name1') and network.get('name2'):
                     st.write(f"⚫ {network['name1']} vs {network['name2']}")
                 else:
-                    st.write(f"⚫ {network['name1']}")
+                    st.write(f"⚫ {network.get('name2', 'Unknown')}")
             else:
                 if 'network_name' in matches:
-                    st.write(f"⚫ {matches['network_name']} (not selected)")
+                    st.write(f"⚫ {matches['network_name']}")
                 else:
                     st.write("⚫ No network")
             
