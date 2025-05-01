@@ -59,6 +59,18 @@ class ShowsAnalyzer:
         'comp': 'api_show_comp_data'  # Comparison data for show similarity scoring
     }
     
+    # Reference tables for lookups
+    REFERENCE_TABLES = {
+        'character_types': 'character_type_types',
+        'genres': 'genre_list',
+        'location_settings': 'location_setting_types',
+        'networks': 'network_list',
+        'order_types': 'order_types',
+        'plot_elements': 'plot_element_types',
+        'studios': 'studio_list',
+        'thematic_elements': 'thematic_element_types'
+    }
+    
     def __init__(self, cache_dir: Optional[str] = None):
         """Initialize the analyzer.
         
@@ -78,14 +90,16 @@ class ShowsAnalyzer:
             raise
 
     @st.cache_data(ttl=3600)
-    def fetch_comp_data(_self, force: bool = False) -> pd.DataFrame:
+    def fetch_comp_data(_self, force: bool = False) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """Fetch data needed for show comparisons.
         
         Args:
             force (bool): If True, bypass cache and fetch fresh data
 
         Returns:
-            DataFrame containing all data needed for show comparisons
+            Tuple containing:
+            - DataFrame containing show comparison data
+            - Dictionary mapping reference table names to their DataFrames
         """
         try:
             # Get Supabase client with service key for full access
@@ -110,7 +124,17 @@ class ShowsAnalyzer:
                 if field in comp_df.columns:
                     comp_df[field] = comp_df[field].apply(_self.convert_to_list)
             
-            return comp_df
+            # Fetch reference tables
+            logger.info("Fetching reference tables...")
+            reference_data = {}
+            for ref_name, table_name in _self.REFERENCE_TABLES.items():
+                logger.info(f"Fetching {table_name}...")
+                ref_data = supabase.table(table_name).select('*').execute()
+                if not hasattr(ref_data, 'data') or not ref_data.data:
+                    raise ValueError(f"No data returned from {table_name}")
+                reference_data[ref_name] = pd.DataFrame(ref_data.data)
+            
+            return comp_df, reference_data
             
         except Exception as e:
             logger.error(f"Error fetching comp data: {str(e)}")

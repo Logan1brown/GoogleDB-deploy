@@ -336,6 +336,7 @@ class CompAnalyzer:
         self.shows_analyzer = shows_analyzer or ShowsAnalyzer()
         self.success_analyzer = success_analyzer or SuccessAnalyzer()
         self.comp_data = None
+        self.reference_data = None
         self.field_options = {}
         
     def get_field_options(self, force: bool = False) -> Dict[str, List[Tuple[int, str]]]:
@@ -347,14 +348,6 @@ class CompAnalyzer:
         Returns:
             Dictionary mapping field names to lists of (id, name) tuples
         """
-        st.write("DEBUG: Starting get_field_options")
-        if self.comp_data is not None:
-            st.write(f"DEBUG: comp_data columns: {self.comp_data.columns}")
-            st.write(f"DEBUG: comp_data shape: {self.comp_data.shape}")
-            st.write(f"DEBUG: First row thematic_element_ids: {self.comp_data.iloc[0]['thematic_element_ids']}")
-            st.write(f"DEBUG: First row thematic_element_names: {self.comp_data.iloc[0]['thematic_element_names']}")
-        else:
-            st.write("DEBUG: comp_data is None!")
         try:
             if self.comp_data is None:
                 self.fetch_comp_data()
@@ -390,21 +383,43 @@ class CompAnalyzer:
                 # Handle array fields
                 if field_name in array_fields:
                     unique_ids = set()
-                    for _, row in self.comp_data.iterrows():
-                        if isinstance(row[id_col], list) and isinstance(row[name_col], list):
-                            for id, name in zip(row[id_col], row[name_col]):
-                                if pd.notna(id) and pd.notna(name):
-                                    unique_ids.add(int(id))
-                                    name_map[int(id)] = str(name)
-                    self.field_options[field_name] = sorted(list(unique_ids))
+                    ref_table = self.reference_data.get(field_name)
+                    if ref_table is not None:
+                        # Use reference table for name mapping
+                        for _, ref_row in ref_table.iterrows():
+                            if pd.notna(ref_row['id']) and pd.notna(ref_row['name']):
+                                unique_ids.add(int(ref_row['id']))
+                                name_map[int(ref_row['id'])] = str(ref_row['name'])
+                    else:
+                        # Fallback to show data if no reference table
+                        for _, row in self.comp_data.iterrows():
+                            if isinstance(row[id_col], list) and isinstance(row[name_col], list):
+                                ids = row[id_col]
+                                names = row[name_col]
+                                if len(ids) == len(names):
+                                    for i in range(len(ids)):
+                                        if pd.notna(ids[i]) and pd.notna(names[i]):
+                                            unique_ids.add(int(ids[i]))
+                                            name_map[int(ids[i])] = str(names[i])
+                            elif pd.notna(row[id_col]) and pd.notna(row[name_col]):
+                                unique_ids.add(int(row[id_col]))
+                                name_map[int(row[id_col])] = str(row[name_col])
                 else:
                     # Handle non-array fields
                     unique_ids = set()
-                    for _, row in self.comp_data.iterrows():
-                        if pd.notna(row[id_col]) and pd.notna(row[name_col]):
-                            unique_ids.add(int(row[id_col]))
-                            name_map[int(row[id_col])] = str(row[name_col])
-                    self.field_options[field_name] = sorted(list(unique_ids))
+                    ref_table = self.reference_data.get(field_name)
+                    if ref_table is not None:
+                        # Use reference table for name mapping
+                        for _, ref_row in ref_table.iterrows():
+                            if pd.notna(ref_row['id']) and pd.notna(ref_row['name']):
+                                unique_ids.add(int(ref_row['id']))
+                                name_map[int(ref_row['id'])] = str(ref_row['name'])
+                    else:
+                        # Fallback to show data if no reference table
+                        for _, row in self.comp_data.iterrows():
+                            if pd.notna(row[id_col]) and pd.notna(row[name_col]):
+                                unique_ids.add(int(row[id_col]))
+                                name_map[int(row[id_col])] = str(row[name_col])
                 
                 # Store name mapping
                 self.field_names[field_name] = name_map
@@ -448,8 +463,8 @@ class CompAnalyzer:
             DataFrame containing all data needed for show comparisons.
         """
         try:
-            # Get both comp data and market data
-            self.comp_data = self.shows_analyzer.fetch_comp_data()
+            # Get both comp data and reference data
+            self.comp_data, self.reference_data = self.shows_analyzer.fetch_comp_data()
             titles_df, _, _ = self.shows_analyzer.fetch_market_data()
             
             # Calculate average episodes per season

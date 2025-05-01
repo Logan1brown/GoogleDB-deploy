@@ -74,27 +74,29 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         state: Page state dictionary to store selections
     """
     with st.expander("Content Match Criteria (70 pts)", expanded=True):
-        # Get field options
+        # Get field options and display options
         field_options = comp_analyzer.get_field_options()
+        
+        # Get display options for each field
+        display_options = {}
+        for field_name in field_options.keys():
+            display_options[field_name] = comp_analyzer.get_field_display_options(field_name)
         
         # Content criteria
         st.markdown("### Content")
         genre_name = st.selectbox(
             "Genre",
-            options=[name for _, name in field_options['genres']],
+            options=[name for _, name in display_options['genre']],
             format_func=lambda x: x,
             key="genre_id",
             index=None,
             placeholder="Select genre..."
         )
-        state["criteria"]["genre_id"] = get_id_for_name(genre_name, field_options['genres']) if genre_name else None
-        
-        # Deduplicate and sort subgenre options
-        unique_subgenres = sorted(set(name for _, name in field_options['subgenre_names']))
+        state["criteria"]["genre_id"] = get_id_for_name(genre_name, display_options['genre']) if genre_name else None
         
         subgenre_names = st.multiselect(
             "Subgenres",
-            options=unique_subgenres,
+            options=[name for _, name in display_options['subgenres']],
             format_func=lambda x: x,
             key="subgenres",
             placeholder="Select subgenres..."
@@ -107,95 +109,70 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         source_name = st.selectbox(
             "Source Type", 
-            options=[name for _, name in field_options['source_types']],
+            options=[name for _, name in display_options['source_type']],
             format_func=lambda x: x,
             key="source_type_id",
             index=None,
             placeholder="Select source type..."
         )
-        state["criteria"]["source_type_id"] = get_id_for_name(source_name, field_options['source_types']) if source_name else None
-        
-        # Deduplicate and sort character type options
-        unique_char_types = sorted(set(name for _, name in field_options['character_types']))
+        state["criteria"]["source_type_id"] = get_id_for_name(source_name, display_options['source_type']) if source_name else None
         
         char_names = st.multiselect(
             "Character Types",
-            options=unique_char_types,
+            options=[name for _, name in display_options['character_types']],
             format_func=lambda x: x,
             key="character_type_ids",
             placeholder="Select character types..."
         )
-        char_type_map = {name: id for id, name in field_options['character_types']}
-        state["criteria"]["character_type_ids"] = [char_type_map[name] for name in char_names if name in char_type_map]
-        
-        # Deduplicate and sort plot element options
-        unique_plot_elements = sorted(set(name for _, name in field_options['plot_elements']))
+        state["criteria"]["character_type_ids"] = get_ids_for_names(char_names, display_options['character_types'])
         
         plot_names = st.multiselect(
             "Plot Elements",
-            options=unique_plot_elements,
+            options=[name for _, name in display_options['plot_elements']],
             format_func=lambda x: x,
             key="plot_element_ids",
             placeholder="Select plot elements..."
         )
-        
-        # Convert to IDs using a dictionary to ensure 1:1 mapping
-        plot_element_map = {name: id for id, name in field_options['plot_elements']}
-        plot_element_ids = [plot_element_map[name] for name in plot_names if name in plot_element_map]
-        plot_element_names = [name for name in plot_names if name in plot_element_map]
-        
-        # Debug: Show final mapping
-        if plot_names:
-            st.write("Plot elements selected:")
-            for name in plot_names:
-                if name in plot_element_map:
-                    st.write(f"{name} (ID: {plot_element_map[name]})")
-            
-        state["criteria"]["plot_element_ids"] = plot_element_ids
-        state["criteria"]["plot_element_names"] = plot_element_names
-        
-        # Deduplicate and sort theme element options
-        unique_theme_elements = sorted(set(name for _, name in field_options['thematic_elements']))
+        state["criteria"]["plot_element_ids"] = get_ids_for_names(plot_names, display_options['plot_elements'])
         
         theme_names = st.multiselect(
             "Theme Elements",
-            options=unique_theme_elements,
+            options=[name for _, name in display_options['thematic_elements']],
             format_func=lambda x: x,
             key="theme_element_ids",
             placeholder="Select theme elements..."
         )
-        theme_element_map = {name: id for id, name in field_options['thematic_elements']}
-        state["criteria"]["theme_element_ids"] = [theme_element_map[name] for name in theme_names if name in theme_element_map]
+        state["criteria"]["theme_element_ids"] = get_ids_for_names(theme_names, display_options['thematic_elements'])
         
         tone_name = st.selectbox(
             "Tone",
-            options=[name for _, name in field_options['tones']],
+            options=[name for _, name in display_options['tone']],
             format_func=lambda x: x,
             key="tone",
             index=None,
             placeholder="Select tone..."
         )
-        state["criteria"]["tone_id"] = get_id_for_name(tone_name, field_options['tones']) if tone_name else None
+        state["criteria"]["tone_id"] = get_id_for_name(tone_name, display_options['tone']) if tone_name else None
         
         time_name = st.selectbox(
             "Time Setting",
-            options=[name for _, name in field_options['time_settings']],
+            options=[name for _, name in display_options['time_setting']],
             format_func=lambda x: x,
             key="time_setting",
             index=None,
             placeholder="Select time setting..."
         )
-        state["criteria"]["time_setting_id"] = get_id_for_name(time_name, field_options['time_settings']) if time_name else None
+        state["criteria"]["time_setting_id"] = get_id_for_name(time_name, display_options['time_setting']) if time_name else None
         
         loc_name = st.selectbox(
             "Location",
-            options=[name for _, name in field_options['locations']],
+            options=[name for _, name in display_options['location_setting']],
             format_func=lambda x: x,
             key="location",
             index=None,
             placeholder="Select location..."
         )
-        state["criteria"]["location_setting_id"] = get_id_for_name(loc_name, field_options['locations']) if loc_name else None
+        state["criteria"]["location_setting_id"] = get_id_for_name(loc_name, display_options['location_setting']) if loc_name else None
         
         # Production criteria
         st.markdown("### Production")
@@ -222,26 +199,30 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             placeholder="Select network..."
         )
         
+        network_name = st.selectbox(
+            "Network",
+            options=[name for _, name in display_options['network']],
+            format_func=lambda x: x,
+            key="network_id",
+            index=None,
+            placeholder="Select network..."
+        )
         # Update state with new network ID
         if network_name:
-            network_id = get_id_for_name(network_name, field_options['networks'])
+            network_id = get_id_for_name(network_name, display_options['network'])
             state["criteria"]["network_id"] = network_id
             # Also update session state to ensure persistence
             if "network_id" in st.session_state:
                 st.session_state.network_id = network_id
         
-        # Deduplicate and sort studio options
-        unique_studios = sorted(set(name for _, name in field_options['studios']))
-        
         studio_names = st.multiselect(
             "Studios",
-            options=unique_studios,
+            options=[name for _, name in display_options['studios']],
             format_func=lambda x: x,
             key="studio_ids",
             placeholder="Select studios..."
         )
-        studio_map = {name: id for id, name in field_options['studios']}
-        state["criteria"]["studios"] = [studio_map[name] for name in studio_names if name in studio_map]
+        state["criteria"]["studios"] = get_ids_for_names(studio_names, display_options['studios'])
         
         # Format criteria
         st.markdown("### Format")
@@ -259,13 +240,13 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         order_name = st.selectbox(
             "Order Type",
-            options=[name for _, name in field_options['order_types']],
+            options=[name for _, name in display_options['order_type']],
             format_func=lambda x: x,
             key="order_type_id",
             index=None,
             placeholder="Select order type..."
         )
-        state["criteria"]["order_type_id"] = get_id_for_name(order_name, field_options['order_types']) if order_name else None
+        state["criteria"]["order_type_id"] = get_id_for_name(order_name, display_options['order_type']) if order_name else None
 
 
 def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
@@ -275,8 +256,11 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         comp_analyzer: CompAnalyzer instance for getting similar shows
         state: Page state dictionary containing criteria
     """
-    # Get field options for lookups
+    # Get field options and display options for lookups
     field_options = comp_analyzer.get_field_options()
+    display_options = {}
+    for field_name in field_options.keys():
+        display_options[field_name] = comp_analyzer.get_field_display_options(field_name)
     if state.get("criteria"):
         # Get results based on criteria
         results = comp_analyzer.find_by_criteria(state["criteria"])
