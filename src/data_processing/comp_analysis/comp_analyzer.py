@@ -628,8 +628,7 @@ class CompAnalyzer:
             if criteria_plots:  # Only check if criteria specified plot elements
                 # Check which of the show's plot elements match our selected criteria by both ID and name
                 matching_elements = [plot_id for plot_id in show_plots 
-                                   if plot_id in criteria_plots 
-                                   and show_map.get(plot_id) == criteria_map.get(plot_id)]
+                                    if plot_id in criteria_plots]
                 if matching_elements:  # Only award points if we match selected elements
                     if len(matching_elements) >= 1:
                         plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
