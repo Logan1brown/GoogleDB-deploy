@@ -387,19 +387,21 @@ class CompAnalyzer:
                     unique_ids = set()
                     ref_table = self.reference_data.get(field_name)
                     if ref_table is not None:
-                        # Special handling for studios and character types
-                        if field_name == 'studios':
-                            # Create tuples of (id, studio) from the reference table
-                            options = [(int(row['id']), str(row['studio'])) 
+                        # Handle reference table fields consistently
+                        if field_name in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
+                            # Map field names to their display column names
+                            display_cols = {
+                                'studios': 'studio',
+                                'character_types': 'name',
+                                'plot_elements': 'name',
+                                'thematic_elements': 'name'
+                            }
+                            display_col = display_cols[field_name]
+                            
+                            # Create tuples of (id, display_name) from the reference table
+                            options = [(int(row['id']), str(row[display_col])) 
                                       for _, row in ref_table.iterrows() 
-                                      if pd.notna(row['id']) and pd.notna(row['studio'])]
-                            self.field_options[field_name] = sorted(options, key=lambda x: x[1])
-                            continue
-                        elif field_name == 'character_types':
-                            # Create tuples of (id, name) from the reference table for display
-                            options = [(int(row['id']), str(row['name'])) 
-                                      for _, row in ref_table.iterrows() 
-                                      if pd.notna(row['id']) and pd.notna(row['name'])]
+                                      if pd.notna(row['id']) and pd.notna(row[display_col])]
                             self.field_options[field_name] = sorted(options, key=lambda x: x[1])
                             continue
                         # Use reference table for name mapping
@@ -497,9 +499,10 @@ class CompAnalyzer:
         if field_name not in self.field_options:
             self.get_field_options()
             
-        # For studios, return directly since we've already formatted them
-        if field_name == 'studios':
+        # For array fields with special handling, return directly since they're already formatted
+        if field_name in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
             return self.field_options[field_name]
+            
         if field_name not in self.field_options or field_name not in self.field_names:
             return []
             
