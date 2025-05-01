@@ -216,7 +216,7 @@ class CompAnalyzer:
                     'points': 17,
                     'breakdown': {
                         'base_match': 9,       # Direct genre match
-                        'subgenre_match': 8     # 1.6 points per subgenre match up to 5
+                        'subgenre_match': 8     # Full 8 points for any subgenre match
                     }
                 },
                 # Source Type (10 points)
