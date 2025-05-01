@@ -343,12 +343,19 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         genre_name = match.get('genre_name') or 'Unknown'
                         subgenres = [sg for sg in match.get('subgenre_names', []) if sg]  # Filter out None values
                         
+                        # Get selected subgenres
+                        selected_subgenres = criteria.get('subgenres', [])
+                        
+                        # Split subgenres into matches and mismatches
+                        matches = [sg for sg in subgenres if sg in selected_subgenres]
+                        mismatches = [sg for sg in subgenres if sg not in selected_subgenres]
+                        
                         details['genre'].update({
                             'primary': genre_name,
                             'shared_subgenres': subgenres,
                             'subgenre_points': comp_score.genre_overlap or 0,
-                            'subgenre_matches': subgenres if comp_score.genre_overlap > 0 else [],
-                            'subgenre_mismatches': [] if comp_score.genre_overlap > 0 else subgenres,
+                            'subgenre_matches': matches,
+                            'subgenre_mismatches': mismatches,
                             'selected': True  # Genre is always selected since it's required
                         })
                     
