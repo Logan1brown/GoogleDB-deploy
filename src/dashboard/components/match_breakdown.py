@@ -62,6 +62,26 @@ def show_match_breakdown(show, expanded=False):
         else:
             st.write("• Missing plot element data")
         
+        # Character Types
+        chars = details.get('character_types', {})
+        st.write(f"\nCharacter Types ({scores.get('character_score', 0)}/14):")
+        shared = chars.get('shared_types', [])
+        if shared:
+            # First match gets 10.5 points (75%)
+            st.write(f"• {shared[0]} (+10.5)")
+            # Second match gets 3.5 points (25%)
+            if len(shared) > 1:
+                st.write(f"• {shared[1]} (+3.5)")
+            # Show remaining matches without points
+            for char_type in shared[2:]:
+                st.write(f"• {char_type}")
+        elif chars.get('types1') and chars.get('types2'):
+            st.write("No matching character types")
+            st.write(f"Show 1: {', '.join(chars['types1'])}")
+            st.write(f"Show 2: {', '.join(chars['types2'])}")
+        else:
+            st.write("• Missing character type data")
+        
         # Tone
         tone = details.get('tone', {})
         st.write(f"\nTone: {scores.get('tone_score', 0)}/9")

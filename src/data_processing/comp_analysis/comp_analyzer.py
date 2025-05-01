@@ -230,8 +230,8 @@ class CompAnalyzer:
                 'character_types': {
                     'points': 14,
                     'breakdown': {
-                        'base_match': 5,        # Primary character type
-                        'additional_match': 1.8  # Per additional match up to 5
+                        'first_match': 10.5,    # 75% for first match
+                        'second_match': 3.5      # 25% for second match
                     }
                 },
                 # Plot Elements (12 points)
@@ -593,11 +593,17 @@ class CompAnalyzer:
                 else 0
             )
             # Calculate character type matches
-            character_types = self._calculate_array_match(
-                source.get('character_type_ids', []) if isinstance(source.get('character_type_ids'), list) else [],
-                target.get('character_type_ids', []) if isinstance(target.get('character_type_ids'), list) else [],
-                5
-            )
+            # Calculate character type matches
+            source_chars = source.get('character_type_ids', []) if isinstance(source.get('character_type_ids'), list) else []
+            target_chars = target.get('character_type_ids', []) if isinstance(target.get('character_type_ids'), list) else []
+            shared_chars = set(source_chars) & set(target_chars)
+            num_char_matches = len(shared_chars)
+            
+            character_types = 0
+            if num_char_matches >= 1:
+                character_types += self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['first_match']
+            if num_char_matches >= 2:
+                character_types += self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['second_match']
             
             # Calculate plot element matches
             source_plots = source.get('plot_element_ids', []) if isinstance(source.get('plot_element_ids'), list) else []
