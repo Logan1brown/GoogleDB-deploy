@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple, Optional
 
 from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.utils.style_config import COLORS, FONTS
+from src.dashboard.components.base_match_breakdown import render_base_match_breakdown
 
 
 def get_id_for_name(name: str, options: List[Tuple[int, str]]) -> Optional[int]:
@@ -290,201 +291,97 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             # Create expandable section for each match
             for i, match in enumerate(top_matches, 1):
                 with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
-                    # Success Score and Success Breakdown
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.markdown("### Success Score")
-                        success_score = match.get('success_score', 0)
-                        st.metric("Success Score", f"{int(success_score)}/100", label_visibility="collapsed")
-                        
-                        st.markdown("### Score Breakdown")
-                        
-                        # Only show scoring factors that contribute points
-                        if pd.notna(match.get('tmdb_seasons')):
-                            seasons = int(match['tmdb_seasons'])
-                            if seasons >= 2:
-                                st.write("**Renewed for Season 2** _(+40 points)_")
-                                extra_seasons = seasons - 2
-                                if extra_seasons > 0:
-                                    bonus = min(extra_seasons * 20, 40)
-                                    st.write(f"**Additional seasons bonus** _(+{bonus} points)_")
-                        
-                        if pd.notna(match.get('tmdb_avg_eps')):
-                            avg_eps = float(match['tmdb_avg_eps'])
-                            if avg_eps >= 10:
-                                st.write("**High episode volume** _(+40 points)_")
-                            elif avg_eps >= 8:
-                                st.write("**Standard episode volume** _(+20 points)_")
-                        
-                        # Status modifier (only show if it affects score)
-                        status = match.get('status_name')
-                        if status == 'Returning Series':
-                            st.write("**Active show bonus:** _Score multiplied by 1.2_")
-                        elif status == 'Canceled':
-                            st.write("**Canceled show penalty:** _Score multiplied by 0.8_")
-                    
                     # Get comp score components
                     comp_score = match.get('comp_score', None)
                     if not comp_score:
-                        return
-                    
-                    # Content Match Section
-                    content_score = sum([
-                        comp_score.genre_base,
-                        comp_score.genre_overlap,
-                        comp_score.source_type,
-                        comp_score.character_types,
-                        comp_score.plot_elements,
-                        comp_score.theme_elements,
-                        comp_score.tone,
-                        comp_score.time_setting,
-                        comp_score.location
-                    ])
-                    st.markdown(f"### Content Match _({int(content_score)}/70 points)_")
-                    st.write("")
-                    
-                    # Content Match Details
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        # Genre
-                        genre_score = comp_score.genre_base + comp_score.genre_overlap
-                        st.markdown(f"Genre ({int(genre_score)}/17)")
-                        st.write(f"⚫ {match.get('genre_name', 'None')}")
+                        continue
                         
-                        # Subgenres
-                        st.markdown("Subgenres")
-                        subgenres = match.get('subgenre_names', [])
-                        if subgenres:
-                            for subgenre in subgenres:
-                                st.write(f"⚫ {subgenre}")
-                        else:
-                            st.write("None")
-                        
-                        # Source Type
-                        st.markdown(f"Source Type ({int(comp_score.source_type)}/8)")
-                        st.write(f"⚫ {match.get('source_type_name', 'None')}")
-                        
-                        # Character Types
-                        st.markdown(f"Character Types ({int(comp_score.character_types)}/14)")
-                        char_types = match.get('character_type_names', [])
-                        if char_types:
-                            for char_type in char_types:
-                                st.write(f"⚫ {char_type}")
+                    # Build scores dict
+                    scores = {
+                        'genre_score': comp_score.genre_base + comp_score.genre_overlap,
+                        'source_score': comp_score.source_type,
+                        'character_score': comp_score.character_types,
+                        'plot_score': comp_score.plot_elements,
+                        'theme_score': comp_score.theme_elements,
+                        'tone_score': comp_score.tone,
+                        'time_score': comp_score.time_setting,
+                        'location_score': comp_score.location,
+                        'team_score': comp_score.team,
+                        'episode_score': comp_score.episodes,
+                        'order_score': comp_score.order_type,
+                        'content_total': (
+                            comp_score.genre_base +
+                            comp_score.genre_overlap +
+                            comp_score.source_type +
+                            comp_score.character_types +
+                            comp_score.plot_elements +
+                            comp_score.theme_elements +
+                            comp_score.tone +
+                            comp_score.time_setting +
+                            comp_score.location
+                        ),
+                        'format_total': comp_score.episodes + comp_score.order_type,
+                        'setting_total': comp_score.time_setting + comp_score.location
+                    }
+                    scores['total'] = scores['content_total'] + scores['team_score'] + scores['format_total']
                     
-                    with col2:
-                        # Plot Elements
-                        st.markdown(f"Plot Elements ({int(comp_score.plot_elements)}/12)")
-                        plot_elements = match.get('plot_element_names', [])
-                        if plot_elements:
-                            for element in plot_elements:
-                                st.write(f"⚫ {element}")
-                        
-                        # Theme Elements
-                        st.markdown(f"Theme Elements ({int(comp_score.theme_elements)}/13)")
-                        theme_elements = match.get('thematic_element_names', [])
-                        if theme_elements:
-                            for element in theme_elements:
-                                st.write(f"⚫ {element}")
-                        
-                        # Tone
-                        st.markdown(f"Tone ({int(comp_score.tone)}/8)")
-                        st.write(f"⚫ {match.get('tone_name', 'None')}")
+                    # Build details dict
+                    details = {
+                        'genre': {
+                            'primary_match': True,  # We don't track this yet
+                            'primary': match.get('genre_name', 'Unknown'),
+                            'shared_subgenres': match.get('subgenre_names', []),
+                            'subgenre_points': comp_score.genre_overlap
+                        },
+                        'source': {
+                            'match': comp_score.source_type > 0,
+                            'type1': match.get('source_type_name', 'Unknown'),
+                            'type2': 'Unknown'  # We don't track this yet
+                        },
+                        'character_types': {
+                            'matches': match.get('character_type_names', []),
+                            'mismatches': []  # We don't track this yet
+                        },
+                        'plot_elements': {
+                            'matches': match.get('plot_element_names', []),
+                            'mismatches': []  # We don't track this yet
+                        },
+                        'theme_elements': {
+                            'matches': match.get('thematic_element_names', []),
+                            'mismatches': []  # We don't track this yet
+                        },
+                        'tone': {
+                            'match': comp_score.tone > 0,
+                            'tone1': match.get('tone_name', 'Unknown'),
+                            'tone2': 'Unknown'  # We don't track this yet
+                        },
+                        'time_setting': {
+                            'match': comp_score.time_setting > 0,
+                            'time1': match.get('time_setting_name', 'Unknown'),
+                            'time2': 'Unknown'  # We don't track this yet
+                        },
+                        'location': {
+                            'match': comp_score.location > 0,
+                            'location1': match.get('location_setting_name', 'Unknown'),
+                            'location2': 'Unknown'  # We don't track this yet
+                        },
+                        'format': {
+                            'eps_per_season1': match.get('tmdb_avg_eps'),
+                            'eps_per_season2': None,  # We don't track this yet
+                            'order_type1': match.get('order_type_name', 'Unknown'),
+                            'order_type2': 'Unknown'  # We don't track this yet
+                        }
+                    }
                     
-                    st.write("")
-                    
-                    st.write("")
-
-
-                    
-                    st.write("")
-                    
-                    # Production Match Section
-                    production_score = sum([
-                        comp_score.network,
-                        comp_score.studio,
-                        comp_score.team
-                    ])
-                    st.markdown(f"### Production Match _({int(production_score)}/13 points)_")
-                    st.write("")
-                    
-                    # Production Match Details
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        # Network
-                        st.markdown(f"Network ({int(comp_score.network)}/5)")
-                        st.write(f"⚫ {match.get('network_name', 'None')}")
-                        
-                        # Studios
-                        st.markdown(f"Studios ({int(comp_score.studio)}/3)")
-                        studios = match.get('studio_names', [])
-                        if studios:
-                            for studio in studios:
-                                st.write(f"⚫ {studio}")
-                        else:
-                            st.write("None")
-                    
-                    with col2:
-                        # Team
-                        st.markdown(f"Team ({int(comp_score.team)}/5)")
-                        team = match.get('team_names', [])
-                        if team:
-                            for member in team:
-                                st.write(f"⚫ {member}")
-                        else:
-                            st.write("None")
-                    
-                    st.write("")
-                    
-                    # Format Match Section
-                    format_score = comp_score.episodes + comp_score.order_type
-                    st.markdown(f"### Format Match _({int(format_score)}/3 points)_")
-                    st.write("")
-                    
-                    # Format Match Details
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        # Episodes
-                        st.markdown(f"Episodes ({int(comp_score.episodes)}/2)")
-                        eps = match.get('tmdb_avg_eps', 0)
-                        st.write(f"⚫ {eps} episodes per season")
-                        
-                        # Order Type
-                        st.markdown(f"Order Type ({int(comp_score.order_type)}/1)")
-                        st.write(f"⚫ {match.get('order_type_name', 'None')}")
-                    
-                    st.write("")
-                    
-                    st.write("")
-                    
-                    # Setting Match Section
-                    setting_score = comp_score.time_setting + comp_score.location
-                    st.markdown(f"### Setting Match _({int(setting_score)}/7 points)_")
-                    st.write("")
-                    
-                    # Setting Match Details
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        # Time Setting
-                        st.markdown(f"Time Setting ({int(comp_score.time_setting)}/4)")
-                        st.write(f"⚫ {match.get('time_setting_name', 'None')}")
-                    
-                    with col2:
-                        # Location
-                        st.markdown(f"Location ({int(comp_score.location)}/3)")
-                        st.write(f"⚫ {match.get('location_setting_name', 'None')}")
-                    
-                    st.write("")
-
-                    if match.get('longevity_score', 0) > 0:
-                        st.markdown(f"**Longevity Bonus** _(+{int(match.get('longevity_score', 0))} points)_")
-                        st.write("")
-                    
-                    # Key Roles
-                    if match.get('team_roles'):
-                        st.markdown("**Key Roles**")
-                        selected_roles = state.get('team_roles', [])
-                        role_texts = [format_value(role, role in selected_roles) for role in match['team_roles']]
-                        st.markdown(' • '.join(role_texts), unsafe_allow_html=True)
+                    # Use base match breakdown
+                    render_base_match_breakdown(
+                        title=match.get('title', 'Unknown Show'),
+                        scores=scores,
+                        details=details,
+                        success_score=match.get('success_score'),
+                        expanded=True,
+                        use_expander=True,
+                        description=match.get('description')
+                    )
     else:
         st.info("Select criteria on the left to find similar shows.")
