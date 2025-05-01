@@ -164,56 +164,53 @@ def render_base_match_breakdown(
         
         with col1:
             # Network details
-            if 'network' in details:
+            st.write(f"Network ({scores['network_score']}/5):")
+            if 'network' in details and details['network']['selected']:
                 network = details['network']
-                st.write(f"Network ({scores['network_score']}/5):")
-                if network['selected']:
-                    if network['match']:
-                        st.write(f"🟢 Both {network['name1']} (+5)")
-                    elif network.get('name1') and network.get('name2'):
-                        st.write(f"⚫ {network['name1']} vs {network['name2']}")
-                    else:
-                        st.write(f"⚫ {network['name1']}")
+                if network['match']:
+                    st.write(f"🟢 Both {network['name1']} (+5)")
+                elif network.get('name1') and network.get('name2'):
+                    st.write(f"⚫ {network['name1']} vs {network['name2']}")
                 else:
-                    if 'network_name' in matches:
-                        st.write(f"⚫ {matches['network_name']} (not selected)")
-                    else:
-                        st.write("⚫ No network")
+                    st.write(f"⚫ {network['name1']}")
+            else:
+                if 'network_name' in matches:
+                    st.write(f"⚫ {matches['network_name']} (not selected)")
+                else:
+                    st.write("⚫ No network")
             
             # Studio details
-            if 'studio' in details:
+            st.write(f"\nStudio ({scores['studio_score']}/3):")
+            if 'studio' in details and details['studio']['selected']:
                 studio = details['studio']
-                st.write(f"\nStudio ({scores['studio_score']}/3):")
-                if studio['selected']:
-                    if studio['match']:
-                        st.write(f"🟢 Both {studio['name1']} (+3)")
-                    elif studio.get('name1') and studio.get('name2'):
-                        st.write(f"⚫ {studio['name1']} vs {studio['name2']}")
-                    else:
-                        st.write(f"⚫ {studio['name1']}")
+                if studio['match']:
+                    st.write(f"🟢 Both {studio['name1']} (+3)")
+                elif studio.get('name1') and studio.get('name2'):
+                    st.write(f"⚫ {studio['name1']} vs {studio['name2']}")
                 else:
-                    if 'studio_names' in matches and matches['studio_names']:
-                        st.write(f"⚫ {matches['studio_names'][0]} (not selected)")
-                    else:
-                        st.write("⚫ No studio")
+                    st.write(f"⚫ {studio['name1']}")
+            else:
+                if 'studio_names' in matches and matches['studio_names']:
+                    st.write(f"⚫ {matches['studio_names'][0]} (not selected)")
+                else:
+                    st.write("⚫ No studio")
                     
         with col2:
             # Team details
-            if 'team' in details:
+            st.write(f"Team ({scores['team_score']}/5):")
+            if 'team' in details and details['team']['selected']:
                 team = details['team']
-                st.write(f"Team ({scores['team_score']}/5):")
-                if team['selected']:
-                    if team.get('shared_members'):
-                        for name, role in team['shared_members']:
-                            st.write(f"🟢 {name} ({role}) (+1)")
-                    else:
-                        st.write("⚫ No team members")
+                if team.get('shared_members'):
+                    for name, role in team['shared_members']:
+                        st.write(f"🟢 {name} ({role}) (+1)")
                 else:
-                    if 'team_member_names' in matches and matches['team_member_names']:
-                        for name in matches['team_member_names']:
-                            st.write(f"⚫ {name} (not selected)")
-                    else:
-                        st.write("⚫ No team members")
+                    st.write("⚫ No team members")
+            else:
+                if 'team_member_names' in matches and matches['team_member_names']:
+                    for name in matches['team_member_names']:
+                        st.write(f"⚫ {name} (not selected)")
+                else:
+                    st.write("⚫ No team members")
         
         # Format Match section
         if 'format' in details:
