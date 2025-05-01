@@ -490,6 +490,12 @@ class CompAnalyzer:
         Returns:
             List of (id, name) tuples sorted by name
         """
+        if field_name not in self.field_options:
+            self.get_field_options()
+            
+        # For studios, return directly since we've already formatted them
+        if field_name == 'studios':
+            return self.field_options[field_name]
         if field_name not in self.field_options or field_name not in self.field_names:
             return []
             
