@@ -46,14 +46,17 @@ def render_base_match_breakdown(
             if genre['selected']:
                 st.write("Genre:")
                 st.write(f"Score: {scores['genre_score']}/17")
+                # Primary genre
                 if genre['primary_match']:
                     st.write(f"🟢 Primary: {genre['primary']} (+9)")
                 else:
                     st.write(f"⚫ {genre['primary']} vs {genre['primary2']}")
                     
-                if genre.get('shared_subgenres'):
-                    genres = ', '.join(genre['shared_subgenres'])
-                    st.write(f"🟢 Subgenres: {genres} (+8)")
+                # Subgenres
+                if genre.get('subgenre_points', 0) > 0 and genre.get('subgenre_matches'):
+                    st.write(f"🟢 Subgenres: {', '.join(genre['subgenre_matches'])} (+{genre['subgenre_points']})")
+                if genre.get('subgenre_mismatches'):
+                    st.write(f"⚫ Subgenres: {', '.join(genre['subgenre_mismatches'])}")
             else:
                 st.write("Genre:")
                 st.write(f"⚫ {genre['primary']} (not selected)")
@@ -157,47 +160,40 @@ def render_base_match_breakdown(
         # Network details
         if 'network' in details:
             network = details['network']
-            if network['selected'] or network['match']:
-                st.write("Network:")
-                st.write(f"Score: {scores['network_score']}/7")
-                if network['match']:
-                    st.write(f"🟢 Both {network['name1']} (+{scores['network_score']})")
-                else:
-                    st.write(f"⚫ {network['name1']} vs {network['name2']}")
+            st.write("Network:")
+            st.write(f"Score: {scores['network_score']}/7")
+            if network['match'] and network['selected']:
+                st.write(f"🟢 Both {network['name1']} (+{scores['network_score']})")
+            elif network['name1'] and network['name2']:
+                st.write(f"⚫ {network['name1']} vs {network['name2']}")
             else:
-                st.write("Network:")
                 st.write(f"⚫ {network['name1']} (not selected)")
         
         # Studio details
         if 'studio' in details:
             studio = details['studio']
-            if studio['selected'] or studio['match']:
-                st.write("\nStudio:")
-                st.write(f"Score: {scores['studio_score']}/3")
-                if studio['match']:
-                    st.write(f"🟢 Both {studio['name1']} (+{scores['studio_score']})")
-                elif studio['name1'] and studio['name2']:
-                    st.write(f"⚫ {studio['name1']} vs {studio['name2']}")
-                else:
-                    st.write(f"⚫ Missing studio data")
+            st.write("\nStudio:")
+            st.write(f"Score: {scores['studio_score']}/3")
+            if studio['match'] and studio['selected']:
+                st.write(f"🟢 Both {studio['name1']} (+{scores['studio_score']})")
+            elif studio['name1'] and studio['name2']:
+                st.write(f"⚫ {studio['name1']} vs {studio['name2']}")
             else:
-                st.write("\nStudio:")
                 st.write(f"⚫ {studio['name1']} (not selected)")
         
         # Team details
         if 'team' in details:
             team = details['team']
-            if team['selected']:
-                st.write("\nTeam:")
-                st.write(f"Score: {scores['team_score']}/20")
-                if team.get('shared_members'):
-                    for name, role in team['shared_members']:
-                        st.write(f"🟢 {name} ({role}) (+{scores['team_score']})")
-                else:
-                    st.write("⚫ No shared team members")
+            st.write("\nTeam:")
+            st.write(f"Score: {scores['team_score']}/20")
+            if team['selected'] and team.get('shared_members'):
+                for name, role in team['shared_members']:
+                    st.write(f"🟢 {name} ({role}) (+{scores['team_score']})")
+            elif team.get('team_members'):
+                for name in team['team_members']:
+                    st.write(f"⚫ {name} (not selected)")
             else:
-                st.write("\nTeam:")
-                st.write("⚫ No shared team members (not selected)")
+                st.write("⚫ No team members")
         
         # Format Match section
         if 'format' in details:
@@ -259,17 +255,17 @@ def render_base_match_breakdown(
             else:
                 st.markdown(f"\n**Setting ({scores['setting_total']}/7)**")
                 st.write("Time Period:")
-                st.write(f"• {setting['time']} (not selected)")
+                st.write(f"⚫ {setting['time']} (not selected)")
                 st.write("\nLocation:")
-                st.write(f"• {setting['location']} (not selected)")
+                st.write(f"⚫ {setting['location']} (not selected)")
                 # Time setting
                 if 'time_setting' in details:
                     time = details['time_setting']
                     st.write(f"Time Setting: {scores['time_score']}/4")
                     if time['match']:
-                        st.write(f"• Both {time['time1']}")
+                        st.write(f"⚫ Both {time['time1']}")
                     else:
-                        st.write(f"• {time['time1']} vs {time['time2']}")
+                        st.write(f"⚫ {time['time1']} vs {time['time2']}")
             
             with col2:
                 # Location setting
