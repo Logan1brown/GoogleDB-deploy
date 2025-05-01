@@ -297,13 +297,45 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     with col1:
                         # Convert match dict to SimilarShow for render_match_breakdown
                         from src.data_processing.show_detail.show_detail_analyzer import SimilarShow
+                        # Build match score dict with required structure
+                        comp_score = match.get('comp_score')
+                        if not comp_score:
+                            continue
+                            
+                        # Calculate totals
+                        content_total = sum([
+                            comp_score.genre_base,
+                            comp_score.genre_overlap,
+                            comp_score.source_type,
+                            comp_score.character_types,
+                            comp_score.plot_elements,
+                            comp_score.theme_elements,
+                            comp_score.tone,
+                            comp_score.time_setting,
+                            comp_score.location
+                        ])
+                        
+                        format_total = comp_score.episodes + comp_score.order_type
+                        
+                        match_score = {
+                            'genre_score': comp_score.genre_base + comp_score.genre_overlap,
+                            'team_score': comp_score.team,
+                            'source_score': comp_score.source_type,
+                            'episode_score': comp_score.episodes,
+                            'order_score': comp_score.order_type,
+                            'date_score': 0,  # Not used in comp builder
+                            'content_total': content_total,
+                            'format_total': format_total,
+                            'total': content_total + format_total
+                        }
+                        
                         similar_show = SimilarShow(
                             show_id=match.get('show_id'),
                             title=match.get('title'),
                             network_name=match.get('network_name'),
                             description=match.get('description'),
                             success_score=match.get('success_score'),
-                            match_score=match.get('match_score', {})
+                            match_score=match_score
                         )
                         render_match_breakdown(similar_show, expanded=True)
                     
