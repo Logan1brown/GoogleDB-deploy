@@ -181,10 +181,10 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         current_network_id = state.get("criteria", {}).get("network_id")
         
         # Find index of current network if it exists
-        network_options = [name for _, name in field_options['networks']]
+        network_options = [name for _, name in display_options['network']]
         current_network_name = None
         if current_network_id is not None:
-            for id, name in field_options['networks']:
+            for id, name in display_options['network']:
                 if id == current_network_id:
                     current_network_name = name
                     break
