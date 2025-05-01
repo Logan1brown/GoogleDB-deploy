@@ -326,6 +326,51 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     st.write("")
                     
+                    # Season achievements
+                    season_score = 0
+                    if pd.notna(match.get('tmdb_seasons')):
+                        seasons = int(match['tmdb_seasons'])
+                        if seasons >= 2:
+                            season_score += 40
+                            st.write(f"Season {seasons} renewal: +40 points")
+                            extra_seasons = seasons - 2
+                            if extra_seasons > 0:
+                                bonus = min(extra_seasons * 20, 40)
+                                season_score += bonus
+                                st.write(f"Additional seasons: +{bonus} points")
+                    
+                    # Episode volume 
+                    episode_score = 0
+                    avg_eps = match.get('tmdb_avg_eps', 0)
+                    if pd.notna(avg_eps):
+                        avg_eps = float(avg_eps)
+                        if avg_eps >= 10:
+                            episode_score = 40
+                            st.write("High episode volume: +40 points")
+                        elif avg_eps >= 8:
+                            episode_score = 20
+                            st.write("Standard episode volume: +20 points")
+                    
+                    # Status modifier
+                    status_score = 0
+                    status = match.get('status_name')
+                    if status and status == 'Returning Series':
+                        status_score = success_score * 0.2  # 20% bonus
+                        st.write("Active show bonus: Score x 1.2")
+                    
+                    # Display final breakdown
+                    if season_score > 0 or episode_score > 0 or status_score > 0:
+                        st.write("")
+                        st.write("Final breakdown:")
+                        if season_score > 0:
+                            st.write(f"Season achievements: +{int(season_score)}")
+                        if episode_score > 0:
+                            st.write(f"Episode volume: +{int(episode_score)}")
+                        if status_score > 0:
+                            st.write(f"Status modifier: +{int(status_score)}")
+                    
+                    st.write("")
+                    
                     # Get comp score components
                     comp_score = match.get('comp_score', None)
                     if not comp_score:
