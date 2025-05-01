@@ -379,8 +379,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     selected_subgenre_ids = criteria.get('subgenres', [])
                     
                     # Create ID -> name mappings from field options
-                    genre_names = {id: name for id, name in field_options['genres']}
-                    subgenre_names = {id: name for id, name in field_options['subgenre_names']}
+                    genre_names = {id: name for id, name in field_options['genre']}
+                    subgenre_names = {id: name for id, name in field_options['subgenres']}
                     
                     # Get genre names from field options
                     show_genre = genre_names.get(show_genre_id, match.get('genre_name', 'Unknown'))
