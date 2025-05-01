@@ -532,7 +532,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         details['network'].update({
                             'name1': selected_network,
                             'name2': show_network,
-                            'match': show_network_id == selected_network_id,
+                            'match': show_network_id == selected_network_id and show_network_id is not None,
                             'selected': selected_network_id is not None
                         })
                     
