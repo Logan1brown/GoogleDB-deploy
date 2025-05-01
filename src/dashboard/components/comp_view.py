@@ -5,7 +5,6 @@ from typing import Dict, List, Tuple, Optional
 
 from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.utils.style_config import COLORS, FONTS
-from src.dashboard.components.match_breakdown import render_match_breakdown
 
 
 def get_id_for_name(name: str, options: List[Tuple[int, str]]) -> Optional[int]:
@@ -295,49 +294,35 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        # Convert match dict to SimilarShow for render_match_breakdown
-                        from src.data_processing.show_detail.show_detail_analyzer import SimilarShow
-                        # Build match score dict with required structure
-                        comp_score = match.get('comp_score')
-                        if not comp_score:
-                            continue
-                            
-                        # Calculate totals
-                        content_total = sum([
-                            comp_score.genre_base,
-                            comp_score.genre_overlap,
-                            comp_score.source_type,
-                            comp_score.character_types,
-                            comp_score.plot_elements,
-                            comp_score.theme_elements,
-                            comp_score.tone,
-                            comp_score.time_setting,
-                            comp_score.location
-                        ])
+                        st.markdown("### Success Score")
+                        success_score = match.get('success_score', 0)
+                        st.metric("Success Score", f"{int(success_score)}/100", label_visibility="collapsed")
                         
-                        format_total = comp_score.episodes + comp_score.order_type
+                        st.markdown("### Score Breakdown")
                         
-                        match_score = {
-                            'genre_score': comp_score.genre_base + comp_score.genre_overlap,
-                            'team_score': comp_score.team,
-                            'source_score': comp_score.source_type,
-                            'episode_score': comp_score.episodes,
-                            'order_score': comp_score.order_type,
-                            'date_score': 0,  # Not used in comp builder
-                            'content_total': content_total,
-                            'format_total': format_total,
-                            'total': content_total + format_total
-                        }
+                        # Only show scoring factors that contribute points
+                        if pd.notna(match.get('tmdb_seasons')):
+                            seasons = int(match['tmdb_seasons'])
+                            if seasons >= 2:
+                                st.write("**Renewed for Season 2** _(+40 points)_")
+                                extra_seasons = seasons - 2
+                                if extra_seasons > 0:
+                                    bonus = min(extra_seasons * 20, 40)
+                                    st.write(f"**Additional seasons bonus** _(+{bonus} points)_")
                         
-                        similar_show = SimilarShow(
-                            show_id=match.get('show_id'),
-                            title=match.get('title'),
-                            network_name=match.get('network_name'),
-                            description=match.get('description'),
-                            success_score=match.get('success_score'),
-                            match_score=match_score
-                        )
-                        render_match_breakdown(similar_show, expanded=True)
+                        if pd.notna(match.get('tmdb_avg_eps')):
+                            avg_eps = float(match['tmdb_avg_eps'])
+                            if avg_eps >= 10:
+                                st.write("**High episode volume** _(+40 points)_")
+                            elif avg_eps >= 8:
+                                st.write("**Standard episode volume** _(+20 points)_")
+                        
+                        # Status modifier (only show if it affects score)
+                        status = match.get('status_name')
+                        if status == 'Returning Series':
+                            st.write("**Active show bonus:** _Score multiplied by 1.2_")
+                        elif status == 'Canceled':
+                            st.write("**Canceled show penalty:** _Score multiplied by 0.8_")
                     
                     # Get comp score components
                     comp_score = match.get('comp_score', None)
