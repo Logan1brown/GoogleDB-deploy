@@ -11,6 +11,7 @@ def render_base_match_breakdown(
     title: str,
     scores: Dict,
     details: Dict,
+    matches: Dict,
     success_score: Optional[float] = None,
     expanded: bool = False,
     use_expander: bool = True,
@@ -22,6 +23,7 @@ def render_base_match_breakdown(
         title: Show title
         scores: Dictionary of score components
         details: Dictionary of match details
+        matches: Dictionary of raw match data
         success_score: Optional success score
         expanded: Whether the section should be expanded by default
         use_expander: Whether to wrap in an expander
@@ -132,8 +134,8 @@ def render_base_match_breakdown(
                         for theme in themes['mismatches']:
                             st.write(f"⚫ {theme}")
                 else:
-                    if 'thematic_element_names' in details:
-                        for theme in details['thematic_element_names']:
+                    if 'thematic_element_names' in matches and matches['thematic_element_names']:
+                        for theme in matches['thematic_element_names']:
                             st.write(f"⚫ {theme} (not selected)")
                     elif themes.get('matches') or themes.get('mismatches'):
                         for theme in (themes.get('matches', []) + themes.get('mismatches', [])):
@@ -173,8 +175,8 @@ def render_base_match_breakdown(
                     else:
                         st.write(f"⚫ {network['name1']}")
                 else:
-                    if 'network_name' in details:
-                        st.write(f"⚫ {details['network_name']} (not selected)")
+                    if 'network_name' in matches:
+                        st.write(f"⚫ {matches['network_name']} (not selected)")
                     else:
                         st.write("⚫ No network")
             
@@ -190,8 +192,8 @@ def render_base_match_breakdown(
                     else:
                         st.write(f"⚫ {studio['name1']}")
                 else:
-                    if 'studio_names' in details and details['studio_names']:
-                        st.write(f"⚫ {details['studio_names'][0]} (not selected)")
+                    if 'studio_names' in matches and matches['studio_names']:
+                        st.write(f"⚫ {matches['studio_names'][0]} (not selected)")
                     else:
                         st.write("⚫ No studio")
                     
@@ -207,8 +209,8 @@ def render_base_match_breakdown(
                     else:
                         st.write("⚫ No team members")
                 else:
-                    if 'team_member_names' in details and details['team_member_names']:
-                        for name in details['team_member_names']:
+                    if 'team_member_names' in matches and matches['team_member_names']:
+                        for name in matches['team_member_names']:
                             st.write(f"⚫ {name} (not selected)")
                     else:
                         st.write("⚫ No team members")
