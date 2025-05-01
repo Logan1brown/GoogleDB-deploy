@@ -531,7 +531,8 @@ class CompAnalyzer:
         def score_key(item):
             show_id, comp_score = item
             success_score = success_scores.get(show_id, 0)
-            return 0.7 * comp_score.total + 0.3 * success_score
+            # Use success score as a small tiebreaker (0.1 weight)
+            return 0.9 * comp_score.total + 0.1 * success_score
             
         # Get top matches with full data
         top_matches = sorted(scores, key=score_key, reverse=True)[:limit]
