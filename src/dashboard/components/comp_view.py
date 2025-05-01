@@ -433,28 +433,15 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         show_plot_ids = match.get('plot_element_ids', [])
                         show_plot_names = match.get('plot_element_names', [])
                         
-                        # Debug print
-                        st.write("DEBUG: Show plots:")
-                        for id, name in zip(show_plot_ids, show_plot_names):
-                            st.write(f"  {id}: {name}")
-                            
-                        st.write("DEBUG: Selected plots:")
-                        for id, name in zip(selected_plot_ids, selected_plot_names):
-                            st.write(f"  {id}: {name}")
+                        # Create sets for easier comparison
+                        show_plots = set(zip(show_plot_ids, show_plot_names))
+                        selected_plots = set(zip(selected_plot_ids, selected_plot_names))
                         
-                        # Find matches (elements we selected that the show has)
-                        matches = []
-                        for sel_id, sel_name in zip(selected_plot_ids, selected_plot_names):
-                            for show_id, show_name in zip(show_plot_ids, show_plot_names):
-                                if sel_id == show_id:
-                                    matches.append(sel_name)
-                                    break
-                                    
+                        # Find matches (elements we selected that are in the show)
+                        matches = [name for id, name in selected_plots if (id, name) in show_plots]
+                        
                         # Find mismatches (elements in show we didn't select)
-                        mismatches = []
-                        for show_id, show_name in zip(show_plot_ids, show_plot_names):
-                            if show_id not in selected_plot_ids:
-                                mismatches.append(show_name)
+                        mismatches = [name for id, name in show_plots if id not in selected_plot_ids and name not in matches]
                         
                         details['plot'].update({
                             'matches': matches,
