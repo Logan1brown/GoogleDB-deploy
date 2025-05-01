@@ -367,20 +367,22 @@ class CompAnalyzer:
                     ('order_types', 'order_type_id', 'order_type_name')
                 ]
                 
-                # Handle subgenres
-                self.field_options['subgenre_names'] = []
+                # Handle subgenres with deduplication
+                subgenre_dict = {}
                 for _, row in self.comp_data.iterrows():
                     if isinstance(row['subgenres'], list) and isinstance(row['subgenre_names'], list):
                         for subgenre_id, subgenre_name in zip(row['subgenres'], row['subgenre_names']):
                             if pd.notna(subgenre_id) and pd.notna(subgenre_name):
-                                self.field_options['subgenre_names'].append((int(subgenre_id), str(subgenre_name)))
+                                subgenre_dict[int(subgenre_id)] = str(subgenre_name)
+                self.field_options['subgenre_names'] = sorted([(id, name) for id, name in subgenre_dict.items()])
                 
                 # Extract all field options using a single consistent approach
                 for field_name, id_col, name_col in field_mappings:
                     # Handle array fields (studios, character_types, plot_elements, thematic_elements)
                     if field_name in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
                         array_col = 'studios' if field_name == 'studios' else f"{field_name[:-1]}_ids"
-                        tuples = []
+                        # Use a dictionary to deduplicate by ID
+                        unique_items = {}
                         for _, row in self.comp_data.iterrows():
                             # Get the array of IDs and names
                             ids = row[array_col]
@@ -390,10 +392,14 @@ class CompAnalyzer:
                             if not isinstance(ids, list) or not isinstance(names, list):
                                 continue
                                 
-                            # Create tuples from parallel arrays
+                            # Add to dictionary, later items will overwrite earlier ones
+                            # ensuring we only keep one ID -> name mapping
                             for item_id, name in zip(ids, names):
                                 if pd.notna(item_id) and pd.notna(name):
-                                    tuples.append((int(item_id), str(name)))
+                                    unique_items[int(item_id)] = str(name)
+                                    
+                        # Convert dictionary to sorted list of tuples
+                        tuples = sorted([(id, name) for id, name in unique_items.items()])
                     else:
                         # Handle regular fields
                         tuples = [(int(row[id_col]), str(row[name_col]))

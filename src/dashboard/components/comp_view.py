@@ -100,23 +100,9 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             placeholder="Select subgenres..."
         )
         
-        # Convert selected subgenres to IDs and deduplicate
-        subgenre_ids = list(set(get_ids_for_names(subgenre_names, field_options['subgenre_names'])))
-        
-        # Show unique selected subgenres and their IDs
-        if subgenre_names:
-            st.write("")
-            st.write("Selected subgenres:")
-            seen_names = set()
-            for name in subgenre_names:
-                if name not in seen_names:
-                    seen_names.add(name)
-                    for id, opt_name in field_options['subgenre_names']:
-                        if opt_name == name:
-                            st.write(f"- {name} (ID: {id})")
-                            break
-            st.write("")
-        
+        # Convert to IDs using a dictionary to ensure 1:1 mapping
+        subgenre_map = {name: id for id, name in field_options['subgenre_names']}
+        subgenre_ids = [subgenre_map[name] for name in subgenre_names if name in subgenre_map]
         state["criteria"]["subgenres"] = subgenre_ids
         
         source_name = st.selectbox(
@@ -139,12 +125,12 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             key="character_type_ids",
             placeholder="Select character types..."
         )
-        state["criteria"]["character_type_ids"] = get_ids_for_names(char_names, field_options['character_types'])
+        char_type_map = {name: id for id, name in field_options['character_types']}
+        state["criteria"]["character_type_ids"] = [char_type_map[name] for name in char_names if name in char_type_map]
         
         # Deduplicate and sort plot element options
         unique_plot_elements = sorted(set(name for _, name in field_options['plot_elements']))
         
-        # Debug: Just show the ID mapping for selected plot elements
         plot_names = st.multiselect(
             "Plot Elements",
             options=unique_plot_elements,
@@ -153,16 +139,16 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             placeholder="Select plot elements..."
         )
         
-        # Convert to IDs and show mapping
-        plot_element_ids = get_ids_for_names(plot_names, field_options['plot_elements'])
+        # Convert to IDs using a dictionary to ensure 1:1 mapping
+        plot_element_map = {name: id for id, name in field_options['plot_elements']}
+        plot_element_ids = [plot_element_map[name] for name in plot_names if name in plot_element_map]
+        
+        # Debug: Show final mapping
         if plot_names:
-            st.write("")
-            st.write("Plot element ID mapping:")
+            st.write("Plot elements selected:")
             for name in plot_names:
-                for id, opt_name in field_options['plot_elements']:
-                    if opt_name == name:
-                        st.write(f"{name} -> ID: {id}")
-            st.write("")
+                if name in plot_element_map:
+                    st.write(f"{name} (ID: {plot_element_map[name]})")
             
         state["criteria"]["plot_element_ids"] = plot_element_ids
         
@@ -176,7 +162,8 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             key="theme_element_ids",
             placeholder="Select theme elements..."
         )
-        state["criteria"]["theme_element_ids"] = get_ids_for_names(theme_names, field_options['thematic_elements'])
+        theme_element_map = {name: id for id, name in field_options['thematic_elements']}
+        state["criteria"]["theme_element_ids"] = [theme_element_map[name] for name in theme_names if name in theme_element_map]
         
         tone_name = st.selectbox(
             "Tone",
@@ -231,7 +218,8 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             key="studio_ids",
             placeholder="Select studios..."
         )
-        state["criteria"]["studios"] = get_ids_for_names(studio_names, field_options['studios'])
+        studio_map = {name: id for id, name in field_options['studios']}
+        state["criteria"]["studios"] = [studio_map[name] for name in studio_names if name in studio_map]
         
         # Format criteria
         st.markdown("### Format")
