@@ -399,17 +399,28 @@ class CompAnalyzer:
                             ids = row[array_col]
                             names = row[name_col]
                             
+                            if field_name == 'thematic_elements':
+                                st.write(f"Processing row - ids: {ids} ({type(ids)}), names: {names} ({type(names)})")
+                            
                             # Skip if either is empty
                             if not isinstance(ids, list) or not isinstance(names, list):
+                                if field_name == 'thematic_elements':
+                                    st.write(f"Skipping non-list: ids type={type(ids)}, names type={type(names)}")
                                 continue
                                 
                             # Add each id,name pair to the dictionary
                             for item_id, name in zip(ids, names):
                                 if pd.notna(item_id) and pd.notna(name):
+                                    if field_name == 'thematic_elements':
+                                        st.write(f"Adding theme: {item_id} = {name}")
                                     unique_items[item_id] = name
                                     
                         # Convert dictionary to sorted list of tuples
                         tuples = sorted([(id, name) for id, name in unique_items.items()])
+                        if field_name == 'thematic_elements':
+                            st.write("Final theme list:")
+                            for id, name in tuples:
+                                st.write(f"  {id}: {name}")
                     else:
                         # Handle regular fields
                         tuples = [(int(row[id_col]), str(row[name_col]))
