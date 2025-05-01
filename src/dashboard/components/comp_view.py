@@ -142,6 +142,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Convert to IDs using a dictionary to ensure 1:1 mapping
         plot_element_map = {name: id for id, name in field_options['plot_elements']}
         plot_element_ids = [plot_element_map[name] for name in plot_names if name in plot_element_map]
+        plot_element_names = [name for name in plot_names if name in plot_element_map]
         
         # Debug: Show final mapping
         if plot_names:
@@ -151,6 +152,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     st.write(f"{name} (ID: {plot_element_map[name]})")
             
         state["criteria"]["plot_element_ids"] = plot_element_ids
+        state["criteria"]["plot_element_names"] = plot_element_names
         
         # Deduplicate and sort theme element options
         unique_theme_elements = sorted(set(name for _, name in field_options['thematic_elements']))
