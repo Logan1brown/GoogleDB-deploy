@@ -73,7 +73,8 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         comp_analyzer: CompAnalyzer instance for getting field options
         state: Page state dictionary to store selections
     """
-    # Get properly formatted display options for each field
+    # Get field options and format them for display
+    field_options = comp_analyzer.get_field_options()
     display_options = {}
     for field_name in field_options.keys():
         display_options[field_name] = comp_analyzer.get_field_display_options(field_name)
