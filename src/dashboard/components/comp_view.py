@@ -276,51 +276,38 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             # Create expandable section for each match
             for i, match in enumerate(top_matches, 1):
                 with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
+                    # Success Score and Breakdown
+                    st.markdown("### Success Score")
                     success_score = match.get('success_score', 0)
                     st.metric("Success Score", f"{success_score:.1f}/100")
-                    st.write("")
-                    
-                    st.markdown("**Score Breakdown**")
                     st.write("")
                     
                     # Season achievements
                     if pd.notna(match.get('tmdb_seasons')):
                         seasons = int(match['tmdb_seasons'])
                         if seasons >= 2:
-                            st.markdown("**Season Achievements** _(40% of score)_")
-                            st.write(f"- Renewed for Season {seasons} (+40 points)")
+                            st.write(f"Season {seasons} renewal: +40 points")
                             extra_seasons = seasons - 2
                             if extra_seasons > 0:
                                 bonus = min(extra_seasons * 20, 40)
-                                st.write(f"- Additional seasons bonus (+{bonus} points)")
-                            st.write("")
+                                st.write(f"Additional seasons: +{bonus} points")
                     
                     # Episode volume
                     avg_eps = match.get('tmdb_avg_eps', 0)
                     if pd.notna(avg_eps):
                         avg_eps = float(avg_eps)
-                        st.markdown("**Episode Volume** _(40% of score)_")
                         if avg_eps >= 10:
-                            st.write("- High episode volume (+40 points)")
+                            st.write("High episode volume: +40 points")
                         elif avg_eps >= 8:
-                            st.write("- Standard episode volume (+20 points)")
-                        st.write("")
+                            st.write("Standard episode volume: +20 points")
                     
                     # Status modifier
                     status = match.get('status_name')
-                    if status:
-                        st.markdown("**Status Modifier**")
-                        if status == 'Returning Series':
-                            st.write("- Active show bonus: Score multiplied by 1.2")
+                    if status and status == 'Returning Series':
+                        st.write("Active show bonus: Score x 1.2")
                     
-                    # Success Score
-                    st.markdown("### Success Score")
-                    success_score = match.get('success_score', 0)
-                    st.metric("Success Score", f"{success_score:.1f}/100")
                     st.write("")
-                    
-                    # Score Breakdown
-                    st.markdown("### Score Breakdown")
+                    st.write("Total breakdown:")
                     st.write("Season achievements: +{:.1f}".format(match.get('season_achievement_score', 0)))
                     st.write("Episode volume: +{:.1f}".format(match.get('episode_volume_score', 0)))
                     st.write("Status modifiers: +{:.1f}".format(match.get('status_modifier_score', 0)))
@@ -337,7 +324,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     col1, col2 = st.columns(2)
                     with col1:
                         # Genre
-                        st.markdown(f"Genre _(0/17)_")
+                        st.markdown(f"Genre ({comp_score.genre_base + comp_score.genre_overlap}/17)")
                         st.write(f"⚫ {match.get('genre_name', 'None')}")
                         
                         # Subgenres
@@ -350,11 +337,11 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             st.write("None")
                         
                         # Source Type
-                        st.markdown(f"Source Type _(0/8)_")
+                        st.markdown(f"Source Type ({comp_score.source_type}/8)")
                         st.write(f"⚫ {match.get('source_type_name', 'None')}")
                         
                         # Character Types
-                        st.markdown(f"Character Types _(0/14)_")
+                        st.markdown(f"Character Types ({comp_score.character_types}/14)")
                         char_types = match.get('character_type_names', [])
                         if char_types:
                             for char_type in char_types:
@@ -362,22 +349,23 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     with col2:
                         # Plot Elements
-                        st.markdown(f"Plot Elements _(0/12)_")
+                        st.markdown(f"Plot Elements ({comp_score.plot_elements}/12)")
                         plot_elements = match.get('plot_element_names', [])
                         if plot_elements:
                             for element in plot_elements:
                                 st.write(f"⚫ {element}")
                         
                         # Theme Elements
-                        st.markdown(f"Theme Elements _(0/13)_")
+                        st.markdown(f"Theme Elements ({comp_score.theme_elements}/13)")
                         theme_elements = match.get('thematic_element_names', [])
                         if theme_elements:
                             for element in theme_elements:
                                 st.write(f"⚫ {element}")
                         
                         # Tone
-                        st.markdown(f"Tone _(0/8)_")
+                        st.markdown(f"Tone ({comp_score.tone}/8)")
                         st.write(f"⚫ {match.get('tone_name', 'None')}")
+
 
                     
                     st.write("")
@@ -390,11 +378,11 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     col1, col2 = st.columns(2)
                     with col1:
                         # Network
-                        st.markdown(f"Network _(0/5)_")
+                        st.markdown(f"Network ({comp_score.network}/5)")
                         st.write(f"⚫ {match.get('network_name', 'None')}")
                         
                         # Studios
-                        st.markdown(f"Studios _(0/3)_")
+                        st.markdown(f"Studios ({comp_score.studio}/3)")
                         studios = match.get('studio_names', [])
                         if studios:
                             for studio in studios:
@@ -402,7 +390,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     with col2:
                         # Team
-                        st.markdown(f"Team _(0/5)_")
+                        st.markdown(f"Team ({comp_score.team}/5)")
                         st.write("")
                     
                     st.write("")
@@ -415,13 +403,13 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     col1, col2 = st.columns(2)
                     with col1:
                         # Episodes
-                        st.markdown(f"Episodes _(0/2)_")
+                        st.markdown(f"Episodes ({comp_score.episodes}/2)")
                         eps = match.get('tmdb_avg_eps', 0)
                         st.write(f"⚫ {eps}")
                     
                     with col2:
                         # Order Type
-                        st.markdown(f"Order Type _(0/1)_")
+                        st.markdown(f"Order Type ({comp_score.order_type}/1)")
                         st.write(f"⚫ {match.get('order_type_name', 'None')}")
                     
                     st.write("")
@@ -434,13 +422,15 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     col1, col2 = st.columns(2)
                     with col1:
                         # Time Setting
-                        st.markdown(f"Time Setting _(0/4)_")
+                        st.markdown(f"Time Setting ({comp_score.time_setting}/4)")
                         st.write(f"⚫ {match.get('time_setting_name', 'None')}")
                     
                     with col2:
                         # Location
-                        st.markdown(f"Location _(0/3)_")
+                        st.markdown(f"Location ({comp_score.location}/3)")
                         st.write(f"⚫ {match.get('location_setting_name', 'None')}")
+                    
+                    st.write("")
                     
                     st.write("")
                     
