@@ -370,10 +370,16 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Add plot details
                     if details.get('plot'):
+                        # Get all plot elements
                         plot_elements = match.get('plot_element_names', [])
+                        # Calculate how many matches we have based on score
+                        num_matches = int(comp_score.plot_elements / 2.4)  # 2.4 points per match
+                        # Split into matches and mismatches
+                        matches = plot_elements[:num_matches] if num_matches > 0 else []
+                        mismatches = plot_elements[num_matches:] if num_matches < len(plot_elements) else []
                         details['plot'].update({
-                            'matches': plot_elements if comp_score.plot_elements > 0 else [],
-                            'mismatches': [] if comp_score.plot_elements > 0 else plot_elements,
+                            'matches': matches,
+                            'mismatches': mismatches,
                             'selected': bool(criteria.get('plot_element_ids'))
                         })
                     
