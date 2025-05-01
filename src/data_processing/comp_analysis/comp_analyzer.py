@@ -93,38 +93,45 @@ class CompScore:
                 'primary': '',  # Empty string instead of None
                 'shared_subgenres': [],  # Will be populated by comp_view
                 'subgenre_matches': [],   # Will be populated by comp_view
-                'subgenre_mismatches': [] # Will be populated by comp_view
+                'subgenre_mismatches': [], # Will be populated by comp_view
+                'selected': True  # Always selected since genre is required
             },
             'source': {
                 'match': bool(self.source_type),
                 'type1': None,  # Will be populated by comp_view
-                'type2': None   # Will be populated by comp_view
+                'type2': None,   # Will be populated by comp_view
+                'selected': False  # Will be set by comp_view
             },
             'characters': {
                 'match': bool(self.character_types),
                 'matches': [],  # Will be populated by comp_view
-                'mismatches': []
+                'mismatches': [],
+                'selected': False  # Will be set by comp_view
             },
             'plot': {
                 'match': bool(self.plot_elements),
                 'matches': [],  # Will be populated by comp_view
-                'mismatches': []
+                'mismatches': [],
+                'selected': False  # Will be set by comp_view
             },
             'themes': {
                 'match': bool(self.theme_elements),
                 'matches': [],  # Will be populated by comp_view
-                'mismatches': []
+                'mismatches': [],
+                'selected': False  # Will be set by comp_view
             },
             'tone': {
                 'match': bool(self.tone),
                 'tone1': None,  # Will be populated by comp_view
-                'tone2': None   # Will be populated by comp_view
+                'tone2': None,   # Will be populated by comp_view
+                'selected': False  # Will be set by comp_view
             },
             'setting': {
                 'time_match': bool(self.time_setting),
                 'location_match': bool(self.location),
                 'time': None,
-                'location': None
+                'location': None,
+                'selected': False  # Will be set by comp_view
             },
             'format': {
                 'episode_match': bool(self.episodes),
@@ -132,7 +139,8 @@ class CompScore:
                 'episode_count1': None,  # Will be populated by comp_view
                 'episode_count2': None,  # Will be populated by comp_view
                 'order_type1': None,     # Will be populated by comp_view
-                'order_type2': None      # Will be populated by comp_view
+                'order_type2': None,      # Will be populated by comp_view
+                'selected': False  # Will be set by comp_view
             }
         }
 

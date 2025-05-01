@@ -333,6 +333,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         logging.error(traceback.format_exc())
                         st.error(f"Error processing match {i}: {str(e)}\n{traceback.format_exc()}")
                         continue
+                    # Update selected status based on criteria
+                    criteria = state.get('criteria', {})
+                    
                     if details.get('genre'):
                         # Get genre info with safe defaults
                         genre_name = match.get('genre_name') or 'Unknown'
@@ -343,7 +346,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             'shared_subgenres': subgenres,
                             'subgenre_points': comp_score.genre_overlap or 0,
                             'subgenre_matches': subgenres if comp_score.genre_overlap > 0 else [],
-                            'subgenre_mismatches': [] if comp_score.genre_overlap > 0 else subgenres
+                            'subgenre_mismatches': [] if comp_score.genre_overlap > 0 else subgenres,
+                            'selected': True  # Genre is always selected since it's required
                         })
                     
                     # Add source details
@@ -351,7 +355,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         source_name = match.get('source_type_name', 'Unknown')
                         details['source'].update({
                             'type1': source_name,
-                            'type2': source_name  # Same for both since this is criteria-based comparison
+                            'type2': source_name,  # Same for both since this is criteria-based comparison
+                            'selected': criteria.get('source_type_id') is not None
                         })
                     
                     # Add character details
@@ -359,7 +364,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         char_types = match.get('character_type_names', [])
                         details['characters'].update({
                             'matches': char_types if comp_score.character_types > 0 else [],
-                            'mismatches': [] if comp_score.character_types > 0 else char_types
+                            'mismatches': [] if comp_score.character_types > 0 else char_types,
+                            'selected': bool(criteria.get('character_type_ids'))
                         })
                     
                     # Add plot details
@@ -367,7 +373,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         plot_elements = match.get('plot_element_names', [])
                         details['plot'].update({
                             'matches': plot_elements if comp_score.plot_elements > 0 else [],
-                            'mismatches': [] if comp_score.plot_elements > 0 else plot_elements
+                            'mismatches': [] if comp_score.plot_elements > 0 else plot_elements,
+                            'selected': bool(criteria.get('plot_element_ids'))
                         })
                     
                     # Add theme details
@@ -375,7 +382,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         theme_elements = match.get('theme_element_names', [])
                         details['themes'].update({
                             'matches': theme_elements if comp_score.theme_elements > 0 else [],
-                            'mismatches': [] if comp_score.theme_elements > 0 else theme_elements
+                            'mismatches': [] if comp_score.theme_elements > 0 else theme_elements,
+                            'selected': bool(criteria.get('theme_element_ids'))
                         })
                     
                     # Add tone details
@@ -383,14 +391,17 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         tone_name = match.get('tone_name', 'Unknown')
                         details['tone'].update({
                             'tone1': tone_name,
-                            'tone2': tone_name  # Same for both since this is criteria-based comparison
+                            'tone2': tone_name,  # Same for both since this is criteria-based comparison
+                            'selected': criteria.get('tone_id') is not None
                         })
                     
                     # Add setting details
                     if details.get('setting'):
                         details['setting'].update({
                             'time': match.get('time_setting_name', 'Unknown'),
-                            'location': match.get('location_setting_name', 'Unknown')
+                            'location': match.get('location_setting_name', 'Unknown'),
+                            'selected': (criteria.get('time_setting_id') is not None or 
+                                       criteria.get('location_setting_id') is not None)
                         })
                         
                     # Add format details
@@ -401,7 +412,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             'episode_count1': episode_count,
                             'episode_count2': episode_count,  # Same for criteria-based comparison
                             'order_type1': order_type,
-                            'order_type2': order_type  # Same for criteria-based comparison
+                            'order_type2': order_type,  # Same for criteria-based comparison
+                            'selected': (criteria.get('episode_count') is not None or
+                                       criteria.get('order_type_id') is not None)
                         })
                     
                     # Create match details dictionary
