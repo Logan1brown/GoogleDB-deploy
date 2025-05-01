@@ -15,10 +15,12 @@ if src_path not in sys.path:
     sys.path.append(src_path)
 
 from src.shared.auth import auth_required
+import traceback
+import streamlit as st
+
 from src.dashboard.utils.style_config import COLORS, FONTS
 from src.dashboard.components.comp_view import render_comp_builder
 from src.dashboard.state.session import get_page_state
-
 
 @auth_required()
 def main():
@@ -45,7 +47,7 @@ def main():
         render_comp_builder(state)
 
     except Exception as e:
-        st.error(f"Error in comp builder: {str(e)}")
+        st.error(f"Error in comp builder: {str(e)}\n\nTraceback:\n{traceback.format_exc()}")
 
 # Call main directly since this is a Streamlit page
 main()
