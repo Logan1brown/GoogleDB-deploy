@@ -49,23 +49,23 @@ class CompScore:
     def to_display_dict(self) -> Dict[str, Any]:
         """Convert scores to a display-friendly dictionary."""
         return {
-            'genre_score': self.genre_base + self.genre_overlap,
-            'source_score': self.source_type,
-            'character_score': self.character_types,
-            'plot_score': self.plot_elements,
-            'theme_score': self.theme_elements,
-            'tone_score': self.tone,
-            'time_score': self.time_setting,
-            'location_score': self.location,
-            'team_score': self.team,
-            'episode_score': self.episodes,
-            'order_score': self.order_type,
-            'network_score': self.network,
-            'studio_score': self.studio,
+            'genre_score': (self.genre_base or 0) + (self.genre_overlap or 0),
+            'source_score': self.source_type or 0,
+            'character_score': self.character_types or 0,
+            'plot_score': self.plot_elements or 0,
+            'theme_score': self.theme_elements or 0,
+            'tone_score': self.tone or 0,
+            'time_score': self.time_setting or 0,
+            'location_score': self.location or 0,
+            'team_score': self.team or 0,
+            'episode_score': self.episodes or 0,
+            'order_score': self.order_type or 0,
+            'network_score': self.network or 0,
+            'studio_score': self.studio or 0,
             'date_score': 0,  # Not tracked yet
             'content_total': self.content_score,
             'format_total': self.format_score,
-            'setting_total': self.time_setting + self.location
+            'setting_total': (self.time_setting or 0) + (self.location or 0)
         }
     
     def get_match_details(self) -> Dict[str, Any]:
@@ -129,24 +129,24 @@ class CompScore:
     def content_score(self) -> float:
         """Calculate content match score (72 points)."""
         return sum([
-            self.genre_base,
-            self.genre_overlap,
-            self.source_type,
-            self.character_types,
-            self.plot_elements,
-            self.theme_elements,
-            self.tone,
-            self.time_setting,
-            self.location
+            self.genre_base or 0,
+            self.genre_overlap or 0,
+            self.source_type or 0,
+            self.character_types or 0,
+            self.plot_elements or 0,
+            self.theme_elements or 0,
+            self.tone or 0,
+            self.time_setting or 0,
+            self.location or 0
         ])
 
     @property
     def production_score(self) -> float:
         """Calculate production match score (23 points)."""
         return sum([
-            self.network,
-            self.studio,
-            self.team
+            self.network or 0,
+            self.studio or 0,
+            self.team or 0
         ])
 
     @property
