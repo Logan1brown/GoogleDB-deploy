@@ -86,7 +86,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         st.markdown("### Content")
         genre_name = st.selectbox(
             "Genre",
-            options=[name for _, name in display_options['genre']],
+            options=[name for _, name in display_options['genre'] if name and name.strip()],
             format_func=lambda x: x,
             key="genre_id",
             index=None,
@@ -96,7 +96,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         subgenre_names = st.multiselect(
             "Subgenres",
-            options=[name for _, name in display_options['subgenres']],
+            options=[name for _, name in display_options['subgenres'] if name and name.strip()],
             format_func=lambda x: x,
             key="subgenres",
             placeholder="Select subgenres..."
@@ -109,7 +109,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         source_name = st.selectbox(
             "Source Type", 
-            options=[name for _, name in display_options['source_type']],
+            options=[name for _, name in display_options['source_type'] if name and name.strip()],
             format_func=lambda x: x,
             key="source_type_id",
             index=None,
@@ -119,7 +119,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         char_names = st.multiselect(
             "Character Types",
-            options=[name for _, name in display_options['character_types']],
+            options=[name for _, name in display_options['character_types'] if name and name.strip()],
             format_func=lambda x: x,
             key="character_type_ids",
             placeholder="Select character types..."
@@ -128,7 +128,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         plot_names = st.multiselect(
             "Plot Elements",
-            options=[name for _, name in display_options['plot_elements']],
+            options=[name for _, name in display_options['plot_elements'] if name and name.strip()],
             format_func=lambda x: x,
             key="plot_element_ids",
             placeholder="Select plot elements..."
@@ -137,7 +137,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         theme_names = st.multiselect(
             "Theme Elements",
-            options=[name for _, name in display_options['thematic_elements']],
+            options=[name for _, name in display_options['thematic_elements'] if name and name.strip()],
             format_func=lambda x: x,
             key="theme_element_ids",
             placeholder="Select theme elements..."
@@ -146,7 +146,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         tone_name = st.selectbox(
             "Tone",
-            options=[name for _, name in display_options['tone']],
+            options=[name for _, name in display_options['tone'] if name and name.strip()],
             format_func=lambda x: x,
             key="tone",
             index=None,
