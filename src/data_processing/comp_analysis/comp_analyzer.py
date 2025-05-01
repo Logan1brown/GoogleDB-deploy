@@ -390,9 +390,11 @@ class CompAnalyzer:
                         # Special handling for studios
                         if field_name == 'studios':
                             # Create tuples of (id, studio) from the reference table
-                            self.field_options[field_name] = [(row['id'], row['studio']) 
-                                                             for _, row in ref_table.iterrows() 
-                                                             if pd.notna(row['id']) and pd.notna(row['studio'])]
+                            # Create and sort studio options
+                            options = [(row['id'], row['studio']) 
+                                      for _, row in ref_table.iterrows() 
+                                      if pd.notna(row['id']) and pd.notna(row['studio'])]
+                            self.field_options[field_name] = sorted(options, key=lambda x: x[1])
                             continue
                         # Use reference table for name mapping
                         # Different tables use different column names for the name field

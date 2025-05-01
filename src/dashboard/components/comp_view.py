@@ -208,7 +208,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         
         studio_names = st.multiselect(
             "Studios",
-            options=[name for _, name in display_options['studios']],
+            options=[name for _, name in display_options['studios'] if name and name.strip()],
             format_func=lambda x: x,
             key="studio_ids",
             placeholder="Select studios..."
