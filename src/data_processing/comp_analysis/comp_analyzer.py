@@ -395,8 +395,8 @@ class CompAnalyzer:
                         unique_items = {}
                         
                         # Convert column names to valid Python identifiers for itertuples
-                        id_attr = id_col.replace('_ids', '').replace('-', '_')
-                        name_attr = name_col.replace('_names', '').replace('-', '_')
+                        id_attr = id_col.replace('-', '_')
+                        name_attr = name_col.replace('-', '_')
                         
                         for row in self.comp_data.itertuples():
                             # Get the arrays for this row
