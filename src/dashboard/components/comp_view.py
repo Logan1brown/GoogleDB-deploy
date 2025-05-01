@@ -334,10 +334,16 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         st.error(f"Error processing match {i}: {str(e)}\n{traceback.format_exc()}")
                         continue
                     if details.get('genre'):
+                        # Get genre info with safe defaults
+                        genre_name = match.get('genre_name') or 'Unknown'
+                        subgenres = [sg for sg in match.get('subgenre_names', []) if sg]  # Filter out None values
+                        
                         details['genre'].update({
-                            'primary': match.get('genre_name', 'Unknown'),
-                            'shared_subgenres': match.get('subgenre_names', []),
-                            'subgenre_points': comp_score.genre_overlap or 0
+                            'primary': genre_name,
+                            'shared_subgenres': subgenres,
+                            'subgenre_points': comp_score.genre_overlap or 0,
+                            'subgenre_matches': subgenres if comp_score.genre_overlap > 0 else [],
+                            'subgenre_mismatches': [] if comp_score.genre_overlap > 0 else subgenres
                         })
                     
                     # Add source details

@@ -90,8 +90,10 @@ class CompScore:
             'genre': {
                 'primary_match': bool(self.genre_base),
                 'subgenre_points': self.genre_overlap or 0,
-                'primary': None,
-                'shared_subgenres': []
+                'primary': '',  # Empty string instead of None
+                'shared_subgenres': [],  # Will be populated by comp_view
+                'subgenre_matches': [],   # Will be populated by comp_view
+                'subgenre_mismatches': [] # Will be populated by comp_view
             },
             'source': {
                 'match': bool(self.source_type),
