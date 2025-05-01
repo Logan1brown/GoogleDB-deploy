@@ -345,25 +345,21 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         
                         # Get selected subgenre IDs and names
                         selected_subgenre_ids = criteria.get('subgenres', [])
-                        selected_subgenre_names = [
-                            name for id, name in field_options['subgenre_names']
-                            if id in selected_subgenre_ids
-                        ]
                         
-                        # Split subgenres into matches and mismatches based on IDs
+                        # Get show's subgenre IDs and names
                         show_subgenre_ids = match.get('subgenres', [])
+                        show_subgenre_names = match.get('subgenre_names', [])
                         
-                        # Get matching subgenre names
-                        matches = [
-                            name for id, name in field_options['subgenre_names']
-                            if id in show_subgenre_ids and id in selected_subgenre_ids
-                        ]
+                        # Create ID to name mapping for the show's subgenres
+                        show_subgenre_map = dict(zip(show_subgenre_ids, show_subgenre_names))
                         
-                        # Get mismatched subgenre names
-                        mismatches = [
-                            name for id, name in field_options['subgenre_names']
-                            if id in show_subgenre_ids and id not in selected_subgenre_ids
-                        ]
+                        # Split into matches and mismatches using IDs first
+                        matching_ids = [sg_id for sg_id in show_subgenre_ids if sg_id in selected_subgenre_ids]
+                        mismatched_ids = [sg_id for sg_id in show_subgenre_ids if sg_id not in selected_subgenre_ids]
+                        
+                        # Convert IDs to names for display
+                        matches = [show_subgenre_map[sg_id] for sg_id in matching_ids]
+                        mismatches = [show_subgenre_map[sg_id] for sg_id in mismatched_ids]
                         
                         details['genre'].update({
                             'primary': genre_name,
