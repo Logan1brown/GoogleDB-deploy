@@ -296,8 +296,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             st.write("")
                     
                     # Episode volume
-                    if pd.notna(match.get('tmdb_avg_eps')):
-                        avg_eps = float(match['tmdb_avg_eps'])
+                    avg_eps = match.get('tmdb_avg_eps', 0)
+                    if pd.notna(avg_eps):
+                        avg_eps = float(avg_eps)
                         st.markdown("**Episode Volume** _(40% of score)_")
                         if avg_eps >= 10:
                             st.write("- High episode volume (+40 points)")
@@ -330,9 +331,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Content Match Section
                     st.markdown("### Content Match _(70 points)_")
-                    st.metric("Total Content Score", f"{comp_score.content_score}/70")
                     st.write("")
                     
+                    # Content Match Details
                     col1, col2 = st.columns(2)
                     with col1:
                         # Genre
@@ -359,7 +360,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             for char_type in char_types:
                                 st.write(f"⚫ {char_type}")
                         st.write(f"({comp_score.character_types}/14)")
-                        
+                    
+                    with col2:
                         # Plot Elements
                         st.markdown("Plot Elements")
                         plot_elements = match.get('plot_element_names', [])
@@ -367,8 +369,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             for element in plot_elements:
                                 st.write(f"⚫ {element}")
                         st.write(f"({comp_score.plot_elements}/12)")
-                    
-                    with col2:
+                        
                         # Theme Elements
                         st.markdown("Theme Elements")
                         theme_elements = match.get('thematic_element_names', [])
@@ -381,11 +382,13 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         st.markdown("Tone")
                         st.write(f"⚫ {match.get('tone_name', 'None')} ({comp_score.tone}/8)")
                     
-                    # Production Match Section
-                    st.markdown("### Production Match _(13 points)_")
-                    st.metric("Total Production Score", f"{comp_score.production_score}/13")
                     st.write("")
                     
+                    # Production Match Section
+                    st.markdown("### Production Match _(13 points)_")
+                    st.write("")
+                    
+                    # Production Match Details
                     col1, col2 = st.columns(2)
                     with col1:
                         # Network
@@ -405,26 +408,32 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         st.markdown("Team")
                         st.write(f"({comp_score.team}/5)")
                     
-                    # Format Match Section
-                    st.markdown("### Format Match _(3 points)_")
-                    st.metric("Total Format Score", f"{comp_score.format_score}/3")
                     st.write("")
                     
+                    # Format Match Section
+                    st.markdown("### Format Match _(3 points)_")
+                    st.write("")
+                    
+                    # Format Match Details
                     col1, col2 = st.columns(2)
                     with col1:
                         # Episodes
                         st.markdown("Episodes")
-                        eps = match.get('tmdb_avg_eps')
-                        st.write(f"⚫ {eps if eps is not None else 0} ({comp_score.episodes}/2)")
-                        
+                        eps = match.get('tmdb_avg_eps', 0)
+                        st.write(f"⚫ {eps} ({comp_score.episodes}/2)")
+                    
+                    with col2:
                         # Order Type
                         st.markdown("Order Type")
                         st.write(f"⚫ {match.get('order_type_name', 'None')} ({comp_score.order_type}/1)")
+                    
+                    st.write("")
                     
                     # Setting Match Section
                     st.markdown("### Setting Match _(7 points)_")
                     st.write("")
                     
+                    # Setting Match Details
                     col1, col2 = st.columns(2)
                     with col1:
                         # Time Setting
@@ -435,72 +444,12 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         # Location
                         st.markdown("Location")
                         st.write(f"⚫ {match.get('location_setting_name', 'None')} ({comp_score.location}/3)")
+                    
+                    st.write("")
 
                     if match.get('longevity_score', 0) > 0:
                         st.markdown(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
-                        score = int(match['comp_score'].source_type)
-                        st.markdown(f"{format_value(match['source_type_name'], is_match)} ({score}/8)", unsafe_allow_html=True)
-                        
-                        # Character and Plot
-                        st.markdown("**Character Types**")
-                        char_types = match.get('character_types', [])
-                        selected_chars = state.get('character_types', [])
-                        score = int(match['comp_score'].character_types)
-                        if char_types:
-                            char_texts = [format_value(char, char in selected_chars) for char in char_types]
-                            st.markdown(f"{' • '.join(char_texts)} ({score}/14)", unsafe_allow_html=True)
-                        else:
-                            st.write(f"None (0/14)")
-                        
-                        st.markdown("**Plot Elements**")
-                        plot_elements = match.get('plot_elements', [])
-                        selected_plots = state.get('plot_elements', [])
-                        score = int(match['comp_score'].plot_elements)
-                        if plot_elements:
-                            plot_texts = [format_value(plot, plot in selected_plots) for plot in plot_elements]
-                            st.markdown(f"{' • '.join(plot_texts)} ({score}/12)", unsafe_allow_html=True)
-                        else:
-                            st.write(f"None (0/12)")
-                        
-                        st.markdown("**Theme Elements**")
-                        themes = match.get('thematic_elements', [])
-                        selected_themes = state.get('thematic_elements', [])
-                        score = int(match['comp_score'].theme_elements)
-                        if themes:
-                            theme_texts = [format_value(theme, theme in selected_themes) for theme in themes]
-                            st.markdown(f"{' • '.join(theme_texts)} ({score}/13)", unsafe_allow_html=True)
-                        else:
-                            st.write(f"None (0/13)")
-                        
-                        st.markdown("**Tone**")
-                        is_match = state.get('tone_name') == match.get('tone_name')
-                        score = int(match['comp_score'].tone)
-                        st.markdown(f"{format_value(match.get('tone_name', 'None'), is_match)} ({score}/8)", unsafe_allow_html=True)
-
-                        
-                        # Character Types
-                        if match.get('character_types'):
-                            st.markdown("**Character Types**")
-                            selected_chars = state.get('character_types', [])
-                            char_texts = [format_value(char, char in selected_chars) for char in match['character_types']]
-                            st.markdown(' • '.join(char_texts), unsafe_allow_html=True)
-                        
-                        # Plot Elements
-                        if match.get('plot_elements'):
-                            st.markdown("**Plot Elements**")
-                            selected_plots = state.get('plot_elements', [])
-                            plot_texts = [format_value(plot, plot in selected_plots) for plot in match['plot_elements']]
-                            st.markdown(' • '.join(plot_texts), unsafe_allow_html=True)
-                        
-                        # Themes
-                        if match.get('thematic_elements'):
-                            st.markdown(' • '.join(theme_texts), unsafe_allow_html=True)
-                        else:
-                            st.write('None')
-                        
-                        st.markdown("**Tone**")
-                        is_match = state.get('tone_name') == match.get('tone_name')
-                        st.markdown(format_value(match.get('tone_name', 'None'), is_match), unsafe_allow_html=True)
+                        st.write("")
                     
                     with content_col2:
                         # Production
