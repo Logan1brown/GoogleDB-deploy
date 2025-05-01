@@ -436,8 +436,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         char_names = {id: name for id, name in display_options['character_types']}
                         
                         # Find matches and mismatches using IDs only
-                        matches = [char_names[id] for id in selected_char_ids if id in show_char_ids]
-                        mismatches = [char_names[id] for id in show_char_ids if id not in selected_char_ids]
+                        matches = [char_names.get(id, f'Unknown ({id})') for id in selected_char_ids if id in show_char_ids]
+                        mismatches = [char_names.get(id, f'Unknown ({id})') for id in show_char_ids if id not in selected_char_ids]
                         
                         details['characters'].update({
                             'matches': matches,

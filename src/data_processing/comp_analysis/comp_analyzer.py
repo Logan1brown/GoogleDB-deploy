@@ -396,7 +396,7 @@ class CompAnalyzer:
                             self.field_options[field_name] = sorted(options, key=lambda x: x[1])
                             continue
                         elif field_name == 'character_types':
-                            # Create tuples of (id, name) from the reference table
+                            # Create tuples of (id, name) from the reference table for display
                             options = [(int(row['id']), str(row['name'])) 
                                       for _, row in ref_table.iterrows() 
                                       if pd.notna(row['id']) and pd.notna(row['name'])]
