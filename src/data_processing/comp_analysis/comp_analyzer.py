@@ -621,7 +621,8 @@ class CompAnalyzer:
             # Only match elements that were specifically selected in criteria
             plot_elements = 0
             if source_plots:  # Only check if criteria specified plot elements
-                matches = [plot_id for plot_id in source_plots if plot_id in target_plots]
+                # Only count matches for elements that were selected in criteria
+                matches = [plot_id for plot_id in target_plots if plot_id in source_plots]
                 if matches:  # Only award points if we match selected elements
                     if len(matches) >= 1:
                         plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
