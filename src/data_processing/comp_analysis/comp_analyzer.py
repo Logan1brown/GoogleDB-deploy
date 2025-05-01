@@ -388,31 +388,59 @@ class CompAnalyzer:
                             ids = row[array_col]
                             names = row[name_col]
                             
+                            if field_name == 'thematic_elements':
+                                print(f'DEBUG: Processing row with ids={ids} ({type(ids)}) names={names} ({type(names)})')
+                                
                             # Handle None/empty values
                             if ids is None or names is None or len(str(ids).strip()) == 0 or len(str(names).strip()) == 0:
+                                if field_name == 'thematic_elements':
+                                    print('DEBUG: Skipping due to None/empty')
                                 continue
-                                
-                            # Convert string representation of lists to actual lists
-                            if isinstance(ids, str) and ids.startswith('[') and ids.endswith(']'):
+                                                        # Convert string representation of lists to actual lists
+                            if isinstance(ids, str):
                                 try:
-                                    ids = eval(ids)  # Safe since we verified format
-                                except:
-                                    continue
-                            if isinstance(names, str) and names.startswith('[') and names.endswith(']'):
-                                try:
-                                    names = eval(names)  # Safe since we verified format
-                                except:
+                                    # Handle both string list formats: '[1,2]' and literal '[1, 2]'
+                                    ids = eval(ids) if ids.startswith('[') else [int(x.strip()) for x in ids.split(',') if x.strip()]
+                                    if field_name == 'thematic_elements':
+                                        print(f'DEBUG: Converted ids string to list: {ids}')
+                                except Exception as e:
+                                    if field_name == 'thematic_elements':
+                                        print(f'DEBUG: Failed to convert ids: {e}')
                                     continue
                                     
-                            # Skip if either is not a list
-                            if not isinstance(ids, list) or not isinstance(names, list):
-                                continue
+                            if isinstance(names, str):
+                                try:
+                                    # Handle both string list formats: '["a","b"]' and literal '[a, b]'
+                                    names = eval(names) if names.startswith('[') else [x.strip() for x in names.split(',') if x.strip()]
+                                    if field_name == 'thematic_elements':
+                                        print(f'DEBUG: Converted names string to list: {names}')
+                                except Exception as e:
+                                    if field_name == 'thematic_elements':
+                                        print(f'DEBUG: Failed to convert names: {e}')
+                                    continue
+                                    
+                            # Convert single values to lists
+                            if not isinstance(ids, list):
+                                ids = [ids]
+                            if not isinstance(names, list):
+                                names = [names]
+                                
+                            if field_name == 'thematic_elements':
+                                print(f'DEBUG: After conversion: ids={ids} ({type(ids)}) names={names} ({type(names)})')
                                 
                             # Add to dictionary, later items will overwrite earlier ones
                             # ensuring we only keep one ID -> name mapping
-                            for item_id, name in zip(ids, names):
-                                if pd.notna(item_id) and pd.notna(name):
-                                    unique_items[int(item_id)] = str(name)
+                            if len(ids) == len(names):
+                                for item_id, name in zip(ids, names):
+                                    if pd.notna(item_id) and pd.notna(name):
+                                        if field_name == 'thematic_elements':
+                                            print(f'DEBUG: Adding theme {item_id}={name}')
+                                        try:
+                                            unique_items[int(item_id)] = str(name)
+                                        except (ValueError, TypeError):
+                                            if field_name == 'thematic_elements':
+                                                print(f'DEBUG: Failed to convert id {item_id} to int')
+                                            continue
                                     
                         # Convert dictionary to sorted list of tuples
                         tuples = sorted([(id, name) for id, name in unique_items.items()])
