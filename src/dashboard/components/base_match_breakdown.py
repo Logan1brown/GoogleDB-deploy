@@ -267,7 +267,11 @@ def render_base_match_breakdown(
                 
                 with col1:
                     st.write(f"Episodes ({scores['episode_score']}/4):")
-                    st.write(f"⚫ {int(format['episode_count1'])} (not selected)")
+                    episode_count = format.get('episode_count1')
+                    if episode_count is not None:
+                        st.write(f"⚫ {int(episode_count)} (not selected)")
+                    else:
+                        st.write("⚫ Unknown episode count (not selected)")
                 
                 with col2:
                     st.write(f"Order Type ({scores['order_score']}/1):")
