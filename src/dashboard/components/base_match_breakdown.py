@@ -51,7 +51,8 @@ def render_base_match_breakdown(
                 if genre['primary_match']:
                     st.write(f"🟢 Primary: {genre['primary']} (+9)")
                 else:
-                    st.write(f"⚫ {genre['primary']} vs {genre['primary2']}")
+                    # Just show the unmatched genre without comparison
+                    st.write(f"⚫ {genre['primary']}")
                     
                 # Subgenres
                 if genre.get('subgenre_points', 0) > 0 and genre.get('subgenre_matches'):
