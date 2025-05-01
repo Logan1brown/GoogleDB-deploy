@@ -497,6 +497,8 @@ class CompAnalyzer:
                 show_dict = show.to_dict()
                 # Add plot element names for display
                 show_dict['plot_element_names'] = show.get('plot_element_names', [])
+                # Add selected plot element names for matching
+                show_dict['selected_plot_element_names'] = criteria.get('plot_element_names', [])
                 show_dict['comp_score'] = score
                 show_dict['success_score'] = success_score
                 results.append(show_dict)

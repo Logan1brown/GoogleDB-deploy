@@ -429,25 +429,22 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         selected_plot_ids = criteria.get('plot_element_ids', [])
                         selected_plot_names = [name for id, name in field_options['plot_elements'] if id in selected_plot_ids]
                         
-                        # Get show's plot elements
+                        # Get plot elements
                         show_plot_ids = match.get('plot_element_ids', [])
                         show_plot_names = match.get('plot_element_names', [])
-                        
-                        # Create ID->name mappings
-                        selected_map = dict(zip(selected_plot_ids, selected_plot_names))
-                        show_map = dict(zip(show_plot_ids, show_plot_names))
+                        selected_plot_names = match.get('selected_plot_element_names', [])
                         
                         # Initialize matches and mismatches
                         matches = []
                         mismatches = []
                         
-                        # For each selected plot element
-                        for plot_id, plot_name in zip(selected_plot_ids, selected_plot_names):
-                            # If the show has this plot element
-                            if plot_id in show_plot_ids:
+                        # For each plot element in the show
+                        for plot_id, plot_name in zip(show_plot_ids, show_plot_names):
+                            # If this plot element is one we selected
+                            if plot_id in selected_plot_ids:
                                 matches.append(plot_name)
                             else:
-                                # Show doesn't have this plot element
+                                # Show has this plot element but we didn't select it
                                 mismatches.append(plot_name)
                         
                         details['plot'].update({
