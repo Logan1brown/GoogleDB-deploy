@@ -355,97 +355,91 @@ class CompAnalyzer:
             st.write(f"DEBUG: First row thematic_element_names: {self.comp_data.iloc[0]['thematic_element_names']}")
         else:
             st.write("DEBUG: comp_data is None!")
-            
         try:
-            if self.comp_data is None or force:
+            if self.comp_data is None:
                 self.fetch_comp_data()
+
+            if self.comp_data is None:
+                return {}
+
+            field_mappings = [
+                ('genre', 'genre_id', 'genre_name'),
+                ('subgenres', 'subgenres', 'subgenre_names'),
+                ('source_type', 'source_type_id', 'source_type_name'),
+                ('character_types', 'character_type_ids', 'character_type_names'),
+                ('plot_elements', 'plot_element_ids', 'plot_element_names'),
+                ('thematic_elements', 'thematic_element_ids', 'thematic_element_names'),
+                ('tone', 'tone_id', 'tone_name'),
+                ('time_setting', 'time_setting_id', 'time_setting_name'),
+                ('location_setting', 'location_setting_id', 'location_setting_name'),
+                ('network', 'network_id', 'network_name'),
+                ('studios', 'studios', 'studio_names'),
+                ('order_type', 'order_type_id', 'order_type_name')
+            ]
+
+            self.field_options = {}
+            self.field_names = {}
+
+            # Extract all field options using a single consistent approach
+            array_fields = ['studios', 'character_types', 'plot_elements', 'thematic_elements']
+            
+            for field_name, id_col, name_col in field_mappings:
+                # Initialize name mapping for this field
+                name_map = {}
                 
-            if not self.field_options or force:
-                self.field_options = {}
+                # Handle array fields
+                if field_name in array_fields:
+                    unique_ids = set()
+                    for _, row in self.comp_data.iterrows():
+                        if isinstance(row[id_col], list) and isinstance(row[name_col], list):
+                            for id, name in zip(row[id_col], row[name_col]):
+                                if pd.notna(id) and pd.notna(name):
+                                    unique_ids.add(int(id))
+                                    name_map[int(id)] = str(name)
+                    self.field_options[field_name] = sorted(list(unique_ids))
+                else:
+                    # Handle non-array fields
+                    unique_ids = set()
+                    for _, row in self.comp_data.iterrows():
+                        if pd.notna(row[id_col]) and pd.notna(row[name_col]):
+                            unique_ids.add(int(row[id_col]))
+                            name_map[int(row[id_col])] = str(row[name_col])
+                    self.field_options[field_name] = sorted(list(unique_ids))
                 
-                # Extract field options from comp_data
-                field_mappings = [
-                    ('genres', 'genre_id', 'genre_name'),
-                    ('source_types', 'source_type_id', 'source_type_name'),
-                    ('character_types', 'character_type_ids', 'character_type_names'),
-                    ('plot_elements', 'plot_element_ids', 'plot_element_names'),
-                    ('thematic_elements', 'thematic_element_ids', 'thematic_element_names'),
-                    ('tones', 'tone_id', 'tone_name'),
-                    ('time_settings', 'time_setting_id', 'time_setting_name'),
-                    ('locations', 'location_setting_id', 'location_setting_name'),
-                    ('networks', 'network_id', 'network_name'),
-                    ('studios', 'studios', 'studio_names'),
-                    ('order_types', 'order_type_id', 'order_type_name')
-                ]
-                
-                # Handle subgenres with deduplication
-                subgenre_dict = {}
-                for _, row in self.comp_data.iterrows():
-                    if isinstance(row['subgenres'], list) and isinstance(row['subgenre_names'], list):
-                        for subgenre_id, subgenre_name in zip(row['subgenres'], row['subgenre_names']):
-                            if pd.notna(subgenre_id) and pd.notna(subgenre_name):
-                                subgenre_dict[int(subgenre_id)] = str(subgenre_name)
-                self.field_options['subgenre_names'] = sorted([(id, name) for id, name in subgenre_dict.items()])
-                
-                # Extract all field options using a single consistent approach
-                array_fields = ['studios', 'character_types', 'plot_elements', 'thematic_elements']
-                for field_name, id_col, name_col in field_mappings:
-                    # Handle array fields
-                    if field_name in array_fields:
-                        unique_items = {}
-                        
-                        # Convert column names to valid Python identifiers for itertuples
-                        id_attr = id_col.replace('-', '_')
-                        name_attr = name_col.replace('-', '_')
-                        
-                        for row in self.comp_data.itertuples():
-                            # Get the arrays for this row
-                            ids = getattr(row, id_attr)
-                            names = getattr(row, name_attr)
-                            
-                            if not isinstance(ids, list) or not isinstance(names, list):
-                                continue
-                                
-                            if len(ids) != len(names):
-                                continue
-                                
-                            # Add each id/name pair to the dictionary
-                            for id, name in zip(ids, names):
-                                if id is not None and name is not None:
-                                    unique_items[int(id)] = str(name)
-                                    
-                        # Filter out any None values before sorting
-                        tuples = sorted([(id, name) for id, name in unique_items.items() 
-                                        if id is not None and name is not None])
-                        if field_name == 'thematic_elements':
-                            st.write("Final theme list:")
-                            for id, name in tuples:
-                                st.write(f"  {id}: {name}")
-                    else:
-                        # Handle regular fields
-                        tuples = [(int(row[id_col]), str(row[name_col]))
-                                 for _, row in self.comp_data.iterrows()
-                                 if pd.notna(row[id_col]) and pd.notna(row[name_col])]
-                    
-                    # For array fields, tuples are already deduplicated by ID in unique_items
-                    # For regular fields, deduplicate by ID while preserving order
-                    if field_name not in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
-                        seen_ids = set()
-                        self.field_options[field_name] = []
-                        for id_val, name in tuples:
-                            if id_val not in seen_ids:
-                                seen_ids.add(id_val)
-                                self.field_options[field_name].append((id_val, name))
-                    else:
-                        self.field_options[field_name] = tuples
-                
+                # Store name mapping
+                self.field_names[field_name] = name_map
+
             return self.field_options
+
         except Exception as e:
-            print(f"Error in get_field_options: {str(e)}")
-            print(f"Available columns: {self.comp_data.columns if self.comp_data is not None else 'No data'}")
+            st.error(f"Error in get_field_options: {e}")
             import traceback
             traceback.print_exc()
             raise
+        
+    def get_field_display_options(self, field_name: str) -> List[Tuple[int, str]]:
+        """Get display options (id, name) for a field.
+        
+        Args:
+            field_name: Name of the field to get display options for
+            
+        Returns:
+            List of (id, name) tuples sorted by name
+        """
+        if field_name not in self.field_options or field_name not in self.field_names:
+            return []
+            
+        # Get the name mapping for this field
+        name_map = self.field_names[field_name]
+        
+        # Create (id, name) tuples for each ID, using ID as name if no mapping exists
+        display_options = [
+            (id, name_map.get(id, str(id)))
+            for id in self.field_options[field_name]
+        ]
+        
+        # Sort by name for display
+        return sorted(display_options, key=lambda x: x[1])
         
     def fetch_comp_data(self) -> pd.DataFrame:
         """Fetch show comparison data using ShowsAnalyzer.
