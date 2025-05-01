@@ -198,7 +198,8 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             key="episode_count",
             help="Episode count proximity (2 within ±2, 1.5 within ±4, 1 within ±6)"
         )
-        state["criteria"]["episode_count"] = eps if eps > 0 else None
+        # Handle None value from number_input
+        state["criteria"]["episode_count"] = eps if eps is not None and eps > 0 else None
         
         order_name = st.selectbox(
             "Order Type",
