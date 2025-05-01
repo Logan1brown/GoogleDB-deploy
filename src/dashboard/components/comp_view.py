@@ -77,12 +77,10 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
     field_options = comp_analyzer.get_field_options()
     logging.debug(f'Got field options: {field_options}')
     
-    # Initialize display options
-    display_options = field_options.copy()
+    # Use field options directly since they're already in (id, name) format
+    display_options = field_options
     
     with st.expander("Content Match Criteria (70 pts)", expanded=True):
-        for field_name in field_options.keys():
-            display_options[field_name] = comp_analyzer.get_field_display_options(field_name)
         
         # Content criteria
         st.markdown("### Content")
