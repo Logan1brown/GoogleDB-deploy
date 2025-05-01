@@ -72,40 +72,40 @@ class CompScore:
         """Get match details for display."""
         return {
             'genre': {
-                'primary_match': (self.genre_base or 0) > 0,
-                'subgenre_points': (self.genre_overlap or 0),
+                'primary_match': bool(self.genre_base),
+                'subgenre_points': self.genre_overlap or 0,
                 'primary': None,
                 'shared_subgenres': []
             },
             'source': {
-                'match': (self.source_type or 0) > 0,
+                'match': bool(self.source_type),
                 'name': None
             },
             'characters': {
-                'match': (self.character_types or 0) > 0,
+                'match': bool(self.character_types),
                 'types': []
             },
             'plot': {
-                'match': (self.plot_elements or 0) > 0,
+                'match': bool(self.plot_elements),
                 'elements': []
             },
             'themes': {
-                'match': (self.theme_elements or 0) > 0,
+                'match': bool(self.theme_elements),
                 'elements': []
             },
             'tone': {
-                'match': (self.tone or 0) > 0,
+                'match': bool(self.tone),
                 'name': None
             },
             'setting': {
-                'time_match': (self.time_setting or 0) > 0,
-                'location_match': (self.location or 0) > 0,
+                'time_match': bool(self.time_setting),
+                'location_match': bool(self.location),
                 'time': None,
                 'location': None
             },
             'format': {
-                'episode_match': (self.episodes or 0) > 0,
-                'order_match': (self.order_type or 0) > 0,
+                'episode_match': bool(self.episodes),
+                'order_match': bool(self.order_type),
                 'episodes': None,
                 'order': None
             }
@@ -685,10 +685,16 @@ class CompAnalyzer:
         Returns:
             Score based on episode count difference
         """
-        if source_eps is None or target_eps is None:
+        # Handle None, strings, and other non-numeric values
+        try:
+            if source_eps is None or target_eps is None:
+                return 0
+            source_val = int(source_eps)
+            target_val = int(target_eps)
+        except (TypeError, ValueError):
             return 0
             
-        diff = abs(source_eps - target_eps)
+        diff = abs(source_val - target_val)
         if diff <= 2:
             return self.SCORING_CONFIG['format']['components']['episodes']['breakdown']['within_2']
         elif diff <= 4:

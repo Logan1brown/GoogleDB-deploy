@@ -2,6 +2,10 @@
 
 import streamlit as st
 from typing import Dict, List, Tuple, Optional
+import traceback
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.utils.style_config import COLORS, FONTS
@@ -299,24 +303,35 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             # Create expandable section for each match
             for i, match in enumerate(top_matches, 1):
                 with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
-                    # Get comp score components
-                    comp_score = match.get('comp_score', None)
-                    if not comp_score:
-                        continue
+                    try:
+                        # Get comp score components
+                        comp_score = match.get('comp_score', None)
+                        if not comp_score:
+                            continue
+                            
+                        logging.debug(f"Processing match {i}: {match['title']}")
+                        logging.debug(f"Raw match data: {match}")
+                        logging.debug(f"Comp score data: {comp_score}")
                         
-                    # Debug prints
-                    st.write('Raw match data:')
-                    st.write(match)
-                    st.write('Comp score data:')
-                    st.write(comp_score)
-                    
-                    # Get display scores and details
-                    scores = comp_score.to_display_dict()
-                    
-                    # Get base match details
-                    details = comp_score.get_match_details()
-                    
-                    # Add additional show-specific details
+                        # Debug prints
+                        st.write('Raw match data:')
+                        st.write(match)
+                        st.write('Comp score data:')
+                        st.write(comp_score)
+                        
+                        logging.debug("Getting display scores and details...")
+                        scores = comp_score.to_display_dict()
+                        logging.debug(f"Display scores: {scores}")
+                        
+                        details = comp_score.get_match_details()
+                        logging.debug(f"Match details: {details}")
+                        
+                        # Add additional show-specific details
+                    except Exception as e:
+                        logging.error("Error processing match:")
+                        logging.error(traceback.format_exc())
+                        st.error(f"Error processing match {i}: {str(e)}\n{traceback.format_exc()}")
+                        continue
                     if details.get('genre'):
                         details['genre'].update({
                             'primary': match.get('genre_name', 'Unknown'),
