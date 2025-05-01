@@ -132,7 +132,11 @@ class ShowsAnalyzer:
             reference_data = {}
             for ref_name, table_name in _self.REFERENCE_TABLES.items():
                 logger.info(f"Fetching {table_name}...")
-                ref_data = supabase.table(table_name).select('*').execute()
+                # For studio_list, only get actual studios (not production companies)
+                if table_name == 'studio_list':
+                    ref_data = supabase.table(table_name).select('*').eq('type', 'Studio').execute()
+                else:
+                    ref_data = supabase.table(table_name).select('*').execute()
                 if not hasattr(ref_data, 'data') or not ref_data.data:
                     raise ValueError(f"No data returned from {table_name}")
                 reference_data[ref_name] = pd.DataFrame(ref_data.data)
