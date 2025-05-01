@@ -46,9 +46,25 @@ class CompScore:
             if not isinstance(value, (int, float)) or value < 0:
                 setattr(self, field_name, 0)
     
+    @property
+    def total_score(self) -> float:
+        """Calculate total score across all categories."""
+        return (
+            # Content scores
+            (self.genre_base or 0) + (self.genre_overlap or 0) +
+            (self.source_type or 0) + (self.character_types or 0) +
+            (self.plot_elements or 0) + (self.theme_elements or 0) +
+            (self.tone or 0) + (self.time_setting or 0) + (self.location or 0) +
+            # Production scores
+            (self.network or 0) + (self.studio or 0) + (self.team or 0) +
+            # Format scores
+            (self.episodes or 0) + (self.order_type or 0)
+        )
+
     def to_display_dict(self) -> Dict[str, Any]:
         """Convert scores to a display-friendly dictionary."""
         return {
+            'total': self.total_score,  # Add total score
             'genre_score': (self.genre_base or 0) + (self.genre_overlap or 0),
             'source_score': self.source_type or 0,
             'character_score': self.character_types or 0,
