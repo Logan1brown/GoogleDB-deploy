@@ -201,14 +201,22 @@ def render_base_match_breakdown(
             if 'team' in details and details['team']['selected']:
                 team = details['team']
                 if team.get('shared_members'):
+                    # Always show matched members first
                     for name, role in team['shared_members']:
                         st.write(f"🟢 {name} ({role}) (+1)")
                 else:
                     st.write("⚫ No team members")
             else:
                 if 'team_member_names' in matches and matches['team_member_names']:
-                    for name in matches['team_member_names']:
+                    # Show first 2 members
+                    shown_members = matches['team_member_names'][:2]
+                    remaining = len(matches['team_member_names']) - 2
+                    
+                    for name in shown_members:
                         st.write(f"⚫ {name} (not selected)")
+                        
+                    if remaining > 0:
+                        st.write(f"⚫ +{remaining} more team members")
                 else:
                     st.write("⚫ No team members")
         

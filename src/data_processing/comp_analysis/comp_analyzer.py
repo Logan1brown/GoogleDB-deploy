@@ -289,7 +289,8 @@ class CompAnalyzer:
                 'team': {
                     'points': 5,
                     'breakdown': {
-                        'per_match': 1          # 1 point per team member match up to 5
+                        'first_match': 4,       # 4 points for first team member match
+                        'additional_match': 1    # 1 point for additional matches
                     }
                 }
             }
@@ -635,7 +636,13 @@ class CompAnalyzer:
             )
             
             # Team score based on shared team members
-            team = 0  # TODO: Implement team scoring once team data is available
+            team = self._calculate_array_match(
+                source.get('team_member_ids', []) if isinstance(source.get('team_member_ids'), list) else [],
+                target.get('team_member_ids', []) if isinstance(target.get('team_member_ids'), list) else [],
+                self.SCORING_CONFIG['production']['components']['team']['breakdown']['first_match'],
+                self.SCORING_CONFIG['production']['components']['team']['breakdown']['additional_match'],
+                2  # Max 2 matches: first match (4 points) + one additional match (1 point)
+            )
             
             # Format scores
             episodes = self._calculate_episode_score(
