@@ -97,12 +97,14 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             placeholder="Select subgenres..."
         )
         
-        # Debug logging for subgenre conversion
-        logging.debug(f"Selected subgenre names: {subgenre_names}")
-        logging.debug(f"Available subgenre options: {field_options['subgenre_names']}")
+        # Debug output for subgenre conversion
+        st.write("")
+        st.write(f"Selected subgenre names: {subgenre_names}")
+        st.write(f"Available subgenre options: {field_options['subgenre_names']}")
         
         subgenre_ids = get_ids_for_names(subgenre_names, field_options['subgenre_names'])
-        logging.debug(f"Converted subgenre IDs: {subgenre_ids}")
+        st.write(f"Converted subgenre IDs: {subgenre_ids}")
+        st.write("")
         
         state["criteria"]["subgenres"] = subgenre_ids
         

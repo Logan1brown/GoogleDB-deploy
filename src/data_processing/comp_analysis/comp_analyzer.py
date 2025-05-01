@@ -570,15 +570,18 @@ class CompAnalyzer:
             criteria_subgenres = source.get('subgenres', []) if isinstance(source.get('subgenres'), list) else []
             show_subgenres = target.get('subgenres', []) if isinstance(target.get('subgenres'), list) else []
             
-            # Debug logging
-            logging.debug(f"Criteria subgenres: {criteria_subgenres}")
-            logging.debug(f"Show subgenres: {show_subgenres}")
-            logging.debug(f"Show title: {target.get('title')}")
+            # Debug output
+            import streamlit as st
+            st.write("")
+            st.write(f"Criteria subgenres: {criteria_subgenres}")
+            st.write(f"Show subgenres: {show_subgenres}")
+            st.write(f"Show title: {target.get('title')}")
             
             # Check if any selected subgenre ID is in the show's subgenres
             # Only give points if we have selected subgenres and at least one matches
             has_match = criteria_subgenres and set(criteria_subgenres).intersection(set(show_subgenres))
-            logging.debug(f"Has match: {has_match}")
+            st.write(f"Has match: {has_match}")
+            st.write("")
             
             genre_overlap = (
                 self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
