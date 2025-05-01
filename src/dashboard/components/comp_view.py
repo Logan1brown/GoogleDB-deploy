@@ -433,21 +433,30 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         show_plot_ids = match.get('plot_element_ids', [])
                         show_plot_names = match.get('plot_element_names', [])
                         
+                        # Create mappings for easier lookup
+                        show_map = dict(zip(show_plot_ids, show_plot_names))
+                        selected_map = dict(zip(selected_plot_ids, selected_plot_names))
+                        
                         # Initialize matches and mismatches
                         matches = []
                         mismatches = []
                         
+                        # Find matches and mismatches
+                        matched_ids = set()  # Track which IDs we've matched
+                        
                         # First check selected elements against show's elements
-                        for plot_id, plot_name in zip(selected_plot_ids, selected_plot_names):
+                        for plot_id in selected_plot_ids:
                             if plot_id in show_plot_ids:
-                                matches.append(plot_name)
+                                matches.append(selected_map[plot_id])
+                                matched_ids.add(plot_id)
                             else:
-                                mismatches.append(plot_name)
+                                mismatches.append(selected_map[plot_id])
                         
                         # Then check show's elements against selected elements
-                        for plot_id, plot_name in zip(show_plot_ids, show_plot_names):
-                            if plot_id not in selected_plot_ids:
-                                mismatches.append(plot_name)
+                        for plot_id in show_plot_ids:
+                            # Only add as mismatch if we haven't already matched it
+                            if plot_id not in selected_plot_ids and plot_id not in matched_ids:
+                                mismatches.append(show_map[plot_id])
                         
                         details['plot'].update({
                             'matches': matches,
