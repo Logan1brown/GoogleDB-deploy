@@ -200,14 +200,29 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Production criteria
         st.markdown("### Production")
         
+        # Get current network ID from state
+        current_network_id = state.get("criteria", {}).get("network_id")
+        
+        # Find index of current network if it exists
+        network_options = [name for _, name in field_options['networks']]
+        current_network_name = None
+        if current_network_id is not None:
+            for id, name in field_options['networks']:
+                if id == current_network_id:
+                    current_network_name = name
+                    break
+        current_index = network_options.index(current_network_name) if current_network_name else None
+        
         network_name = st.selectbox(
             "Network",
-            options=[name for _, name in field_options['networks']],
+            options=network_options,
             format_func=lambda x: x,
             key="network_id",
-            index=None,
+            index=current_index,
             placeholder="Select network..."
         )
+        
+        # Update state with new network ID
         state["criteria"]["network_id"] = get_id_for_name(network_name, field_options['networks']) if network_name else None
         
         # Deduplicate and sort studio options
