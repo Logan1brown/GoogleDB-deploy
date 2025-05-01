@@ -422,10 +422,17 @@ class CompAnalyzer:
                                  for _, row in self.comp_data.iterrows()
                                  if pd.notna(row[id_col]) and pd.notna(row[name_col])]
                     
-                    # Remove duplicates while preserving order
-                    seen = set()
-                    self.field_options[field_name] = [x for x in tuples 
-                                                    if not (x in seen or seen.add(x))]
+                    # For array fields, tuples are already deduplicated by ID in unique_items
+                    # For regular fields, deduplicate by ID while preserving order
+                    if field_name not in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
+                        seen_ids = set()
+                        self.field_options[field_name] = []
+                        for id_val, name in tuples:
+                            if id_val not in seen_ids:
+                                seen_ids.add(id_val)
+                                self.field_options[field_name].append((id_val, name))
+                    else:
+                        self.field_options[field_name] = tuples
                 
             return self.field_options
         except Exception as e:
