@@ -153,8 +153,8 @@ class CompScore:
     def format_score(self) -> float:
         """Calculate format match score (5 points)."""
         return sum([
-            self.episodes,
-            self.order_type
+            self.episodes or 0,
+            self.order_type or 0
         ])
 
 
