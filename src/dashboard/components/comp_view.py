@@ -432,19 +432,21 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         # Get plot elements
                         show_plot_ids = match.get('plot_element_ids', [])
                         show_plot_names = match.get('plot_element_names', [])
-                        selected_plot_names = match.get('selected_plot_element_names', [])
+                        
+                        # Create ID->name mappings
+                        selected_map = dict(zip(selected_plot_ids, selected_plot_names))
                         
                         # Initialize matches and mismatches
                         matches = []
                         mismatches = []
                         
-                        # For each plot element in the show
-                        for plot_id, plot_name in zip(show_plot_ids, show_plot_names):
-                            # If this plot element is one we selected
-                            if plot_id in selected_plot_ids:
+                        # For each selected plot element
+                        for plot_id, plot_name in zip(selected_plot_ids, selected_plot_names):
+                            # If the show has this plot element
+                            if plot_id in show_plot_ids:
                                 matches.append(plot_name)
                             else:
-                                # Show has this plot element but we didn't select it
+                                # We selected it but the show doesn't have it
                                 mismatches.append(plot_name)
                         
                         details['plot'].update({
