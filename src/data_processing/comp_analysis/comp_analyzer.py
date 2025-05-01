@@ -609,9 +609,12 @@ class CompAnalyzer:
             # Calculate plot element matches
             source_plots = source.get('plot_element_ids', []) if isinstance(source.get('plot_element_ids'), list) else []
             target_plots = target.get('plot_element_ids', []) if isinstance(target.get('plot_element_ids'), list) else []
+            
+            # Find matches between selected and target plot elements
             shared_plots = set(source_plots) & set(target_plots)
             num_matches = len(shared_plots)
             
+            # Award points based on number of matches
             plot_elements = 0
             if num_matches >= 1:
                 plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
@@ -698,7 +701,12 @@ class CompAnalyzer:
                 studio=studio,
                 team=team,
                 episodes=episodes,
-                order_type=order_type
+                order_type=order_type,
+                shared_elements={
+                    'plot_elements': list(shared_plots),
+                    'character_types': list(shared_chars),
+                    'theme_elements': list(shared_themes)
+                }
             )
         except Exception as e:
             print(f"Error in _calculate_score: {str(e)}")
