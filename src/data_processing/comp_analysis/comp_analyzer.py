@@ -11,8 +11,8 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from src.config.supabase_client import get_client
-from src.data_processing.analyze_shows import ShowsAnalyzer
-from src.data_processing.success_analysis import SuccessAnalyzer
+from ..analyze_shows import ShowsAnalyzer
+from ..success_analysis import SuccessAnalyzer
 
 
 from dataclasses import dataclass, field
@@ -387,6 +387,13 @@ class CompAnalyzer:
                     unique_ids = set()
                     ref_table = self.reference_data.get(field_name)
                     if ref_table is not None:
+                        # Special handling for studios
+                        if field_name == 'studios':
+                            # Create tuples of (id, studio) from the reference table
+                            self.field_options[field_name] = [(row['id'], row['studio']) 
+                                                             for _, row in ref_table.iterrows() 
+                                                             if pd.notna(row['id']) and pd.notna(row['studio'])]
+                            continue
                         # Use reference table for name mapping
                         # Different tables use different column names for the name field
                         name_col = None
