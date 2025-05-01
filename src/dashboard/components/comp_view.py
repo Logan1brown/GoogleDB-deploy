@@ -342,32 +342,42 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Add source details
                     if details.get('source'):
+                        source_name = match.get('source_type_name', 'Unknown')
                         details['source'].update({
-                            'name': match.get('source_type_name', 'Unknown')
+                            'type1': source_name,
+                            'type2': source_name  # Same for both since this is criteria-based comparison
                         })
                     
                     # Add character details
                     if details.get('characters'):
+                        char_types = match.get('character_type_names', [])
                         details['characters'].update({
-                            'types': match.get('character_type_names', [])
+                            'matches': char_types if comp_score.character_types > 0 else [],
+                            'mismatches': [] if comp_score.character_types > 0 else char_types
                         })
                     
                     # Add plot details
                     if details.get('plot'):
+                        plot_elements = match.get('plot_element_names', [])
                         details['plot'].update({
-                            'elements': match.get('plot_element_names', [])
+                            'matches': plot_elements if comp_score.plot_elements > 0 else [],
+                            'mismatches': [] if comp_score.plot_elements > 0 else plot_elements
                         })
                     
                     # Add theme details
                     if details.get('themes'):
+                        theme_elements = match.get('theme_element_names', [])
                         details['themes'].update({
-                            'elements': match.get('theme_element_names', [])
+                            'matches': theme_elements if comp_score.theme_elements > 0 else [],
+                            'mismatches': [] if comp_score.theme_elements > 0 else theme_elements
                         })
                     
                     # Add tone details
                     if details.get('tone'):
+                        tone_name = match.get('tone_name', 'Unknown')
                         details['tone'].update({
-                            'name': match.get('tone_name', 'Unknown')
+                            'tone1': tone_name,
+                            'tone2': tone_name  # Same for both since this is criteria-based comparison
                         })
                     
                     # Add setting details

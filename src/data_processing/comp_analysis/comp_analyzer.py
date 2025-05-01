@@ -95,23 +95,28 @@ class CompScore:
             },
             'source': {
                 'match': bool(self.source_type),
-                'name': None
+                'type1': None,  # Will be populated by comp_view
+                'type2': None   # Will be populated by comp_view
             },
             'characters': {
                 'match': bool(self.character_types),
-                'types': []
+                'matches': [],  # Will be populated by comp_view
+                'mismatches': []
             },
             'plot': {
                 'match': bool(self.plot_elements),
-                'elements': []
+                'matches': [],  # Will be populated by comp_view
+                'mismatches': []
             },
             'themes': {
                 'match': bool(self.theme_elements),
-                'elements': []
+                'matches': [],  # Will be populated by comp_view
+                'mismatches': []
             },
             'tone': {
                 'match': bool(self.tone),
-                'name': None
+                'tone1': None,  # Will be populated by comp_view
+                'tone2': None   # Will be populated by comp_view
             },
             'setting': {
                 'time_match': bool(self.time_setting),
