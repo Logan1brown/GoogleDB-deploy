@@ -388,34 +388,22 @@ class CompAnalyzer:
                 self.field_options['subgenre_names'] = sorted([(id, name) for id, name in subgenre_dict.items()])
                 
                 # Extract all field options using a single consistent approach
+                array_fields = ['studios', 'character_types', 'plot_elements', 'thematic_elements']
                 for field_name, id_col, name_col in field_mappings:
-                    # Handle array fields (studios, character_types, plot_elements, thematic_elements)
-                    if field_name in ['studios', 'character_types', 'plot_elements', 'thematic_elements']:
-                        array_col = 'studios' if field_name == 'studios' else f"{field_name[:-1]}_ids"
-                        # Use a dictionary to deduplicate by ID
+                    # Handle array fields
+                    if field_name in array_fields:
                         unique_items = {}
-                        for _, row in self.comp_data.iterrows():
-                            # Get the arrays of IDs and names
-                            ids = row[array_col]
-                            names = row[name_col]
+                        for row in self.comp_data.itertuples():
+                            ids = getattr(row, id_col)
+                            names = getattr(row, name_col)
                             
-                            if field_name == 'thematic_elements':
-                                st.write(f"Processing row - ids: {ids} ({type(ids)}), names: {names} ({type(names)})")
-                            
-                            # Skip if either is empty
-                            if not isinstance(ids, list) or not isinstance(names, list):
-                                if field_name == 'thematic_elements':
-                                    st.write(f"Skipping non-list: ids type={type(ids)}, names type={type(names)}")
+                            if ids is None or names is None:
                                 continue
                                 
-                            # Add each id,name pair to the dictionary
-                            for item_id, name in zip(ids, names):
-                                if pd.notna(item_id) and pd.notna(name):
-                                    if field_name == 'thematic_elements':
-                                        st.write(f"Adding theme: {item_id} = {name}")
-                                    unique_items[item_id] = name
+                            pairs = list(zip(ids, names))
+                            for id, name in pairs:
+                                unique_items[id] = name
                                     
-                        # Convert dictionary to sorted list of tuples
                         tuples = sorted([(id, name) for id, name in unique_items.items()])
                         if field_name == 'thematic_elements':
                             st.write("Final theme list:")
