@@ -402,9 +402,12 @@ class CompAnalyzer:
                                 
                             pairs = list(zip(ids, names))
                             for id, name in pairs:
-                                unique_items[id] = name
+                                if id is not None and name is not None:
+                                    unique_items[id] = name
                                     
-                        tuples = sorted([(id, name) for id, name in unique_items.items()])
+                        # Filter out any None values before sorting
+                        tuples = sorted([(id, name) for id, name in unique_items.items() 
+                                        if id is not None and name is not None])
                         if field_name == 'thematic_elements':
                             st.write("Final theme list:")
                             for id, name in tuples:
