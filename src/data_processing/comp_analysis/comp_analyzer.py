@@ -357,7 +357,7 @@ class CompAnalyzer:
             'network_id': criteria.get('network_id'),
             'studios': criteria.get('studios', []),
             'team_member_ids': criteria.get('team_member_ids', []),
-            'episode_count': criteria.get('episode_count'),
+            'episode_count': criteria.get('episode_count') if 'episode_count' in criteria else None,
             'order_type_id': criteria.get('order_type_id')
         })
         
@@ -601,7 +601,7 @@ class CompAnalyzer:
             # All matches get per_match points
             return min(matches, max_matches) * per_match_points
     
-    def _calculate_episode_score(self, source_eps: int, target_eps: int) -> float:
+    def _calculate_episode_score(self, source_eps: Optional[int], target_eps: Optional[int]) -> float:
         """Calculate episode count similarity score.
         
         Args:
@@ -611,7 +611,7 @@ class CompAnalyzer:
         Returns:
             Score based on episode count difference
         """
-        if not source_eps or not target_eps:
+        if source_eps is None or target_eps is None:
             return 0
             
         diff = abs(source_eps - target_eps)
