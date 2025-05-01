@@ -62,13 +62,15 @@ class ShowsAnalyzer:
     # Reference tables for lookups
     REFERENCE_TABLES = {
         'character_types': 'character_type_types',
-        'genres': 'genre_list',
-        'location_settings': 'location_setting_types',
-        'networks': 'network_list',
-        'order_types': 'order_types',
+        'genre': 'genre_list',
+        'location_setting': 'location_setting_types',
+        'network': 'network_list',
+        'order_type': 'order_types',
         'plot_elements': 'plot_element_types',
         'studios': 'studio_list',
-        'thematic_elements': 'thematic_element_types'
+        'thematic_elements': 'thematic_element_types',
+        'tone': 'tone_types',
+        'time_setting': 'time_setting_types'
     }
     
     def __init__(self, cache_dir: Optional[str] = None):

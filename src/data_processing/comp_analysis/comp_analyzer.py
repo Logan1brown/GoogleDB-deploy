@@ -355,10 +355,10 @@ class CompAnalyzer:
             if self.comp_data is None:
                 return {}
 
+            # Define field mappings for options
             field_mappings = [
                 ('genre', 'genre_id', 'genre_name'),
-                ('subgenres', 'subgenres', 'subgenre_names'),
-                ('source_type', 'source_type_id', 'source_type_name'),
+                ('subgenres', 'subgenre_ids', 'subgenre_names'),  # Uses genre reference table
                 ('character_types', 'character_type_ids', 'character_type_names'),
                 ('plot_elements', 'plot_element_ids', 'plot_element_names'),
                 ('thematic_elements', 'thematic_element_ids', 'thematic_element_names'),
@@ -366,15 +366,16 @@ class CompAnalyzer:
                 ('time_setting', 'time_setting_id', 'time_setting_name'),
                 ('location_setting', 'location_setting_id', 'location_setting_name'),
                 ('network', 'network_id', 'network_name'),
-                ('studios', 'studios', 'studio_names'),
+                ('studios', 'studio_ids', 'studio_names'),
                 ('order_type', 'order_type_id', 'order_type_name')
             ]
+            
+            # Array fields use _ids suffix
+            array_fields = ['subgenres', 'character_types', 'plot_elements', 
+                          'thematic_elements', 'studios']
 
             self.field_options = {}
             self.field_names = {}
-
-            # Extract all field options using a single consistent approach
-            array_fields = ['studios', 'character_types', 'plot_elements', 'thematic_elements']
             
             for field_name, id_col, name_col in field_mappings:
                 # Initialize name mapping for this field
@@ -421,7 +422,8 @@ class CompAnalyzer:
                                 unique_ids.add(int(row[id_col]))
                                 name_map[int(row[id_col])] = str(row[name_col])
                 
-                # Store name mapping
+                # Store IDs and name mapping
+                self.field_options[field_name] = sorted(list(unique_ids))
                 self.field_names[field_name] = name_map
 
             return self.field_options
