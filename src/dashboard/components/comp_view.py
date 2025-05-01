@@ -475,6 +475,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         title=match['title'],
                         scores=scores,
                         details=details,
+                        matches=match,
                         success_score=match.get('success_score'),
                         expanded=i==1,  # Only expand first match
                         use_expander=False,  # We're already in an expander
