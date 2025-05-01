@@ -104,7 +104,7 @@ class ShowsAnalyzer:
             comp_df = pd.DataFrame(comp_data.data)
             
             # Convert array fields to Python lists
-            array_fields = ['subgenres', 'character_type_ids', 'plot_element_ids', 'plot_element_names',
+            array_fields = ['subgenres', 'character_type_ids', 'plot_element_ids', 
                           'thematic_element_ids', 'studios', 'team_member_ids']
             for field in array_fields:
                 if field in comp_df.columns:
