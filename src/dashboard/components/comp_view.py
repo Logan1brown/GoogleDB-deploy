@@ -544,10 +544,15 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         show_network = network_names.get(show_network_id, 'Unknown')
                         selected_network = network_names.get(selected_network_id, 'Unknown')
                         
+                        # Debug output
+                        st.write(f"Debug - Show Network ID: {show_network_id}")
+                        st.write(f"Debug - Selected Network ID: {selected_network_id}")
+                        st.write(f"Debug - Network Score: {scores['network_score']}")
+                        
                         # Network match if IDs match
                         network_match = show_network_id == selected_network_id and show_network_id is not None
                         # Selected means this network was chosen in criteria
-                        network_selected = show_network_id == selected_network_id
+                        network_selected = selected_network_id is not None and show_network_id == selected_network_id
                         details['network'].update({
                             'name1': selected_network,
                             'name2': show_network,
