@@ -127,8 +127,10 @@ class CompScore:
             'format': {
                 'episode_match': bool(self.episodes),
                 'order_match': bool(self.order_type),
-                'episodes': None,
-                'order': None
+                'episode_count1': None,  # Will be populated by comp_view
+                'episode_count2': None,  # Will be populated by comp_view
+                'order_type1': None,     # Will be populated by comp_view
+                'order_type2': None      # Will be populated by comp_view
             }
         }
 

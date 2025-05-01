@@ -386,6 +386,17 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             'time': match.get('time_setting_name', 'Unknown'),
                             'location': match.get('location_setting_name', 'Unknown')
                         })
+                        
+                    # Add format details
+                    if details.get('format'):
+                        episode_count = match.get('episode_count')
+                        order_type = match.get('order_type_name', 'Unknown')
+                        details['format'].update({
+                            'episode_count1': episode_count,
+                            'episode_count2': episode_count,  # Same for criteria-based comparison
+                            'order_type1': order_type,
+                            'order_type2': order_type  # Same for criteria-based comparison
+                        })
                     
                     # Create match details dictionary
                     match_details = {
