@@ -546,8 +546,8 @@ class CompAnalyzer:
             )
             
             # Get subgenre names for comparison
-            source_subgenres = [name for _, name in self.field_options['subgenre_names'] if _ in source['subgenres']]
-            target_subgenres = [name for _, name in self.field_options['subgenre_names'] if _ in target['subgenres']]
+            source_subgenres = source['subgenres'] if isinstance(source['subgenres'], list) else []
+            target_subgenres = target['subgenres'] if isinstance(target['subgenres'], list) else []
             
             genre_overlap = min(
                 len(set(source_subgenres).intersection(set(target_subgenres))) * 1.6,
@@ -561,24 +561,24 @@ class CompAnalyzer:
             )
             
             character_types = self._calculate_array_match(
-                source['character_type_ids'],
-                target['character_type_ids'],
+                source.get('character_type_ids', []) if isinstance(source.get('character_type_ids'), list) else [],
+                target.get('character_type_ids', []) if isinstance(target.get('character_type_ids'), list) else [],
                 self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['base_match'],
                 self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['additional_match'],
                 5
             )
             
             plot_elements = self._calculate_array_match(
-                source['plot_element_ids'],
-                target['plot_element_ids'],
+                source.get('plot_element_ids', []) if isinstance(source.get('plot_element_ids'), list) else [],
+                target.get('plot_element_ids', []) if isinstance(target.get('plot_element_ids'), list) else [],
                 0,
                 self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['per_match'],
                 5
             )
             
             theme_elements = self._calculate_array_match(
-                source['thematic_element_ids'],
-                target['thematic_element_ids'],
+                source.get('thematic_element_ids', []) if isinstance(source.get('thematic_element_ids'), list) else [],
+                target.get('thematic_element_ids', []) if isinstance(target.get('thematic_element_ids'), list) else [],
                 0,
                 self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['per_match'],
                 5
@@ -610,8 +610,8 @@ class CompAnalyzer:
             )
             
             studio = self._calculate_array_match(
-                source['studios'],
-                target['studios'],
+                source.get('studios', []) if isinstance(source.get('studios'), list) else [],
+                target.get('studios', []) if isinstance(target.get('studios'), list) else [],
                 self.SCORING_CONFIG['production']['components']['studio']['breakdown']['primary_match'],
                 self.SCORING_CONFIG['production']['components']['studio']['breakdown']['additional_match'],
                 2
