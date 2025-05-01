@@ -463,7 +463,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         selected_theme_ids = criteria.get('thematic_element_ids', [])
                         
                         # Create ID -> name mapping from field options
-                        theme_names = {id: name for id, name in field_options['theme_elements']}
+                        theme_names = {id: name for id, name in field_options['thematic_elements']}
                         
                         # Find matches and mismatches using IDs only
                         matches = [theme_names[id] for id in selected_theme_ids if id in show_theme_ids]
