@@ -63,6 +63,7 @@ class ShowsAnalyzer:
     REFERENCE_TABLES = {
         'character_types': 'character_type_types',
         'genre': 'genre_list',
+        'subgenres': 'genre_list',  # Subgenres also use genre_list
         'location_setting': 'location_setting_types',
         'network': 'network_list',
         'order_type': 'order_types',
