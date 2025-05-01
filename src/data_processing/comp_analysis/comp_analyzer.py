@@ -490,8 +490,8 @@ class CompAnalyzer:
                 show_dict['success_score'] = success_score
                 results.append(show_dict)
             
-        # Sort by genre base match first, then total score, then success score
-        results.sort(key=lambda x: (x['comp_score'].genre_base, x['comp_score'].total, x['success_score']), reverse=True)
+        # Sort by total match score first, only use success score as tiebreaker
+        results.sort(key=lambda x: (x['comp_score'].total, x['success_score']), reverse=True)
         return results[:10]
         
     def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
