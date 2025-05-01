@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple, Optional
 
 from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.utils.style_config import COLORS, FONTS
+from src.dashboard.components.match_breakdown import render_match_breakdown
 
 
 def get_id_for_name(name: str, options: List[Tuple[int, str]]) -> Optional[int]:
@@ -294,54 +295,17 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        st.markdown("### Success Score")
-                        success_score = match.get('success_score', 0)
-                        st.metric("Success Score", f"{int(success_score)}/100", label_visibility="collapsed")
-                        
-                        st.markdown("### Score Breakdown")
-                        
-                        # Calculate scores first
-                        season_score = 0
-                        if pd.notna(match.get('tmdb_seasons')):
-                            seasons = int(match['tmdb_seasons'])
-                            if seasons >= 2:
-                                season_score += 40
-                                extra_seasons = seasons - 2
-                                if extra_seasons > 0:
-                                    season_score += min(extra_seasons * 20, 40)
-                        
-                        episode_score = 0
-                        avg_eps = match.get('tmdb_avg_eps', 0)
-                        if pd.notna(avg_eps):
-                            avg_eps = float(avg_eps)
-                            if avg_eps >= 10:
-                                episode_score = 40
-                            elif avg_eps >= 8:
-                                episode_score = 20
-                        
-                        # Display breakdown
-                        if pd.notna(match.get('tmdb_seasons')):
-                            seasons = int(match['tmdb_seasons'])
-                            if seasons >= 2:
-                                st.write("**Renewed for Season 2** _(+40 points)_")
-                                extra_seasons = seasons - 2
-                                if extra_seasons > 0:
-                                    bonus = min(extra_seasons * 20, 40)
-                                    st.write(f"**Additional seasons bonus** _(+{bonus} points)_")
-                        
-                        if pd.notna(match.get('tmdb_avg_eps')):
-                            avg_eps = float(match['tmdb_avg_eps'])
-                            if avg_eps >= 10:
-                                st.write("**High episode volume** _(+40 points)_")
-                            elif avg_eps >= 8:
-                                st.write("**Standard episode volume** _(+20 points)_")
-                        
-                        # Status modifier (only show if it affects score)
-                        status = match.get('status_name')
-                        if status == 'Returning Series':
-                            st.write("**Active show bonus:** _Score multiplied by 1.2_")
-                        elif status == 'Canceled':
-                            st.write("**Canceled show penalty:** _Score multiplied by 0.8_")
+                        # Convert match dict to SimilarShow for render_match_breakdown
+                        from src.data_processing.show_detail.show_detail_analyzer import SimilarShow
+                        similar_show = SimilarShow(
+                            show_id=match.get('show_id'),
+                            title=match.get('title'),
+                            network_name=match.get('network_name'),
+                            description=match.get('description'),
+                            success_score=match.get('success_score'),
+                            match_score=match.get('match_score', {})
+                        )
+                        render_match_breakdown(similar_show, expanded=True)
                     
                     # Get comp score components
                     comp_score = match.get('comp_score', None)
