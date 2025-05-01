@@ -73,12 +73,14 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         comp_analyzer: CompAnalyzer instance for getting field options
         state: Page state dictionary to store selections
     """
+    logging.debug('Getting field options...')
+    field_options = comp_analyzer.get_field_options()
+    logging.debug(f'Got field options: {field_options}')
+    
+    # Initialize display options
+    display_options = field_options.copy()
+    
     with st.expander("Content Match Criteria (70 pts)", expanded=True):
-        # Get field options and display options
-        field_options = comp_analyzer.get_field_options()
-        
-        # Get display options for each field
-        display_options = {}
         for field_name in field_options.keys():
             display_options[field_name] = comp_analyzer.get_field_display_options(field_name)
         
@@ -206,9 +208,14 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             if "network_id" in st.session_state:
                 st.session_state.network_id = network_id
         
+        # Debug studio options
+        st.write('Debug - Studio options:', display_options['studios'])
+        studio_options = [name for _, name in display_options['studios'] if name and name.strip()]
+        st.write('Debug - Filtered options:', studio_options)
+        
         studio_names = st.multiselect(
             "Studios",
-            options=[name for _, name in display_options['studios'] if name and name.strip()],
+            options=studio_options,
             format_func=lambda x: x,
             key="studio_ids",
             placeholder="Select studios..."
