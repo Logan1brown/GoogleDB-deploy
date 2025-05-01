@@ -558,34 +558,32 @@ class CompAnalyzer:
         """
         try:
             # Content scores
-            # Calculate genre base score
+            # Calculate genre base score - must match primary genre first
             genre_base = (
                 self.SCORING_CONFIG['content']['components']['genre']['breakdown']['base_match']
                 if source['genre_id'] == target['genre_id']
                 else 0
             )
             
-            # Calculate subgenre overlap - full points for any match
-            # For criteria-based matching, source contains the criteria and target is the show
-            criteria_subgenres = source.get('subgenres', []) if isinstance(source.get('subgenres'), list) else []
-            show_subgenres = target.get('subgenres', []) if isinstance(target.get('subgenres'), list) else []
-            
-            # Only show debug for shows with matches
-            has_match = criteria_subgenres and set(criteria_subgenres).intersection(set(show_subgenres))
-            if has_match:
-                import streamlit as st
-                st.write("")
-                st.write(f"Found subgenre match in {target.get('title')}:")
-                st.write(f"- Selected subgenres: {criteria_subgenres}")
-                st.write(f"- Show subgenres: {show_subgenres}")
-                st.write(f"- Matching IDs: {set(criteria_subgenres).intersection(set(show_subgenres))}")
-                st.write("")
-            
-            genre_overlap = (
-                self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
-                if has_match
-                else 0
-            )
+            # Only consider subgenre matches if primary genre matches
+            genre_overlap = 0
+            if genre_base > 0:
+                # For criteria-based matching, source contains the criteria and target is the show
+                criteria_subgenres = source.get('subgenres', []) if isinstance(source.get('subgenres'), list) else []
+                show_subgenres = target.get('subgenres', []) if isinstance(target.get('subgenres'), list) else []
+                
+                # Calculate subgenre overlap - full points for any match
+                has_match = criteria_subgenres and set(criteria_subgenres).intersection(set(show_subgenres))
+                if has_match:
+                    import streamlit as st
+                    st.write("")
+                    st.write(f"Found subgenre match in {target.get('title')}:")
+                    st.write(f"- Selected subgenres: {criteria_subgenres}")
+                    st.write(f"- Show subgenres: {show_subgenres}")
+                    st.write(f"- Matching IDs: {set(criteria_subgenres).intersection(set(show_subgenres))}")
+                    st.write("")
+                    
+                    genre_overlap = self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
             
             # Calculate source type match
             source_type = (
