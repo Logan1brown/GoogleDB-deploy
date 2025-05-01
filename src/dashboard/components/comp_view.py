@@ -430,33 +430,14 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         selected_plot_names = [name for id, name in field_options['plot_elements'] if id in selected_plot_ids]
                         
                         # Get plot elements
-                        show_plot_ids = match.get('plot_element_ids', [])
-                        show_plot_names = match.get('plot_element_names', [])
+                        show_plots = set(zip(match.get('plot_element_ids', []), match.get('plot_element_names', [])))
+                        selected_plots = set(zip(selected_plot_ids, selected_plot_names))
                         
-                        # Create mappings for easier lookup
-                        show_map = dict(zip(show_plot_ids, show_plot_names))
-                        selected_map = dict(zip(selected_plot_ids, selected_plot_names))
+                        # Find matches (elements we selected that are in the show)
+                        matches = [name for id, name in selected_plots if (id, name) in show_plots]
                         
-                        # Initialize matches and mismatches
-                        matches = []
-                        mismatches = []
-                        
-                        # Find matches and mismatches
-                        matched_ids = set()  # Track which IDs we've matched
-                        
-                        # First check selected elements against show's elements
-                        for plot_id in selected_plot_ids:
-                            if plot_id in show_plot_ids:
-                                matches.append(selected_map[plot_id])
-                                matched_ids.add(plot_id)
-                            else:
-                                mismatches.append(selected_map[plot_id])
-                        
-                        # Then check show's elements against selected elements
-                        for plot_id in show_plot_ids:
-                            # Only add as mismatch if we haven't already matched it
-                            if plot_id not in selected_plot_ids and plot_id not in matched_ids:
-                                mismatches.append(show_map[plot_id])
+                        # Find mismatches (elements in show we didn't select)
+                        mismatches = [name for id, name in show_plots if (id, name) not in selected_plots]
                         
                         details['plot'].update({
                             'matches': matches,
