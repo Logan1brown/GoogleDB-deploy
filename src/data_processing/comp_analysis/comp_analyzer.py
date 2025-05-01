@@ -40,6 +40,9 @@ class CompScore:
     episodes: float = field(default=0)      # Episode count similarity (4 points)
     order_type: float = field(default=0)   # Order type match (1 point)
     
+    # Shared elements tracking
+    shared_elements: Dict[str, List] = field(default_factory=dict)  # Track matched elements
+    
     def __post_init__(self):
         """Validate all scores are non-negative."""
         for field_name, value in self.__dict__.items():
