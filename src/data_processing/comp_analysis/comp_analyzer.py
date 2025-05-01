@@ -607,18 +607,18 @@ class CompAnalyzer:
                 character_types += self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['second_match']
             
             # Calculate plot element matches
-            source_plots = source.get('plot_element_ids', []) if isinstance(source.get('plot_element_ids'), list) else []
-            target_plots = target.get('plot_element_ids', []) if isinstance(target.get('plot_element_ids'), list) else []
+            criteria_plots = source.get('plot_element_ids', []) if isinstance(source.get('plot_element_ids'), list) else []  # Selected in criteria
+            show_plots = target.get('plot_element_ids', []) if isinstance(target.get('plot_element_ids'), list) else []  # Show's elements
             
             # Only match elements that were specifically selected in criteria
             plot_elements = 0
-            if source_plots:  # Only check if criteria specified plot elements
-                # Only match the plot elements that were selected in criteria
-                selected_matches = [plot_id for plot_id in source_plots if plot_id in target_plots]
-                if selected_matches:  # Only award points if we match selected elements
-                    if len(selected_matches) >= 1:
+            if criteria_plots:  # Only check if criteria specified plot elements
+                # Check which of the show's plot elements match our selected criteria
+                matching_elements = [plot_id for plot_id in show_plots if plot_id in criteria_plots]
+                if matching_elements:  # Only award points if we match selected elements
+                    if len(matching_elements) >= 1:
                         plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
-                    if len(selected_matches) >= 2:
+                    if len(matching_elements) >= 2:
                         plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['second_match']
                 
             # Calculate theme element matches

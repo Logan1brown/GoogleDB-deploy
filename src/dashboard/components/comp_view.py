@@ -144,6 +144,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Deduplicate and sort plot element options
         unique_plot_elements = sorted(set(name for _, name in field_options['plot_elements']))
         
+        # Debug: Just show the ID mapping for selected plot elements
         plot_names = st.multiselect(
             "Plot Elements",
             options=unique_plot_elements,
@@ -151,7 +152,19 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             key="plot_element_ids",
             placeholder="Select plot elements..."
         )
-        state["criteria"]["plot_element_ids"] = get_ids_for_names(plot_names, field_options['plot_elements'])
+        
+        # Convert to IDs and show mapping
+        plot_element_ids = get_ids_for_names(plot_names, field_options['plot_elements'])
+        if plot_names:
+            st.write("")
+            st.write("Plot element ID mapping:")
+            for name in plot_names:
+                for id, opt_name in field_options['plot_elements']:
+                    if opt_name == name:
+                        st.write(f"{name} -> ID: {id}")
+            st.write("")
+            
+        state["criteria"]["plot_element_ids"] = plot_element_ids
         
         # Deduplicate and sort theme element options
         unique_theme_elements = sorted(set(name for _, name in field_options['thematic_elements']))
