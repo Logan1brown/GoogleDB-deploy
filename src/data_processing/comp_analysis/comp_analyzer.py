@@ -614,13 +614,21 @@ class CompAnalyzer:
             
             # Calculate plot element matches
             criteria_plots = source.get('plot_element_ids', []) if isinstance(source.get('plot_element_ids'), list) else []  # Selected in criteria
+            criteria_plot_names = source.get('plot_element_names', []) if isinstance(source.get('plot_element_names'), list) else []  # Selected names
             show_plots = target.get('plot_element_ids', []) if isinstance(target.get('plot_element_ids'), list) else []  # Show's elements
+            show_plot_names = target.get('plot_element_names', []) if isinstance(target.get('plot_element_names'), list) else []  # Show's names
+            
+            # Create ID->name mappings
+            criteria_map = dict(zip(criteria_plots, criteria_plot_names))
+            show_map = dict(zip(show_plots, show_plot_names))
             
             # Only match elements that were specifically selected in criteria
             plot_elements = 0
             if criteria_plots:  # Only check if criteria specified plot elements
-                # Check which of the show's plot elements match our selected criteria
-                matching_elements = [plot_id for plot_id in show_plots if plot_id in criteria_plots]
+                # Check which of the show's plot elements match our selected criteria by both ID and name
+                matching_elements = [plot_id for plot_id in show_plots 
+                                   if plot_id in criteria_plots 
+                                   and show_map.get(plot_id) == criteria_map.get(plot_id)]
                 if matching_elements:  # Only award points if we match selected elements
                     if len(matching_elements) >= 1:
                         plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
