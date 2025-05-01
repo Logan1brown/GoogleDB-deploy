@@ -387,10 +387,24 @@ class CompAnalyzer:
                     ref_table = self.reference_data.get(field_name)
                     if ref_table is not None:
                         # Use reference table for name mapping
-                        for _, ref_row in ref_table.iterrows():
-                            if pd.notna(ref_row['id']) and pd.notna(ref_row['name']):
-                                unique_ids.add(int(ref_row['id']))
-                                name_map[int(ref_row['id'])] = str(ref_row['name'])
+                        # Different tables use different column names for the name field
+                        name_col = None
+                        if 'name' in ref_table.columns:
+                            name_col = 'name'
+                        elif 'genre' in ref_table.columns:
+                            name_col = 'genre'
+                        elif 'network' in ref_table.columns:
+                            name_col = 'network'
+                        elif 'type' in ref_table.columns:
+                            name_col = 'type'
+                        elif 'studio' in ref_table.columns:
+                            name_col = 'studio'
+                            
+                        if name_col:
+                            for _, ref_row in ref_table.iterrows():
+                                if pd.notna(ref_row['id']) and pd.notna(ref_row[name_col]):
+                                    unique_ids.add(int(ref_row['id']))
+                                    name_map[int(ref_row['id'])] = str(ref_row[name_col])
                     else:
                         # Fallback to show data if no reference table
                         for _, row in self.comp_data.iterrows():
@@ -411,10 +425,24 @@ class CompAnalyzer:
                     ref_table = self.reference_data.get(field_name)
                     if ref_table is not None:
                         # Use reference table for name mapping
-                        for _, ref_row in ref_table.iterrows():
-                            if pd.notna(ref_row['id']) and pd.notna(ref_row['name']):
-                                unique_ids.add(int(ref_row['id']))
-                                name_map[int(ref_row['id'])] = str(ref_row['name'])
+                        # Different tables use different column names for the name field
+                        name_col = None
+                        if 'name' in ref_table.columns:
+                            name_col = 'name'
+                        elif 'genre' in ref_table.columns:
+                            name_col = 'genre'
+                        elif 'network' in ref_table.columns:
+                            name_col = 'network'
+                        elif 'type' in ref_table.columns:
+                            name_col = 'type'
+                        elif 'studio' in ref_table.columns:
+                            name_col = 'studio'
+                            
+                        if name_col:
+                            for _, ref_row in ref_table.iterrows():
+                                if pd.notna(ref_row['id']) and pd.notna(ref_row[name_col]):
+                                    unique_ids.add(int(ref_row['id']))
+                                    name_map[int(ref_row['id'])] = str(ref_row[name_col])
                     else:
                         # Fallback to show data if no reference table
                         for _, row in self.comp_data.iterrows():
