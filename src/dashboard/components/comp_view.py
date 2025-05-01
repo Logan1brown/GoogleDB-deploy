@@ -181,7 +181,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         current_network_id = state.get("criteria", {}).get("network_id")
         
         # Find index of current network if it exists
-        network_options = [name for _, name in display_options['network']]
+        network_options = [name for _, name in display_options['network'] if name and name.strip()]
         current_network_name = None
         if current_network_id is not None:
             for id, name in display_options['network']:
@@ -194,17 +194,8 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             "Network",
             options=network_options,
             format_func=lambda x: x,
-            key="network_select",  # Change key to not conflict with state
-            index=current_index,
-            placeholder="Select network..."
-        )
-        
-        network_name = st.selectbox(
-            "Network",
-            options=[name for _, name in display_options['network']],
-            format_func=lambda x: x,
             key="network_id",
-            index=None,
+            index=current_index,
             placeholder="Select network..."
         )
         # Update state with new network ID
