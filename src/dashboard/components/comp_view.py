@@ -561,25 +561,30 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         'score': scores['network_score']
                     })
                     
-                    # Add studio details
-                    if details.get('studio'):
-                        # Get IDs
-                        show_studio_id = match.get('studio_id')
-                        selected_studio_id = criteria.get('studio_id')
-                        
-                        # Create ID -> name mapping from field options
-                        studio_names = {id: name for id, name in field_options['studios']}
-                        
-                        # Get studio names from field options
-                        show_studio = studio_names.get(show_studio_id, 'Unknown')
-                        selected_studio = studio_names.get(selected_studio_id, 'Unknown')
-                        
-                        details['studio'].update({
-                            'name1': selected_studio,
-                            'name2': show_studio,
-                            'match': show_studio_id == selected_studio_id,
-                            'selected': selected_studio_id is not None
-                        })
+                    # Initialize studio details if not present
+                    if 'studio' not in details:
+                        details['studio'] = {}
+                    
+                    # Get IDs - note that studios are lists
+                    show_studios = match.get('studios', [])
+                    selected_studios = criteria.get('studios', [])
+                    
+                    # Create ID -> name mapping from field options
+                    studio_names = {id: name for id, name in field_options['studios']}
+                    
+                    # Get studio names from field options
+                    show_studio_names = [studio_names.get(sid, 'Unknown') for sid in show_studios]
+                    selected_studio_names = [studio_names.get(sid, 'Unknown') for sid in selected_studios]
+                    
+                    # Studio match if there's any overlap
+                    studio_match = bool(set(show_studios) & set(selected_studios))
+                    details['studio'].update({
+                        'name1': ', '.join(selected_studio_names) or 'Unknown',
+                        'name2': ', '.join(show_studio_names) or 'Unknown',
+                        'match': studio_match,
+                        'selected': bool(selected_studios),  # True if any studios were selected
+                        'score': scores['studio_score']
+                    })
                     
                     # Add team details
                     if details.get('team'):
