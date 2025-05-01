@@ -387,13 +387,19 @@ class CompAnalyzer:
                     unique_ids = set()
                     ref_table = self.reference_data.get(field_name)
                     if ref_table is not None:
-                        # Special handling for studios
+                        # Special handling for studios and character types
                         if field_name == 'studios':
                             # Create tuples of (id, studio) from the reference table
-                            # Create and sort studio options
                             options = [(int(row['id']), str(row['studio'])) 
                                       for _, row in ref_table.iterrows() 
                                       if pd.notna(row['id']) and pd.notna(row['studio'])]
+                            self.field_options[field_name] = sorted(options, key=lambda x: x[1])
+                            continue
+                        elif field_name == 'character_types':
+                            # Create tuples of (id, name) from the reference table
+                            options = [(int(row['id']), str(row['name'])) 
+                                      for _, row in ref_table.iterrows() 
+                                      if pd.notna(row['id']) and pd.notna(row['name'])]
                             self.field_options[field_name] = sorted(options, key=lambda x: x[1])
                             continue
                         # Use reference table for name mapping

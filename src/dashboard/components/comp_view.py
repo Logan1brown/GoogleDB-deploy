@@ -378,9 +378,12 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     show_subgenre_ids = match.get('subgenres', [])
                     selected_subgenre_ids = criteria.get('subgenres', [])
                     
-                    # Get fresh field options for name mappings
+                    # Get fresh field options for all fields we need
                     display_options = {}
-                    for field_name in ['genre', 'subgenres']:
+                    field_names = ['genre', 'subgenres', 'source_type', 'character_types',
+                                 'plot_elements', 'thematic_elements', 'tone', 'time_setting',
+                                 'location', 'network', 'studios', 'order_type']
+                    for field_name in field_names:
                         display_options[field_name] = comp_analyzer.get_field_display_options(field_name)
                     
                     # Create ID -> name mappings
@@ -429,8 +432,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         show_char_ids = match.get('character_type_ids', [])
                         selected_char_ids = criteria.get('character_type_ids', [])
                         
-                        # Create ID -> name mapping from field options
-                        char_names = {id: name for id, name in field_options['character_types']}
+                        # Create ID -> name mapping from display options
+                        char_names = {id: name for id, name in display_options['character_types']}
                         
                         # Find matches and mismatches using IDs only
                         matches = [char_names[id] for id in selected_char_ids if id in show_char_ids]
