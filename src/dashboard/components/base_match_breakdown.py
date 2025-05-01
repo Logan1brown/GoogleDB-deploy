@@ -66,9 +66,8 @@ def render_base_match_breakdown(
             # Character types
             if 'characters' in details:
                 chars = details['characters']
+                st.write(f"Character Types ({scores['character_score']}/14):")
                 if chars['selected']:
-                    st.write("\nCharacter Types:")
-                    st.write(f"Score: {scores['character_score']}/14")
                     if chars['matches']:
                         first = True
                         for char_type in chars['matches']:
@@ -81,7 +80,6 @@ def render_base_match_breakdown(
                         for char_type in chars['mismatches']:
                             st.write(f"⚫ {char_type}")
                 else:
-                    st.write("\nCharacter Types:")
                     if chars.get('matches') or chars.get('mismatches'):
                         for char_type in (chars.get('matches', []) + chars.get('mismatches', [])):
                             st.write(f"⚫ {char_type} (not selected)")
@@ -260,17 +258,22 @@ def render_base_match_breakdown(
                 with col2:
                     # Location
                     st.write(f"Location ({scores['location_score']}/3):")
-                st.write(f"Score: {scores['location_score']}/3")
-                if setting['location_match']:
-                    st.write(f"🟢 Both {setting['location']} (+3)")
-                else:
-                    st.write(f"⚫ {setting['location']}")
+                    if setting['location_match']:
+                        st.write(f"🟢 Both {setting['location']} (+3)")
+                    else:
+                        st.write(f"⚫ {setting['location']}")
             else:
                 st.markdown(f"\n**Setting ({scores['setting_total']}/7)**")
-                st.write("Time Period:")
-                st.write(f"⚫ {setting['time']} (not selected)")
-                st.write("\nLocation:")
-                st.write(f"⚫ {setting['location']} (not selected)")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write(f"Time Period ({scores['time_score']}/4):")
+                    st.write(f"⚫ {setting['time']} (not selected)")
+                
+                with col2:
+                    st.write(f"Location ({scores['location_score']}/3):")
+                    st.write(f"⚫ {setting['location']} (not selected)")
                 # Time setting
                 if 'time_setting' in details:
                     time = details['time_setting']
