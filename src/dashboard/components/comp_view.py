@@ -536,33 +536,30 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             'selected': (selected_time_id is not None or selected_location_id is not None)
                         })
                         
-                    # Add network details
-                    if details.get('network'):
-                        # Get IDs
-                        show_network_id = match.get('network_id')
-                        selected_network_id = criteria.get('network_id')
+                    # Initialize network details if not present
+                    if 'network' not in details:
+                        details['network'] = {}
                         
-                        # Create ID -> name mapping from field options
-                        network_names = {id: name for id, name in field_options['networks']}
-                        
-                        # Get network names from field options
-                        show_network = network_names.get(show_network_id, 'Unknown')
-                        selected_network = network_names.get(selected_network_id, 'Unknown')
-                        
-                        # Debug output
-                        st.write(f"Debug - Show Network ID: {show_network_id}")
-                        st.write(f"Debug - Selected Network ID: {selected_network_id}")
-                        st.write(f"Debug - Network Score: {scores['network_score']}")
-                        
-                        # Network match if IDs match
-                        network_match = show_network_id == selected_network_id and show_network_id is not None
-                        details['network'].update({
-                            'name1': selected_network,
-                            'name2': show_network,
-                            'match': network_match,
-                            'selected': show_network_id == selected_network_id,  # Selected means THIS network was chosen
-                            'score': scores['network_score']
-                        })
+                    # Get IDs
+                    show_network_id = match.get('network_id')
+                    selected_network_id = criteria.get('network_id')
+                    
+                    # Create ID -> name mapping from field options
+                    network_names = {id: name for id, name in field_options['networks']}
+                    
+                    # Get network names from field options
+                    show_network = network_names.get(show_network_id, 'Unknown')
+                    selected_network = network_names.get(selected_network_id, 'Unknown')
+                    
+                    # Network match if IDs match
+                    network_match = show_network_id == selected_network_id and show_network_id is not None
+                    details['network'].update({
+                        'name1': selected_network,
+                        'name2': show_network,
+                        'match': network_match,
+                        'selected': selected_network_id is not None,  # True if any network was selected
+                        'score': scores['network_score']
+                    })
                     
                     # Add studio details
                     if details.get('studio'):
