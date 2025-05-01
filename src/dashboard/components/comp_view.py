@@ -529,10 +529,12 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         show_network = network_names.get(show_network_id, 'Unknown')
                         selected_network = network_names.get(selected_network_id, 'Unknown')
                         
+                        # Network match if IDs match and we have a valid score
+                        network_match = show_network_id == selected_network_id and show_network_id is not None and scores['network_score'] > 0
                         details['network'].update({
                             'name1': selected_network,
                             'name2': show_network,
-                            'match': show_network_id == selected_network_id and show_network_id is not None,
+                            'match': network_match,
                             'selected': selected_network_id is not None
                         })
                     

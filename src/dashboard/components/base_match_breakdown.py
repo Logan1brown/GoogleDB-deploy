@@ -175,10 +175,10 @@ def render_base_match_breakdown(
             st.write(f"Network ({scores['network_score']}/5):")
             if 'network' in details:
                 network = details['network']
-                if scores['network_score'] > 0:
-                    st.write(f"🟢 Both {network['name2']} (+5)")
+                if network['match']:
+                    st.write(f"🟢 Both {network['name2']} (+{scores['network_score']})")
                 elif network['selected']:
-                    st.write(f"⚫ {network['name1']} vs {network['name2']}")
+                    st.write(f"⚫ {network['name1']} vs {network['name2']} (+0)")
                 else:
                     st.write(f"⚫ {network['name2']} (not selected)")
             else:
