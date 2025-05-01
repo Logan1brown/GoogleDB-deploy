@@ -32,7 +32,8 @@ def render_base_match_breakdown(
     # Build title with scores
     header = f"{title} (Match: {scores['total']:.1f}"
     if success_score is not None:
-        header += f", Success: {success_score:.1f if success_score is not None else 'N/A'}"
+        success_display = f"{success_score:.1f}" if success_score is not None else "N/A"
+        header += f", Success: {success_display}"
     header += ")"
     
     def render_content():
