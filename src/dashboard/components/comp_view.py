@@ -279,7 +279,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Success Score and Breakdown
                     st.markdown("### Success Score")
                     success_score = match.get('success_score', 0)
-                    st.metric("Success Score", f"{success_score:.1f}/100")
+                    st.metric("", f"{int(success_score)}/100")
                     
                     # Season achievements
                     season_score = 0
@@ -325,29 +325,31 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             st.write(f"Status modifier: +{status_score:.1f}")
                     
                     # Get comp score components
-                    comp_score = match.get('comp_score', {})
+                    comp_score = match.get('comp_score', None)
+                    if not comp_score:
+                        return
                     
                     # Content Match Section
                     content_score = sum([
-                        float(comp_score.get('genre_base', 0)),
-                        float(comp_score.get('genre_overlap', 0)),
-                        float(comp_score.get('source_type', 0)),
-                        float(comp_score.get('character_types', 0)),
-                        float(comp_score.get('plot_elements', 0)),
-                        float(comp_score.get('theme_elements', 0)),
-                        float(comp_score.get('tone', 0)),
-                        float(comp_score.get('time_setting', 0)),
-                        float(comp_score.get('location', 0))
+                        comp_score.genre_base,
+                        comp_score.genre_overlap,
+                        comp_score.source_type,
+                        comp_score.character_types,
+                        comp_score.plot_elements,
+                        comp_score.theme_elements,
+                        comp_score.tone,
+                        comp_score.time_setting,
+                        comp_score.location
                     ])
-                    st.markdown(f"### Content Match _({content_score:.1f}/70 points)_")
+                    st.markdown(f"### Content Match _({int(content_score)}/70 points)_")
                     st.write("")
                     
                     # Content Match Details
                     col1, col2 = st.columns(2)
                     with col1:
                         # Genre
-                        genre_score = float(comp_score.get('genre_base', 0)) + float(comp_score.get('genre_overlap', 0))
-                        st.markdown(f"Genre ({genre_score:.1f}/17)")
+                        genre_score = comp_score.genre_base + comp_score.genre_overlap
+                        st.markdown(f"Genre ({int(genre_score)}/17)")
                         st.write(f"⚫ {match.get('genre_name', 'None')}")
                         
                         # Subgenres
@@ -360,13 +362,11 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             st.write("None")
                         
                         # Source Type
-                        source_score = float(comp_score.get('source_type', 0))
-                        st.markdown(f"Source Type ({source_score:.1f}/8)")
+                        st.markdown(f"Source Type ({int(comp_score.source_type)}/8)")
                         st.write(f"⚫ {match.get('source_type_name', 'None')}")
                         
                         # Character Types
-                        char_score = float(comp_score.get('character_types', 0))
-                        st.markdown(f"Character Types ({char_score:.1f}/14)")
+                        st.markdown(f"Character Types ({int(comp_score.character_types)}/14)")
                         char_types = match.get('character_type_names', [])
                         if char_types:
                             for char_type in char_types:
@@ -374,25 +374,24 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     with col2:
                         # Plot Elements
-                        plot_score = float(comp_score.get('plot_elements', 0))
-                        st.markdown(f"Plot Elements ({plot_score:.1f}/12)")
+                        st.markdown(f"Plot Elements ({int(comp_score.plot_elements)}/12)")
                         plot_elements = match.get('plot_element_names', [])
                         if plot_elements:
                             for element in plot_elements:
                                 st.write(f"⚫ {element}")
                         
                         # Theme Elements
-                        theme_score = float(comp_score.get('theme_elements', 0))
-                        st.markdown(f"Theme Elements ({theme_score:.1f}/13)")
+                        st.markdown(f"Theme Elements ({int(comp_score.theme_elements)}/13)")
                         theme_elements = match.get('thematic_element_names', [])
                         if theme_elements:
                             for element in theme_elements:
                                 st.write(f"⚫ {element}")
                         
                         # Tone
-                        tone_score = float(comp_score.get('tone', 0))
-                        st.markdown(f"Tone ({tone_score:.1f}/8)")
+                        st.markdown(f"Tone ({int(comp_score.tone)}/8)")
                         st.write(f"⚫ {match.get('tone_name', 'None')}")
+                    
+                    st.write("")
                     
                     st.write("")
 
@@ -402,53 +401,61 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Production Match Section
                     production_score = sum([
-                        float(comp_score.get('network', 0)),
-                        float(comp_score.get('studio', 0)),
-                        float(comp_score.get('team', 0))
+                        comp_score.network,
+                        comp_score.studio,
+                        comp_score.team
                     ])
-                    st.markdown(f"### Production Match _({production_score:.1f}/13 points)_")
+                    st.markdown(f"### Production Match _({int(production_score)}/13 points)_")
                     st.write("")
                     
                     # Production Match Details
                     col1, col2 = st.columns(2)
                     with col1:
                         # Network
-                        network_score = float(comp_score.get('network', 0))
-                        st.markdown(f"Network ({network_score:.1f}/5)")
+                        st.markdown(f"Network ({int(comp_score.network)}/5)")
                         st.write(f"⚫ {match.get('network_name', 'None')}")
                         
                         # Studios
-                        studio_score = float(comp_score.get('studio', 0))
-                        st.markdown(f"Studios ({studio_score:.1f}/3)")
+                        st.markdown(f"Studios ({int(comp_score.studio)}/3)")
                         studios = match.get('studio_names', [])
                         if studios:
                             for studio in studios:
                                 st.write(f"⚫ {studio}")
+                        else:
+                            st.write("None")
                     
                     with col2:
                         # Team
-                        team_score = float(comp_score.get('team', 0))
-                        st.markdown(f"Team ({team_score:.1f}/5)")
-                        st.write("")
+                        st.markdown(f"Team ({int(comp_score.team)}/5)")
+                        team = match.get('team_names', [])
+                        if team:
+                            for member in team:
+                                st.write(f"⚫ {member}")
+                        else:
+                            st.write("None")
                     
                     st.write("")
                     
                     # Format Match Section
-                    format_score = sum([
-                        float(comp_score.get('episodes', 0)),
-                        float(comp_score.get('order_type', 0))
-                    ])
-                    st.markdown(f"### Format Match _({format_score:.1f}/3 points)_")
+                    format_score = comp_score.episodes + comp_score.order_type
+                    st.markdown(f"### Format Match _({int(format_score)}/3 points)_")
                     st.write("")
                     
                     # Format Match Details
                     col1, col2 = st.columns(2)
                     with col1:
                         # Episodes
-                        eps_score = float(comp_score.get('episodes', 0))
-                        st.markdown(f"Episodes ({eps_score:.1f}/2)")
+                        st.markdown(f"Episodes ({int(comp_score.episodes)}/2)")
                         eps = match.get('tmdb_avg_eps', 0)
-                        st.write(f"⚫ {eps}")
+                        st.write(f"⚫ {eps} episodes per season")
+                        
+                        # Order Type
+                        st.markdown(f"Order Type ({int(comp_score.order_type)}/1)")
+                        st.write(f"⚫ {match.get('order_type_name', 'None')}")
+                    
+                    st.write("")
+                    
+                    st.write("")
                     
                     with col2:
                         # Order Type
