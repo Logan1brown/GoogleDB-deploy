@@ -557,27 +557,21 @@ class CompAnalyzer:
         """
         try:
             # Content scores
+            # Calculate genre base score
             genre_base = (
                 self.SCORING_CONFIG['content']['components']['genre']['breakdown']['base_match']
                 if source['genre_id'] == target['genre_id']
                 else 0
             )
             
-            # Get subgenre names for comparison
-            source_subgenres = source['subgenres'] if isinstance(source['subgenres'], list) else []
-            target_subgenres = target['subgenres'] if isinstance(target['subgenres'], list) else []
-            
-            genre_overlap = min(
-                len(set(source_subgenres).intersection(set(target_subgenres))) * 1.6,
+            # Calculate subgenre overlap - full points for any match
+            source_subgenres = source.get('subgenres', []) if isinstance(source.get('subgenres'), list) else []
+            target_subgenres = target.get('subgenres', []) if isinstance(target.get('subgenres'), list) else []
+            genre_overlap = (
                 self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
-            )
-            
-            source_type = (
-                self.SCORING_CONFIG['content']['components']['source_type']['breakdown']['direct_match']
-                if source['source_type_id'] == target['source_type_id']
+                if set(source_subgenres).intersection(set(target_subgenres))
                 else 0
             )
-            
             character_types = self._calculate_array_match(
                 source.get('character_type_ids', []) if isinstance(source.get('character_type_ids'), list) else [],
                 target.get('character_type_ids', []) if isinstance(target.get('character_type_ids'), list) else [],
