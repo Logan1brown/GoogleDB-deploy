@@ -703,7 +703,7 @@ class CompAnalyzer:
                 episodes=episodes,
                 order_type=order_type,
                 shared_elements={
-                    'plot_elements': list(shared_plots),
+                    'plot_elements': matches,
                     'character_types': list(shared_chars),
                     'theme_elements': list(shared_themes)
                 }
