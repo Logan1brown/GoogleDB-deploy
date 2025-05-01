@@ -366,12 +366,12 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             'tone2': match.get('tone_name', 'Unknown')  # Same since this is base criteria
                         },
                         'time_setting': {
-                            'match': comp_score.time_setting > 0,
+                            'match': (comp_score.time_setting or 0) > 0,
                             'time1': match.get('time_setting_name', 'Unknown'),
                             'time2': match.get('time_setting_name', 'Unknown')  # Same since this is base criteria
                         },
                         'location': {
-                            'match': comp_score.location > 0,
+                            'match': (comp_score.location or 0) > 0,
                             'location1': match.get('location_setting_name', 'Unknown'),
                             'location2': match.get('location_setting_name', 'Unknown')  # Same since this is base criteria
                         },
@@ -382,12 +382,12 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             'order_type2': match.get('order_type_name', 'Unknown')  # Same since this is base criteria
                         },
                         'network': {
-                            'match': comp_score.network > 0,
+                            'match': (comp_score.network or 0) > 0,
                             'name1': match.get('network_name', 'Unknown'),
                             'name2': match.get('network_name', 'Unknown')  # Same since this is base criteria
                         },
                         'studio': {
-                            'match': comp_score.studio > 0,
+                            'match': (comp_score.studio or 0) > 0,
                             'name1': match.get('studio_name', 'Unknown'),
                             'name2': match.get('studio_name', 'Unknown')  # Same since this is base criteria
                         },
