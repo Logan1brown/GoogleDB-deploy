@@ -466,6 +466,7 @@ class CompAnalyzer:
             'source_type_id': criteria.get('source_type_id'),
             'character_type_ids': criteria.get('character_type_ids', []),
             'plot_element_ids': criteria.get('plot_element_ids', []),
+            'plot_element_names': criteria.get('plot_element_names', []),  # Add plot element names
             'thematic_element_ids': criteria.get('thematic_element_ids', []),
             'tone_id': criteria.get('tone_id'),
             'time_setting_id': criteria.get('time_setting_id'),

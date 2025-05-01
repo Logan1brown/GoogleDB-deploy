@@ -96,9 +96,14 @@ def render_base_match_breakdown(
                 st.write(f"Plot Elements ({scores['plot_score']}/12):")
                 if plots['selected']:
                     # Show matches (elements we selected that the show has)
-                    if scores['plot_score'] > 0 and plots.get('matches'):
+                    if plots.get('matches'):
+                        first = True
                         for plot in plots['matches']:
-                            st.write(f"🟢 {plot} (+{scores['plot_score']})")
+                            if first:
+                                st.write(f"🟢 {plot} (+9)")
+                                first = False
+                            else:
+                                st.write(f"🟢 {plot} (+3)")
                     # Show mismatches (elements we selected that the show doesn't have)
                     if plots.get('mismatches'):
                         for plot in plots['mismatches']:
