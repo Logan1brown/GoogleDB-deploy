@@ -73,30 +73,41 @@ class CompScore:
         return {
             'genre': {
                 'primary_match': (self.genre_base or 0) > 0,
-                'subgenre_points': (self.genre_overlap or 0)
+                'subgenre_points': (self.genre_overlap or 0),
+                'primary': None,
+                'shared_subgenres': []
             },
             'source': {
-                'match': (self.source_type or 0) > 0
+                'match': (self.source_type or 0) > 0,
+                'name': None
             },
             'characters': {
-                'match': (self.character_types or 0) > 0
+                'match': (self.character_types or 0) > 0,
+                'types': []
             },
             'plot': {
-                'match': (self.plot_elements or 0) > 0
+                'match': (self.plot_elements or 0) > 0,
+                'elements': []
             },
             'themes': {
-                'match': (self.theme_elements or 0) > 0
+                'match': (self.theme_elements or 0) > 0,
+                'elements': []
             },
             'tone': {
-                'match': (self.tone or 0) > 0
+                'match': (self.tone or 0) > 0,
+                'name': None
             },
             'setting': {
                 'time_match': (self.time_setting or 0) > 0,
-                'location_match': (self.location or 0) > 0
+                'location_match': (self.location or 0) > 0,
+                'time': None,
+                'location': None
             },
             'format': {
                 'episode_match': (self.episodes or 0) > 0,
-                'order_match': (self.order_type or 0) > 0
+                'order_match': (self.order_type or 0) > 0,
+                'episodes': None,
+                'order': None
             }
         }
 

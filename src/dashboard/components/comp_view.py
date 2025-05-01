@@ -317,42 +317,49 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     details = comp_score.get_match_details()
                     
                     # Add additional show-specific details
-                    details['genre'].update({
-                        'primary': match.get('genre_name', 'Unknown'),
-                        'shared_subgenres': match.get('subgenre_names', []),
-                        'subgenre_points': comp_score.genre_overlap
-                    })
+                    if details.get('genre'):
+                        details['genre'].update({
+                            'primary': match.get('genre_name', 'Unknown'),
+                            'shared_subgenres': match.get('subgenre_names', []),
+                            'subgenre_points': comp_score.genre_overlap or 0
+                        })
                     
                     # Add source details
-                    details['source'].update({
-                        'name': match.get('source_type_name', 'Unknown')
-                    })
+                    if details.get('source'):
+                        details['source'].update({
+                            'name': match.get('source_type_name', 'Unknown')
+                        })
                     
                     # Add character details
-                    details['characters'].update({
-                        'types': match.get('character_type_names', [])
-                    })
+                    if details.get('characters'):
+                        details['characters'].update({
+                            'types': match.get('character_type_names', [])
+                        })
                     
                     # Add plot details
-                    details['plot'].update({
-                        'elements': match.get('plot_element_names', [])
-                    })
+                    if details.get('plot'):
+                        details['plot'].update({
+                            'elements': match.get('plot_element_names', [])
+                        })
                     
                     # Add theme details
-                    details['themes'].update({
-                        'elements': match.get('theme_element_names', [])
-                    })
+                    if details.get('themes'):
+                        details['themes'].update({
+                            'elements': match.get('theme_element_names', [])
+                        })
                     
                     # Add tone details
-                    details['tone'].update({
-                        'name': match.get('tone_name', 'Unknown')
-                    })
+                    if details.get('tone'):
+                        details['tone'].update({
+                            'name': match.get('tone_name', 'Unknown')
+                        })
                     
                     # Add setting details
-                    details['setting'].update({
-                        'time': match.get('time_setting_name', 'Unknown'),
-                        'location': match.get('location_setting_name', 'Unknown')
-                    })
+                    if details.get('setting'):
+                        details['setting'].update({
+                            'time': match.get('time_setting_name', 'Unknown'),
+                            'location': match.get('location_setting_name', 'Unknown')
+                        })
                     
                     # Create match details dictionary
                     match_details = {
