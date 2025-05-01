@@ -296,6 +296,12 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     if not comp_score:
                         continue
                         
+                    # Debug prints
+                    st.write('Raw match data:')
+                    st.write(match)
+                    st.write('Comp score data:')
+                    st.write(comp_score)
+                    
                     # Build scores dict
                     scores = {
                         'genre_score': comp_score.genre_base + comp_score.genre_overlap,
@@ -309,6 +315,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         'team_score': comp_score.team,
                         'episode_score': comp_score.episodes,
                         'order_score': comp_score.order_type,
+                        'network_score': comp_score.network,
+                        'studio_score': comp_score.studio,
+                        'date_score': 0,  # We don't track this yet
                         'content_total': (
                             comp_score.genre_base +
                             comp_score.genre_overlap +
@@ -387,13 +396,14 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     }
                     
                     # Use base match breakdown
+                    # Call base match breakdown component
                     render_base_match_breakdown(
-                        title=match.get('title', 'Unknown Show'),
+                        title=match['title'],
                         scores=scores,
                         details=details,
                         success_score=match.get('success_score'),
-                        expanded=True,
-                        use_expander=True,
+                        expanded=i==1,  # Only expand first match
+                        use_expander=False,  # We're already in an expander
                         description=match.get('description')
                     )
     else:
