@@ -347,6 +347,15 @@ class CompAnalyzer:
         Returns:
             Dictionary mapping field names to lists of (id, name) tuples
         """
+        st.write("DEBUG: Starting get_field_options")
+        if self.comp_data is not None:
+            st.write(f"DEBUG: comp_data columns: {self.comp_data.columns}")
+            st.write(f"DEBUG: comp_data shape: {self.comp_data.shape}")
+            st.write(f"DEBUG: First row thematic_element_ids: {self.comp_data.iloc[0]['thematic_element_ids']}")
+            st.write(f"DEBUG: First row thematic_element_names: {self.comp_data.iloc[0]['thematic_element_names']}")
+        else:
+            st.write("DEBUG: comp_data is None!")
+            
         try:
             if self.comp_data is None or force:
                 self.fetch_comp_data()
