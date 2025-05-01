@@ -394,9 +394,7 @@ class CompAnalyzer:
                             options = [(int(row['id']), str(row['studio'])) 
                                       for _, row in ref_table.iterrows() 
                                       if pd.notna(row['id']) and pd.notna(row['studio'])]
-                            options = sorted(options, key=lambda x: x[1])
-                            print(f'Debug - Studio options in CompAnalyzer: {options}')
-                            self.field_options[field_name] = options
+                            self.field_options[field_name] = sorted(options, key=lambda x: x[1])
                             continue
                         # Use reference table for name mapping
                         # Different tables use different column names for the name field
