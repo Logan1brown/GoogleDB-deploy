@@ -429,19 +429,16 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         selected_plot_ids = criteria.get('plot_element_ids', [])
                         selected_plot_names = [name for id, name in field_options['plot_elements'] if id in selected_plot_ids]
                         
-                        # Get plot elements
+                        # Get IDs
                         show_plot_ids = match.get('plot_element_ids', [])
-                        show_plot_names = match.get('plot_element_names', [])
+                        selected_plot_ids = criteria.get('plot_element_ids', [])
                         
-                        # Create sets for easier comparison
-                        show_plots = set(zip(show_plot_ids, show_plot_names))
-                        selected_plots = set(zip(selected_plot_ids, selected_plot_names))
+                        # Create ID -> name mapping from field options
+                        plot_names = {id: name for id, name in field_options['plot_elements']}
                         
-                        # Find matches (elements we selected that are in the show)
-                        matches = [name for id, name in selected_plots if (id, name) in show_plots]
-                        
-                        # Find mismatches (elements in show we didn't select)
-                        mismatches = [name for id, name in show_plots if id not in selected_plot_ids and name not in matches]
+                        # Find matches and mismatches using IDs only
+                        matches = [plot_names[id] for id in selected_plot_ids if id in show_plot_ids]
+                        mismatches = [plot_names[id] for id in show_plot_ids if id not in selected_plot_ids]
                         
                         details['plot'].update({
                             'matches': matches,
