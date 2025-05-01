@@ -56,8 +56,9 @@ def render_base_match_breakdown(
                     st.write(f"⚫ {genre['primary']}")
                     
                 # Subgenres
+                # Show matching subgenres with full 8 points
                 if genre.get('subgenre_points', 0) > 0 and genre.get('subgenre_matches'):
-                    st.write(f"🟢 Subgenres: {', '.join(genre['subgenre_matches'])} (+{genre['subgenre_points']})")
+                    st.write(f"🟢 Subgenres: {', '.join(genre['subgenre_matches'])} (+8)")
                 if genre.get('subgenre_mismatches'):
                     st.write(f"⚫ Subgenres: {', '.join(genre['subgenre_mismatches'])}")
             else:

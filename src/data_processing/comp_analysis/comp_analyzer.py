@@ -572,6 +572,13 @@ class CompAnalyzer:
                 if set(source_subgenres).intersection(set(target_subgenres))
                 else 0
             )
+            
+            # Calculate source type match
+            source_type = (
+                self.SCORING_CONFIG['content']['components']['source_type']['breakdown']['direct_match']
+                if source['source_type_id'] == target['source_type_id']
+                else 0
+            )
             character_types = self._calculate_array_match(
                 source.get('character_type_ids', []) if isinstance(source.get('character_type_ids'), list) else [],
                 target.get('character_type_ids', []) if isinstance(target.get('character_type_ids'), list) else [],
