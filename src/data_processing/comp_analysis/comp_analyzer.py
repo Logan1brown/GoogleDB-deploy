@@ -610,11 +610,11 @@ class CompAnalyzer:
             source_plots = source.get('plot_element_ids', []) if isinstance(source.get('plot_element_ids'), list) else []
             target_plots = target.get('plot_element_ids', []) if isinstance(target.get('plot_element_ids'), list) else []
             
-            # Find matches between selected and target plot elements
-            shared_plots = set(source_plots) & set(target_plots)
-            num_matches = len(shared_plots)
+            # Only match elements that were specifically selected in criteria
+            matches = [plot_id for plot_id in source_plots if plot_id in target_plots]
+            num_matches = len(matches)
             
-            # Award points based on number of matches
+            # Award points based on number of matches with selected elements
             plot_elements = 0
             if num_matches >= 1:
                 plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
