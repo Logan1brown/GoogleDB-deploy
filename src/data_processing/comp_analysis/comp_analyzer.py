@@ -238,7 +238,8 @@ class CompAnalyzer:
                 'plot_elements': {
                     'points': 12,
                     'breakdown': {
-                        'per_match': 2.4        # 2.4 points per match up to 5
+                        'first_match': 9,    # 75% for first match
+                        'second_match': 3     # 25% for second match
                     }
                 },
                 # Thematic Elements (13 points)
@@ -591,29 +592,24 @@ class CompAnalyzer:
                 if source['source_type_id'] == target['source_type_id']
                 else 0
             )
+            # Calculate character type matches
             character_types = self._calculate_array_match(
                 source.get('character_type_ids', []) if isinstance(source.get('character_type_ids'), list) else [],
                 target.get('character_type_ids', []) if isinstance(target.get('character_type_ids'), list) else [],
-                self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['base_match'],
-                self.SCORING_CONFIG['content']['components']['character_types']['breakdown']['additional_match'],
                 5
             )
             
-            plot_elements = self._calculate_array_match(
-                source.get('plot_element_ids', []) if isinstance(source.get('plot_element_ids'), list) else [],
-                target.get('plot_element_ids', []) if isinstance(target.get('plot_element_ids'), list) else [],
-                0,
-                self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['per_match'],
-                5
-            )
+            # Calculate plot element matches
+            source_plots = source.get('plot_element_ids', []) if isinstance(source.get('plot_element_ids'), list) else []
+            target_plots = target.get('plot_element_ids', []) if isinstance(target.get('plot_element_ids'), list) else []
+            shared_plots = set(source_plots) & set(target_plots)
+            num_matches = len(shared_plots)
             
-            theme_elements = self._calculate_array_match(
-                source.get('thematic_element_ids', []) if isinstance(source.get('thematic_element_ids'), list) else [],
-                target.get('thematic_element_ids', []) if isinstance(target.get('thematic_element_ids'), list) else [],
-                0,
-                self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['per_match'],
-                5
-            )
+            plot_elements = 0
+            if num_matches >= 1:
+                plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
+            if num_matches >= 2:
+                plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['second_match']
             
             tone = (
                 self.SCORING_CONFIG['content']['components']['tone']['breakdown']['direct_match']

@@ -36,11 +36,41 @@ def show_match_breakdown(show, expanded=False):
     with st.expander(title, expanded=expanded):
         
         # Content Match section
-        st.markdown(f"**Content Match** ({scores['content_total']}/85 points)")
+        st.markdown(f"**Content Match** ({scores['content_total']}/82 points)")
         
         # Genre and Source (core content)
         col1, col2 = st.columns(2)
         details = scores['details']
+        
+        # Plot Elements
+        plot = details.get('plot_elements', {})
+        st.write(f"\nPlot Elements ({scores.get('plot_score', 0)}/12):")
+        shared = plot.get('shared_elements', [])
+        if shared:
+            # First match gets 9 points (75%)
+            st.write(f"• {shared[0]} (+9)")
+            # Second match gets 3 points (25%)
+            if len(shared) > 1:
+                st.write(f"• {shared[1]} (+3)")
+            # Show remaining matches without points
+            for element in shared[2:]:
+                st.write(f"• {element}")
+        elif plot.get('elements1') and plot.get('elements2'):
+            st.write("No matching plot elements")
+            st.write(f"Show 1: {', '.join(plot['elements1'])}")
+            st.write(f"Show 2: {', '.join(plot['elements2'])}")
+        else:
+            st.write("• Missing plot element data")
+        
+        # Tone
+        tone = details.get('tone', {})
+        st.write(f"\nTone: {scores.get('tone_score', 0)}/9")
+        if tone.get('match'):
+            st.write(f"• Both {tone.get('tone1', 'Unknown')}")
+        elif tone.get('tone1') and tone.get('tone2'):
+            st.write(f"• {tone.get('tone1')} vs {tone.get('tone2')}")
+        else:
+            st.write("• Missing tone data")
         
         with col1:
             # Genre details
@@ -59,7 +89,7 @@ def show_match_breakdown(show, expanded=False):
             if source['match']:
                 st.write(f"• Both {source['type1']}")
             else:
-                st.write(f"• {source['type1']} vs {source['type2']}")
+                st.write(f"× {source['type1']} vs {source['type2']}")
         
         # Production section
         st.markdown(f"\n**Production** ({scores['team_score'] + scores['network_score'] + scores['studio_score']}/30 points)")
@@ -73,7 +103,7 @@ def show_match_breakdown(show, expanded=False):
             if network['match']:
                 st.write(f"• Both {network['name1']}")
             else:
-                st.write(f"• {network['name1']} vs {network['name2']}")
+                st.write(f"× {network['name1']} vs {network['name2']}")
             
             # Studio details
             studio = details['studio']
