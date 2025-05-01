@@ -90,26 +90,23 @@ def render_base_match_breakdown(
                             st.write(f"⚫ {char_type} (not selected)")
                     else:
                         st.write("⚫ No character types")
-                        
-            # Plot elements
+                                    # Plot elements
             if 'plot' in details:
                 plots = details['plot']
                 st.write(f"Plot Elements ({scores['plot_score']}/12):")
                 if plots['selected']:
-                    # Only show matches if we actually got points
-                    if scores['plot_score'] > 0:
-                        # Show matches first
-                        for plot in plots.get('matches', []):
+                    # Show matches (elements we selected that the show has)
+                    if scores['plot_score'] > 0 and plots.get('matches'):
+                        for plot in plots['matches']:
                             st.write(f"🟢 {plot} (+{scores['plot_score']})")
-                    # Show mismatches without points
-                    for plot in plots.get('mismatches', []):
-                        st.write(f"⚫ {plot}")
+                    # Show mismatches (elements we selected that the show doesn't have)
+                    if plots.get('mismatches'):
+                        for plot in plots['mismatches']:
+                            st.write(f"⚫ {plot}")
                 else:
-                    if plots.get('plot_element_names'):
-                        for plot in plots['plot_element_names']:
-                            st.write(f"⚫ {plot} (not selected)")
-                    elif plots.get('matches') or plots.get('mismatches'):
-                        for plot in (plots.get('matches', []) + plots.get('mismatches', [])):
+                    # Show all plot elements as unselected
+                    if 'plot' in matches and matches['plot']:
+                        for plot in matches['plot']:
                             st.write(f"⚫ {plot} (not selected)")
                     else:
                         st.write("⚫ No plot elements")

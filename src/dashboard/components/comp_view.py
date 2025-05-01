@@ -434,13 +434,16 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         # Create ID to name mapping for the show's plot elements
                         show_plot_map = dict(zip(show_plot_ids, show_plot_names))
                         
-                        # Find which elements match the selected criteria
-                        matching_ids = [plot_id for plot_id in show_plot_ids if plot_id in selected_plot_ids]
-                        mismatched_ids = [plot_id for plot_id in show_plot_ids if plot_id not in selected_plot_ids]
+                        # Find which elements match and mismatch based on what we selected
+                        matching_ids = [plot_id for plot_id in selected_plot_ids if plot_id in show_plot_ids]
+                        mismatched_ids = [plot_id for plot_id in selected_plot_ids if plot_id not in show_plot_ids]
                         
-                        # Convert IDs to names for display
-                        matches = [show_plot_map[plot_id] for plot_id in matching_ids]
-                        mismatches = [show_plot_map[plot_id] for plot_id in mismatched_ids]
+                        # Create reverse mapping from selected IDs to names
+                        selected_plot_map = {id: name for id, name in field_options['plot_elements'] if id in selected_plot_ids}
+                        
+                        # Convert IDs to names for display using the correct mapping
+                        matches = [selected_plot_map[plot_id] for plot_id in matching_ids]
+                        mismatches = [selected_plot_map[plot_id] for plot_id in mismatched_ids]
                         
                         details['plot'].update({
                             'matches': matches,
