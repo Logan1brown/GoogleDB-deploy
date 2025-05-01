@@ -393,17 +393,26 @@ class CompAnalyzer:
                     # Handle array fields
                     if field_name in array_fields:
                         unique_items = {}
+                        
+                        # Convert column names to valid Python identifiers for itertuples
+                        id_attr = id_col.replace('_ids', '').replace('-', '_')
+                        name_attr = name_col.replace('_names', '').replace('-', '_')
+                        
                         for row in self.comp_data.itertuples():
-                            ids = getattr(row, id_col)
-                            names = getattr(row, name_col)
+                            # Get the arrays for this row
+                            ids = getattr(row, id_attr)
+                            names = getattr(row, name_attr)
                             
-                            if ids is None or names is None:
+                            if not isinstance(ids, list) or not isinstance(names, list):
                                 continue
                                 
-                            pairs = list(zip(ids, names))
-                            for id, name in pairs:
+                            if len(ids) != len(names):
+                                continue
+                                
+                            # Add each id/name pair to the dictionary
+                            for id, name in zip(ids, names):
                                 if id is not None and name is not None:
-                                    unique_items[id] = name
+                                    unique_items[int(id)] = str(name)
                                     
                         # Filter out any None values before sorting
                         tuples = sorted([(id, name) for id, name in unique_items.items() 
