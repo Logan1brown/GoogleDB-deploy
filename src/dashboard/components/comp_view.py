@@ -290,86 +290,58 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             # Create expandable section for each match
             for i, match in enumerate(top_matches, 1):
                 with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
-                    # Success Score and Breakdown
-                    st.markdown("### Success Score")
-                    success_score = match.get('success_score', 0)
-                    st.metric("Success Score", f"{int(success_score)}/100", label_visibility="collapsed")
+                    # Success Score and Success Breakdown
+                    col1, col2 = st.columns(2)
                     
-                    # Season achievements
-                    seasons = match.get('tmdb_seasons')
-                    if pd.notna(seasons):
-                        seasons = int(seasons)
-                        if seasons >= 2:
-                            st.markdown(f"• Season {seasons} renewal: +40 points")
-                            extra_seasons = seasons - 2
-                            if extra_seasons > 0:
-                                bonus = min(extra_seasons * 20, 40)
-                                st.markdown(f"• Additional seasons: +{bonus} points")
-                    
-                    # Episode volume 
-                    avg_eps = match.get('tmdb_avg_eps')
-                    if pd.notna(avg_eps):
-                        avg_eps = float(avg_eps)
-                        if avg_eps >= 10:
-                            st.markdown("• High episode volume: +40 points")
-                        elif avg_eps >= 8:
-                            st.markdown("• Standard episode volume: +20 points")
-                    
-                    # Status modifier
-                    status = match.get('status_name')
-                    if status == 'Returning Series':
+                    with col1:
+                        st.markdown("### Success Score")
                         success_score = match.get('success_score', 0)
-                        bonus = int(success_score * 0.2)
-                        st.markdown(f"• Active show bonus: +{bonus} points")
-                    
-                    st.markdown("")
-                    
-                    # Get comp score components
-                    
-                    # Season achievements
-                    season_score = 0
-                    if pd.notna(match.get('tmdb_seasons')):
-                        seasons = int(match['tmdb_seasons'])
-                        if seasons >= 2:
-                            season_score += 40
-                            st.write(f"Season {seasons} renewal: +40 points")
-                            extra_seasons = seasons - 2
-                            if extra_seasons > 0:
-                                bonus = min(extra_seasons * 20, 40)
-                                season_score += bonus
-                                st.write(f"Additional seasons: +{bonus} points")
-                    
-                    # Episode volume 
-                    episode_score = 0
-                    avg_eps = match.get('tmdb_avg_eps', 0)
-                    if pd.notna(avg_eps):
-                        avg_eps = float(avg_eps)
-                        if avg_eps >= 10:
-                            episode_score = 40
-                            st.write("High episode volume: +40 points")
-                        elif avg_eps >= 8:
-                            episode_score = 20
-                            st.write("Standard episode volume: +20 points")
-                    
-                    # Status modifier
-                    status_score = 0
-                    status = match.get('status_name')
-                    if status and status == 'Returning Series':
-                        status_score = success_score * 0.2  # 20% bonus
-                        st.write("Active show bonus: Score x 1.2")
-                    
-                    # Display final breakdown
-                    if season_score > 0 or episode_score > 0 or status_score > 0:
-                        st.write("")
-                        st.write("Final breakdown:")
-                        if season_score > 0:
-                            st.write(f"Season achievements: +{int(season_score)}")
-                        if episode_score > 0:
-                            st.write(f"Episode volume: +{int(episode_score)}")
-                        if status_score > 0:
-                            st.write(f"Status modifier: +{int(status_score)}")
-                    
-                    st.write("")
+                        st.metric("Success Score", f"{int(success_score)}/100", label_visibility="collapsed")
+                        
+                        st.markdown("### Score Breakdown")
+                        
+                        # Calculate scores first
+                        season_score = 0
+                        if pd.notna(match.get('tmdb_seasons')):
+                            seasons = int(match['tmdb_seasons'])
+                            if seasons >= 2:
+                                season_score += 40
+                                extra_seasons = seasons - 2
+                                if extra_seasons > 0:
+                                    season_score += min(extra_seasons * 20, 40)
+                        
+                        episode_score = 0
+                        avg_eps = match.get('tmdb_avg_eps', 0)
+                        if pd.notna(avg_eps):
+                            avg_eps = float(avg_eps)
+                            if avg_eps >= 10:
+                                episode_score = 40
+                            elif avg_eps >= 8:
+                                episode_score = 20
+                        
+                        # Display breakdown
+                        if pd.notna(match.get('tmdb_seasons')):
+                            seasons = int(match['tmdb_seasons'])
+                            if seasons >= 2:
+                                st.write("**Renewed for Season 2** _(+40 points)_")
+                                extra_seasons = seasons - 2
+                                if extra_seasons > 0:
+                                    bonus = min(extra_seasons * 20, 40)
+                                    st.write(f"**Additional seasons bonus** _(+{bonus} points)_")
+                        
+                        if pd.notna(match.get('tmdb_avg_eps')):
+                            avg_eps = float(match['tmdb_avg_eps'])
+                            if avg_eps >= 10:
+                                st.write("**High episode volume** _(+40 points)_")
+                            elif avg_eps >= 8:
+                                st.write("**Standard episode volume** _(+20 points)_")
+                        
+                        # Status modifier (only show if it affects score)
+                        status = match.get('status_name')
+                        if status == 'Returning Series':
+                            st.write("**Active show bonus:** _Score multiplied by 1.2_")
+                        elif status == 'Canceled':
+                            st.write("**Canceled show penalty:** _Score multiplied by 0.8_")
                     
                     # Get comp score components
                     comp_score = match.get('comp_score', None)
