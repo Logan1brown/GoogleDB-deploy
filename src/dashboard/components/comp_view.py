@@ -422,17 +422,29 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Add plot details
                     if details.get('plot'):
-                        # Get all plot elements
-                        plot_elements = match.get('plot_element_names', [])
-                        # Calculate how many matches we have based on score
-                        num_matches = int(comp_score.plot_elements / 2.4)  # 2.4 points per match
-                        # Split into matches and mismatches
-                        matches = plot_elements[:num_matches] if num_matches > 0 else []
-                        mismatches = plot_elements[num_matches:] if num_matches < len(plot_elements) else []
+                        # Get selected plot element IDs and names
+                        selected_plot_ids = criteria.get('plot_element_ids', [])
+                        selected_plot_names = [name for id, name in field_options['plot_elements'] if id in selected_plot_ids]
+                        
+                        # Get show's plot elements
+                        show_plot_ids = match.get('plot_element_ids', [])
+                        show_plot_names = match.get('plot_element_names', [])
+                        
+                        # Create ID to name mapping for the show's plot elements
+                        show_plot_map = dict(zip(show_plot_ids, show_plot_names))
+                        
+                        # Find which elements match the selected criteria
+                        matching_ids = [plot_id for plot_id in show_plot_ids if plot_id in selected_plot_ids]
+                        mismatched_ids = [plot_id for plot_id in show_plot_ids if plot_id not in selected_plot_ids]
+                        
+                        # Convert IDs to names for display
+                        matches = [show_plot_map[plot_id] for plot_id in matching_ids]
+                        mismatches = [show_plot_map[plot_id] for plot_id in mismatched_ids]
+                        
                         details['plot'].update({
                             'matches': matches,
                             'mismatches': mismatches,
-                            'selected': bool(criteria.get('plot_element_ids'))
+                            'selected': bool(selected_plot_ids)
                         })
                     
                     # Add theme details
