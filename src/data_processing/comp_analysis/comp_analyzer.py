@@ -388,7 +388,23 @@ class CompAnalyzer:
                             ids = row[array_col]
                             names = row[name_col]
                             
-                            # Skip if either is missing
+                            # Handle None values and convert to lists if needed
+                            if pd.isna(ids) or pd.isna(names):
+                                continue
+                                
+                            # Convert string representation of lists to actual lists
+                            if isinstance(ids, str) and ids.startswith('[') and ids.endswith(']'):
+                                try:
+                                    ids = eval(ids)  # Safe since we verified format
+                                except:
+                                    continue
+                            if isinstance(names, str) and names.startswith('[') and names.endswith(']'):
+                                try:
+                                    names = eval(names)  # Safe since we verified format
+                                except:
+                                    continue
+                                    
+                            # Skip if either is not a list
                             if not isinstance(ids, list) or not isinstance(names, list):
                                 continue
                                 
@@ -640,16 +656,26 @@ class CompAnalyzer:
                         plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['second_match']
                 
             # Calculate theme element matches
-            source_themes = source.get('thematic_element_ids', []) if isinstance(source.get('thematic_element_ids'), list) else []
-            target_themes = target.get('thematic_element_ids', []) if isinstance(target.get('thematic_element_ids'), list) else []
-            shared_themes = set(source_themes) & set(target_themes)
-            num_theme_matches = len(shared_themes)
+            criteria_themes = source.get('thematic_element_ids', []) if isinstance(source.get('thematic_element_ids'), list) else []  # Selected in criteria
+            criteria_theme_names = source.get('thematic_element_names', []) if isinstance(source.get('thematic_element_names'), list) else []  # Selected names
+            show_themes = target.get('thematic_element_ids', []) if isinstance(target.get('thematic_element_ids'), list) else []  # Show's elements
+            show_theme_names = target.get('thematic_element_names', []) if isinstance(target.get('thematic_element_names'), list) else []  # Show's names
             
+            # Create ID->name mappings
+            criteria_map = dict(zip(criteria_themes, criteria_theme_names))
+            show_map = dict(zip(show_themes, show_theme_names))
+            
+            # Only match elements that were specifically selected in criteria
             theme_elements = 0
-            if num_theme_matches >= 1:
-                theme_elements += self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['first_match']
-            if num_theme_matches >= 2:
-                theme_elements += self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['second_match']
+            if criteria_themes:  # Only check if criteria specified theme elements
+                # Check which of the show's theme elements match our selected criteria by both ID and name
+                matching_elements = [theme_id for theme_id in show_themes 
+                                    if theme_id in criteria_themes]
+                if matching_elements:  # Only award points if we match selected elements
+                    if len(matching_elements) >= 1:
+                        theme_elements += self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['first_match']
+                    if len(matching_elements) >= 2:
+                        theme_elements += self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['second_match']
             
             tone = (
                 self.SCORING_CONFIG['content']['components']['tone']['breakdown']['direct_match']

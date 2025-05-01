@@ -490,9 +490,20 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         # Create ID -> name mapping from field options
                         theme_names = {id: name for id, name in field_options['thematic_elements']}
                         
-                        # Find matches and mismatches using IDs only
-                        matches = [theme_names[id] for id in selected_theme_ids if id in show_theme_ids]
-                        mismatches = [theme_names[id] for id in show_theme_ids if id not in selected_theme_ids]
+                        # Find matches and mismatches using IDs and fallback to raw names
+                        matches = []
+                        mismatches = []
+                        
+                        # Get raw theme names from match data
+                        raw_theme_names = match.get('thematic_element_names', [])
+                        
+                        # Process each show theme ID
+                        for idx, theme_id in enumerate(show_theme_ids):
+                            theme_name = theme_names.get(theme_id) or (raw_theme_names[idx] if idx < len(raw_theme_names) else 'Unknown')
+                            if theme_id in selected_theme_ids:
+                                matches.append(theme_name)
+                            else:
+                                mismatches.append(theme_name)
                         
                         details['themes'].update({
                             'matches': matches,
