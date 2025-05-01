@@ -240,10 +240,10 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             {
                 'Show': r['title'],
                 'Success': f"{r['success_score']:.1f}%",
-                'Total Score': f"{r['comp_score'].total:.1f}%",
-                'Content': f"{r['comp_score'].content_score:.1f}%",
-                'Production': f"{r['comp_score'].production_score:.1f}%",
-                'Format': f"{r['comp_score'].format_score:.1f}%"
+                'Total Score': f"{(r['comp_score'].total or 0):.1f}%",
+                'Content': f"{(r['comp_score'].content_score or 0):.1f}%",
+                'Production': f"{(r['comp_score'].production_score or 0):.1f}%",
+                'Format': f"{(r['comp_score'].format_score or 0):.1f}%"
             } for r in results
         ])
         
@@ -305,46 +305,46 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Build scores dict
                     scores = {
-                        'genre_score': comp_score.genre_base + comp_score.genre_overlap,
-                        'source_score': comp_score.source_type,
-                        'character_score': comp_score.character_types,
-                        'plot_score': comp_score.plot_elements,
-                        'theme_score': comp_score.theme_elements,
-                        'tone_score': comp_score.tone,
-                        'time_score': comp_score.time_setting,
-                        'location_score': comp_score.location,
-                        'team_score': comp_score.team,
-                        'episode_score': comp_score.episodes,
-                        'order_score': comp_score.order_type,
-                        'network_score': comp_score.network,
-                        'studio_score': comp_score.studio,
+                        'genre_score': (comp_score.genre_base or 0) + (comp_score.genre_overlap or 0),
+                        'source_score': comp_score.source_type or 0,
+                        'character_score': comp_score.character_types or 0,
+                        'plot_score': comp_score.plot_elements or 0,
+                        'theme_score': comp_score.theme_elements or 0,
+                        'tone_score': comp_score.tone or 0,
+                        'time_score': comp_score.time_setting or 0,
+                        'location_score': comp_score.location or 0,
+                        'team_score': comp_score.team or 0,
+                        'episode_score': comp_score.episodes or 0,
+                        'order_score': comp_score.order_type or 0,
+                        'network_score': comp_score.network or 0,
+                        'studio_score': comp_score.studio or 0,
                         'date_score': 0,  # We don't track this yet
                         'content_total': (
-                            comp_score.genre_base +
-                            comp_score.genre_overlap +
-                            comp_score.source_type +
-                            comp_score.character_types +
-                            comp_score.plot_elements +
-                            comp_score.theme_elements +
-                            comp_score.tone +
-                            comp_score.time_setting +
-                            comp_score.location
+                            (comp_score.genre_base or 0) +
+                            (comp_score.genre_overlap or 0) +
+                            (comp_score.source_type or 0) +
+                            (comp_score.character_types or 0) +
+                            (comp_score.plot_elements or 0) +
+                            (comp_score.theme_elements or 0) +
+                            (comp_score.tone or 0) +
+                            (comp_score.time_setting or 0) +
+                            (comp_score.location or 0)
                         ),
-                        'format_total': comp_score.episodes + comp_score.order_type,
-                        'setting_total': comp_score.time_setting + comp_score.location
+                        'format_total': (comp_score.episodes or 0) + (comp_score.order_type or 0),
+                        'setting_total': (comp_score.time_setting or 0) + (comp_score.location or 0)
                     }
                     scores['total'] = scores['content_total'] + scores['team_score'] + scores['format_total']
                     
                     # Build details dict
                     details = {
                         'genre': {
-                            'primary_match': comp_score.genre_base > 0,
+                            'primary_match': (comp_score.genre_base or 0) > 0,
                             'primary': match.get('genre_name', 'Unknown'),
                             'shared_subgenres': match.get('subgenre_names', []),
                             'subgenre_points': comp_score.genre_overlap
                         },
                         'source': {
-                            'match': comp_score.source_type > 0,
+                            'match': (comp_score.source_type or 0) > 0,
                             'type1': match.get('source_type_name', 'Unknown'),
                             'type2': match.get('source_type_name', 'Unknown')  # Same since this is base criteria
                         },
@@ -361,7 +361,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             'mismatches': []  # No mismatches since this is base criteria
                         },
                         'tone': {
-                            'match': comp_score.tone > 0,
+                            'match': (comp_score.tone or 0) > 0,
                             'tone1': match.get('tone_name', 'Unknown'),
                             'tone2': match.get('tone_name', 'Unknown')  # Same since this is base criteria
                         },
