@@ -207,9 +207,9 @@ class CompAnalyzer:
 
     # Scoring configuration
     SCORING_CONFIG = {
-        # Content Match (70 points total)
+        # Content Match (82 points total)
         'content': {
-            'total_points': 70,
+            'total_points': 82,
             'components': {
                 # Genre (17 points)
                 'genre': {

@@ -35,7 +35,7 @@ def render_base_match_breakdown(
     
     def render_content():
         # Content Match section
-        st.markdown(f"**Content Match** ({scores['content_total']}/85 points)")
+        st.markdown(f"\n**Content Match** ({scores['content_total']}/82 points)")
         
         # Genre and Source (core content)
         col1, col2 = st.columns(2)
@@ -46,13 +46,13 @@ def render_base_match_breakdown(
                 st.write("Genre:")
                 st.write(f"Score: {scores['genre_score']}/17")
                 if genre['primary_match']:
-                    st.write(f"• Both {genre['primary']} (+9)")
+                    st.write(f"• Primary: {genre['primary']} (+9)")
                 else:
                     st.write(f"• {genre['primary']} vs {genre['primary2']}")
                     
                 if genre.get('shared_subgenres'):
                     genres = ', '.join(genre['shared_subgenres'])
-                    st.write(f"• Shared subgenres: {genres} (+8)")
+                    st.write(f"• Subgenres: {genres} (+8)")
             else:
                 st.write("Genre:")
                 st.write(f"• {genre['primary']} (not selected)")
@@ -65,10 +65,15 @@ def render_base_match_breakdown(
                 chars = details['characters']
                 if chars['selected']:
                     st.write("\nCharacter Types:")
-                    st.write(f"Score: {scores['character_score']}/10")
+                    st.write(f"Score: {scores['character_score']}/14")
                     if chars['matches']:
+                        first = True
                         for char_type in chars['matches']:
-                            st.write(f"• {char_type} (+2)")
+                            if first:
+                                st.write(f"• {char_type} (+5)")
+                                first = False
+                            else:
+                                st.write(f"• {char_type} (+1.8)")
                     if chars['mismatches']:
                         for char_type in chars['mismatches']:
                             st.write(f"• {char_type}")
