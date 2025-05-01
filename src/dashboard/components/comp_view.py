@@ -228,9 +228,16 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             
         # Results are already sorted by weighted combo of comp_score and success_score
         
+        # Filter out results with missing scores
+        results = [r for r in results if r.get('comp_score') is not None]
+        
         # Sort by success score
         results.sort(key=lambda x: x.get('success_score', 0), reverse=True)
         
+        if not results:
+            st.info("No valid matches found. Try adjusting your criteria.")
+            return
+            
         # Add results table to grid
         st.markdown("### Similar Shows")
         
@@ -238,12 +245,12 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         import pandas as pd
         df = pd.DataFrame([
             {
-                'Show': r['title'],
+                'Show': r.get('title', 'Unknown'),
                 'Success': f"{r.get('success_score', 0):.1f}%",
-                'Total Score': f"{(r.get('comp_score').total if r.get('comp_score') else 0):.1f}%",
-                'Content': f"{(r.get('comp_score').content_score if r.get('comp_score') else 0):.1f}%",
-                'Production': f"{(r.get('comp_score').production_score if r.get('comp_score') else 0):.1f}%",
-                'Format': f"{(r.get('comp_score').format_score if r.get('comp_score') else 0):.1f}%"
+                'Total Score': f"{r['comp_score'].total:.1f}%",
+                'Content': f"{r['comp_score'].content_score:.1f}%",
+                'Production': f"{r['comp_score'].production_score:.1f}%",
+                'Format': f"{r['comp_score'].format_score:.1f}%"
             } for r in results
         ])
         
