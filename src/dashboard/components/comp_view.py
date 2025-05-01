@@ -97,17 +97,21 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             placeholder="Select subgenres..."
         )
         
-        # Convert selected subgenres to IDs
-        subgenre_ids = get_ids_for_names(subgenre_names, field_options['subgenre_names'])
+        # Convert selected subgenres to IDs and deduplicate
+        subgenre_ids = list(set(get_ids_for_names(subgenre_names, field_options['subgenre_names'])))
         
-        # Show selected subgenres and their IDs
+        # Show unique selected subgenres and their IDs
         if subgenre_names:
             st.write("")
             st.write("Selected subgenres:")
+            seen_names = set()
             for name in subgenre_names:
-                for id, opt_name in field_options['subgenre_names']:
-                    if opt_name == name:
-                        st.write(f"- {name} (ID: {id})")
+                if name not in seen_names:
+                    seen_names.add(name)
+                    for id, opt_name in field_options['subgenre_names']:
+                        if opt_name == name:
+                            st.write(f"- {name} (ID: {id})")
+                            break
             st.write("")
         
         state["criteria"]["subgenres"] = subgenre_ids
