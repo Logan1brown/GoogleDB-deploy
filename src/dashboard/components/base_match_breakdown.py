@@ -50,13 +50,13 @@ def render_base_match_breakdown(
                 if genre.get('shared_subgenres'):
                     points = genre['subgenre_points']
                     genres = ', '.join(genre['shared_subgenres'])
-                    st.write(f"✓ Subgenres: {genres} (+{points})")
+                    st.markdown(f":green[✓] Subgenres: {genres} (+{points})")
             else:
-                st.write("Genre: (not selected)")
-                st.write(f"• {genre['primary']}")
+                st.write(f"Genre (0/40)")
+                st.write(f"• {genre['primary']} (not selected)")
                 if genre.get('shared_subgenres'):
                     genres = ', '.join(genre['shared_subgenres'])
-                    st.write(f"• Subgenres: {genres}")
+                    st.markdown(f":green[✓] Subgenres: {genres} (not selected)")
                 
             # Character types
             if 'characters' in details:
@@ -65,14 +65,14 @@ def render_base_match_breakdown(
                     st.write(f"\nCharacter Types: {scores['character_score']}/10")
                     if chars['matches']:
                         for char_type in chars['matches']:
-                            st.write(f"✓ {char_type}")
+                            st.markdown(f":green[✓] {char_type}")
                     if chars['mismatches']:
                         for char_type in chars['mismatches']:
                             st.write(f"× {char_type}")
                 else:
-                    st.write("\nCharacter Types: (not selected)")
+                    st.write("\nCharacter Types (0/10)")
                     for char_type in chars['matches'] + chars['mismatches']:
-                        st.write(f"• {char_type}")
+                        st.markdown(f":green[✓] {char_type} (not selected)")
                         
             # Plot elements
             if 'plot' in details:
@@ -81,14 +81,14 @@ def render_base_match_breakdown(
                     st.write(f"\nPlot Elements: {scores['plot_score']}/10")
                     if plot['matches']:
                         for element in plot['matches']:
-                            st.write(f"✓ {element} (+{scores['plot_score']})")
+                            st.markdown(f":green[✓] {element} (+{scores['plot_score']})")
                     if plot['mismatches']:
                         for element in plot['mismatches']:
                             st.write(f"× {element}")
                 else:
-                    st.write("\nPlot Elements: (not selected)")
+                    st.write("\nPlot Elements (0/10)")
                     for element in plot['matches'] + plot['mismatches']:
-                        st.write(f"• {element}")
+                        st.markdown(f":green[✓] {element} (not selected)")
         
         with col2:
             # Source details
@@ -96,28 +96,31 @@ def render_base_match_breakdown(
             if source['selected']:
                 st.write(f"Source: {scores['source_score']}/15")
                 if source['match']:
-                    st.write(f"✓ Both {source['type1']}")
+                    st.markdown(f":green[✓] Both {source['type1']}")
                 else:
                     st.write(f"× {source['type1']} vs {source['type2']}")
             else:
-                st.write("Source: (not selected)")
-                st.write(f"• {source['type1']}")
+                st.write(f"Source ({scores['source_score']}/15)")
+                st.write(f"• {source['type1']} (not selected)")
                 
             # Theme elements
             if 'themes' in details:
                 themes = details['themes']
-                if themes['selected']:
+                if themes['selected'] or themes['matches'] or themes['mismatches']:
                     st.write(f"\nTheme Elements: {scores['theme_score']}/10")
                     if themes['matches']:
                         for theme in themes['matches']:
-                            st.write(f"✓ {theme}")
+                            st.markdown(f":green[✓] {theme} (+{scores['theme_score']})")
                     if themes['mismatches']:
                         for theme in themes['mismatches']:
                             st.write(f"× {theme}")
                 else:
-                    st.write("\nTheme Elements: (not selected)")
-                    for theme in themes['matches'] + themes['mismatches']:
-                        st.write(f"• {theme}")
+                    st.write(f"\nTheme Elements ({scores['theme_score']}/10)")
+                    if themes['matches'] or themes['mismatches']:
+                        for theme in themes['matches'] + themes['mismatches']:
+                            st.markdown(f":green[✓] {theme} (not selected)")
+                    else:
+                        st.write("• No theme elements")
                         
             # Tone
             if 'tone' in details:
@@ -125,12 +128,12 @@ def render_base_match_breakdown(
                 if tone['selected']:
                     st.write(f"\nTone: {scores['tone_score']}/5")
                     if tone['tone1'] == tone['tone2']:
-                        st.write(f"✓ Both {tone['tone1']}")
+                        st.markdown(f":green[✓] Both {tone['tone1']}")
                     else:
                         st.write(f"× {tone['tone1']} vs {tone['tone2']}")
                 else:
-                    st.write("\nTone: (not selected)")
-                    st.write(f"• {tone['tone1']}")
+                    st.write(f"\nTone ({scores['tone_score']}/5)")
+                    st.write(f"• {tone['tone1']} (not selected)")
         
         # Production section
         prod_total = scores['team_score'] + scores.get('network_score', 0) + scores.get('studio_score', 0)
@@ -142,74 +145,99 @@ def render_base_match_breakdown(
             # Network details
             if 'network' in details:
                 network = details['network']
-                st.write(f"Network: {scores['network_score']}/7")
-                if network['match']:
-                    st.write(f"✓ Both {network['name1']}")
+                if network['selected'] or network['match']:
+                    st.write(f"Network: {scores['network_score']}/7")
+                    if network['match']:
+                        st.markdown(f":green[✓] Both {network['name1']} (+{scores['network_score']})")
+                    else:
+                        st.write(f"× {network['name1']} vs {network['name2']}")
                 else:
-                    st.write(f"× {network['name1']} vs {network['name2']}")
+                    st.write(f"Network ({scores['network_score']}/7)")
+                    st.write(f"• {network['name1']} (not selected)")
             
             # Studio details
             if 'studio' in details:
                 studio = details['studio']
-                st.write(f"\nStudio: {scores['studio_score']}/3")
-                if studio['match']:
-                    st.write(f"✓ Both {studio['name1']}")
-                elif studio['name1'] and studio['name2']:
-                    st.write(f"× {studio['name1']} vs {studio['name2']}")
+                if studio['selected'] or studio['match']:
+                    st.write(f"\nStudio: {scores['studio_score']}/3")
+                    if studio['match']:
+                        st.markdown(f":green[✓] Both {studio['name1']} (+{scores['studio_score']})")
+                    elif studio['name1'] and studio['name2']:
+                        st.write(f"× {studio['name1']} vs {studio['name2']}")
+                    else:
+                        st.write(f"× Missing studio data")
                 else:
-                    st.write(f"× Missing studio data")
+                    st.write(f"\nStudio ({scores['studio_score']}/3)")
+                    st.write(f"• {studio['name1']} (not selected)")
         
         with col2:
             # Team details
             if 'team' in details:
                 team = details['team']
-                st.write(f"Team: {scores['team_score']}/20")
-                if team.get('shared_members'):
-                    for name, role in team['shared_members']:
-                        st.write(f"✓ {name} ({role})")
+                if team['selected'] or team.get('shared_members'):
+                    st.write(f"Team: {scores['team_score']}/20")
+                    if team.get('shared_members'):
+                        for name, role in team['shared_members']:
+                            st.markdown(f":green[✓] {name} ({role}) (+{scores['team_score']})")
+                else:
+                    st.write(f"Team ({scores['team_score']}/20)")
+                    st.write("• No shared team members (not selected)")
         
         # Format Match section
-        st.markdown(f"\n**Format Match** ({scores['format_total']}/15 points)")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Format details
-            if 'format' in details:
-                format = details['format']
-                if format['selected']:
-                    st.write(f"\nFormat Match: {scores['format_score']}/15")
-                    
-                    # Episodes
-                    st.write(f"Episodes: {scores['episode_score']}/8")
-                    if format['episode_match']:
-                        st.write(f"✓ Both {format['episode_count1']}")
+        if 'format' in details:
+            format = details['format']
+            if format['selected'] or format['episode_match'] or format['order_match']:
+                st.markdown(f"\n**Format Match** ({scores['format_total']}/5 points)")
+                
+                # Episodes
+                st.write(f"Episodes: {scores['episode_score']}/4")
+                if format['episode_count1'] == format['episode_count2']:
+                    st.markdown(f":green[✓] Both {format['episode_count1']} (+4)")
+                else:
+                    diff = abs(format['episode_count1'] - format['episode_count2'])
+                    if diff <= 2:
+                        st.markdown(f":green[✓] {format['episode_count1']} vs {format['episode_count2']} (+4)")
+                    elif diff <= 4:
+                        st.markdown(f":green[✓] {format['episode_count1']} vs {format['episode_count2']} (+3)")
+                    elif diff <= 6:
+                        st.markdown(f":green[✓] {format['episode_count1']} vs {format['episode_count2']} (+2)")
                     else:
                         st.write(f"× {format['episode_count1']} vs {format['episode_count2']}")
-                        
-                    # Order type
-                    st.write(f"\nOrder Type: {scores['order_score']}/4")
-                    if format['order_type1'] == format['order_type2']:
-                        st.write(f"✓ Both {format['order_type1']}")
-                    else:
-                        st.write(f"× {format['order_type1']} vs {format['order_type2']}")
+                    
+                # Order type
+                st.write(f"\nOrder Type: {scores['order_score']}/1")
+                if format['order_type1'] == format['order_type2']:
+                    st.markdown(f":green[✓] Both {format['order_type1']} (+1)")
                 else:
-                    st.write("\nFormat: (not selected)")
-                    st.write(f"• Episodes: {format['episode_count1']}")
-                    st.write(f"• Order Type: {format['order_type1']}")
+                    st.write(f"× {format['order_type1']} vs {format['order_type2']}")
+            else:
+                st.markdown(f"\n**Format ({scores['format_total']}/5)**")
+                st.write(f"• Episodes: {format['episode_count1']} (not selected)")
+                st.write(f"• Order Type: {format['order_type1']} (not selected)")
         
-        with col2:
-            # Timing
-            if 'date_score' in scores:
-                st.write(f"Timing: {scores['date_score']}/3")
-        
-        # Setting Match section (if present)
-        if 'setting_total' in scores:
-            st.markdown(f"\n**Setting Match** ({scores['setting_total']}/7 points)")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
+        # Setting Match section
+        if 'setting' in details:
+            setting = details['setting']
+            if setting['selected'] or setting['time_match'] or setting['location_match']:
+                st.markdown(f"\n**Setting Match** ({scores['setting_total']}/7 points)")
+                
+                # Time period
+                st.write(f"Time Period: {scores['time_score']}/4")
+                if setting['time_match']:
+                    st.markdown(f":green[✓] Both {setting['time']} (+4)")
+                else:
+                    st.write(f"× {setting['time']}")
+                
+                # Location
+                st.write(f"\nLocation: {scores['location_score']}/3")
+                if setting['location_match']:
+                    st.markdown(f":green[✓] Both {setting['location']} (+3)")
+                else:
+                    st.write(f"× {setting['location']}")
+            else:
+                st.markdown(f"\n**Setting ({scores['setting_total']}/7)**")
+                st.write(f"• Time Period: {setting['time']} (not selected)")
+                st.write(f"• Location: {setting['location']} (not selected)")
                 # Time setting
                 if 'time_setting' in details:
                     time = details['time_setting']

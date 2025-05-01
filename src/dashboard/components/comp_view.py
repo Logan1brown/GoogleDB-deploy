@@ -404,6 +404,34 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                                        criteria.get('location_setting_id') is not None)
                         })
                         
+                    # Add network details
+                    if details.get('network'):
+                        network_name = match.get('network_name', 'Unknown')
+                        details['network'].update({
+                            'name1': network_name,
+                            'name2': network_name,  # Same for criteria-based comparison
+                            'match': bool(comp_score.network),
+                            'selected': criteria.get('network_id') is not None
+                        })
+                    
+                    # Add studio details
+                    if details.get('studio'):
+                        studio_name = match.get('studio_name', 'Unknown')
+                        details['studio'].update({
+                            'name1': studio_name,
+                            'name2': studio_name,  # Same for criteria-based comparison
+                            'match': bool(comp_score.studio),
+                            'selected': criteria.get('studio_id') is not None
+                        })
+                    
+                    # Add team details
+                    if details.get('team'):
+                        team_members = match.get('team_members', [])
+                        details['team'].update({
+                            'shared_members': team_members,
+                            'selected': bool(criteria.get('team_member_ids'))
+                        })
+                        
                     # Add format details
                     if details.get('format'):
                         episode_count = match.get('episode_count')
