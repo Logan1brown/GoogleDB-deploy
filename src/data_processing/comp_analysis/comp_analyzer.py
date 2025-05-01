@@ -485,16 +485,8 @@ class CompAnalyzer:
             if not show_data.empty:
                 success_score = self.success_analyzer.calculate_success(show_data.iloc[0])
                 
-            # Only include shows that match all selected criteria
-            include_show = True
-            
-            # Check if show matches plot elements if any were selected
-            if criteria.get('plot_element_ids'):
-                target_plots = show.get('plot_element_ids', [])
-                if not any(plot_id in target_plots for plot_id in criteria['plot_element_ids']):
-                    include_show = False
-            
-            if include_show and score.total > 0:
+            # Add to results if score above threshold
+            if score.total > 0:  # Only include shows with some match
                 show_dict = show.to_dict()
                 show_dict['comp_score'] = score
                 show_dict['success_score'] = success_score
@@ -621,12 +613,12 @@ class CompAnalyzer:
             # Only match elements that were specifically selected in criteria
             plot_elements = 0
             if source_plots:  # Only check if criteria specified plot elements
-                # Only count matches for elements that were selected in criteria
-                matches = [plot_id for plot_id in target_plots if plot_id in source_plots]
-                if matches:  # Only award points if we match selected elements
-                    if len(matches) >= 1:
+                # Only match the plot elements that were selected in criteria
+                selected_matches = [plot_id for plot_id in source_plots if plot_id in target_plots]
+                if selected_matches:  # Only award points if we match selected elements
+                    if len(selected_matches) >= 1:
                         plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
-                    if len(matches) >= 2:
+                    if len(selected_matches) >= 2:
                         plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['second_match']
                 
             # Calculate theme element matches
