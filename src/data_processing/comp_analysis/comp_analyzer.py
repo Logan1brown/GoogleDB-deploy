@@ -246,7 +246,8 @@ class CompAnalyzer:
                 'thematic_elements': {
                     'points': 13,
                     'breakdown': {
-                        'per_match': 2.6        # 2.6 points per match up to 5
+                        'first_match': 9.75,    # 75% for first match
+                        'second_match': 3.25     # 25% for second match
                     }
                 },
                 # Tone (9 points)
@@ -616,6 +617,18 @@ class CompAnalyzer:
                 plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
             if num_matches >= 2:
                 plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['second_match']
+                
+            # Calculate theme element matches
+            source_themes = source.get('thematic_element_ids', []) if isinstance(source.get('thematic_element_ids'), list) else []
+            target_themes = target.get('thematic_element_ids', []) if isinstance(target.get('thematic_element_ids'), list) else []
+            shared_themes = set(source_themes) & set(target_themes)
+            num_theme_matches = len(shared_themes)
+            
+            theme_elements = 0
+            if num_theme_matches >= 1:
+                theme_elements += self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['first_match']
+            if num_theme_matches >= 2:
+                theme_elements += self.SCORING_CONFIG['content']['components']['thematic_elements']['breakdown']['second_match']
             
             tone = (
                 self.SCORING_CONFIG['content']['components']['tone']['breakdown']['direct_match']

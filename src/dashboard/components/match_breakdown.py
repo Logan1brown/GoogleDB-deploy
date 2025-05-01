@@ -62,6 +62,26 @@ def show_match_breakdown(show, expanded=False):
         else:
             st.write("• Missing plot element data")
         
+        # Theme Elements
+        themes = details.get('theme_elements', {})
+        st.write(f"\nTheme Elements ({scores.get('theme_score', 0)}/13):")
+        shared = themes.get('shared_themes', [])
+        if shared:
+            # First match gets 9.75 points (75%)
+            st.write(f"• {shared[0]} (+9.75)")
+            # Second match gets 3.25 points (25%)
+            if len(shared) > 1:
+                st.write(f"• {shared[1]} (+3.25)")
+            # Show remaining matches without points
+            for theme in shared[2:]:
+                st.write(f"• {theme}")
+        elif themes.get('themes1') and themes.get('themes2'):
+            st.write("No matching theme elements")
+            st.write(f"Show 1: {', '.join(themes['themes1'])}")
+            st.write(f"Show 2: {', '.join(themes['themes2'])}")
+        else:
+            st.write("• Missing theme element data")
+        
         # Character Types
         chars = details.get('character_types', {})
         st.write(f"\nCharacter Types ({scores.get('character_score', 0)}/14):")
