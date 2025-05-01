@@ -318,11 +318,13 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         st.write("")
                         st.write("Final breakdown:")
                         if season_score > 0:
-                            st.write(f"Season achievements: +{season_score:.1f}")
+                            st.write(f"Season achievements: +{int(season_score)}")
                         if episode_score > 0:
-                            st.write(f"Episode volume: +{episode_score:.1f}")
+                            st.write(f"Episode volume: +{int(episode_score)}")
                         if status_score > 0:
-                            st.write(f"Status modifier: +{status_score:.1f}")
+                            st.write(f"Status modifier: +{int(status_score)}")
+                    
+                    st.write("")
                     
                     # Get comp score components
                     comp_score = match.get('comp_score', None)
@@ -457,44 +459,27 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     st.write("")
                     
-                    with col2:
-                        # Order Type
-                        order_score = float(comp_score.get('order_type', 0))
-                        st.markdown(f"Order Type ({order_score:.1f}/1)")
-                        st.write(f"⚫ {match.get('order_type_name', 'None')}")
-                    
-                    st.write("")
-                    
                     # Setting Match Section
-                    setting_score = sum([
-                        float(comp_score.get('time_setting', 0)),
-                        float(comp_score.get('location', 0))
-                    ])
-                    st.markdown(f"### Setting Match _({setting_score:.1f}/7 points)_")
+                    setting_score = comp_score.time_setting + comp_score.location
+                    st.markdown(f"### Setting Match _({int(setting_score)}/7 points)_")
                     st.write("")
                     
                     # Setting Match Details
                     col1, col2 = st.columns(2)
                     with col1:
                         # Time Setting
-                        time_score = float(comp_score.get('time_setting', 0))
-                        st.markdown(f"Time Setting ({time_score:.1f}/4)")
+                        st.markdown(f"Time Setting ({int(comp_score.time_setting)}/4)")
                         st.write(f"⚫ {match.get('time_setting_name', 'None')}")
                     
                     with col2:
                         # Location
-                        location_score = float(comp_score.get('location', 0))
-                        st.markdown(f"Location ({location_score:.1f}/3)")
+                        st.markdown(f"Location ({int(comp_score.location)}/3)")
                         st.write(f"⚫ {match.get('location_setting_name', 'None')}")
-                    
-                    st.write("")
-                    
-                    st.write("")
                     
                     st.write("")
 
                     if match.get('longevity_score', 0) > 0:
-                        st.markdown(f"**Longevity Bonus** _(+{match.get('longevity_score', 0):.1f} points)_")
+                        st.markdown(f"**Longevity Bonus** _(+{int(match.get('longevity_score', 0))} points)_")
                         st.write("")
                     
                     # Key Roles
