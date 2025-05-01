@@ -194,7 +194,7 @@ def render_base_match_breakdown(
             if 'studio' in details and details['studio']['selected']:
                 studio = details['studio']
                 if studio['match']:
-                    st.write(f"🟢 Both {studio['name1']} (+3)")
+                    st.write(f"🟢 Both {studio['name1']} (+{studio['score']})"
                 elif studio.get('name1') and studio.get('name2'):
                     st.write(f"⚫ {studio['name1']} vs {studio['name2']}")
                 else:
