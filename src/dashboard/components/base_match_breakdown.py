@@ -251,7 +251,8 @@ def render_base_match_breakdown(
                     if format['order_type1'] == format['order_type2']:
                         st.write(f"🟢 Both {format['order_type1']} (+1)")
                     else:
-                        st.write(f"⚫ {format['order_type1']} vs {format['order_type2']}")
+                        # Show mismatch with actual score
+                        st.write(f"⚫ {format['order_type1']} vs {format['order_type2']} (+0)")
             else:
                 st.markdown(f"\n**Format ({scores['format_total']}/5)**")
                 

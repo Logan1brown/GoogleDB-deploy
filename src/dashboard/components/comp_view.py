@@ -442,13 +442,17 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     if details.get('format'):
                         episode_count = match.get('episode_count')
                         order_type = match.get('order_type_name', 'Unknown')
+                        match_order = match.get('order_type_name', 'Unknown')
+                        criteria_order = next((name for id, name in field_options['order_types'] 
+                                             if id == criteria.get('order_type_id')), 'Unknown')
+                        
                         details['format'].update({
                             'episode_count1': episode_count,
                             'episode_count2': episode_count,  # Same for criteria-based comparison
-                            'order_type1': order_type,
-                            'order_type2': order_type,  # Same for criteria-based comparison
-                            'selected': (criteria.get('episode_count') is not None or
-                                       criteria.get('order_type_id') is not None)
+                            'order_type1': match_order,
+                            'order_type2': criteria_order,
+                            'selected': bool(criteria.get('episode_count')) or \
+                                       criteria.get('order_type_id') is not None
                         })
                     
                     # Create match details dictionary
