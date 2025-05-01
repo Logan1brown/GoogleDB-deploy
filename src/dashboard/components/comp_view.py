@@ -89,9 +89,12 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         )
         state["criteria"]["genre_id"] = get_id_for_name(genre_name, field_options['genres']) if genre_name else None
         
+        # Deduplicate and sort subgenre options
+        unique_subgenres = sorted(set(name for _, name in field_options['subgenre_names']))
+        
         subgenre_names = st.multiselect(
             "Subgenres",
-            options=[name for _, name in field_options['subgenre_names']],
+            options=unique_subgenres,
             format_func=lambda x: x,
             key="subgenres",
             placeholder="Select subgenres..."
@@ -126,27 +129,36 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         )
         state["criteria"]["source_type_id"] = get_id_for_name(source_name, field_options['source_types']) if source_name else None
         
+        # Deduplicate and sort character type options
+        unique_char_types = sorted(set(name for _, name in field_options['character_types']))
+        
         char_names = st.multiselect(
             "Character Types",
-            options=[name for _, name in field_options['character_types']],
+            options=unique_char_types,
             format_func=lambda x: x,
             key="character_type_ids",
             placeholder="Select character types..."
         )
         state["criteria"]["character_type_ids"] = get_ids_for_names(char_names, field_options['character_types'])
         
+        # Deduplicate and sort plot element options
+        unique_plot_elements = sorted(set(name for _, name in field_options['plot_elements']))
+        
         plot_names = st.multiselect(
             "Plot Elements",
-            options=[name for _, name in field_options['plot_elements']],
+            options=unique_plot_elements,
             format_func=lambda x: x,
             key="plot_element_ids",
             placeholder="Select plot elements..."
         )
         state["criteria"]["plot_element_ids"] = get_ids_for_names(plot_names, field_options['plot_elements'])
         
+        # Deduplicate and sort theme element options
+        unique_theme_elements = sorted(set(name for _, name in field_options['thematic_elements']))
+        
         theme_names = st.multiselect(
             "Theme Elements",
-            options=[name for _, name in field_options['thematic_elements']],
+            options=unique_theme_elements,
             format_func=lambda x: x,
             key="theme_element_ids",
             placeholder="Select theme elements..."
@@ -196,11 +208,14 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         )
         state["criteria"]["network_id"] = get_id_for_name(network_name, field_options['networks']) if network_name else None
         
+        # Deduplicate and sort studio options
+        unique_studios = sorted(set(name for _, name in field_options['studios']))
+        
         studio_names = st.multiselect(
             "Studios",
-            options=[name for _, name in field_options['studios']],
+            options=unique_studios,
             format_func=lambda x: x,
-            key="studios",
+            key="studio_ids",
             placeholder="Select studios..."
         )
         state["criteria"]["studios"] = get_ids_for_names(studio_names, field_options['studios'])
