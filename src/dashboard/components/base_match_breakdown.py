@@ -108,6 +108,10 @@ def render_base_match_breakdown(
                     if plots.get('mismatches'):
                         for plot in plots['mismatches']:
                             st.write(f"⚫ {plot}")
+                    # If no matches, show all selected elements as mismatches
+                    elif not plots.get('matches'):
+                        for plot in plots['selected']:
+                            st.write(f"⚫ {plot}")
                 else:
                     # Show all plot elements as unselected
                     if 'plot' in matches and matches['plot']:
