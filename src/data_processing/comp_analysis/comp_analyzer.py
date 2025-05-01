@@ -491,7 +491,7 @@ class CompAnalyzer:
                 results.append(show_dict)
             
         # Sort by total match score first, only use success score as tiebreaker
-        results.sort(key=lambda x: (x['comp_score'].total, x['success_score']), reverse=True)
+        results.sort(key=lambda x: (x['comp_score'].total_score, x['success_score']), reverse=True)
         return results[:10]
         
     def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
