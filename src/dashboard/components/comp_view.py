@@ -393,42 +393,47 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     # Update selected status based on criteria
                     criteria = state.get('criteria', {})
                     
-                    if details.get('genre'):
-                        # Get genre info with safe defaults
-                        genre_name = match.get('genre_name') or 'Unknown'
-                        subgenres = [sg for sg in match.get('subgenre_names', []) if sg]  # Filter out None values
+                    # Initialize genre details if not present
+                    if 'genre' not in details:
+                        details['genre'] = {}
                         
-                        # Get IDs
-                        show_genre_id = match.get('genre_id')
-                        selected_genre_id = criteria.get('genre_id')
-                        show_subgenre_ids = match.get('subgenres', [])
-                        selected_subgenre_ids = criteria.get('subgenres', [])
-                        
-                        # Create ID -> name mappings from field options
-                        genre_names = {id: name for id, name in field_options['genres']}
-                        subgenre_names = {id: name for id, name in field_options['subgenre_names']}
-                        
-                        # Get genre names from field options
-                        show_genre = genre_names.get(show_genre_id, 'Unknown')
-                        selected_genre = genre_names.get(selected_genre_id, 'Unknown')
-                        
-                        # Split into matches and mismatches using IDs
-                        matching_ids = [sg_id for sg_id in show_subgenre_ids if sg_id in selected_subgenre_ids]
-                        mismatched_ids = [sg_id for sg_id in show_subgenre_ids if sg_id not in selected_subgenre_ids]
-                        
-                        # Convert IDs to names using field options
-                        matches = [subgenre_names.get(sg_id, 'Unknown') for sg_id in matching_ids]
-                        mismatches = [subgenre_names.get(sg_id, 'Unknown') for sg_id in mismatched_ids]
-                        
-                        details['genre'].update({
-                            'primary': selected_genre,  # Show selected genre
-                            'shared_subgenres': matches,  # Use matches as shared subgenres
-                            'subgenre_points': comp_score.genre_overlap or 0,
-                            'subgenre_matches': matches,
-                            'subgenre_mismatches': mismatches,
-                            'selected': True  # Genre is always selected since it's required
-                        })
+                    # Get genre info with safe defaults
+                    show_genre_id = match.get('genre_id')
+                    selected_genre_id = criteria.get('genre_id')
+                    show_subgenre_ids = match.get('subgenres', [])
+                    selected_subgenre_ids = criteria.get('subgenres', [])
                     
+                    # Create ID -> name mappings from field options
+                    genre_names = {id: name for id, name in field_options['genres']}
+                    subgenre_names = {id: name for id, name in field_options['subgenre_names']}
+                    
+                    # Get genre names from field options
+                    show_genre = genre_names.get(show_genre_id, match.get('genre_name', 'Unknown'))
+                    selected_genre = genre_names.get(selected_genre_id, 'Unknown')
+                    
+                    # Genre match if IDs match
+                    genre_match = show_genre_id == selected_genre_id and show_genre_id is not None
+                    
+                    # Split into matches and mismatches using IDs
+                    matching_ids = [sg_id for sg_id in show_subgenre_ids if sg_id in selected_subgenre_ids]
+                    mismatched_ids = [sg_id for sg_id in show_subgenre_ids if sg_id not in selected_subgenre_ids]
+                    
+                    # Convert IDs to names using field options
+                    matches = [subgenre_names.get(sg_id, 'Unknown') for sg_id in matching_ids]
+                    mismatches = [subgenre_names.get(sg_id, name) for sg_id, name in zip(mismatched_ids, match.get('subgenre_names', []))]
+                    
+                    # Update genre details
+                    details['genre'].update({
+                        'primary': show_genre,
+                        'primary_match': genre_match,
+                        'subgenre_points': len(matching_ids),
+                        'shared_subgenres': matches,
+                        'subgenre_matches': matches,
+                        'subgenre_mismatches': mismatches,
+                        'selected': selected_genre_id is not None,
+                        'score': scores['genre_score']
+                    })
+                        
                     # Add source details
                     if details.get('source'):
                         source_name = match.get('source_type_name', 'Unknown')
