@@ -388,8 +388,8 @@ class CompAnalyzer:
                             ids = row[array_col]
                             names = row[name_col]
                             
-                            # Handle None values and convert to lists if needed
-                            if pd.isna(ids) or pd.isna(names):
+                            # Handle None/empty values
+                            if ids is None or names is None or len(str(ids).strip()) == 0 or len(str(names).strip()) == 0:
                                 continue
                                 
                             # Convert string representation of lists to actual lists
