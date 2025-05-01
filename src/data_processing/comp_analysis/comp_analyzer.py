@@ -566,11 +566,15 @@ class CompAnalyzer:
             )
             
             # Calculate subgenre overlap - full points for any match
-            source_subgenres = source.get('subgenres', []) if isinstance(source.get('subgenres'), list) else []
-            target_subgenres = target.get('subgenres', []) if isinstance(target.get('subgenres'), list) else []
+            # For criteria-based matching, source contains the criteria and target is the show
+            criteria_subgenres = source.get('subgenres', []) if isinstance(source.get('subgenres'), list) else []
+            show_subgenres = target.get('subgenres', []) if isinstance(target.get('subgenres'), list) else []
+            
+            # Check if any selected subgenre ID is in the show's subgenres
+            # Only give points if we have selected subgenres and at least one matches
             genre_overlap = (
                 self.SCORING_CONFIG['content']['components']['genre']['breakdown']['subgenre_match']
-                if set(source_subgenres).intersection(set(target_subgenres))
+                if criteria_subgenres and set(criteria_subgenres).intersection(set(show_subgenres))
                 else 0
             )
             

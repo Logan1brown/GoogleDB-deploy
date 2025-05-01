@@ -343,12 +343,27 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         genre_name = match.get('genre_name') or 'Unknown'
                         subgenres = [sg for sg in match.get('subgenre_names', []) if sg]  # Filter out None values
                         
-                        # Get selected subgenres
-                        selected_subgenres = criteria.get('subgenres', [])
+                        # Get selected subgenre IDs and names
+                        selected_subgenre_ids = criteria.get('subgenres', [])
+                        selected_subgenre_names = [
+                            name for id, name in field_options['subgenre_names']
+                            if id in selected_subgenre_ids
+                        ]
                         
-                        # Split subgenres into matches and mismatches
-                        matches = [sg for sg in subgenres if sg in selected_subgenres]
-                        mismatches = [sg for sg in subgenres if sg not in selected_subgenres]
+                        # Split subgenres into matches and mismatches based on IDs
+                        show_subgenre_ids = match.get('subgenres', [])
+                        
+                        # Get matching subgenre names
+                        matches = [
+                            name for id, name in field_options['subgenre_names']
+                            if id in show_subgenre_ids and id in selected_subgenre_ids
+                        ]
+                        
+                        # Get mismatched subgenre names
+                        mismatches = [
+                            name for id, name in field_options['subgenre_names']
+                            if id in show_subgenre_ids and id not in selected_subgenre_ids
+                        ]
                         
                         details['genre'].update({
                             'primary': genre_name,
