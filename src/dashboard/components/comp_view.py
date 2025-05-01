@@ -219,6 +219,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         comp_analyzer: CompAnalyzer instance for getting similar shows
         state: Page state dictionary containing criteria
     """
+    # Get field options for lookups
+    field_options = comp_analyzer.get_field_options()
     if state.get("criteria"):
         # Get results based on criteria
         results = comp_analyzer.find_by_criteria(state["criteria"])
