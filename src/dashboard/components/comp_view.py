@@ -378,27 +378,31 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         genre_name = match.get('genre_name') or 'Unknown'
                         subgenres = [sg for sg in match.get('subgenre_names', []) if sg]  # Filter out None values
                         
-                        # Get selected subgenre IDs and names
+                        # Get IDs
+                        show_genre_id = match.get('genre_id')
+                        selected_genre_id = criteria.get('genre_id')
+                        show_subgenre_ids = match.get('subgenres', [])
                         selected_subgenre_ids = criteria.get('subgenres', [])
                         
-                        # Get show's subgenre IDs and names
-                        show_subgenre_ids = match.get('subgenres', [])
-                        show_subgenre_names = match.get('subgenre_names', [])
+                        # Create ID -> name mappings from field options
+                        genre_names = {id: name for id, name in field_options['genres']}
+                        subgenre_names = {id: name for id, name in field_options['subgenres']}
                         
-                        # Create ID to name mapping for the show's subgenres
-                        show_subgenre_map = dict(zip(show_subgenre_ids, show_subgenre_names))
+                        # Get genre names from field options
+                        show_genre = genre_names.get(show_genre_id, 'Unknown')
+                        selected_genre = genre_names.get(selected_genre_id, 'Unknown')
                         
-                        # Split into matches and mismatches using IDs first
+                        # Split into matches and mismatches using IDs
                         matching_ids = [sg_id for sg_id in show_subgenre_ids if sg_id in selected_subgenre_ids]
                         mismatched_ids = [sg_id for sg_id in show_subgenre_ids if sg_id not in selected_subgenre_ids]
                         
-                        # Convert IDs to names for display
-                        matches = [show_subgenre_map[sg_id] for sg_id in matching_ids]
-                        mismatches = [show_subgenre_map[sg_id] for sg_id in mismatched_ids]
+                        # Convert IDs to names using field options
+                        matches = [subgenre_names.get(sg_id, 'Unknown') for sg_id in matching_ids]
+                        mismatches = [subgenre_names.get(sg_id, 'Unknown') for sg_id in mismatched_ids]
                         
                         details['genre'].update({
-                            'primary': genre_name,
-                            'shared_subgenres': subgenres,
+                            'primary': selected_genre,  # Show selected genre
+                            'shared_subgenres': matches,  # Use matches as shared subgenres
                             'subgenre_points': comp_score.genre_overlap or 0,
                             'subgenre_matches': matches,
                             'subgenre_mismatches': mismatches,
@@ -416,19 +420,25 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Add character details
                     if details.get('characters'):
-                        char_types = match.get('character_type_names', [])
+                        # Get IDs
+                        show_char_ids = match.get('character_type_ids', [])
+                        selected_char_ids = criteria.get('character_type_ids', [])
+                        
+                        # Create ID -> name mapping from field options
+                        char_names = {id: name for id, name in field_options['character_types']}
+                        
+                        # Find matches and mismatches using IDs only
+                        matches = [char_names[id] for id in selected_char_ids if id in show_char_ids]
+                        mismatches = [char_names[id] for id in show_char_ids if id not in selected_char_ids]
+                        
                         details['characters'].update({
-                            'matches': char_types if comp_score.character_types > 0 else [],
-                            'mismatches': [] if comp_score.character_types > 0 else char_types,
-                            'selected': bool(criteria.get('character_type_ids'))
+                            'matches': matches,
+                            'mismatches': mismatches,
+                            'selected': bool(selected_char_ids)
                         })
                     
                     # Add plot details
                     if details.get('plot'):
-                        # Get selected plot element IDs and names
-                        selected_plot_ids = criteria.get('plot_element_ids', [])
-                        selected_plot_names = [name for id, name in field_options['plot_elements'] if id in selected_plot_ids]
-                        
                         # Get IDs
                         show_plot_ids = match.get('plot_element_ids', [])
                         selected_plot_ids = criteria.get('plot_element_ids', [])
@@ -448,74 +458,146 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     
                     # Add theme details
                     if details.get('themes'):
-                        theme_elements = match.get('theme_element_names', [])
+                        # Get IDs
+                        show_theme_ids = match.get('thematic_element_ids', [])
+                        selected_theme_ids = criteria.get('thematic_element_ids', [])
+                        
+                        # Create ID -> name mapping from field options
+                        theme_names = {id: name for id, name in field_options['theme_elements']}
+                        
+                        # Find matches and mismatches using IDs only
+                        matches = [theme_names[id] for id in selected_theme_ids if id in show_theme_ids]
+                        mismatches = [theme_names[id] for id in show_theme_ids if id not in selected_theme_ids]
+                        
                         details['themes'].update({
-                            'matches': theme_elements if comp_score.theme_elements > 0 else [],
-                            'mismatches': [] if comp_score.theme_elements > 0 else theme_elements,
-                            'selected': bool(criteria.get('theme_element_ids'))
+                            'matches': matches,
+                            'mismatches': mismatches,
+                            'selected': bool(selected_theme_ids)
                         })
                     
                     # Add tone details
                     if details.get('tone'):
-                        tone_name = match.get('tone_name', 'Unknown')
+                        # Get IDs
+                        show_tone_id = match.get('tone_id')
+                        selected_tone_id = criteria.get('tone_id')
+                        
+                        # Create ID -> name mapping from field options
+                        tone_names = {id: name for id, name in field_options['tones']}
+                        
+                        # Get tone names from field options
+                        show_tone_name = tone_names.get(show_tone_id, 'Unknown')
+                        selected_tone_name = tone_names.get(selected_tone_id, 'Unknown')
+                        
                         details['tone'].update({
-                            'tone1': tone_name,
-                            'tone2': tone_name,  # Same for both since this is criteria-based comparison
-                            'selected': criteria.get('tone_id') is not None
+                            'tone1': selected_tone_name,
+                            'tone2': show_tone_name,
+                            'selected': selected_tone_id is not None
                         })
                     
                     # Add setting details
                     if details.get('setting'):
+                        # Get IDs
+                        show_time_id = match.get('time_setting_id')
+                        show_location_id = match.get('location_setting_id')
+                        selected_time_id = criteria.get('time_setting_id')
+                        selected_location_id = criteria.get('location_setting_id')
+                        
+                        # Create ID -> name mappings from field options
+                        time_names = {id: name for id, name in field_options['time_settings']}
+                        location_names = {id: name for id, name in field_options['location_settings']}
+                        
+                        # Get setting names from field options
+                        show_time = time_names.get(show_time_id, 'Unknown')
+                        show_location = location_names.get(show_location_id, 'Unknown')
+                        
                         details['setting'].update({
-                            'time': match.get('time_setting_name', 'Unknown'),
-                            'location': match.get('location_setting_name', 'Unknown'),
-                            'selected': (criteria.get('time_setting_id') is not None or 
-                                       criteria.get('location_setting_id') is not None)
+                            'time': show_time,
+                            'location': show_location,
+                            'selected': (selected_time_id is not None or selected_location_id is not None)
                         })
                         
                     # Add network details
                     if details.get('network'):
-                        network_name = match.get('network_name', 'Unknown')
+                        # Get IDs
+                        show_network_id = match.get('network_id')
+                        selected_network_id = criteria.get('network_id')
+                        
+                        # Create ID -> name mapping from field options
+                        network_names = {id: name for id, name in field_options['networks']}
+                        
+                        # Get network names from field options
+                        show_network = network_names.get(show_network_id, 'Unknown')
+                        selected_network = network_names.get(selected_network_id, 'Unknown')
+                        
                         details['network'].update({
-                            'name1': network_name,
-                            'name2': network_name,  # Same for criteria-based comparison
-                            'match': bool(comp_score.network),
-                            'selected': criteria.get('network_id') is not None
+                            'name1': selected_network,
+                            'name2': show_network,
+                            'match': show_network_id == selected_network_id,
+                            'selected': selected_network_id is not None
                         })
                     
                     # Add studio details
                     if details.get('studio'):
-                        studio_name = match.get('studio_name', 'Unknown')
+                        # Get IDs
+                        show_studio_id = match.get('studio_id')
+                        selected_studio_id = criteria.get('studio_id')
+                        
+                        # Create ID -> name mapping from field options
+                        studio_names = {id: name for id, name in field_options['studios']}
+                        
+                        # Get studio names from field options
+                        show_studio = studio_names.get(show_studio_id, 'Unknown')
+                        selected_studio = studio_names.get(selected_studio_id, 'Unknown')
+                        
                         details['studio'].update({
-                            'name1': studio_name,
-                            'name2': studio_name,  # Same for criteria-based comparison
-                            'match': bool(comp_score.studio),
-                            'selected': criteria.get('studio_id') is not None
+                            'name1': selected_studio,
+                            'name2': show_studio,
+                            'match': show_studio_id == selected_studio_id,
+                            'selected': selected_studio_id is not None
                         })
                     
                     # Add team details
                     if details.get('team'):
-                        team_members = match.get('team_members', [])
+                        # Get IDs
+                        show_team_ids = match.get('team_member_ids', [])
+                        selected_team_ids = criteria.get('team_member_ids', [])
+                        
+                        # Create ID -> name mapping from field options
+                        team_names = {id: name for id, name in field_options['team_members']}
+                        
+                        # Get shared members using IDs
+                        shared_ids = [id for id in show_team_ids if id in selected_team_ids]
+                        shared_members = [team_names.get(id, 'Unknown') for id in shared_ids]
+                        
                         details['team'].update({
-                            'shared_members': team_members,
-                            'selected': bool(criteria.get('team_member_ids'))
+                            'shared_members': shared_members,
+                            'selected': bool(selected_team_ids)
                         })
                         
                     # Add format details
                     if details.get('format'):
-                        episode_count = match.get('episode_count')
-                        order_type = match.get('order_type_name', 'Unknown')
-                        match_order = match.get('order_type_name', 'Unknown')
-                        criteria_order = next((name for id, name in field_options['order_types'] 
-                                             if id == criteria.get('order_type_id')), 'Unknown')
+                        # Get episode counts
+                        show_episode_count = match.get('episode_count')
+                        selected_episode_count = criteria.get('episode_count')
+                        
+                        # Get order type IDs
+                        show_order_id = match.get('order_type_id')
+                        selected_order_id = criteria.get('order_type_id')
+                        
+                        # Create ID -> name mapping from field options
+                        order_names = {id: name for id, name in field_options['order_types']}
+                        
+                        # Get order type names from field options
+                        show_order = order_names.get(show_order_id, 'Unknown')
+                        selected_order = order_names.get(selected_order_id, 'Unknown')
                         
                         details['format'].update({
-                            'episode_count1': episode_count,
-                            'episode_count2': episode_count,  # Same for criteria-based comparison
-                            'order_type1': match_order,
-                            'order_type2': criteria_order,
-                            'selected': bool(criteria.get('episode_count')) or \
-                                       criteria.get('order_type_id') is not None
+                            'episode_count1': selected_episode_count,
+                            'episode_count2': show_episode_count,
+                            'order_type1': selected_order,
+                            'order_type2': show_order,
+                            'selected': (selected_episode_count is not None or 
+                                        selected_order_id is not None)
                         })
                     
                     # Create match details dictionary
