@@ -186,14 +186,15 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Format criteria
         st.markdown("### Format")
         
-        state["criteria"]["episode_count"] = st.number_input(
+        eps = st.number_input(
             "Episode Count",
             min_value=1,
             max_value=100,
-            value=10,
+            value=None,
             key="episode_count",
             help="Episode count proximity (2 within ±2, 1.5 within ±4, 1 within ±6)"
         )
+        state["criteria"]["episode_count"] = eps if eps > 0 else None
         
         order_name = st.selectbox(
             "Order Type",
@@ -375,8 +376,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                             'location2': match.get('location_setting_name', 'Unknown')  # Same since this is base criteria
                         },
                         'format': {
-                            'eps_per_season1': match.get('episode_count'),
-                            'eps_per_season2': match.get('episode_count'),  # Same since this is base criteria
+                            'eps_per_season1': str(match.get('episode_count', 'Unknown')),
+                            'eps_per_season2': str(match.get('episode_count', 'Unknown')),  # Same since this is base criteria
                             'order_type1': match.get('order_type_name', 'Unknown'),
                             'order_type2': match.get('order_type_name', 'Unknown')  # Same since this is base criteria
                         },

@@ -15,33 +15,33 @@ from src.data_processing.success_analysis import SuccessAnalyzer
 
 @dataclass
 class CompScore:
-    """Score breakdown for a comparable show match (86 points total)."""
+    """Score breakdown for a comparable show match (100 points total)."""
     
-    # Content Match (70 points)
+    # Content Match (72 points)
     genre_base: float     # Base genre match (9 points)
     genre_overlap: float  # Subgenre overlap (8 points)
-    source_type: float   # Source type match (8 points)
+    source_type: float   # Source type match (10 points)
     character_types: float  # Character type matches (14 points)
     plot_elements: float   # Plot element matches (12 points)
     theme_elements: float  # Theme element matches (13 points)
-    tone: float          # Tone match (8 points)
+    tone: float          # Tone match (9 points)
     time_setting: float  # Time period match (4 points)
     location: float      # Location match (3 points)
     
-    # Production Match (13 points)
+    # Production Match (23 points)
     network: float       # Network match (5 points)
     studio: float        # Studio matches (3 points)
     team: float         # Team overlap (5 points)
     
-    # Format Match (3 points)
-    episodes: float      # Episode count similarity (2 points)
+    # Format Match (5 points)
+    episodes: float      # Episode count similarity (4 points)
     order_type: float   # Order type match (1 point)
 
     @property
     def total(self) -> float:
         """Calculate total score across all components."""
         return sum([
-            # Content (70 points)
+            # Content (72 points)
             self.genre_base,
             self.genre_overlap,
             self.source_type,
@@ -52,19 +52,19 @@ class CompScore:
             self.time_setting,
             self.location,
             
-            # Production (13 points)
+            # Production (23 points)
             self.network,
             self.studio,
             self.team,
             
-            # Format (3 points)
+            # Format (5 points)
             self.episodes,
             self.order_type
         ])
 
     @property
     def content_score(self) -> float:
-        """Calculate content match score (70 points)."""
+        """Calculate content match score (72 points)."""
         return sum([
             self.genre_base,
             self.genre_overlap,
@@ -79,7 +79,7 @@ class CompScore:
 
     @property
     def production_score(self) -> float:
-        """Calculate production match score (13 points)."""
+        """Calculate production match score (23 points)."""
         return sum([
             self.network,
             self.studio,
@@ -88,7 +88,7 @@ class CompScore:
 
     @property
     def format_score(self) -> float:
-        """Calculate format match score (3 points)."""
+        """Calculate format match score (5 points)."""
         return sum([
             self.episodes,
             self.order_type
@@ -112,11 +112,11 @@ class CompAnalyzer:
                         'subgenre_match': 8     # 1.6 points per subgenre match up to 5
                     }
                 },
-                # Source Type (8 points)
+                # Source Type (10 points)
                 'source_type': {
-                    'points': 8,
+                    'points': 10,
                     'breakdown': {
-                        'direct_match': 8      # Direct source type match
+                        'direct_match': 10      # Direct source type match
                     }
                 },
                 # Character Types (14 points)
@@ -141,11 +141,11 @@ class CompAnalyzer:
                         'per_match': 2.6        # 2.6 points per match up to 5
                     }
                 },
-                # Tone (8 points)
+                # Tone (9 points)
                 'tone': {
-                    'points': 8,
+                    'points': 9,
                     'breakdown': {
-                        'direct_match': 8      # Direct tone match
+                        'direct_match': 9      # Direct tone match
                     }
                 },
                 # Setting (7 points)
@@ -192,13 +192,13 @@ class CompAnalyzer:
         'format': {
             'total_points': 3,
             'components': {
-                # Episode Count (2 points)
+                # Episode Count (4 points)
                 'episodes': {
-                    'points': 2,
+                    'points': 4,
                     'breakdown': {
-                        'within_2': 2,          # Within 2 episodes
-                        'within_4': 1.5,        # Within 4 episodes
-                        'within_6': 1           # Within 6 episodes
+                        'within_2': 4,          # Within 2 episodes
+                        'within_4': 3,        # Within 4 episodes
+                        'within_6': 2           # Within 6 episodes
                     }
                 },
                 # Order Type (1 point)
