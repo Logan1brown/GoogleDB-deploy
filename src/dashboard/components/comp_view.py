@@ -310,98 +310,55 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                     st.write('Comp score data:')
                     st.write(comp_score)
                     
-                    # Build scores dict
-                    scores = {
-                        'genre_score': (comp_score.genre_base or 0) + (comp_score.genre_overlap or 0),
-                        'source_score': comp_score.source_type or 0,
-                        'character_score': comp_score.character_types or 0,
-                        'plot_score': comp_score.plot_elements or 0,
-                        'theme_score': comp_score.theme_elements or 0,
-                        'tone_score': comp_score.tone or 0,
-                        'time_score': comp_score.time_setting or 0,
-                        'location_score': comp_score.location or 0,
-                        'team_score': comp_score.team or 0,
-                        'episode_score': comp_score.episodes or 0,
-                        'order_score': comp_score.order_type or 0,
-                        'network_score': comp_score.network or 0,
-                        'studio_score': comp_score.studio or 0,
-                        'date_score': 0,  # We don't track this yet
-                        'content_total': (
-                            (comp_score.genre_base or 0) +
-                            (comp_score.genre_overlap or 0) +
-                            (comp_score.source_type or 0) +
-                            (comp_score.character_types or 0) +
-                            (comp_score.plot_elements or 0) +
-                            (comp_score.theme_elements or 0) +
-                            (comp_score.tone or 0) +
-                            (comp_score.time_setting or 0) +
-                            (comp_score.location or 0)
-                        ),
-                        'format_total': (comp_score.episodes or 0) + (comp_score.order_type or 0),
-                        'setting_total': (comp_score.time_setting or 0) + (comp_score.location or 0)
-                    }
-                    scores['total'] = scores['content_total'] + scores['team_score'] + scores['format_total']
+                    # Get display scores and details
+                    scores = comp_score.to_display_dict()
                     
-                    # Build details dict
-                    details = {
-                        'genre': {
-                            'primary_match': (comp_score.genre_base or 0) > 0,
-                            'primary': match.get('genre_name', 'Unknown'),
-                            'shared_subgenres': match.get('subgenre_names', []),
-                            'subgenre_points': comp_score.genre_overlap
-                        },
-                        'source': {
-                            'match': (comp_score.source_type or 0) > 0,
-                            'type1': match.get('source_type_name', 'Unknown'),
-                            'type2': match.get('source_type_name', 'Unknown')  # Same since this is base criteria
-                        },
-                        'character_types': {
-                            'matches': match.get('character_type_names', []),
-                            'mismatches': []  # No mismatches since this is base criteria
-                        },
-                        'plot_elements': {
-                            'matches': match.get('plot_element_names', []),
-                            'mismatches': []  # No mismatches since this is base criteria
-                        },
-                        'theme_elements': {
-                            'matches': match.get('theme_element_names', []),
-                            'mismatches': []  # No mismatches since this is base criteria
-                        },
-                        'tone': {
-                            'match': (comp_score.tone or 0) > 0,
-                            'tone1': match.get('tone_name', 'Unknown'),
-                            'tone2': match.get('tone_name', 'Unknown')  # Same since this is base criteria
-                        },
-                        'time_setting': {
-                            'match': (comp_score.time_setting or 0) > 0,
-                            'time1': match.get('time_setting_name', 'Unknown'),
-                            'time2': match.get('time_setting_name', 'Unknown')  # Same since this is base criteria
-                        },
-                        'location': {
-                            'match': (comp_score.location or 0) > 0,
-                            'location1': match.get('location_setting_name', 'Unknown'),
-                            'location2': match.get('location_setting_name', 'Unknown')  # Same since this is base criteria
-                        },
-                        'format': {
-                            'eps_per_season1': str(match.get('episode_count', 'Unknown')),
-                            'eps_per_season2': str(match.get('episode_count', 'Unknown')),  # Same since this is base criteria
-                            'order_type1': match.get('order_type_name', 'Unknown'),
-                            'order_type2': match.get('order_type_name', 'Unknown')  # Same since this is base criteria
-                        },
-                        'network': {
-                            'match': (comp_score.network or 0) > 0,
-                            'name1': match.get('network_name', 'Unknown'),
-                            'name2': match.get('network_name', 'Unknown')  # Same since this is base criteria
-                        },
-                        'studio': {
-                            'match': (comp_score.studio or 0) > 0,
-                            'name1': match.get('studio_name', 'Unknown'),
-                            'name2': match.get('studio_name', 'Unknown')  # Same since this is base criteria
-                        },
-                        'team': {
-                            'shared_members': [(name, 'Team Member') for name in match.get('team_names', [])]
-                        }
-                    }
+                    # Get base match details
+                    details = comp_score.get_match_details()
+                    
+                    # Add additional show-specific details
+                    details['genre'].update({
+                        'primary': match.get('genre_name', 'Unknown'),
+                        'shared_subgenres': match.get('subgenre_names', []),
+                        'subgenre_points': comp_score.genre_overlap
+                    })
+                    
+                    # Add source details
+                    details['source'].update({
+                        'name': match.get('source_type_name', 'Unknown')
+                    })
+                    
+                    # Add character details
+                    details['characters'].update({
+                        'types': match.get('character_type_names', [])
+                    })
+                    
+                    # Add plot details
+                    details['plot'].update({
+                        'elements': match.get('plot_element_names', [])
+                    })
+                    
+                    # Add theme details
+                    details['themes'].update({
+                        'elements': match.get('theme_element_names', [])
+                    })
+                    
+                    # Add tone details
+                    details['tone'].update({
+                        'name': match.get('tone_name', 'Unknown')
+                    })
+                    
+                    # Add setting details
+                    details['setting'].update({
+                        'time': match.get('time_setting_name', 'Unknown'),
+                        'location': match.get('location_setting_name', 'Unknown')
+                    })
+                    
+                    # Display scores and details
+                    st.write('### Score Breakdown')
+                    st.write(scores)
+                    st.write('### Match Details')
+                    st.write(details)
                     
                     # Use base match breakdown
                     # Call base match breakdown component

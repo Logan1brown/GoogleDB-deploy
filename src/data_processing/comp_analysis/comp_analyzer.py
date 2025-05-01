@@ -13,29 +13,92 @@ from src.data_processing.analyze_shows import ShowsAnalyzer
 from src.data_processing.success_analysis import SuccessAnalyzer
 
 
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Set, Tuple, Any
+
 @dataclass
 class CompScore:
     """Score breakdown for a comparable show match (100 points total)."""
     
     # Content Match (72 points)
-    genre_base: float     # Base genre match (9 points)
-    genre_overlap: float  # Subgenre overlap (8 points)
-    source_type: float   # Source type match (10 points)
-    character_types: float  # Character type matches (14 points)
-    plot_elements: float   # Plot element matches (12 points)
-    theme_elements: float  # Theme element matches (13 points)
-    tone: float          # Tone match (9 points)
-    time_setting: float  # Time period match (4 points)
-    location: float      # Location match (3 points)
+    genre_base: float = field(default=0)     # Base genre match (9 points)
+    genre_overlap: float = field(default=0)  # Subgenre overlap (8 points)
+    source_type: float = field(default=0)   # Source type match (10 points)
+    character_types: float = field(default=0)  # Character type matches (14 points)
+    plot_elements: float = field(default=0)   # Plot element matches (12 points)
+    theme_elements: float = field(default=0)  # Theme element matches (13 points)
+    tone: float = field(default=0)          # Tone match (9 points)
+    time_setting: float = field(default=0)  # Time period match (4 points)
+    location: float = field(default=0)      # Location match (3 points)
     
     # Production Match (23 points)
-    network: float       # Network match (5 points)
-    studio: float        # Studio matches (3 points)
-    team: float         # Team overlap (5 points)
+    network: float = field(default=0)       # Network match (5 points)
+    studio: float = field(default=0)        # Studio matches (3 points)
+    team: float = field(default=0)         # Team overlap (5 points)
     
     # Format Match (5 points)
-    episodes: float      # Episode count similarity (4 points)
-    order_type: float   # Order type match (1 point)
+    episodes: float = field(default=0)      # Episode count similarity (4 points)
+    order_type: float = field(default=0)   # Order type match (1 point)
+    
+    def __post_init__(self):
+        """Validate all scores are non-negative."""
+        for field_name, value in self.__dict__.items():
+            if not isinstance(value, (int, float)) or value < 0:
+                setattr(self, field_name, 0)
+    
+    def to_display_dict(self) -> Dict[str, Any]:
+        """Convert scores to a display-friendly dictionary."""
+        return {
+            'genre_score': self.genre_base + self.genre_overlap,
+            'source_score': self.source_type,
+            'character_score': self.character_types,
+            'plot_score': self.plot_elements,
+            'theme_score': self.theme_elements,
+            'tone_score': self.tone,
+            'time_score': self.time_setting,
+            'location_score': self.location,
+            'team_score': self.team,
+            'episode_score': self.episodes,
+            'order_score': self.order_type,
+            'network_score': self.network,
+            'studio_score': self.studio,
+            'date_score': 0,  # Not tracked yet
+            'content_total': self.content_score,
+            'format_total': self.format_score,
+            'setting_total': self.time_setting + self.location
+        }
+    
+    def get_match_details(self) -> Dict[str, Any]:
+        """Get match details for display."""
+        return {
+            'genre': {
+                'primary_match': self.genre_base > 0,
+                'subgenre_points': self.genre_overlap
+            },
+            'source': {
+                'match': self.source_type > 0
+            },
+            'characters': {
+                'match': self.character_types > 0
+            },
+            'plot': {
+                'match': self.plot_elements > 0
+            },
+            'themes': {
+                'match': self.theme_elements > 0
+            },
+            'tone': {
+                'match': self.tone > 0
+            },
+            'setting': {
+                'time_match': self.time_setting > 0,
+                'location_match': self.location > 0
+            },
+            'format': {
+                'episode_match': self.episodes > 0,
+                'order_match': self.order_type > 0
+            }
+        }
 
     @property
     def total(self) -> float:
