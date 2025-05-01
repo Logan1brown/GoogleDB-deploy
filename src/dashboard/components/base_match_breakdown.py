@@ -98,8 +98,11 @@ def render_base_match_breakdown(
                         for plot in plots['mismatches']:
                             st.write(f"⚫ {plot}")
                 else:
-                    if plots.get('matches'):
-                        for plot in plots['matches']:
+                    if plots.get('plot_element_names'):
+                        for plot in plots['plot_element_names']:
+                            st.write(f"⚫ {plot} (not selected)")
+                    elif plots.get('matches') or plots.get('mismatches'):
+                        for plot in (plots.get('matches', []) + plots.get('mismatches', [])):
                             st.write(f"⚫ {plot} (not selected)")
                     else:
                         st.write("⚫ No plot elements")
@@ -163,37 +166,53 @@ def render_base_match_breakdown(
             if 'network' in details:
                 network = details['network']
                 st.write(f"Network ({scores['network_score']}/5):")
-                if network['match'] and network['selected']:
-                    st.write(f"🟢 Both {network['name1']} (+5)")
-                elif network['name1'] and network['name2']:
-                    st.write(f"⚫ {network['name1']} vs {network['name2']}")
+                if network['selected']:
+                    if network['match']:
+                        st.write(f"🟢 Both {network['name1']} (+5)")
+                    elif network.get('name1') and network.get('name2'):
+                        st.write(f"⚫ {network['name1']} vs {network['name2']}")
+                    else:
+                        st.write(f"⚫ {network['name1']}")
                 else:
-                    st.write(f"⚫ {network['name1']} (not selected)")
+                    if network.get('name1'):
+                        st.write(f"⚫ {network['name1']} (not selected)")
+                    else:
+                        st.write("⚫ No network")
             
             # Studio details
             if 'studio' in details:
                 studio = details['studio']
                 st.write(f"\nStudio ({scores['studio_score']}/3):")
-                if studio['match'] and studio['selected']:
-                    st.write(f"🟢 Both {studio['name1']} (+3)")
-                elif studio['name1'] and studio['name2']:
-                    st.write(f"⚫ {studio['name1']} vs {studio['name2']}")
+                if studio['selected']:
+                    if studio['match']:
+                        st.write(f"🟢 Both {studio['name1']} (+3)")
+                    elif studio.get('name1') and studio.get('name2'):
+                        st.write(f"⚫ {studio['name1']} vs {studio['name2']}")
+                    else:
+                        st.write(f"⚫ {studio['name1']}")
                 else:
-                    st.write(f"⚫ {studio['name1']} (not selected)")
+                    if studio.get('name1'):
+                        st.write(f"⚫ {studio['name1']} (not selected)")
+                    else:
+                        st.write("⚫ No studio")
                     
         with col2:
             # Team details
             if 'team' in details:
                 team = details['team']
                 st.write(f"Team ({scores['team_score']}/5):")
-                if team['selected'] and team.get('shared_members'):
-                    for name, role in team['shared_members']:
-                        st.write(f"🟢 {name} ({role}) (+1)")
-                elif team.get('team_members'):
-                    for name in team['team_members']:
-                        st.write(f"⚫ {name} (not selected)")
+                if team['selected']:
+                    if team.get('shared_members'):
+                        for name, role in team['shared_members']:
+                            st.write(f"🟢 {name} ({role}) (+1)")
+                    else:
+                        st.write("⚫ No team members")
                 else:
-                    st.write("⚫ No team members")
+                    if team.get('team_members'):
+                        for name in team['team_members']:
+                            st.write(f"⚫ {name} (not selected)")
+                    else:
+                        st.write("⚫ No team members")
         
         # Format Match section
         if 'format' in details:
