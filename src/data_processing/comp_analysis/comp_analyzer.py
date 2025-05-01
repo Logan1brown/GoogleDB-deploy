@@ -358,7 +358,7 @@ class CompAnalyzer:
             # Define field mappings for options
             field_mappings = [
                 ('genre', 'genre_id', 'genre_name'),
-                ('subgenres', 'subgenre_ids', 'subgenre_names'),  # Uses genre reference table
+                ('subgenres', 'subgenres', 'subgenre_names'),  # Uses genre reference table
                 ('character_types', 'character_type_ids', 'character_type_names'),
                 ('plot_elements', 'plot_element_ids', 'plot_element_names'),
                 ('thematic_elements', 'thematic_element_ids', 'thematic_element_names'),
