@@ -367,7 +367,7 @@ class CompAnalyzer:
                 ('time_setting', 'time_setting_id', 'time_setting_name'),
                 ('location_setting', 'location_setting_id', 'location_setting_name'),
                 ('network', 'network_id', 'network_name'),
-                ('studios', 'studio_ids', 'studio_names'),
+                ('studios', 'id', 'studio'),  # Use correct column names from studio_list table
                 ('order_type', 'order_type_id', 'order_type_name')
             ]
             
