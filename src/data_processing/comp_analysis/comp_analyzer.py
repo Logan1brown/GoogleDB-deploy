@@ -495,6 +495,8 @@ class CompAnalyzer:
             # Add to results if score above threshold
             if score.total > 0:  # Only include shows with some match
                 show_dict = show.to_dict()
+                # Add plot element names for display
+                show_dict['plot_element_names'] = show.get('plot_element_names', [])
                 show_dict['comp_score'] = score
                 show_dict['success_score'] = success_score
                 results.append(show_dict)
