@@ -354,11 +354,29 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         'location': match.get('location_setting_name', 'Unknown')
                     })
                     
-                    # Display scores and details
-                    st.write('### Score Breakdown')
-                    st.write(scores)
+                    # Create match details dictionary
+                    match_details = {
+                        'scores': scores,
+                        'details': details,
+                        'matches': {
+                            'genre': match.get('genre_name', 'Unknown'),
+                            'subgenres': match.get('subgenre_names', []),
+                            'source': match.get('source_type_name', 'Unknown'),
+                            'characters': match.get('character_type_names', []),
+                            'plot': match.get('plot_element_names', []),
+                            'themes': match.get('theme_element_names', []),
+                            'tone': match.get('tone_name', 'Unknown'),
+                            'time': match.get('time_setting_name', 'Unknown'),
+                            'location': match.get('location_setting_name', 'Unknown'),
+                            'episodes': match.get('episode_count', 'Unknown'),
+                            'order': match.get('order_type_name', 'Unknown'),
+                            'team': match.get('team_names', [])
+                        }
+                    }
+                    
+                    # Display match details
                     st.write('### Match Details')
-                    st.write(details)
+                    st.write(match_details)
                     
                     # Use base match breakdown
                     # Call base match breakdown component

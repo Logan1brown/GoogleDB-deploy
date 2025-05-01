@@ -20,7 +20,7 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from src.shared.auth import auth_required, init_auth_state, login, logout, refresh_session, get_user_role
+from shared.auth import auth_required, init_auth_state, login, logout, refresh_session, get_user_role
 from src.dashboard.utils.style_config import COLORS, FONTS
 
 def show_login():
