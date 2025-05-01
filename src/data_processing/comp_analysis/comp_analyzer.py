@@ -359,6 +359,7 @@ class CompAnalyzer:
             field_mappings = [
                 ('genre', 'genre_id', 'genre_name'),
                 ('subgenres', 'subgenres', 'subgenre_names'),  # Uses genre reference table
+                ('source_type', 'source_type_id', 'source_type_name'),
                 ('character_types', 'character_type_ids', 'character_type_names'),
                 ('plot_elements', 'plot_element_ids', 'plot_element_names'),
                 ('thematic_elements', 'thematic_element_ids', 'thematic_element_names'),
