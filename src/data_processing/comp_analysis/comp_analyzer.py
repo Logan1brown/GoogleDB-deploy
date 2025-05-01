@@ -40,9 +40,6 @@ class CompScore:
     episodes: float = field(default=0)      # Episode count similarity (4 points)
     order_type: float = field(default=0)   # Order type match (1 point)
     
-    # Shared elements tracking
-    shared_elements: Dict[str, List] = field(default_factory=dict)  # Track matched elements
-    
     def __post_init__(self):
         """Validate all scores are non-negative."""
         for field_name, value in self.__dict__.items():
@@ -488,8 +485,16 @@ class CompAnalyzer:
             if not show_data.empty:
                 success_score = self.success_analyzer.calculate_success(show_data.iloc[0])
                 
-            # Add to results if score above threshold
-            if score.total > 0:  # Only include shows with some match
+            # Only include shows that match all selected criteria
+            include_show = True
+            
+            # Check if show matches plot elements if any were selected
+            if criteria.get('plot_element_ids'):
+                target_plots = show.get('plot_element_ids', [])
+                if not any(plot_id in target_plots for plot_id in criteria['plot_element_ids']):
+                    include_show = False
+            
+            if include_show and score.total > 0:
                 show_dict = show.to_dict()
                 show_dict['comp_score'] = score
                 show_dict['success_score'] = success_score
@@ -614,15 +619,14 @@ class CompAnalyzer:
             target_plots = target.get('plot_element_ids', []) if isinstance(target.get('plot_element_ids'), list) else []
             
             # Only match elements that were specifically selected in criteria
-            matches = [plot_id for plot_id in source_plots if plot_id in target_plots]
-            num_matches = len(matches)
-            
-            # Award points based on number of matches with selected elements
             plot_elements = 0
-            if num_matches >= 1:
-                plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
-            if num_matches >= 2:
-                plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['second_match']
+            if source_plots:  # Only check if criteria specified plot elements
+                matches = [plot_id for plot_id in source_plots if plot_id in target_plots]
+                if matches:  # Only award points if we match selected elements
+                    if len(matches) >= 1:
+                        plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['first_match']
+                    if len(matches) >= 2:
+                        plot_elements += self.SCORING_CONFIG['content']['components']['plot_elements']['breakdown']['second_match']
                 
             # Calculate theme element matches
             source_themes = source.get('thematic_element_ids', []) if isinstance(source.get('thematic_element_ids'), list) else []
@@ -705,11 +709,7 @@ class CompAnalyzer:
                 team=team,
                 episodes=episodes,
                 order_type=order_type,
-                shared_elements={
-                    'plot_elements': matches,
-                    'character_types': list(shared_chars),
-                    'theme_elements': list(shared_themes)
-                }
+
             )
         except Exception as e:
             print(f"Error in _calculate_score: {str(e)}")
