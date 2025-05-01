@@ -217,13 +217,18 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             "Network",
             options=network_options,
             format_func=lambda x: x,
-            key="network_id",
+            key="network_select",  # Change key to not conflict with state
             index=current_index,
             placeholder="Select network..."
         )
         
         # Update state with new network ID
-        state["criteria"]["network_id"] = get_id_for_name(network_name, field_options['networks']) if network_name else None
+        if network_name:
+            network_id = get_id_for_name(network_name, field_options['networks'])
+            state["criteria"]["network_id"] = network_id
+            # Also update session state to ensure persistence
+            if "network_id" in st.session_state:
+                st.session_state.network_id = network_id
         
         # Deduplicate and sort studio options
         unique_studios = sorted(set(name for _, name in field_options['studios']))
@@ -551,13 +556,11 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         
                         # Network match if IDs match
                         network_match = show_network_id == selected_network_id and show_network_id is not None
-                        # Selected means this network was chosen in criteria
-                        network_selected = selected_network_id is not None and show_network_id == selected_network_id
                         details['network'].update({
                             'name1': selected_network,
                             'name2': show_network,
                             'match': network_match,
-                            'selected': network_selected,
+                            'selected': show_network_id == selected_network_id,  # Selected means THIS network was chosen
                             'score': scores['network_score']
                         })
                     
