@@ -27,19 +27,17 @@ def get_ids_for_names(names: List[str], options: List[Tuple[int, str]]) -> List[
 
 
 def update_single_id_field(details: Dict, field: str, show_id: Optional[int], selected_id: Optional[int], 
-                        options: List[Tuple[int, str]], score_key: Optional[str] = None) -> None:
+                        options: List[Tuple[int, str]]) -> None:
     """Update details for single-ID fields (genre, network, tone)."""
-    if field not in details:
-        details[field] = {}
-    show_name = get_field_name(show_id, options)
-    selected_name = get_field_name(selected_id, options)
-    details[field].update({
-        'name1': selected_name,
-        'name2': show_name, 
-        'match': show_id == selected_id and show_id is not None,
+    name1 = get_field_name(show_id, options) if show_id else 'Unknown'
+    name2 = get_field_name(selected_id, options) if selected_id else 'Unknown'
+    
+    details[field] = {
+        'name1': name1,
+        'name2': name2,
         'selected': selected_id is not None,
-        **(({'score': scores[score_key]} if score_key else {}))
-    })
+        'match': show_id == selected_id
+    }
 
 def update_array_field(details: Dict, field: str, show_ids: List[int], selected_ids: List[int], 
                       options: List[Tuple[int, str]], raw_names: Optional[List[str]] = None) -> None:
@@ -74,27 +72,31 @@ def update_setting_field(details: Dict, show_time_id: Optional[int], show_loc_id
     })
 
 def update_production_field(details: Dict, field: str, show_ids: List[int], selected_ids: List[int], 
-                          options: List[Tuple[int, str]], scores: Dict[str, float], score_key: str) -> None:
+                          options: List[Tuple[int, str]], scores: Dict[str, float]) -> None:
     """Update details for production fields (studios, team) with special scoring."""
-    if field not in details:
-        details[field] = {}
-    show_names = get_field_names(show_ids, options)
-    selected_names = get_field_names(selected_ids, options)
-    details[field].update({
-        'name1': ', '.join(selected_names) or 'Unknown',
-        'name2': ', '.join(show_names) or 'Unknown',
-        'match': bool(set(show_ids) & set(selected_ids)),
-        'selected': bool(selected_ids),
-        'score': scores[score_key]
-    })
+    matches = []
+    mismatches = []
+    
+    for show_id in show_ids:
+        name = get_field_name(show_id, options)
+        if show_id in selected_ids:
+            matches.append(name)
+        else:
+            mismatches.append(name)
+            
+    details[field] = {
+        'matches': matches,
+        'mismatches': mismatches,
+        'selected': bool(selected_ids)
+    }
 
-def update_match_details(details: Dict, match: Dict, criteria: Dict, display_options: Dict, scores: Dict) -> None:
+def update_match_details(details: Dict, match: Dict, criteria: Dict, display_options: Dict) -> None:
     """Update all match details using appropriate field handlers."""
     # Single ID fields
     update_single_id_field(details, 'genre', match.get('genre_id'), criteria.get('genre_id'), 
-                          display_options['genre'], 'genre_score')
+                          display_options['genre'])
     update_single_id_field(details, 'source', match.get('source_type_id'), criteria.get('source_type_id'),
-                          display_options['source_type'], 'source_score')
+                          display_options['source_type'])
     update_single_id_field(details, 'tone', match.get('tone_id'), criteria.get('tone_id'), 
                           display_options['tone'])
                           
@@ -116,9 +118,9 @@ def update_match_details(details: Dict, match: Dict, criteria: Dict, display_opt
                         
     # Studios/Team
     update_production_field(details, 'studio', match.get('studios', []), criteria.get('studio_ids', []),
-                          display_options['studios'], scores, 'studio_score')
+                          display_options['studios'], details)
     update_production_field(details, 'team', match.get('team_member_ids', []), criteria.get('team_member_ids', []),
-                          display_options['team_members'], scores, 'team_score')
+                          display_options['team_members'], details)
 
 def render_comp_builder(state: Dict) -> None:
     """Render the comp builder interface."""
@@ -292,17 +294,18 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                 try:
                     # Get scores and details
                     comp_score = match['comp_score']
-                    scores = comp_score.to_display_dict()
                     details = comp_score.get_match_details()
+                    
+                    # Add total score to details
+                    details['total'] = comp_score.total()
                     
                     # Update details with current match data
                     update_match_details(details, match, state.get('criteria', {}), 
-                                       display_options, scores)
+                                       display_options)
                     
                     # Render match breakdown
                     render_base_match_breakdown(
                         title=match['title'],
-                        scores=scores,
                         details=details,
                         matches=match,
                         success_score=match.get('success_score'),

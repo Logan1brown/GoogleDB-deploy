@@ -9,7 +9,6 @@ from typing import Dict, Optional
 
 def render_base_match_breakdown(
     title: str,
-    scores: Dict,
     details: Dict,
     matches: Dict,
     success_score: Optional[float] = None,
@@ -21,8 +20,7 @@ def render_base_match_breakdown(
     
     Args:
         title: Show title
-        scores: Dictionary of score components
-        details: Dictionary of match details
+        details: Dictionary of match details and scores
         matches: Dictionary of raw match data
         success_score: Optional success score
         expanded: Whether the section should be expanded by default
@@ -30,7 +28,7 @@ def render_base_match_breakdown(
         description: Optional show description
     """
     # Build title with scores
-    header = f"{title} (Match: {scores['total']:.1f}"
+    header = f"{title} (Match: {details['total']:.1f}"
     if success_score is not None:
         success_display = f"{success_score:.1f}" if success_score is not None else "N/A"
         header += f", Success: {success_display}"
