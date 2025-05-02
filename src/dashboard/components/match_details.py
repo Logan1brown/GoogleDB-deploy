@@ -86,19 +86,25 @@ class MatchDetailsManager:
             'studios', match.get('studios', []), criteria.get('studio_ids', []),
             self.scoring['production']['components']['studio']
         )
+        # Get team member matches
+        source_team = match.get('team_member_ids', [])
+        target_team = criteria.get('team_member_ids', [])
+        matching_ids = set(source_team) & set(target_team)
+        
         details['team'] = ArrayFieldMatch(
-            name1='Multiple' if match.get('team_member_ids') else 'None',  # Check if show has team members
-            name2='Multiple' if criteria.get('team_member_ids') else 'None',  # Check if criteria has team members
-            selected=bool(criteria.get('team_member_ids')),  # Check if criteria has team members
-            match=bool(set(match.get('team_member_ids', [])) & set(criteria.get('team_member_ids', []))),  # Match by ID
+            name1='Multiple' if source_team else 'None',
+            name2='Multiple' if target_team else 'None',
+            selected=bool(target_team),
+            match=bool(matching_ids),
             score=self._calculate_team_score(
-                match.get('team_member_ids', []),
-                criteria.get('team_member_ids', []),
+                source_team,
+                target_team,
                 self.scoring['production']['components']['team']
             ),
             max_score=self.scoring['production']['components']['team']['first'] + 
-                      self.scoring['production']['components']['team'].get('max_additional', 0),
-            values1=match.get('team_member_names', []),  # Display names
+                      (self.scoring['production']['components']['team'].get('additional', 0) 
+                       if len(target_team) > 1 else 0),
+            values1=match.get('team_member_names', []),  # Show's team names
             values2=criteria.get('team_member_names', []),  # Display names
             matches=list(set(match.get('team_member_names', [])) & set(criteria.get('team_member_names', [])))  # Display matching names
         )
