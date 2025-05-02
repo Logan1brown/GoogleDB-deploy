@@ -238,7 +238,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         'tone_id': r['tone_id'],
         'time_setting_id': r['time_setting_id'],
         'location_setting_id': r['location_setting_id'],
-        'network_name': r['network_name'],
+        'network_id': r['network_id'],
         'studios': r.get('studios', []),
         'team_members': r.get('team_members', []),  # Use team_members consistently
         'episode_count': r['episode_count'],

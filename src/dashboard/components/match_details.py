@@ -69,6 +69,10 @@ class MatchDetailsManager:
         )
         
         # Production match details
+        details['network'] = self._process_single_field_match(
+            'network', match.get('network_id'), criteria.get('network_id'),
+            self.scoring['production']['components']['network']['match']
+        )
         details['studio'] = self._process_production_field_match(
             'studios', match.get('studios', []), criteria.get('studio_ids', []),
             self.scoring['production']['components']['studio']
