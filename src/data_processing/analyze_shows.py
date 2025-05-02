@@ -69,7 +69,7 @@ class ShowsAnalyzer:
         'order_type': 'order_types',
         'plot_elements': 'plot_element_types',
         'studios': 'studio_list',
-        'team_members': 'team_member_types',
+        'team_members': 'show_team',
         'thematic_elements': 'thematic_element_types',
         'tone': 'tone_types',
         'time_setting': 'time_setting_types'
