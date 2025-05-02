@@ -46,41 +46,33 @@ def render_array_field_match(label: str, match: ArrayFieldMatch, show_score: boo
             values = ', '.join(match.values1)
             st.markdown(f"🔴 No matches: {values}")
 
-def render_setting_match(setting: Dict[str, FieldMatch]) -> None:
-    """Render time and location setting matches."""
-    st.markdown(f"**Setting Match ({setting['total_score']}/{setting['max_score']} points)**")
-    
-    with st.expander("Time & Location", expanded=True):
-        render_field_match("Time", setting['time'], show_score=False)
-        render_field_match("Location", setting['location'], show_score=False)
-
-def render_format_match(format_details: Dict[str, FieldMatch]) -> None:
-    """Render episode count and order type matches."""
-    st.markdown(f"**Format Match ({format_details['total_score']}/{format_details['max_score']} points)**")
-    
-    with st.expander("Episodes & Order", expanded=True):
-        render_field_match("Episodes", format_details['episodes'], show_score=False)
-        render_field_match("Order Type", format_details['order_type'], show_score=False)
-
 def render_match_details_section(details: Dict) -> None:
-    """Render match details section with expandable content."""
+    """Render match details section with columns."""
     # Content match section
-    with st.expander("Content Match", expanded=True):
-        render_field_match("Genre", details['genre'])
-        render_array_field_match("Character Types", details['characters'])
-        render_array_field_match("Plot Elements", details['plot'])
-        render_field_match("Source", details['source'])
-        render_array_field_match("Theme Elements", details['themes'])
-        render_field_match("Tone", details['tone'])
+    st.markdown("#### Content Match")
+    render_field_match("Genre", details['genre'])
+    render_array_field_match("Character Types", details['characters'])
+    render_array_field_match("Plot Elements", details['plot'])
+    render_field_match("Source", details['source'])
+    render_array_field_match("Theme Elements", details['themes'])
+    render_field_match("Tone", details['tone'])
     
     # Production match section
-    with st.expander("Production Match"):
-        render_array_field_match("Studio", details['studio'])
-        render_array_field_match("Team", details['team'])
+    st.markdown("#### Production Match")
+    render_array_field_match("Studio", details['studio'])
+    render_array_field_match("Team", details['team'])
     
-    # Setting and format sections
-    render_setting_match(details['setting'])
-    render_format_match(details['format'])
+    # Setting and format sections in two columns
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"#### Setting Match ({details['setting']['total_score']}/{details['setting']['max_score']} points)")
+        render_field_match("Time", details['setting']['time'], show_score=False)
+        render_field_match("Location", details['setting']['location'], show_score=False)
+    
+    with col2:
+        st.markdown(f"#### Format Match ({details['format']['total_score']}/{details['format']['max_score']} points)")
+        render_field_match("Episodes", details['format']['episodes'], show_score=False)
+        render_field_match("Order Type", details['format']['order_type'], show_score=False)
 
 def render_match_details(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Render match details for top matches."""
