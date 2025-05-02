@@ -86,22 +86,14 @@ class MatchDetailsManager:
             'studios', match.get('studios', []), criteria.get('studio_ids', []),
             self.scoring['production']['components']['studio']
         )
-        # Get team member IDs and names from api_show_team view
-        match_team_ids = match.get('team_member_ids', [])
-        match_team_names = [self.get_field_name('team_members', id) for id in match_team_ids]
-        criteria_team_ids = criteria.get('team_member_ids', [])
-        criteria_team_names = [self.get_field_name('team_members', id) for id in criteria_team_ids]
-        matching_ids = set(match_team_ids) & set(criteria_team_ids)
-        matching_names = [self.get_field_name('team_members', id) for id in matching_ids]
-        
         details['team'] = ArrayFieldMatch(
-            name1='Multiple' if match_team_ids else 'None',
-            name2='Multiple' if criteria_team_ids else 'None',
-            selected=bool(criteria_team_ids),
-            match=bool(matching_ids),
+            name1='Multiple' if match.get('team_member_ids') else 'None',  # Check if show has team members
+            name2='Multiple' if criteria.get('team_member_ids') else 'None',  # Check if criteria has team members
+            selected=bool(criteria.get('team_member_ids')),  # Check if criteria has team members
+            match=bool(set(match.get('team_member_ids', [])) & set(criteria.get('team_member_ids', []))),  # Match by ID
             score=self._calculate_team_score(
-                match_team_ids,
-                criteria_team_ids,
+                match.get('team_member_ids', []),
+                criteria.get('team_member_ids', []),
                 self.scoring['production']['components']['team']
             ),
             max_score=self.scoring['production']['components']['team']['first'] + 
