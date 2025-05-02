@@ -65,10 +65,14 @@ class FieldManager:
     def _load_options(self):
         """Load all field options from reference data."""
         for field_name, config in self.FIELD_CONFIGS.items():
-            if field_name not in self.reference_data:
+            # For subgenres, copy options from genre since they use the same table
+            if field_name == 'subgenres' and 'genre' in self.reference_data:
+                df = self.reference_data['genre']
+            elif field_name not in self.reference_data:
                 continue
+            else:
+                df = self.reference_data[field_name]
                 
-            df = self.reference_data[field_name]
             options = []
             
             for _, row in df.iterrows():

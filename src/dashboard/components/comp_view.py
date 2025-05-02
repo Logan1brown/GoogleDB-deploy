@@ -14,13 +14,31 @@ from .match_details_view import render_match_details
 
 def render_comp_builder(state: Dict) -> None:
     """Render the comp builder interface."""
-    # Initialize state
-    if 'criteria' not in state:
-        state['criteria'] = {}
-    
     # Initialize analyzer
     comp_analyzer = CompAnalyzer()
     comp_analyzer.initialize()
+    
+    # Initialize state with all possible criteria fields
+    if 'criteria' not in state:
+        state['criteria'] = {
+            # Content
+            'genre_id': None,
+            'subgenres': [],
+            'source_type_id': None,
+            'character_type_ids': [],
+            'plot_element_ids': [],
+            'thematic_element_ids': [],
+            'tone_id': None,
+            'time_setting_id': None,
+            'location_setting_id': None,
+            # Production
+            'network_id': None,
+            'studio_ids': [],
+            'team_ids': [],
+            # Format
+            'episode_count': None,
+            'order_type_id': None
+        }
     
     # Set up columns
     col1, col2 = st.columns([1, 2])
