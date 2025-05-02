@@ -91,14 +91,15 @@ class MatchDetailsManager:
         target_team = criteria.get('team_member_ids', [])
         
         # For team members, we need to check all IDs for each name
-        matching_ids = set()
-        for source_id in source_team:
-            for target_id in target_team:
-                # Get names for both IDs
-                source_name = self.get_field_name('team_members', source_id)
-                target_name = self.get_field_name('team_members', target_id)
+        matching_names = set()
+        source_names = match.get('team_member_names', [])
+        target_names = criteria.get('team_member_names', [])
+        
+        # For each source ID, get all possible target IDs with the same name
+        for source_id, source_name in zip(source_team, source_names):
+            for target_id, target_name in zip(target_team, target_names):
                 if source_name == target_name:
-                    matching_ids.add(source_name)
+                    matching_names.add(target_name)  # Use exact name from criteria
         
         details['team'] = ArrayFieldMatch(
             name1='Multiple' if source_team else 'None',
@@ -115,8 +116,8 @@ class MatchDetailsManager:
                        if len(target_team) > 1 else 0),
             values1=match.get('team_member_names', []),  # Show's team names
             values2=criteria.get('team_member_names', []),  # Selected names
-            # Use matching_ids which contains matched names
-            matches=list(matching_ids)
+            # Use matching_names which contains matched names from criteria
+            matches=list(matching_names)
         )
         
         # Setting match details

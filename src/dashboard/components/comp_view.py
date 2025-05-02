@@ -59,13 +59,39 @@ def get_id_for_name(name: Optional[str], options: List[Tuple[int, str]]) -> Opti
             return id
     return None
 
-def get_ids_for_names(names: List[str], options: List[Tuple[int, str]]) -> List[int]:
+def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_name: str = None) -> List[int]:
     """Get IDs for display names from options list.
     
-    Preserves the order of names when mapping to IDs.
-    This is important for team members where order matters for display.
+    For team members, we need to get all IDs for each name since a person
+    can have multiple entries. For other fields, we just take the first ID.
+    
+    Args:
+        names: List of names to get IDs for
+        options: List of (id, name) tuples from field_manager
+        field_name: Name of the field (used to identify team members)
+        
+    Returns:
+        List of IDs for the given names
     """
-    # Create map of name -> id while preserving order
+    # For team members, get all IDs for each name
+    if field_name == 'team_members':
+        # Get the FieldManager instance
+        comp_analyzer = CompAnalyzer()
+        comp_analyzer.initialize()
+        
+        # Get all IDs for selected names
+        all_ids = []
+        for name in names:
+            # Find the option with this name
+            opt = next((opt for opt in comp_analyzer.field_manager.get_options('team_members') 
+                       if opt.name == name), None)
+            if opt and hasattr(opt, 'all_ids'):
+                all_ids.extend(opt.all_ids)
+            elif opt:
+                all_ids.append(opt.id)
+        return all_ids
+    
+    # For other fields, just take first ID (old behavior)
     id_map = {}
     for id, name in options:
         if name not in id_map:  # Only take first ID for each name
@@ -150,7 +176,10 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         team_names = st.multiselect("Team Members",
             options=[name for _, name in display_options['team_members'] if name and name.strip()],
             key="team_member_ids", placeholder="Select team members...")
-        state["criteria"]["team_member_ids"] = get_ids_for_names(team_names, display_options['team_members'])
+        # Pass field_name to get all IDs for each team member
+        state["criteria"]["team_member_ids"] = get_ids_for_names(team_names, display_options['team_members'], 'team_members')
+        # Also store the names for display
+        state["criteria"]["team_member_names"] = team_names
     
     # Format criteria
     with st.expander("Format Match Criteria (5 pts)", expanded=True):
