@@ -206,15 +206,15 @@ class MatchDetailsManager:
         """Calculate score for team member matches."""
         matches = set(values) & set(selected)
         if not matches:
-            return 0.0
+            return 0
             
-        # First match is worth 3 points
-        score = 3.0
-        
-        # Up to 2 additional matches at 1 point each
+        score = scoring.get('first', 0)
         additional_matches = len(matches) - 1
         if additional_matches > 0:
-            additional_score = min(additional_matches, 2) * 1.0
+            additional_score = min(
+                additional_matches * scoring['additional'],
+                scoring.get('max_additional', float('inf'))
+            )
             score += additional_score
             
         return score
@@ -241,8 +241,9 @@ class MatchDetailsManager:
                 
         # Calculate max score based on field type
         if field == 'team_members':
-            # Team scoring: 3 points base + up to 2 additional points
-            max_score = 5.0
+            max_score = scoring.get('first', 0)
+            if len(selected) > 1:
+                max_score += scoring.get('additional', 0)
         else:
             max_score = scoring.get('primary', 0)
             max_score += scoring.get('max_additional', 0)
