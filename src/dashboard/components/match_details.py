@@ -223,9 +223,11 @@ class MatchDetailsManager:
         # Calculate max score based on field type
         if field == 'team_members':
             max_score = scoring.get('first', 0)
+            if len(selected) > 1:
+                max_score += scoring.get('additional', 0)
         else:
             max_score = scoring.get('primary', 0)
-        max_score += scoring.get('max_additional', 0)
+            max_score += scoring.get('max_additional', 0)
                 
         return ArrayFieldMatch(
             name1='Multiple' if value_names else 'None',
