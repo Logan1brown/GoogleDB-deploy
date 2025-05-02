@@ -105,8 +105,10 @@ class MatchDetailsManager:
                       (self.scoring['production']['components']['team'].get('additional', 0) 
                        if len(target_team) > 1 else 0),
             values1=match.get('team_member_names', []),  # Show's team names
-            values2=criteria.get('team_member_names', []),  # Display names
-            matches=list(set(match.get('team_member_names', [])) & set(criteria.get('team_member_names', [])))  # Display matching names
+            values2=criteria.get('team_member_names', []),  # Selected names
+            # Get names for matching IDs
+            matches=[name for id, name in zip(source_team, match.get('team_member_names', []))
+                    if id in matching_ids]
         )
         
         # Setting match details
