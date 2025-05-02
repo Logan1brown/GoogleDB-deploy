@@ -59,7 +59,7 @@ def get_id_for_name(name: Optional[str], options: List[Tuple[int, str]]) -> Opti
             return id
     return None
 
-def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_name: str = None) -> List[int]:
+def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_name: str = None, comp_analyzer: Optional[CompAnalyzer] = None) -> List[int]:
     """Get IDs for display names from options list.
     
     For team members, we need to get all IDs for each name since a person
@@ -69,16 +69,13 @@ def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_na
         names: List of names to get IDs for
         options: List of (id, name) tuples from field_manager
         field_name: Name of the field (used to identify team members)
+        comp_analyzer: Optional CompAnalyzer instance to use for team member lookups
         
     Returns:
         List of IDs for the given names
     """
     # For team members, get all IDs for each name
-    if field_name == 'team_members':
-        # Get the FieldManager instance
-        comp_analyzer = CompAnalyzer()
-        comp_analyzer.initialize()
-        
+    if field_name == 'team_members' and comp_analyzer:
         # Get all IDs for selected names
         all_ids = []
         for name in names:
@@ -91,7 +88,7 @@ def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_na
                 all_ids.append(opt.id)
         return all_ids
     
-    # For other fields, just take first ID (old behavior)
+    # For team members without analyzer or other fields, just take first ID
     id_map = {}
     for id, name in options:
         if name not in id_map:  # Only take first ID for each name
@@ -176,8 +173,13 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         team_names = st.multiselect("Team Members",
             options=[name for _, name in display_options['team_members'] if name and name.strip()],
             key="team_member_ids", placeholder="Select team members...")
-        # Pass field_name to get all IDs for each team member
-        state["criteria"]["team_member_ids"] = get_ids_for_names(team_names, display_options['team_members'], 'team_members')
+        # Pass field_name and comp_analyzer to get all IDs for each team member
+        state["criteria"]["team_member_ids"] = get_ids_for_names(
+            team_names, 
+            display_options['team_members'], 
+            'team_members',
+            comp_analyzer
+        )
         # Also store the names for display
         state["criteria"]["team_member_names"] = team_names
     
