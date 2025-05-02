@@ -34,7 +34,7 @@ def render_comp_builder(state: Dict) -> None:
             # Production
             'network_id': None,
             'studio_ids': [],
-            'team_ids': [],
+            'team_member_ids': [],
             # Format
             'episode_count': None,
             'order_type_id': None
@@ -140,8 +140,8 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Team Members
         team_names = st.multiselect("Team Members",
             options=[name for _, name in display_options['team_members'] if name and name.strip()],
-            key="team_ids", placeholder="Select team members...")
-        state["criteria"]["team_ids"] = get_ids_for_names(team_names, display_options['team_members'])
+            key="team_member_ids", placeholder="Select team members...")
+        state["criteria"]["team_member_ids"] = get_ids_for_names(team_names, display_options['team_members'])
     
     # Format criteria
     with st.expander("Format Match Criteria (5 pts)", expanded=True):
@@ -240,7 +240,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         'location_setting_id': r['location_setting_id'],
         'network_id': r['network_id'],
         'studios': r.get('studios', []),
-        'team_member_ids': r.get('team_member_ids', []),
+        'team_member_ids': r.get('team_member_ids', []),  # Use team_member_ids consistently
         'episode_count': r['episode_count'],
         'order_type_id': r['order_type_id']
     } for r in results]
