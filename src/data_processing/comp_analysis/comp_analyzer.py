@@ -538,32 +538,88 @@ class CompAnalyzer:
         """
         self.initialize()
             
-        # Create a dummy show with the criteria
         # Map field names to match database schema
-        mapped_criteria = {}
         field_mapping = {
-            'studio_ids': 'studios',  # Map UI field to database field
+            'studio_ids': 'studios',
             'character_type_ids': 'character_type_ids',
             'plot_element_ids': 'plot_element_ids',
             'thematic_element_ids': 'thematic_element_ids',
-            'team_member_ids': 'team_member_ids',  # For matching/scoring
-            'team_member_names': 'team_member_names',  # For display
-            'episode_count': 'episode_count'  # First season episode count
+            'team_member_ids': 'team_member_ids',
+            'team_member_names': 'team_member_names',
+            'episode_count': 'episode_count'
         }
         
-        for key, value in criteria.items():
-            # Use mapped name if it exists, otherwise use original
-            mapped_key = field_mapping.get(key, key)
-            mapped_criteria[mapped_key] = value
+        # Get filtered data from Supabase
+        try:
+            start_time = time.time()
+            logger.info("Starting show search with criteria: %s", criteria)
             
+            supabase = get_client(use_service_key=True)
+            if not supabase:
+                logger.error("Failed to initialize Supabase client")
+                return []
+                
+            # Start query
+            query = supabase.table(self.shows_analyzer.VIEWS['comp']).select('*')
+            
+            # Build and apply filters
+            mapped_criteria = {}
+            for key, value in criteria.items():
+                mapped_key = field_mapping.get(key, key)
+                mapped_criteria[mapped_key] = value
+                
+                # Add SQL filters for exact matches
+                if mapped_key in ['genre_id', 'source_type_id', 'tone_id', 'network_id', 'order_type_id']:
+                    if value is not None:
+                        try:
+                            query = query.eq(mapped_key, int(value))
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid value for {mapped_key}: {value}")
+                            continue
+                            
+                elif mapped_key in ['character_type_ids', 'plot_element_ids', 'thematic_element_ids', 'studios']:
+                    # For array fields, check overlap
+                    if value:
+                        try:
+                            # Ensure all values are integers for ID fields
+                            if mapped_key != 'studios':
+                                value = [int(v) for v in value]
+                            query = query.contains(mapped_key, value)
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid array values for {mapped_key}: {value}")
+                            continue
+        
+            # Execute query
+            comp_data = query.execute()
+            if not hasattr(comp_data, 'data') or not comp_data.data:
+                return []
+                
+            # Convert to DataFrame
+            filtered_df = pd.DataFrame(comp_data.data)
+            
+            # Convert array fields
+            array_fields = ['subgenres', 'character_type_ids', 'plot_element_ids', 
+                          'thematic_element_ids', 'studios', 'team_member_ids', 'team_member_names']
+            for field in array_fields:
+                if field in filtered_df.columns:
+                    filtered_df[field] = filtered_df[field].apply(self.shows_analyzer.convert_to_list)
+                    
+        except Exception as e:
+            logger.error(f"Error during Supabase query: {str(e)}")
+            return []
+            
+        query_time = time.time() - start_time
+        logger.info("Query completed in %.2f seconds, found %d matches", 
+                    query_time, len(filtered_df) if 'filtered_df' in locals() else 0)
+        
+        # Create source series for comparison
         source = pd.Series(mapped_criteria)
         
-        # Score each show
+        # Score filtered shows
         results = []
-        for _, target in self.comp_data.iterrows():
+        for _, target in filtered_df.iterrows():
             score = self.score_engine.calculate_score(source, target)
             if score.total() > 0:
-                # Include all fields needed for match details
                 result = {
                     'id': target['id'],
                     'title': target['title'],
@@ -590,8 +646,11 @@ class CompAnalyzer:
                     'order_type_id': target.get('order_type_id')
                 }
                 results.append(result)
-                
-        # Sort by total score descending
+        
+        total_time = time.time() - start_time
+        logger.info("Search completed in %.2f seconds, found %d matches with scores", 
+                    total_time, len(results))
+        
         return sorted(results, key=lambda x: x['comp_score'].total(), reverse=True)
         
     def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
