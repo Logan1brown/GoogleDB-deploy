@@ -214,7 +214,7 @@ class MatchDetailsManager:
             max_score=max_score,
             values1=value_names,
             values2=selected_names,
-            matches=self.get_field_names(field, list(matches))
+            matches=list(matches) if field == 'team_members' else self.get_field_names(field, list(matches))
         )
         
     def _process_setting_match(self, time_id: Optional[int], location_id: Optional[int],
