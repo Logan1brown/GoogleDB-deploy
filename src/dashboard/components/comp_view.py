@@ -60,8 +60,17 @@ def get_id_for_name(name: Optional[str], options: List[Tuple[int, str]]) -> Opti
     return None
 
 def get_ids_for_names(names: List[str], options: List[Tuple[int, str]]) -> List[int]:
-    """Get IDs for display names from options list."""
-    id_map = {name: id for id, name in options}
+    """Get IDs for display names from options list.
+    
+    Preserves the order of names when mapping to IDs.
+    This is important for team members where order matters for display.
+    """
+    # Create map of name -> id while preserving order
+    id_map = {}
+    for id, name in options:
+        if name not in id_map:  # Only take first ID for each name
+            id_map[name] = id
+    # Map names to IDs in the original order
     return [id_map[name] for name in names if name in id_map]
 
 def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
