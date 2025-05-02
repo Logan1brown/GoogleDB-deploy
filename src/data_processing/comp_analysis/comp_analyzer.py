@@ -308,8 +308,8 @@ class ScoreEngine:
                     score.studio += additional * self.SCORING['production']['components']['studio']['additional']
                     
         # Team matching
-        source_team = set(source['team_members'] or [])
-        target_team = set(target['team_members'] or [])
+        source_team = set(source['team_member_ids'] or [])
+        target_team = set(target['team_member_ids'] or [])
         if source_team and target_team:
             matches = len(source_team & target_team)
             if matches > 0:
@@ -501,7 +501,7 @@ class CompAnalyzer:
                     'location_setting_id': target.get('location_setting_id'),
                     # Production
                     'network_id': target.get('network_id'),
-                    'team_members': target.get('team_member_ids', []),  # Match the field name expected by match_details
+                    'team_member_ids': target.get('team_member_ids', []),  # Keep consistent with DataFrame
                     'studios': target.get('studios', []),
                     # Format
                     'episode_count': target.get('episode_count'),
