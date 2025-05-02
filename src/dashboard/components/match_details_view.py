@@ -30,15 +30,12 @@ def render_array_field_match(label: str, match: ArrayFieldMatch, show_score: boo
         return
         
     if match.match:
-        st.markdown("🟢 Matching values:")
         for value in match.matches:
-            st.markdown(f"  • {value}")
+            st.markdown(f"🟢 {value}")
             
         non_matches = set(match.values1) - set(match.matches)
-        if non_matches:
-            st.markdown("Additional values:")
-            for value in non_matches:
-                st.markdown(f"  • {value}")
+        for value in non_matches:
+            st.markdown(f"  • {value}")
     else:
         if not match.values1:
             st.markdown(f"🔴 No {label.lower()}")
