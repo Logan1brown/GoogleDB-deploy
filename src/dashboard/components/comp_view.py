@@ -193,7 +193,7 @@ def apply_table_css() -> None:
             color: white;
             font-family: {FONTS['primary']['family']};
             font-size: {FONTS['primary']['sizes']['body']}px;
-            font-weight: {FONTS['primary']['weights']['bold']};
+            font-weight: bold;
         }}
         .stDataFrame td {{ 
             font-family: {FONTS['primary']['family']};
