@@ -87,8 +87,8 @@ class MatchDetailsManager:
             self.scoring['production']['components']['studio']
         )
         details['team'] = ArrayFieldMatch(
-            name1='Multiple' if match.get('team_member_ids') else 'None',
-            name2='Multiple' if criteria.get('team_member_ids') else 'None',
+            name1='Multiple' if match.get('team_member_names') else 'None',
+            name2='Multiple' if criteria.get('team_member_names') else 'None',
             selected=bool(criteria.get('team_member_ids')),
             match=bool(set(match.get('team_member_ids', [])) & set(criteria.get('team_member_ids', []))),
             score=self._calculate_team_score(
@@ -98,9 +98,9 @@ class MatchDetailsManager:
             ),
             max_score=self.scoring['production']['components']['team']['first'] + 
                       self.scoring['production']['components']['team'].get('max_additional', 0),
-            values1=self.get_field_names('team_members', match.get('team_member_ids', [])),
-            values2=self.get_field_names('team_members', criteria.get('team_member_ids', [])),
-            matches=self.get_field_names('team_members', list(set(match.get('team_member_ids', [])) & set(criteria.get('team_member_ids', []))))
+            values1=match.get('team_member_names', []),
+            values2=criteria.get('team_member_names', []),
+            matches=list(set(match.get('team_member_names', [])) & set(criteria.get('team_member_names', [])))
         )
         
         # Setting match details
