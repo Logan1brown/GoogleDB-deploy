@@ -32,6 +32,20 @@ def render_comp_builder(state: Dict) -> None:
         render_results_section(comp_analyzer, state)
 
 
+def get_id_for_name(name: Optional[str], options: List[Tuple[int, str]]) -> Optional[int]:
+    """Get ID for a display name from options list."""
+    if not name:
+        return None
+    for id, option_name in options:
+        if option_name == name:
+            return id
+    return None
+
+def get_ids_for_names(names: List[str], options: List[Tuple[int, str]]) -> List[int]:
+    """Get IDs for display names from options list."""
+    id_map = {name: id for id, name in options}
+    return [id_map[name] for name in names if name in id_map]
+
 def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
     """Render criteria selection panel."""
     # Get field options
