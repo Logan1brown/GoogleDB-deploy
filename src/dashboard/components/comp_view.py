@@ -203,6 +203,12 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             options=[name for _, name in display_options['studios'] if name and name.strip()],
             key="studio_ids", placeholder="Select studios...")
         state["criteria"]["studio_ids"] = get_ids_for_names(studio_names, display_options['studios'])
+        
+        # Team Members
+        team_names = st.multiselect("Team Members",
+            options=[name for _, name in display_options['team_members'] if name and name.strip()],
+            key="team_ids", placeholder="Select team members...")
+        state["criteria"]["team_ids"] = get_ids_for_names(team_names, display_options['team_members'])
     
     # Format criteria
     with st.expander("Format Match Criteria (5 pts)", expanded=True):
