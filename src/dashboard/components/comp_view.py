@@ -105,9 +105,9 @@ def update_match_details(details: Dict, match: Dict, criteria: Dict, display_opt
     update_array_field(details, 'plot', match.get('plot_element_ids', []),
                       criteria.get('plot_element_ids', []), display_options['plot_elements'],
                       match.get('plot_element_names'))
-    update_array_field(details, 'themes', match.get('theme_element_ids', []),
-                      criteria.get('theme_element_ids', []), display_options['thematic_elements'],
-                      match.get('theme_element_names'))
+    update_array_field(details, 'themes', match.get('thematic_element_ids', []),
+                      criteria.get('thematic_element_ids', []), display_options['thematic_elements'],
+                      match.get('thematic_element_names'))
                       
     # Setting
     update_setting_field(details, match.get('time_setting_id'), match.get('location_setting_id'),
@@ -115,7 +115,7 @@ def update_match_details(details: Dict, match: Dict, criteria: Dict, display_opt
                         display_options['time_setting'], display_options['location_setting'])
                         
     # Studios/Team
-    update_production_field(details, 'studio', match.get('studios', []), criteria.get('studios', []),
+    update_production_field(details, 'studio', match.get('studios', []), criteria.get('studio_ids', []),
                           display_options['studios'], scores, 'studio_score')
     update_production_field(details, 'team', match.get('team_member_ids', []), criteria.get('team_member_ids', []),
                           display_options['team_members'], scores, 'team_score')
@@ -167,12 +167,17 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         state["criteria"]["character_type_ids"] = get_ids_for_names(names, display_options['character_types'])
         
         # Other array fields
-        for field, label in [('plot_elements', 'Plot Elements'),
-                           ('thematic_elements', 'Theme Elements')]:
-            names = st.multiselect(label,
-                options=[name for _, name in display_options[field] if name and name.strip()],
-                key=f"{field}_ids", placeholder=f"Select {label.lower()}...")
-            state["criteria"][f"{field}_ids"] = get_ids_for_names(names, display_options[field])
+        # Plot Elements
+        names = st.multiselect('Plot Elements',
+            options=[name for _, name in display_options['plot_elements'] if name and name.strip()],
+            key="plot_element_ids", placeholder="Select plot elements...")
+        state["criteria"]["plot_element_ids"] = get_ids_for_names(names, display_options['plot_elements'])
+        
+        # Theme Elements
+        names = st.multiselect('Theme Elements',
+            options=[name for _, name in display_options['thematic_elements'] if name and name.strip()],
+            key="thematic_element_ids", placeholder="Select theme elements...")
+        state["criteria"]["thematic_element_ids"] = get_ids_for_names(names, display_options['thematic_elements'])
         
         # Single-select fields
         for field, label in [('tone', 'Tone'),
@@ -197,7 +202,7 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         studio_names = st.multiselect("Studios",
             options=[name for _, name in display_options['studios'] if name and name.strip()],
             key="studio_ids", placeholder="Select studios...")
-        state["criteria"]["studios"] = get_ids_for_names(studio_names, display_options['studios'])
+        state["criteria"]["studio_ids"] = get_ids_for_names(studio_names, display_options['studios'])
     
     # Format criteria
     with st.expander("Format Match Criteria (5 pts)", expanded=True):
