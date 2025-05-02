@@ -207,12 +207,6 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             options=[name for _, name in display_options['order_type']],
             key="order_type_id", index=None, placeholder="Select order type...")
         state["criteria"]["order_type_id"] = get_id_for_name(order_name, display_options['order_type']) if order_name else None
-    
-    # Order Type
-    order_name = st.selectbox("Order Type",
-        options=[name for _, name in display_options['order_type']],
-        key="order_type_id", index=None, placeholder="Select order type...")
-    state["criteria"]["order_type_id"] = get_id_for_name(order_name, display_options['order_type']) if order_name else None
 
 
 def create_results_df(results: List[Dict]) -> pd.DataFrame:
