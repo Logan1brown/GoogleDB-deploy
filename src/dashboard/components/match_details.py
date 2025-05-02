@@ -170,8 +170,13 @@ class MatchDetailsManager:
         
         score = 0
         if matches:
-            # Handle both 'primary' (studios) and 'first' (team) keys
-            score += scoring.get('primary', scoring.get('first', 0))
+            # For team, use 'first' key
+            if field == 'team_members':
+                score += scoring.get('first', 0)
+            # For studios, use 'primary' key
+            else:
+                score += scoring.get('primary', 0)
+                
             additional_matches = len(matches) - 1
             if additional_matches > 0:
                 additional_score = min(
@@ -180,13 +185,20 @@ class MatchDetailsManager:
                 )
                 score += additional_score
                 
+        # Calculate max score based on field type
+        if field == 'team_members':
+            max_score = scoring.get('first', 0)
+        else:
+            max_score = scoring.get('primary', 0)
+        max_score += scoring.get('max_additional', 0)
+                
         return ArrayFieldMatch(
             name1='Multiple' if value_names else 'None',
             name2='Multiple' if selected_names else 'None',
             selected=bool(selected),
             match=bool(matches),
             score=score,
-            max_score=scoring.get('primary', scoring.get('first', 0)) + scoring.get('max_additional', 0),
+            max_score=max_score,
             values1=value_names,
             values2=selected_names,
             matches=self.get_field_names(field, list(matches))
