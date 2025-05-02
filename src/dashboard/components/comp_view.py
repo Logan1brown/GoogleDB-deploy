@@ -93,6 +93,8 @@ def update_match_details(details: Dict, match: Dict, criteria: Dict, display_opt
     # Single ID fields
     update_single_id_field(details, 'genre', match.get('genre_id'), criteria.get('genre_id'), 
                           display_options['genre'], 'genre_score')
+    update_single_id_field(details, 'source', match.get('source_type_id'), criteria.get('source_type_id'),
+                          display_options['source_type'], 'source_score')
     update_single_id_field(details, 'tone', match.get('tone_id'), criteria.get('tone_id'), 
                           display_options['tone'])
                           
