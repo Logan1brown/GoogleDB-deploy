@@ -582,17 +582,22 @@ class CompAnalyzer:
         
         # Add field details
         for field in FieldManager.FIELD_CONFIGS.keys():
-            # Get field values
-            source_val = source[f'{field}_id'] if f'{field}_id' in source else source.get(field, [])
-            target_val = target[f'{field}_id'] if f'{field}_id' in target else target.get(field, [])
-            
-            # Get display names
-            if isinstance(source_val, list):
-                source_names = [self.field_manager.get_name(field, id) for id in source_val]
-                target_names = [self.field_manager.get_name(field, id) for id in target_val]
+            # Special handling for team members - use names directly
+            if field == 'team_members':
+                source_names = source.get('team_member_names', [])
+                target_names = target.get('team_member_names', [])
             else:
-                source_names = [self.field_manager.get_name(field, source_val)] if pd.notna(source_val) else []
-                target_names = [self.field_manager.get_name(field, target_val)] if pd.notna(target_val) else []
+                # Get field values
+                source_val = source[f'{field}_id'] if f'{field}_id' in source else source.get(field, [])
+                target_val = target[f'{field}_id'] if f'{field}_id' in target else target.get(field, [])
+                
+                # Get display names
+                if isinstance(source_val, list):
+                    source_names = [self.field_manager.get_name(field, id) for id in source_val]
+                    target_names = [self.field_manager.get_name(field, id) for id in target_val]
+                else:
+                    source_names = [self.field_manager.get_name(field, source_val)] if pd.notna(source_val) else []
+                    target_names = [self.field_manager.get_name(field, target_val)] if pd.notna(target_val) else []
             
             # Add to details
             details['source']['fields'][field] = source_names
