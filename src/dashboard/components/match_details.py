@@ -98,9 +98,9 @@ class MatchDetailsManager:
             ),
             max_score=self.scoring['production']['components']['team']['first'] + 
                       self.scoring['production']['components']['team'].get('max_additional', 0),
-            values1=match_team_names,
-            values2=criteria_team_names,
-            matches=matching_names
+            values1=match.get('team_member_names', []),  # Display names
+            values2=criteria.get('team_member_names', []),  # Display names
+            matches=list(set(match.get('team_member_names', [])) & set(criteria.get('team_member_names', [])))  # Display matching names
         )
         
         # Setting match details
