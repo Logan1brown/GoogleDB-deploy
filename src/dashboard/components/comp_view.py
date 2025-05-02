@@ -240,7 +240,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         'location_setting_id': r['location_setting_id'],
         'network_id': r['network_id'],
         'studios': r.get('studios', []),
-        'team_members': r.get('team_members', []),  # Use team_members consistently
+        'team_member_ids': r.get('team_member_ids', []),  # Match view field names
+        'team_member_names': r.get('team_member_names', []),  # Match view field names
         'episode_count': r['episode_count'],
         'order_type_id': r['order_type_id']
     } for r in results]
