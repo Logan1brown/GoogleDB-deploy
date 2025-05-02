@@ -481,7 +481,6 @@ class CompAnalyzer:
                 results.append({
                     'id': target['id'],
                     'title': target['title'],
-                    'description': target['description'],
                     'success_score': target.get('success_score'),
                     'comp_score': score
                 })

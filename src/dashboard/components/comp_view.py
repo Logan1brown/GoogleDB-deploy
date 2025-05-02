@@ -231,7 +231,7 @@ def create_results_df(results: List[Dict]) -> pd.DataFrame:
     return pd.DataFrame([
         {
             'Show': r['title'],
-            'Success': int(r.get('success_score', 0)),
+            'Success': int(r['success_score'] or 0),
             'Total Score': int(r['comp_score'].total()),
             'Content': int(r['comp_score'].content_score()),
             'Production': int(r['comp_score'].production_score()),
@@ -278,7 +278,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         return
         
     # Filter valid results
-    results = [r for r in results if r.get('comp_score') is not None]
+    # No need to filter since comp_score is always present
     if not results:
         st.info("No valid matches found. Try adjusting your criteria.")
         return
@@ -296,11 +296,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
                 try:
                     # Get comp score data
-                    comp_score = match.get('comp_score')
-                    if not comp_score:
-                        continue
-                        
                     # Get scores and details
+                    comp_score = match['comp_score']
                     scores = comp_score.to_display_dict()
                     details = comp_score.get_match_details()
                     
@@ -328,7 +325,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         return
         
     # Filter valid results
-    results = [r for r in results if r.get('comp_score') is not None]
+    # No need to filter since comp_score is always present
     if not results:
         st.info("No valid matches found. Try adjusting your criteria.")
         return
@@ -346,11 +343,8 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
             with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
                 try:
                     # Get comp score data
-                    comp_score = match.get('comp_score')
-                    if not comp_score:
-                        continue
-                        
                     # Get scores and details
+                    comp_score = match['comp_score']
                     scores = comp_score.to_display_dict()
                     details = comp_score.get_match_details()
                     
