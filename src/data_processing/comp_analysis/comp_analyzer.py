@@ -503,8 +503,7 @@ class CompAnalyzer:
                     'location_setting_id': target.get('location_setting_id'),
                     # Production
                     'network_id': target.get('network_id'),
-                    'team_member_ids': target.get('team_members', []),  # IDs from database
-                    'team_members': [self.field_manager.get_name('team_members', int(id)) for id in target.get('team_members', [])],  # Convert IDs to names
+                    'team_members': target.get('team_members', []),  # IDs from database, just like other fields
                     'studios': target.get('studios', []),
                     # Format
                     'episode_count': target.get('episode_count'),
