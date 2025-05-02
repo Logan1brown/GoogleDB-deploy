@@ -264,7 +264,7 @@ class ScoreEngine:
             'components': {
                 'network': {'match': 5},
                 'studio': {'primary': 2, 'additional': 0.5, 'max_additional': 2},
-                'team': {'first': 4, 'additional': 1}
+                'team': {'first': 3, 'additional': 1}
             }
         },
         'format': {
@@ -413,9 +413,14 @@ class ScoreEngine:
             matches = source_names & target_names
             
             # Calculate points based on matches
+            # For team members, we award points based on the number of matches
+            # First match is worth more (3 points), each additional match worth 1 point
+            # Total possible points is 5 (3 + 2 additional matches)
             if len(matches) > 0:
-                return first_points + (len(matches) - 1) * second_points
-            return 0
+                base_points = 3.0  # First match worth 3 points
+                additional_points = min(len(matches) - 1, 2) * 1.0  # Up to 2 additional matches at 1 point each
+                return base_points + additional_points
+            return 0.0
         else:
             # Normal array matching for other fields
             matches = set(source_arr) & set(target_arr)
