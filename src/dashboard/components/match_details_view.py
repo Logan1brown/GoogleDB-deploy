@@ -35,7 +35,7 @@ def render_array_field_match(label: str, match: ArrayFieldMatch, show_score: boo
             
         non_matches = set(match.values1) - set(match.matches)
         for value in non_matches:
-            st.markdown(f"  • {value}")
+            st.markdown(f"⚫ {value}")
     else:
         if not match.values1:
             st.markdown(f"🔴 No {label.lower()}")
