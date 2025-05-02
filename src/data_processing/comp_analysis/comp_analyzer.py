@@ -454,7 +454,22 @@ class CompAnalyzer:
         self.initialize()
             
         # Create a dummy show with the criteria
-        source = pd.Series(criteria)
+        # Map field names to match database schema
+        mapped_criteria = {}
+        field_mapping = {
+            'studio_ids': 'studios',  # Map UI field to database field
+            'character_type_ids': 'character_type_ids',
+            'plot_element_ids': 'plot_element_ids',
+            'thematic_element_ids': 'thematic_element_ids',
+            'team_member_ids': 'team_member_ids'
+        }
+        
+        for key, value in criteria.items():
+            # Use mapped name if it exists, otherwise use original
+            mapped_key = field_mapping.get(key, key)
+            mapped_criteria[mapped_key] = value
+            
+        source = pd.Series(mapped_criteria)
         
         # Score each show
         scores = []
