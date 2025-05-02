@@ -100,7 +100,7 @@ def update_match_details(details: Dict, match: Dict, criteria: Dict, display_opt
                           
     # Array fields
     update_array_field(details, 'characters', match.get('character_type_ids', []), 
-                      criteria.get('character_types_ids', []), display_options['character_types'],
+                      criteria.get('character_type_ids', []), display_options['character_types'],
                       match.get('character_type_names'))
     update_array_field(details, 'plot', match.get('plot_element_ids', []),
                       criteria.get('plot_element_ids', []), display_options['plot_elements'],
@@ -160,8 +160,14 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         state["criteria"]["source_type_id"] = get_id_for_name(source_name, display_options['source_type']) if source_name else None
         
         # Array-type fields
-        for field, label in [('character_types', 'Character Types'),
-                           ('plot_elements', 'Plot Elements'),
+        # Character Types (special case - uses character_type_ids in database)
+        names = st.multiselect('Character Types',
+            options=[name for _, name in display_options['character_types'] if name and name.strip()],
+            key="character_type_ids", placeholder="Select character types...")
+        state["criteria"]["character_type_ids"] = get_ids_for_names(names, display_options['character_types'])
+        
+        # Other array fields
+        for field, label in [('plot_elements', 'Plot Elements'),
                            ('thematic_elements', 'Theme Elements')]:
             names = st.multiselect(label,
                 options=[name for _, name in display_options[field] if name and name.strip()],
