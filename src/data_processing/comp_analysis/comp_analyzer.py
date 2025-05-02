@@ -84,8 +84,38 @@ class FieldManager:
                     
             self.options[field_name] = sorted(options, key=lambda x: x.name)
     
+    def _get_team_member_options(self, df: pd.DataFrame) -> List[FieldOption]:
+        """Get deduplicated team member options with grouped IDs.
+        
+        For team members, we want to show unique names in the dropdown
+        but preserve all IDs for matching. This helper groups by name
+        and collects all IDs for each unique name.
+        
+        Args:
+            df: DataFrame containing team member data
+            
+        Returns:
+            List of FieldOption with unique names and grouped IDs
+        """
+        # Group by name and collect all IDs
+        grouped = df.groupby('name')['id'].apply(list).reset_index()
+        
+        # Create options with first ID (for display) but store all IDs
+        options = []
+        for _, row in grouped.iterrows():
+            # Use first ID for the option (needed for UI)
+            opt = FieldOption(id=row['id'][0], name=row['name'])
+            # Store all IDs as additional attribute
+            opt.all_ids = row['id']
+            options.append(opt)
+            
+        return sorted(options, key=lambda x: x.name)
+
     def get_options(self, field_name: str) -> List[FieldOption]:
         """Get all options for a field."""
+        if field_name == 'team_members' and field_name in self.reference_data:
+            # Use special handling for team members to deduplicate names
+            return self._get_team_member_options(self.reference_data[field_name])
         return self.options.get(field_name, [])
         
     def get_display_options(self, field_name: str) -> List[Tuple[int, str]]:
@@ -208,6 +238,14 @@ class CompScore:
 class ScoreEngine:
     """Handles all scoring calculations."""
     
+    def __init__(self, field_manager: Optional[FieldManager] = None):
+        """Initialize the score engine.
+        
+        Args:
+            field_manager: FieldManager instance for field option lookups
+        """
+        self.field_manager = field_manager
+    
     # Scoring configuration
     SCORING = {
         'content': {
@@ -263,7 +301,8 @@ class ScoreEngine:
             source['character_type_ids'] or [],
             target['character_type_ids'] or [],
             self.SCORING['content']['components']['character_types']['first'],
-            self.SCORING['content']['components']['character_types']['second']
+            self.SCORING['content']['components']['character_types']['second'],
+            'character_types'
         )
         
         score.plot_elements = self._calculate_array_match(
@@ -310,14 +349,13 @@ class ScoreEngine:
         # Team matching
         # For source (criteria), use team_member_ids (from UI)
         # For target (database), use team_members
-        source_team = set(source.get('team_member_ids') or [])
-        target_team = set(target.get('team_members') or [])
-        if source_team and target_team:
-            matches = len(source_team & target_team)
-            if matches > 0:
-                score.team = self.SCORING['production']['components']['team']['first']
-                if matches > 1:
-                    score.team += self.SCORING['production']['components']['team']['additional']
+        if 'team_member_ids' in source and 'team_member_ids' in target:
+            score.team = self._calculate_array_match(
+                source['team_member_ids'], target['team_member_ids'],
+                self.SCORING['production']['components']['team']['first'],
+                self.SCORING['production']['components']['team']['additional'],
+                'team_members'
+            )
                     
         # Episode scoring
         if pd.notna(source['episode_count']) and pd.notna(target['episode_count']):
@@ -335,19 +373,49 @@ class ScoreEngine:
             
         return score
     
-    def _calculate_array_match(self, source_arr: List, target_arr: List, first_points: float, second_points: float) -> float:
-        """Calculate score for array field matches."""
+    def _calculate_array_match(self, source_arr: List, target_arr: List, first_points: float, second_points: float, field_name: str = None) -> float:
+        """Calculate score for array field matches.
+        
+        For team members, we need to check if any of the source IDs match any of the target IDs,
+        since we've grouped IDs by name in the UI.
+        
+        Args:
+            source_arr: List of IDs from source show
+            target_arr: List of IDs from target show
+            first_points: Points for first match
+            second_points: Points for additional matches
+            field_name: Name of the field being matched (used to identify team members)
+        """
         if not source_arr or not target_arr:
             return 0
             
-        matches = len(set(source_arr) & set(target_arr))
-        if matches == 0:
-            return 0
-        elif matches == 1:
-            return first_points
+        # For team members, we need to expand the source IDs to include all IDs for each name
+        if field_name == 'team_members':
+            # Get all IDs for each team member name
+            source_ids = set()
+            for id in source_arr:
+                opt = next((opt for opt in self.field_manager.get_options('team_members') if opt.id == id), None)
+                if opt and hasattr(opt, 'all_ids'):
+                    source_ids.update(opt.all_ids)
+                else:
+                    source_ids.add(id)
+            matches = source_ids & set(target_arr)
         else:
-            return first_points + second_points
+            # Normal array matching for other fields
+            matches = set(source_arr) & set(target_arr)
             
+        if not matches:
+            return 0
+            
+        # First match is worth more
+        score = first_points
+        
+        # Additional matches get lower points
+        if len(matches) > 1:
+            score += (len(matches) - 1) * second_points
+            
+        return score
+    
     def calculate_episode_score(self, source_eps: int, target_eps: int) -> float:
         """Calculate episode count similarity score.
         
@@ -379,15 +447,17 @@ class CompAnalyzer:
         self.comp_data = None
         self.reference_data = None
         self.field_manager = None
-        self.score_engine = ScoreEngine()
+        self.score_engine = None  # Initialize after field_manager is set
         
     def initialize(self, force: bool = False):
         """Initialize or refresh the analyzer data."""
         if force or self.comp_data is None:
             self.comp_data, self.reference_data = self.shows_analyzer.fetch_comp_data()
             
-        if force or self.field_manager is None:
-            self.field_manager = FieldManager(self.reference_data)
+        # Initialize field manager
+        self.field_manager = FieldManager(self.reference_data)
+        # Initialize score engine with field manager
+        self.score_engine = ScoreEngine(self.field_manager)
     
     def get_field_options(self, force: bool = False) -> Dict[str, List[Tuple[int, str]]]:
         """Get all unique values for dropdown fields.
