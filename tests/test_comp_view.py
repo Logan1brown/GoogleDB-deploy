@@ -17,7 +17,7 @@ def setup_mock_module(name):
     return mock_module
 
 # Mock required dependencies
-mock_success = setup_mock_module('src.data_processing.analyze_success')
+mock_success = setup_mock_module('src.data_processing.success_analysis.success_analyzer')
 mock_success.SuccessAnalyzer = MagicMock
 
 mock_shows = setup_mock_module('src.data_processing.analyze_shows')
