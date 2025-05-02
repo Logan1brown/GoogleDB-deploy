@@ -501,7 +501,7 @@ class CompAnalyzer:
                     'location_setting_id': target.get('location_setting_id'),
                     # Production
                     'network_id': target.get('network_id'),
-                    'team_member_ids': target.get('team_member_ids', []),  # Keep consistent with field_mapping
+                    'team_member_ids': target.get('team_members', []),  # Get from database field
                     'studios': target.get('studios', []),
                     # Format
                     'episode_count': target.get('episode_count'),
