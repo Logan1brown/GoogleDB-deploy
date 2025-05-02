@@ -170,7 +170,8 @@ class MatchDetailsManager:
         
         score = 0
         if matches:
-            score += scoring['primary']
+            # Handle both 'primary' (studios) and 'first' (team) keys
+            score += scoring.get('primary', scoring.get('first', 0))
             additional_matches = len(matches) - 1
             if additional_matches > 0:
                 additional_score = min(
@@ -185,7 +186,7 @@ class MatchDetailsManager:
             selected=bool(selected),
             match=bool(matches),
             score=score,
-            max_score=scoring['primary'] + scoring.get('max_additional', 0),
+            max_score=scoring.get('primary', scoring.get('first', 0)) + scoring.get('max_additional', 0),
             values1=value_names,
             values2=selected_names,
             matches=self.get_field_names(field, list(matches))
