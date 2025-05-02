@@ -140,8 +140,8 @@ def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         # Team Members
         team_names = st.multiselect("Team Members",
             options=[name for _, name in display_options['team_members'] if name and name.strip()],
-            key="team_member_ids", placeholder="Select team members...")
-        state["criteria"]["team_member_ids"] = get_ids_for_names(team_names, display_options['team_members'])
+            key="team_members", placeholder="Select team members...")
+        state["criteria"]["team_members"] = get_ids_for_names(team_names, display_options['team_members'])
     
     # Format criteria
     with st.expander("Format Match Criteria (5 pts)", expanded=True):
@@ -240,7 +240,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         'location_setting_id': r['location_setting_id'],
         'network_name': r['network_name'],
         'studios': r.get('studios', []),
-        'team_member_ids': r.get('team_member_ids', []),  # Use team_member_ids consistently
+        'team_members': r.get('team_members', []),  # Use team_members consistently
         'episode_count': r['episode_count'],
         'order_type_id': r['order_type_id']
     } for r in results]

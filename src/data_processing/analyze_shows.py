@@ -123,7 +123,7 @@ class ShowsAnalyzer:
             
             # Convert array fields to Python lists
             array_fields = ['subgenres', 'character_type_ids', 'plot_element_ids', 
-                          'thematic_element_ids', 'studios', 'team_member_ids']
+                          'thematic_element_ids', 'studios', 'team_members']
             for field in array_fields:
                 if field in comp_df.columns:
                     comp_df[field] = comp_df[field].apply(_self.convert_to_list)
