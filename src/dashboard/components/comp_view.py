@@ -223,4 +223,26 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
     
     # Create match details manager and show details
     details_manager = MatchDetailsManager(comp_analyzer)
-    render_match_details(results, details_manager, state['criteria'])
+    
+    # Transform results into expected format
+    match_results = [{
+        'id': r['id'],
+        'title': r['title'],
+        'comp_score': r['comp_score'],
+        'genre_id': r['genre_id'],
+        'subgenres': r.get('subgenres', []),
+        'source_type_id': r['source_type_id'],
+        'character_type_ids': r.get('character_type_ids', []),
+        'plot_element_ids': r.get('plot_element_ids', []),
+        'thematic_element_ids': r.get('thematic_element_ids', []),
+        'tone_id': r['tone_id'],
+        'time_setting_id': r['time_setting_id'],
+        'location_setting_id': r['location_setting_id'],
+        'network_id': r['network_id'],
+        'studios': r.get('studios', []),
+        'team_member_ids': r.get('team_member_ids', []),
+        'episode_count': r['episode_count'],
+        'order_type_id': r['order_type_id']
+    } for r in results]
+    
+    render_match_details(match_results, details_manager, state['criteria'])
