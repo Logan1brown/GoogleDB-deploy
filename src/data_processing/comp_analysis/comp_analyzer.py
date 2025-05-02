@@ -390,21 +390,19 @@ class ScoreEngine:
             
         # For team members, we need to count unique names for scoring
         if field_name == 'team_members':
-            # Get unique names for source and target
-            source_names = set()
-            target_names = set()
+            # Get all team member options with their grouped IDs
+            team_options = self.field_manager.get_options('team_members')
             
-            # Get names for source IDs
-            for id in source_arr:
-                opt = next((opt for opt in self.field_manager.get_options('team_members') if opt.id == id), None)
-                if opt:
-                    source_names.add(opt.name)
-            
-            # Get names for target IDs
-            for id in target_arr:
-                opt = next((opt for opt in self.field_manager.get_options('team_members') if opt.id == id), None)
-                if opt:
-                    target_names.add(opt.name)
+            # Create a map of ID -> name that includes all IDs for each name
+            id_to_name = {}
+            for opt in team_options:
+                # Each ID for this name maps to the same name
+                for team_id in opt.all_ids:
+                    id_to_name[team_id] = opt.name
+                
+            # Get unique names for source and target using the lookup map
+            source_names = {id_to_name[id] for id in source_arr if id in id_to_name}
+            target_names = {id_to_name[id] for id in target_arr if id in id_to_name}
                     
             # Count matches by unique names
             matches = source_names & target_names
