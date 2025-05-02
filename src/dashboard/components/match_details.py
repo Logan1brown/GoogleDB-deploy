@@ -47,6 +47,10 @@ class MatchDetailsManager:
         
         # Content match details
         details['genre'] = self._process_genre_match(match, criteria)
+        details['subgenres'] = self._process_array_field_match(
+            'genre', match.get('subgenres', []), criteria.get('subgenres', []),
+            self.scoring['content']['components']['genre']
+        )
         details['source'] = self._process_single_field_match(
             'source_type', match.get('source_type_id'), criteria.get('source_type_id'),
             self.scoring['content']['components']['source_type']['match']

@@ -51,6 +51,7 @@ def render_match_details_section(details: Dict) -> None:
     # Content match section
     st.markdown("#### Content Match")
     render_field_match("Genre", details['genre'])
+    render_array_field_match("Subgenres", details['subgenres'])
     render_array_field_match("Character Types", details['characters'])
     render_array_field_match("Plot Elements", details['plot'])
     render_field_match("Source", details['source'])

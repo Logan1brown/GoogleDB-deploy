@@ -490,7 +490,7 @@ class CompAnalyzer:
                     'comp_score': score,
                     # Content fields
                     'genre_id': target.get('genre_id'),
-                    'subgenres': target.get('subgenres', []),
+                    'subgenres': target.get('subgenres', []),  # Include subgenres
                     'source_type_id': target.get('source_type_id'),
                     'character_type_ids': target.get('character_type_ids', []),
                     'plot_element_ids': target.get('plot_element_ids', []),
