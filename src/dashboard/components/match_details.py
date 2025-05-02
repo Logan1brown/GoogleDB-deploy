@@ -92,6 +92,7 @@ class MatchDetailsManager:
         
         # For team members, we need to check all IDs for each name
         matching_names = set()
+        matching_ids = set()
         source_names = match.get('team_member_names', [])
         target_names = criteria.get('team_member_names', [])
         
@@ -100,12 +101,13 @@ class MatchDetailsManager:
             for target_id, target_name in zip(target_team, target_names):
                 if source_name == target_name:
                     matching_names.add(target_name)  # Use exact name from criteria
+                    matching_ids.add(target_id)
         
         details['team'] = ArrayFieldMatch(
             name1='Multiple' if source_team else 'None',
             name2='Multiple' if target_team else 'None',
             selected=bool(target_team),
-            match=bool(matching_names),  # Use matching_names instead of matching_ids
+            match=bool(matching_ids),
             score=self._calculate_team_score(
                 source_team,
                 target_team,
