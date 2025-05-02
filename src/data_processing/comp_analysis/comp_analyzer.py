@@ -308,9 +308,10 @@ class ScoreEngine:
                     score.studio += additional * self.SCORING['production']['components']['studio']['additional']
                     
         # Team matching
-        # Try team_member_ids first (from UI criteria) then team_members (from DB)
-        source_team = set(source.get('team_member_ids') or source.get('team_members') or [])
-        target_team = set(target.get('team_member_ids') or target.get('team_members') or [])
+        # For source (criteria), use team_member_ids (from UI)
+        # For target (database), use team_members
+        source_team = set(source.get('team_member_ids') or [])
+        target_team = set(target.get('team_members') or [])
         if source_team and target_team:
             matches = len(source_team & target_team)
             if matches > 0:
