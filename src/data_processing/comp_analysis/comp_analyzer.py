@@ -397,12 +397,17 @@ class ScoreEngine:
             id_to_name = {}
             for opt in team_options:
                 # Each ID for this name maps to the same name
-                for team_id in opt.all_ids:
-                    id_to_name[team_id] = opt.name
+                # Handle case where all_ids might be None
+                if hasattr(opt, 'all_ids') and opt.all_ids:
+                    for team_id in opt.all_ids:
+                        id_to_name[team_id] = opt.name
+                else:
+                    # Fallback to single ID if all_ids not available
+                    id_to_name[opt.id] = opt.name
                 
             # Get unique names for source and target using the lookup map
-            source_names = {id_to_name[id] for id in source_arr if id in id_to_name}
-            target_names = {id_to_name[id] for id in target_arr if id in id_to_name}
+            source_names = {id_to_name[id] for id in (source_arr or []) if id in id_to_name}
+            target_names = {id_to_name[id] for id in (target_arr or []) if id in id_to_name}
                     
             # Count matches by unique names
             matches = source_names & target_names
@@ -567,7 +572,7 @@ class CompAnalyzer:
                 result = {
                     'id': target['id'],
                     'title': target['title'],
-                    'success_score': target.get('success_score'),
+                    'success_score': float(target.get('success_score', 0)),  # Convert to float and handle None
                     'comp_score': score,
                     # Content fields
                     'genre_id': target.get('genre_id'),
