@@ -466,7 +466,7 @@ class CompAnalyzer:
             'character_type_ids': 'character_type_ids',
             'plot_element_ids': 'plot_element_ids',
             'thematic_element_ids': 'thematic_element_ids',
-            'team_ids': 'team_members',  # Map UI field to database field
+            'team_member_ids': 'team_members',  # Map UI field to database field
             'episode_count': 'episode_count'  # First season episode count
         }
         
@@ -500,8 +500,8 @@ class CompAnalyzer:
                     'time_setting_id': target.get('time_setting_id'),
                     'location_setting_id': target.get('location_setting_id'),
                     # Production
+                    'team_member_ids': target.get('team_members', []),
                     'studios': target.get('studios', []),
-                    'team_member_ids': target.get('team_member_ids', []),
                     # Format
                     'episode_count': target.get('episode_count'),
                     'order_type_id': target.get('order_type_id')
