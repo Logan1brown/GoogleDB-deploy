@@ -53,7 +53,7 @@ class FieldManager:
         'location_setting': FieldConfig('location_setting_types', 'id', 'name'),  # show_description_analysis.location_setting_id
         'network': FieldConfig('network_list', 'id', 'network'),  # shows.network_id
         'studios': FieldConfig('studio_list', 'id', 'studio', True),  # shows.studios[]
-        'team_members': FieldConfig('show_team', 'id', 'name', True),  # show_team
+        'team_member_ids': FieldConfig('show_team', 'id', 'name', True),  # show_team
         'order_type': FieldConfig('order_types', 'id', 'type')  # shows.order_type_id
     }
     
@@ -501,7 +501,7 @@ class CompAnalyzer:
                     'location_setting_id': target.get('location_setting_id'),
                     # Production
                     'network_id': target.get('network_id'),
-                    'team_member_ids': target.get('team_member_ids', []),  # Keep consistent with DataFrame
+                    'team_member_ids': target.get('team_member_ids', []),  # Keep consistent with field_mapping
                     'studios': target.get('studios', []),
                     # Format
                     'episode_count': target.get('episode_count'),
