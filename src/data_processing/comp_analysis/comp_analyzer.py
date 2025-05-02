@@ -120,8 +120,7 @@ class FieldManager:
         
     def get_display_options(self, field_name: str) -> List[Tuple[int, str]]:
         """Get (id, name) tuples for display."""
-        options = self.get_options(field_name)
-        return [(opt.id, opt.name) for opt in options]
+        return [(opt.id, opt.name) for opt in self.get_options(field_name)]
         
     def get_name(self, field_name: str, id: int) -> str:
         """Get display name for an ID."""
