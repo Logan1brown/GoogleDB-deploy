@@ -28,29 +28,16 @@ def render_array_field_match(label: str, match: ArrayFieldMatch, show_score: boo
             values = ', '.join(match.values1)
             st.markdown(f"⚫ {values} (not selected)")
         return
-        
-    # Show selected values in their original order
-    if match.values2:
-        for value in match.values2:
-            # Value is in matches list (preserves selection order)
-            bullet = '🟢' if value in match.matches else '⚫'
-            st.write(f'{bullet} {value}')
-    # Show non-selected values from source show
-    elif match.values1:
-        st.write('⚫ ' + ', '.join(match.values1) + ' (not selected)')
-    # Then show non-matches
-    if match.match:
-        # If we have matches, show other values with black bullets
-        non_matches = set(match.values1) - set(match.matches)
-        for value in non_matches:
-            st.markdown(f"⚫ {value}")
-    else:
-        # If no matches, show all values with red bullets
-        if not match.values1:
-            st.markdown(f"🔴 No {label.lower()}")
-        else:
-            values = ', '.join(match.values1)
-            st.markdown(f"🔴 No matches: {values}")
+    
+    # Show selected values first with green/black bullets
+    for value in match.values2:
+        bullet = '🟢' if value in match.matches else '⚫'
+        st.write(f'{bullet} {value}')
+    
+    # Show remaining values from source show that weren't selected
+    remaining = [v for v in match.values1 if v not in match.values2]
+    if remaining:
+        st.write('⚫ ' + ', '.join(remaining))
 
 def render_match_details_section(details: Dict) -> None:
     """Render match details section with columns."""
