@@ -388,17 +388,26 @@ class ScoreEngine:
         if not source_arr or not target_arr:
             return 0
             
-        # For team members, we need to expand the source IDs to include all IDs for each name
+        # For team members, we need to count unique names for scoring
         if field_name == 'team_members':
-            # Get all IDs for each team member name
-            source_ids = set()
+            # Get unique names for source and target
+            source_names = set()
+            target_names = set()
+            
+            # Get names for source IDs
             for id in source_arr:
                 opt = next((opt for opt in self.field_manager.get_options('team_members') if opt.id == id), None)
-                if opt and hasattr(opt, 'all_ids'):
-                    source_ids.update(opt.all_ids)
-                else:
-                    source_ids.add(id)
-            matches = source_ids & set(target_arr)
+                if opt:
+                    source_names.add(opt.name)
+            
+            # Get names for target IDs
+            for id in target_arr:
+                opt = next((opt for opt in self.field_manager.get_options('team_members') if opt.id == id), None)
+                if opt:
+                    target_names.add(opt.name)
+                    
+            # Count matches by unique names
+            matches = source_names & target_names
         else:
             # Normal array matching for other fields
             matches = set(source_arr) & set(target_arr)
