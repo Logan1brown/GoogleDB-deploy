@@ -17,9 +17,9 @@ from datetime import datetime
 import streamlit as st
 import logging
 
-from src.data_processing.analyze_shows import ShowsAnalyzer
-from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
-from src.utils.supabase import get_client
+from src.config.supabase_client import get_client
+from ..analyze_shows import ShowsAnalyzer
+from ..success_analysis import SuccessAnalyzer
 
 logger = logging.getLogger(__name__)
 
