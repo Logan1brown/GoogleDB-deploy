@@ -468,7 +468,7 @@ class CompAnalyzer:
             'character_type_ids': 'character_type_ids',
             'plot_element_ids': 'plot_element_ids',
             'thematic_element_ids': 'thematic_element_ids',
-            'team_member_ids': 'team_member_ids',  # Keep consistent with calculate_score
+            'team_member_ids': 'team_member_ids',
             'episode_count': 'episode_count'  # First season episode count
         }
         
@@ -503,7 +503,8 @@ class CompAnalyzer:
                     'location_setting_id': target.get('location_setting_id'),
                     # Production
                     'network_id': target.get('network_id'),
-                    'team_members': target.get('team_member_ids', []),  # IDs from database
+                    'team_member_ids': target.get('team_member_ids', []),
+                    'team_member_names': target.get('team_member_names', []),
                     'studios': target.get('studios', []),
                     # Format
                     'episode_count': target.get('episode_count'),
