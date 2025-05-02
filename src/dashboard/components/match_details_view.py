@@ -60,6 +60,7 @@ def render_match_details_section(details: Dict) -> None:
     
     # Production match section
     st.markdown("#### Production Match")
+    render_field_match("Network", details['network'])
     render_array_field_match("Studio", details['studio'])
     render_array_field_match("Team", details['team'])
     

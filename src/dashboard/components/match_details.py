@@ -47,9 +47,14 @@ class MatchDetailsManager:
         
         # Content match details
         details['genre'] = self._process_genre_match(match, criteria)
+        # Process subgenres with overlap scoring
+        subgenre_scoring = {
+            'first': self.scoring['content']['components']['genre']['overlap'],  # Use overlap points
+            'second': 0  # No additional points for second match
+        }
         details['subgenres'] = self._process_array_field_match(
             'genre', match.get('subgenres', []), criteria.get('subgenres', []),
-            self.scoring['content']['components']['genre']
+            subgenre_scoring
         )
         details['source'] = self._process_single_field_match(
             'source_type', match.get('source_type_id'), criteria.get('source_type_id'),
