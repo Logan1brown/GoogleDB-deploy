@@ -478,12 +478,31 @@ class CompAnalyzer:
         for _, target in self.comp_data.iterrows():
             score = self.score_engine.calculate_score(source, target)
             if score.total() > 0:
-                results.append({
+                # Include all fields needed for match details
+                result = {
                     'id': target['id'],
                     'title': target['title'],
                     'success_score': target.get('success_score'),
-                    'comp_score': score
-                })
+                    'comp_score': score,
+                    # Content fields
+                    'genre_id': target.get('genre_id'),
+                    'subgenres': target.get('subgenres', []),
+                    'source_type_id': target.get('source_type_id'),
+                    'character_type_ids': target.get('character_type_ids', []),
+                    'plot_element_ids': target.get('plot_element_ids', []),
+                    'thematic_element_ids': target.get('thematic_element_ids', []),
+                    'tone_id': target.get('tone_id'),
+                    # Setting
+                    'time_setting_id': target.get('time_setting_id'),
+                    'location_setting_id': target.get('location_setting_id'),
+                    # Production
+                    'studios': target.get('studios', []),
+                    'team_member_ids': target.get('team_member_ids', []),
+                    # Format
+                    'episode_count': target.get('episode_count'),
+                    'order_type_id': target.get('order_type_id')
+                }
+                results.append(result)
                 
         # Sort by total score descending
         return sorted(results, key=lambda x: x['comp_score'].total(), reverse=True)
