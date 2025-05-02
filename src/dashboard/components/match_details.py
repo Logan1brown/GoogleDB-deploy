@@ -105,7 +105,7 @@ class MatchDetailsManager:
             name1='Multiple' if source_team else 'None',
             name2='Multiple' if target_team else 'None',
             selected=bool(target_team),
-            match=bool(matching_ids),
+            match=bool(matching_names),  # Use matching_names instead of matching_ids
             score=self._calculate_team_score(
                 source_team,
                 target_team,
