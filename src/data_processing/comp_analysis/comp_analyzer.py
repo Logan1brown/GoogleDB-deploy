@@ -42,18 +42,18 @@ class FieldManager:
     
     # Field configuration mapping
     FIELD_CONFIGS = {
-        'character_types': FieldConfig('character_type_types', 'id', 'name', True),
-        'genre': FieldConfig('genre_list', 'id', 'genre'),
-        'subgenres': FieldConfig('genre_list', 'id', 'genre', True),
-        'source_type': FieldConfig('source_types', 'id', 'name'),
-        'plot_elements': FieldConfig('plot_element_types', 'id', 'name', True),
-        'thematic_elements': FieldConfig('thematic_element_types', 'id', 'name', True),
-        'tone': FieldConfig('tone_types', 'id', 'name'),
-        'time_setting': FieldConfig('time_setting_types', 'id', 'name'),
-        'location_setting': FieldConfig('location_setting_types', 'id', 'name'),
-        'network': FieldConfig('network_list', 'id', 'network'),
-        'studios': FieldConfig('studio_list', 'id', 'studio', True),
-        'order_type': FieldConfig('order_types', 'id', 'name')
+        'character_types': FieldConfig('character_type_types', 'id', 'name', True),  # show_character_type_list
+        'genre': FieldConfig('genre_list', 'id', 'genre'),  # Primary genre
+        'subgenres': FieldConfig('genre_list', 'id', 'genre', True),  # shows.subgenres[]
+        'source_type': FieldConfig('source_types', 'id', 'type'),  # Not array - shows.source_type_id
+        'plot_elements': FieldConfig('plot_element_types', 'id', 'name', True),  # show_plot_element_list
+        'thematic_elements': FieldConfig('thematic_element_types', 'id', 'name', True),  # show_thematic_element_list
+        'tone': FieldConfig('tone_types', 'id', 'name'),  # show_description_analysis.tone_id
+        'time_setting': FieldConfig('time_setting_types', 'id', 'name'),  # show_description_analysis.time_setting_id
+        'location_setting': FieldConfig('location_setting_types', 'id', 'name'),  # show_description_analysis.location_setting_id
+        'network': FieldConfig('network_list', 'id', 'network'),  # shows.network_id
+        'studios': FieldConfig('studio_list', 'id', 'studio', True),  # shows.studios[]
+        'order_type': FieldConfig('order_types', 'id', 'type')  # shows.order_type_id
     }
     
     def __init__(self, reference_data: Dict[str, pd.DataFrame]):
