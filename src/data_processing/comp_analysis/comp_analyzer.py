@@ -308,8 +308,8 @@ class ScoreEngine:
                     score.studio += additional * self.SCORING['production']['components']['studio']['additional']
                     
         # Team matching
-        source_team = set(source['team_members'] or [])
-        target_team = set(target['team_members'] or [])
+        source_team = set(source['team_member_ids'] or [])
+        target_team = set(target['team_member_ids'] or [])
         if source_team and target_team:
             matches = len(source_team & target_team)
             if matches > 0:
