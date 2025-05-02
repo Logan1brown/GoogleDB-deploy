@@ -23,11 +23,15 @@ def render_array_field_match(label: str, match: ArrayFieldMatch, show_score: boo
     
     # Special handling for team members to avoid duplicate display
     if label == 'Team':
-        # Show all team members with appropriate bullets
-        for value in match.values1:
-            # Check if it's selected and matched
+        # Show selected team members first
+        for value in match.values2:
             bullet = '🟢' if value in match.matches else '⚫'
             st.write(f'{bullet} {value}')
+        
+        # Show remaining team members
+        remaining = [v for v in match.values1 if v not in match.values2]
+        for value in remaining:
+            st.write(f'⚫ {value}')
         return
         
     # Standard handling for other array fields
