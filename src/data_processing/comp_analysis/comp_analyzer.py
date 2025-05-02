@@ -53,7 +53,7 @@ class FieldManager:
         'location_setting': FieldConfig('location_setting_types', 'id', 'name'),  # show_description_analysis.location_setting_id
         'network': FieldConfig('network_list', 'id', 'network'),  # shows.network_id
         'studios': FieldConfig('studio_list', 'id', 'studio', True),  # shows.studios[]
-        'team_members': FieldConfig('team_member_types', 'id', 'name', True),  # show_team_member_list
+        'team_members': FieldConfig('show_team', 'id', 'name', True),  # show_team
         'order_type': FieldConfig('order_types', 'id', 'type')  # shows.order_type_id
     }
     
