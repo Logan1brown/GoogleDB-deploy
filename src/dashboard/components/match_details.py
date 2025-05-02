@@ -106,9 +106,9 @@ class MatchDetailsManager:
                        if len(target_team) > 1 else 0),
             values1=match.get('team_member_names', []),  # Show's team names
             values2=criteria.get('team_member_names', []),  # Selected names
-            # Get names that correspond to matching IDs
-            matches=[name for name in match.get('team_member_names', [])
-                    if name in criteria.get('team_member_names', [])]
+            # Get names that correspond to matching IDs, preserving selected order
+            matches=[name for name in criteria.get('team_member_names', [])
+                    if name in match.get('team_member_names', [])]
         )
         
         # Setting match details
