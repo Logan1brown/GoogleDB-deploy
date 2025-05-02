@@ -14,13 +14,21 @@ from .match_details_view import render_match_details
 
 def render_comp_builder(state: Dict) -> None:
     """Render the comp builder interface."""
+    # Initialize state
+    if 'criteria' not in state:
+        state['criteria'] = {}
+    
+    # Initialize analyzer
     comp_analyzer = CompAnalyzer()
-    comp_analyzer.initialize()  # Initialize data before using
-    st.title("Comp Builder")
-    criteria_col, results_col = st.columns([1, 2])
-    with criteria_col:
+    comp_analyzer.initialize()
+    
+    # Set up columns
+    col1, col2 = st.columns([1, 2])
+    
+    # Render sections
+    with col1:
         render_criteria_section(comp_analyzer, state)
-    with results_col:
+    with col2:
         render_results_section(comp_analyzer, state)
 
 
