@@ -84,6 +84,22 @@ class FieldManager:
                     
             self.options[field_name] = sorted(options, key=lambda x: x.name)
     
+    def _normalize_name(self, name: str) -> str:
+        """Normalize a team member name for consistent matching.
+        
+        Handles variations like:
+        - David E. Kelley vs David E Kelley
+        - John Smith Jr. vs John Smith Jr
+        
+        Args:
+            name: Name to normalize
+            
+        Returns:
+            Normalized name for matching
+        """
+        # Remove extra spaces and periods from middle initials
+        return ' '.join(part.strip(' .') for part in name.split())
+    
     def _get_team_member_options(self, df: pd.DataFrame) -> List[FieldOption]:
         """Get deduplicated team member options with grouped IDs.
         
@@ -97,8 +113,15 @@ class FieldManager:
         Returns:
             List of FieldOption with unique names and grouped IDs
         """
-        # Group by name and collect all IDs
-        grouped = df.groupby('name')['id'].apply(list).reset_index()
+        # Add normalized names for grouping
+        df = df.copy()
+        df['normalized_name'] = df['name'].apply(self._normalize_name)
+        
+        # Group by normalized name and collect all IDs
+        grouped = df.groupby('normalized_name').agg({
+            'id': list,
+            'name': 'first'  # Keep first name variant for display
+        }).reset_index()
         
         # Create options with first ID (for display) but store all IDs
         options = []

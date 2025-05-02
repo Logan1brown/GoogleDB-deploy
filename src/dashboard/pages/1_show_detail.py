@@ -192,7 +192,7 @@ def show():
         - Studio (3 points): Same production studio
         - Team (20 points): 6.7 points per shared team member (max 20)
 
-        Format Match (15 points):
+        Format Match (5 points):
         - Episodes (8 points): Based on episodes per season difference
             * ≤2 eps: 8 points
             * ≤4 eps: 5 points

@@ -76,10 +76,10 @@ def render_base_match_breakdown(
                         first = True
                         for char_type in chars['matches']:
                             if first:
-                                st.write(f"🟢 {char_type} (+5)")
+                                st.write(f"🟢 {char_type} (+10.5)")
                                 first = False
                             else:
-                                st.write(f"🟢 {char_type} (+1.8)")
+                                st.write(f"🟢 {char_type} (+3.5)")
                     if chars['mismatches']:
                         for char_type in chars['mismatches']:
                             st.write(f"⚫ {char_type}")
@@ -138,10 +138,10 @@ def render_base_match_breakdown(
                         first = True
                         for theme in themes['matches']:
                             if first:
-                                st.write(f"🟢 {theme} (+5)")
+                                st.write(f"🟢 {theme} (+9.75)")
                                 first = False
                             else:
-                                st.write(f"🟢 {theme} (+1.6)")
+                                st.write(f"🟢 {theme} (+3.25)")
                     if themes['mismatches']:
                         for theme in themes['mismatches']:
                             st.write(f"⚫ {theme}")
@@ -213,7 +213,7 @@ def render_base_match_breakdown(
                     first = True
                     for member in team['matches']:
                         if first:
-                            st.write(f"🟢 {member} (+4)")
+                            st.write(f"🟢 {member} (+3)")
                             first = False
                         else:
                             st.write(f"🟢 {member} (+1)")

@@ -164,7 +164,7 @@ def show_match_breakdown(show, expanded=False):
                     st.write(f"• {name} ({role})")
         
         # Format Match section
-        st.markdown(f"\n**Format Match** ({scores['format_total']}/15 points)")
+        st.markdown(f"\n**Format Match** ({scores['format_total']}/5 points)")
         
         col1, col2 = st.columns(2)
         
