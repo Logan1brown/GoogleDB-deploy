@@ -221,20 +221,6 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
     apply_table_css()
     st.dataframe(df.style.apply(apply_table_styling))
     
-    # Show match details for selected show
-    if not state.get('selected_show_id'):
-        return
-        
-    selected_match = next((r for r in results if r['id'] == state['selected_show_id']), None)
-    if not selected_match:
-        return
-        
-    # Create match details manager
+    # Create match details manager and show details
     details_manager = MatchDetailsManager(comp_analyzer)
-    match_details = details_manager.create_match_details(selected_match, state['criteria'])
-    
-    # Render match details
-    st.markdown(f"### Match Details")
-    st.markdown(f"#{selected_match['id']}: {selected_match['title']}")
-    st.markdown(f"Match: {selected_match['comp_score'].total():.1f}")
-    render_match_details(selected_match['id'], match_details)
+    render_match_details(results, details_manager)
