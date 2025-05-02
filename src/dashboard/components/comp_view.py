@@ -223,4 +223,4 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
     
     # Create match details manager and show details
     details_manager = MatchDetailsManager(comp_analyzer)
-    render_match_details(results, details_manager)
+    render_match_details(results, details_manager, state['criteria'])

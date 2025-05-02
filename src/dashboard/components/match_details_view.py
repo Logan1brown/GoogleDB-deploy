@@ -82,12 +82,12 @@ def render_match_details_section(details: Dict) -> None:
     render_setting_match(details['setting'])
     render_format_match(details['format'])
 
-def render_match_details(matches: List[Dict], details_manager) -> None:
+def render_match_details(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Render match details for top matches."""
     st.markdown("### Top Matches")
     
     # Show top 10 matches in expanders
     for match in matches[:10]:
         with st.expander(f"#{match['id']}: {match['title']} (Match: {match['comp_score'].total():.1f})", expanded=match == matches[0]):
-            details = details_manager.create_match_details(match)
+            details = details_manager.create_match_details(match, criteria)
             render_match_details_section(details)
