@@ -87,7 +87,7 @@ class MatchDetailsManager:
             self.scoring['production']['components']['studio']
         )
         details['team'] = self._process_production_field_match(
-            'team_members', match.get('team_members', []), criteria.get('team_members', []),
+            'team_members', match.get('team_member_names', []), criteria.get('team_member_names', []),
             self.scoring['production']['components']['team']
         )
         
@@ -174,11 +174,19 @@ class MatchDetailsManager:
     def _process_production_field_match(self, field: str, values: List[int],
                                       selected: List[int], scoring: Dict) -> ArrayFieldMatch:
         """Process match for production fields (studio, team) with special scoring."""
-        value_names = self.get_field_names(field, values)
-        selected_names = self.get_field_names(field, selected)
-        
-        value_set = set(values)
-        selected_set = set(selected)
+        if field == 'team_members':
+            # For team members, get names directly from match data
+            value_names = values
+            selected_names = selected
+            value_set = set(values)
+            selected_set = set(selected)
+        else:
+            # For other fields like studios, convert IDs to names
+            value_names = self.get_field_names(field, values)
+            selected_names = self.get_field_names(field, selected)
+            value_set = set(values)
+            selected_set = set(selected)
+            
         matches = value_set & selected_set
         
         score = 0
