@@ -500,6 +500,7 @@ class CompAnalyzer:
                     'time_setting_id': target.get('time_setting_id'),
                     'location_setting_id': target.get('location_setting_id'),
                     # Production
+                    'network_id': target.get('network_id'),
                     'team_member_ids': target.get('team_member_ids', []),
                     'studios': target.get('studios', []),
                     # Format
