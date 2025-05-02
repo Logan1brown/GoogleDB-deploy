@@ -87,34 +87,9 @@ class MatchDetailsManager:
             self.scoring['production']['components']['studio']
         )
         # Use team_member_ids for matching and team_member_names for display
-        # Use team_member_ids for scoring and team_member_names for display
-        match_ids = match.get('team_member_ids', [])
-        criteria_ids = criteria.get('team_member_ids', [])
-        match_names = match.get('team_member_names', [])
-        criteria_names = criteria.get('team_member_names', [])
-        
-        # Calculate matching IDs
-        matching_ids = set(match_ids) & set(criteria_ids)
-        
-        # Map matching IDs to their names
-        match_id_to_name = dict(zip(match_ids, match_names))
-        matching_names = [match_id_to_name[id] for id in matching_ids if id in match_id_to_name]
-        
-        details['team'] = ArrayFieldMatch(
-            name1='Multiple' if match_names else 'None',
-            name2='Multiple' if criteria_names else 'None',
-            selected=bool(criteria_ids),
-            match=bool(matching_ids),
-            score=self._calculate_team_score(
-                match_ids,
-                criteria_ids,
-                self.scoring['production']['components']['team']
-            ),
-            max_score=self.scoring['production']['components']['team']['first'] + 
-                      self.scoring['production']['components']['team'].get('max_additional', 0),
-            values1=match_names,
-            values2=criteria_names,
-            matches=matching_names
+        details['team'] = self._process_production_field_match(
+            'team_members', match.get('team_members', []), criteria.get('team_members', []),
+            self.scoring['production']['components']['team']
         )
         
         # Setting match details
