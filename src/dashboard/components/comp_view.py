@@ -8,7 +8,8 @@ from src.dashboard.utils.style_config import COLORS, FONTS
 from src.dashboard.components.base_match_breakdown import render_base_match_breakdown
 
 
-from . import MatchDetailsManager, render_match_details
+from .match_details import MatchDetailsManager
+from .match_details_view import render_match_details
 
 
 def render_comp_builder(state: Dict) -> None:
