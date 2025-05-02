@@ -504,6 +504,7 @@ class CompAnalyzer:
                     # Production
                     'network_id': target.get('network_id'),
                     'team_members': target.get('team_member_ids', []),  # IDs from database
+                    'team_member_names': target.get('team_member_names', []),  # Names already matched to IDs
                     'studios': target.get('studios', []),
                     # Format
                     'episode_count': target.get('episode_count'),

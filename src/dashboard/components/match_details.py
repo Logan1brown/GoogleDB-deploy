@@ -86,8 +86,9 @@ class MatchDetailsManager:
             'studios', match.get('studios', []), criteria.get('studio_ids', []),
             self.scoring['production']['components']['studio']
         )
+        # Use team_member_names directly instead of looking up from IDs
         details['team'] = self._process_production_field_match(
-            'team_members', match.get('team_members', []), criteria.get('team_members', []),
+            'team_members', match.get('team_member_names', []), criteria.get('team_member_names', []),
             self.scoring['production']['components']['team']
         )
         
