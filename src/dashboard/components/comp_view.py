@@ -172,26 +172,36 @@ def create_results_df(results: List[Dict]) -> pd.DataFrame:
         } for r in results
     ])
 
-def apply_table_styling() -> None:
-    """Apply consistent styling to results table."""
+def apply_table_styling(s: pd.Series) -> List[str]:
+    """Apply consistent styling to results table.
+    
+    Args:
+        s: Series to style (passed by pandas)
+        
+    Returns:
+        List of CSS styles for each cell
+    """
+    return [''] * len(s)  
+
+def apply_table_css() -> None:
+    """Apply CSS styling to the results table."""
     st.markdown(f"""
         <style>
         .stDataFrame table {{ color: {COLORS['text']['primary']}; }}
         .stDataFrame th {{ 
-            background-color: {COLORS['accent']}; 
+            background-color: {COLORS['accent']};
             color: white;
             font-family: {FONTS['primary']['family']};
             font-size: {FONTS['primary']['sizes']['body']}px;
+            font-weight: {FONTS['primary']['weights']['bold']};
         }}
         .stDataFrame td {{ 
             font-family: {FONTS['primary']['family']};
             font-size: {FONTS['primary']['sizes']['small']}px;
         }}
-        [data-testid="stMetricValue"] {{
-            overflow: visible !important;
-            width: auto !important;
-            margin-right: 20px !important;
-        }}
+        
+        /* Hide index column */
+        .stDataFrame .index {{ display: none !important; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -206,8 +216,9 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         st.info("No matches found for the selected criteria.")
         return
         
-    # Create results table
+    # Create and style results table
     df = create_results_df(results)
+    apply_table_css()
     st.dataframe(df.style.apply(apply_table_styling))
     
     # Show match details for selected show
