@@ -29,10 +29,17 @@ def render_array_field_match(label: str, match: ArrayFieldMatch, show_score: boo
             st.markdown(f"⚫ {values} (not selected)")
         return
         
-    # First show matches with green bullets
-    for value in match.matches:
-        st.markdown(f"🟢 {value}")
+    # Show all values from source show
+    if match.values1:
+        st.write('⚫ ' + ', '.join(match.values1) + 
+                 (' (not selected)' if not match.selected else ''))
         
+    # Show selected values in their original order
+    if match.values2:
+        for value in match.values2:
+            # Value is in matches list (preserves selection order)
+            bullet = '🟢' if value in match.matches else '⚫'
+            st.write(f'{bullet} {value}')
     # Then show non-matches
     if match.match:
         # If we have matches, show other values with black bullets
