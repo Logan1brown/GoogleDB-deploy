@@ -21,6 +21,16 @@ def render_array_field_match(label: str, match: ArrayFieldMatch, show_score: boo
     """Render a multi-value field match."""
     st.markdown(f"**{label}** {f'({match.score}/{match.max_score})' if show_score else ''}")
     
+    # Special handling for team members to avoid duplicate display
+    if label == 'Team':
+        # Show all team members with appropriate bullets
+        for value in match.values1:
+            # Check if it's selected and matched
+            bullet = '🟢' if value in match.matches else '⚫'
+            st.write(f'{bullet} {value}')
+        return
+        
+    # Standard handling for other array fields
     if not match.selected:
         if not match.values1:
             st.markdown(f"⚫ No {label.lower()}")
