@@ -281,59 +281,59 @@ class ScoreEngine:
         score = CompScore()
         
         # Content scoring
-        if source['genre_id'] == target['genre_id']:
+        if source.get('genre_id') == target.get('genre_id'):
             score.genre_base = self.SCORING['content']['components']['genre']['base']
             
-        source_subgenres = set(source['subgenres'] or [])
-        target_subgenres = set(target['subgenres'] or [])
+        source_subgenres = set(source.get('subgenres') or [])
+        target_subgenres = set(target.get('subgenres') or [])
         if source_subgenres and target_subgenres:
             overlap = len(source_subgenres & target_subgenres)
             if overlap > 0:
                 score.genre_overlap = self.SCORING['content']['components']['genre']['overlap']
                 
         # Source type
-        if source['source_type_id'] == target['source_type_id']:
+        if source.get('source_type_id') == target.get('source_type_id'):
             score.source_type = self.SCORING['content']['components']['source_type']['match']
             
         # Array field scoring
         score.character_types = self._calculate_array_match(
-            source['character_type_ids'] or [],
-            target['character_type_ids'] or [],
+            source.get('character_type_ids') or [],
+            target.get('character_type_ids') or [],
             self.SCORING['content']['components']['character_types']['first'],
             self.SCORING['content']['components']['character_types']['second'],
             'character_types'
         )
         
         score.plot_elements = self._calculate_array_match(
-            source['plot_element_ids'] or [],
-            target['plot_element_ids'] or [],
+            source.get('plot_element_ids') or [],
+            target.get('plot_element_ids') or [],
             self.SCORING['content']['components']['plot_elements']['first'],
             self.SCORING['content']['components']['plot_elements']['second']
         )
         
         score.theme_elements = self._calculate_array_match(
-            source['thematic_element_ids'] or [],
-            target['thematic_element_ids'] or [],
+            source.get('thematic_element_ids') or [],
+            target.get('thematic_element_ids') or [],
             self.SCORING['content']['components']['theme_elements']['first'],
             self.SCORING['content']['components']['theme_elements']['second']
         )
         
         # Direct matches
-        if source['tone_id'] == target['tone_id']:
+        if source.get('tone_id') == target.get('tone_id'):
             score.tone = self.SCORING['content']['components']['tone']['match']
             
-        if source['time_setting_id'] == target['time_setting_id']:
+        if source.get('time_setting_id') == target.get('time_setting_id'):
             score.time_setting = self.SCORING['content']['components']['setting']['time']
             
-        if source['location_setting_id'] == target['location_setting_id']:
+        if source.get('location_setting_id') == target.get('location_setting_id'):
             score.location = self.SCORING['content']['components']['setting']['location']
             
-        if source['network_id'] == target['network_id']:
+        if source.get('network_id') == target.get('network_id'):
             score.network = self.SCORING['production']['components']['network']['match']
             
         # Studio matching
-        source_studios = set(source['studios'] or [])
-        target_studios = set(target['studios'] or [])
+        source_studios = set(source.get('studios') or [])
+        target_studios = set(target.get('studios') or [])
         if source_studios and target_studios:
             matches = len(source_studios & target_studios)
             if matches > 0:
@@ -346,11 +346,11 @@ class ScoreEngine:
                     score.studio += additional * self.SCORING['production']['components']['studio']['additional']
                     
         # Team matching
-        # For source (criteria), use team_member_ids (from UI)
-        # For target (database), use team_members
-        if 'team_member_ids' in source and 'team_member_ids' in target:
+        source_team = source.get('team_member_ids') or []
+        target_team = target.get('team_member_ids') or []
+        if source_team and target_team:
             score.team = self._calculate_array_match(
-                source['team_member_ids'], target['team_member_ids'],
+                source_team, target_team,
                 self.SCORING['production']['components']['team']['first'],
                 self.SCORING['production']['components']['team']['additional'],
                 'team_members'
@@ -538,88 +538,34 @@ class CompAnalyzer:
         """
         self.initialize()
             
+        # Create a dummy show with the criteria
         # Map field names to match database schema
+        mapped_criteria = {}
         field_mapping = {
-            'studio_ids': 'studios',
+            'studio_ids': 'studios',  # Map UI field to database field
             'character_type_ids': 'character_type_ids',
             'plot_element_ids': 'plot_element_ids',
             'thematic_element_ids': 'thematic_element_ids',
-            'team_member_ids': 'team_member_ids',
-            'team_member_names': 'team_member_names',
-            'episode_count': 'episode_count'
+            'team_member_ids': 'team_member_ids',  # For matching/scoring
+            'team_member_names': 'team_member_names',  # For display
+            'episode_count': 'episode_count'  # First season episode count
         }
         
-        # Get filtered data from Supabase
-        try:
-            start_time = time.time()
-            logger.info("Starting show search with criteria: %s", criteria)
+        for key, value in criteria.items():
+            # Use mapped name if it exists, otherwise use original
+            mapped_key = field_mapping.get(key, key)
+            mapped_criteria[mapped_key] = value
             
-            supabase = get_client(use_service_key=True)
-            if not supabase:
-                logger.error("Failed to initialize Supabase client")
-                return []
-                
-            # Start query
-            query = supabase.table(self.shows_analyzer.VIEWS['comp']).select('*')
-            
-            # Build and apply filters
-            mapped_criteria = {}
-            for key, value in criteria.items():
-                mapped_key = field_mapping.get(key, key)
-                mapped_criteria[mapped_key] = value
-                
-                # Add SQL filters for exact matches
-                if mapped_key in ['genre_id', 'source_type_id', 'tone_id', 'network_id', 'order_type_id']:
-                    if value is not None:
-                        try:
-                            query = query.eq(mapped_key, int(value))
-                        except (ValueError, TypeError):
-                            logger.warning(f"Invalid value for {mapped_key}: {value}")
-                            continue
-                            
-                elif mapped_key in ['character_type_ids', 'plot_element_ids', 'thematic_element_ids', 'studios']:
-                    # For array fields, check overlap
-                    if value:
-                        try:
-                            # Ensure all values are integers for ID fields
-                            if mapped_key != 'studios':
-                                value = [int(v) for v in value]
-                            query = query.contains(mapped_key, value)
-                        except (ValueError, TypeError):
-                            logger.warning(f"Invalid array values for {mapped_key}: {value}")
-                            continue
-        
-            # Execute query
-            comp_data = query.execute()
-            if not hasattr(comp_data, 'data') or not comp_data.data:
-                return []
-                
-            # Convert to DataFrame
-            filtered_df = pd.DataFrame(comp_data.data)
-            
-            # Convert array fields
-            array_fields = ['subgenres', 'character_type_ids', 'plot_element_ids', 
-                          'thematic_element_ids', 'studios', 'team_member_ids', 'team_member_names']
-            for field in array_fields:
-                if field in filtered_df.columns:
-                    filtered_df[field] = filtered_df[field].apply(self.shows_analyzer.convert_to_list)
-                    
-        except Exception as e:
-            logger.error(f"Error during Supabase query: {str(e)}")
-            return []
-            
-        query_time = time.time() - start_time
-        logger.info("Query completed in %.2f seconds, found %d matches", 
-                    query_time, len(filtered_df) if 'filtered_df' in locals() else 0)
-        
-        # Create source series for comparison
         source = pd.Series(mapped_criteria)
         
-        # Score filtered shows
+        # Score each show
         results = []
-        for _, target in filtered_df.iterrows():
+        logger.info("Source criteria: %s", dict(source))
+        logger.info("First target fields: %s", dict(self.comp_data.iloc[0]))
+        for _, target in self.comp_data.iterrows():
             score = self.score_engine.calculate_score(source, target)
             if score.total() > 0:
+                # Include all fields needed for match details
                 result = {
                     'id': target['id'],
                     'title': target['title'],
@@ -646,11 +592,8 @@ class CompAnalyzer:
                     'order_type_id': target.get('order_type_id')
                 }
                 results.append(result)
-        
-        total_time = time.time() - start_time
-        logger.info("Search completed in %.2f seconds, found %d matches with scores", 
-                    total_time, len(results))
-        
+                
+        # Sort by total score descending
         return sorted(results, key=lambda x: x['comp_score'].total(), reverse=True)
         
     def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
