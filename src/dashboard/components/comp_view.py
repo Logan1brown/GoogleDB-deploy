@@ -267,6 +267,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
     if not state.get("criteria"):
         st.info("Select criteria on the left to find similar shows.")
         return
+        
     # Get display options for lookups
     display_options = {field: comp_analyzer.get_field_display_options(field)
                       for field in comp_analyzer.get_field_options().keys()}
@@ -277,12 +278,6 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         st.info("No shows found matching your criteria. Try adjusting the filters.")
         return
         
-    # Filter valid results
-    # No need to filter since comp_score is always present
-    if not results:
-        st.info("No valid matches found. Try adjusting your criteria.")
-        return
-        
     # Display results table
     st.markdown("### Similar Shows")
     df = create_results_df(results)
@@ -295,7 +290,6 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         for i, match in enumerate(results[:10], 1):
             with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
                 try:
-                    # Get comp score data
                     # Get scores and details
                     comp_score = match['comp_score']
                     scores = comp_score.to_display_dict()
@@ -313,55 +307,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
                         matches=match,
                         success_score=match.get('success_score'),
                         expanded=i==1,
-                        use_expander=False,
-                        description=match.get('description')
-                    )
-                except Exception as e:
-                    st.error(f"Error processing match {i}: {str(e)}")
-    # Get results
-    results = comp_analyzer.find_by_criteria(state["criteria"])
-    if not results:
-        st.info("No shows found matching your criteria. Try adjusting the filters.")
-        return
-        
-    # Filter valid results
-    # No need to filter since comp_score is always present
-    if not results:
-        st.info("No valid matches found. Try adjusting your criteria.")
-        return
-        
-    # Display results table
-    st.markdown("### Similar Shows")
-    df = create_results_df(results)
-    apply_table_styling()
-    st.dataframe(df, use_container_width=True)
-    
-    # Show match details
-    if results:
-        st.markdown("### Match Details")
-        for i, match in enumerate(results[:10], 1):
-            with st.expander(f"#{i}: {match['title']}", expanded=(i==1)):
-                try:
-                    # Get comp score data
-                    # Get scores and details
-                    comp_score = match['comp_score']
-                    scores = comp_score.to_display_dict()
-                    details = comp_score.get_match_details()
-                    
-                    # Update details with current match data
-                    update_match_details(details, match, state.get('criteria', {}), 
-                                       display_options, scores)
-                    
-                    # Render match breakdown
-                    render_base_match_breakdown(
-                        title=match['title'],
-                        scores=scores,
-                        details=details,
-                        matches=match,
-                        success_score=match.get('success_score'),
-                        expanded=i==1,
-                        use_expander=False,
-                        description=match.get('description')
+                        use_expander=False
                     )
                 except Exception as e:
                     st.error(f"Error processing match {i}: {str(e)}")
