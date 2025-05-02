@@ -32,12 +32,21 @@ def update_single_id_field(details: Dict, field: str, show_id: Optional[int], se
     name1 = get_field_name(show_id, options) if show_id else 'Unknown'
     name2 = get_field_name(selected_id, options) if selected_id else 'Unknown'
     
-    details[field] = {
+    field_details = {
         'name1': name1,
         'name2': name2,
         'selected': selected_id is not None,
         'match': show_id == selected_id
     }
+    
+    # For genre, add primary match field
+    if field == 'genre':
+        field_details.update({
+            'primary': name1,
+            'primary_match': show_id == selected_id
+        })
+    
+    details[field] = field_details
 
 def update_array_field(details: Dict, field: str, show_ids: List[int], selected_ids: List[int], 
                       options: List[Tuple[int, str]], raw_names: Optional[List[str]] = None) -> None:
