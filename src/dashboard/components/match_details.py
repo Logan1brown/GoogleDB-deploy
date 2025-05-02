@@ -87,8 +87,8 @@ class MatchDetailsManager:
             self.scoring['production']['components']['studio']
         )
         details['team'] = ArrayFieldMatch(
-            name1='Multiple' if match.get('team_member_names') else 'None',
-            name2='Multiple' if criteria.get('team_member_names') else 'None',
+            name1='Multiple' if match.get('team_member_ids') else 'None',
+            name2='Multiple' if criteria.get('team_member_ids') else 'None',
             selected=bool(criteria.get('team_member_ids')),
             match=bool(set(match.get('team_member_ids', [])) & set(criteria.get('team_member_ids', []))),
             score=self._calculate_team_score(
