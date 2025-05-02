@@ -503,7 +503,8 @@ class CompAnalyzer:
                     'location_setting_id': target.get('location_setting_id'),
                     # Production
                     'network_id': target.get('network_id'),
-                    'team_members': target.get('team_member_ids', []),  # IDs from database
+                    'team_member_ids': target.get('team_member_ids', []),  # IDs for matching
+                    'team_member_names': target.get('team_member_names', []),  # Names for display
                     'studios': target.get('studios', []),
                     # Format
                     'episode_count': target.get('episode_count'),

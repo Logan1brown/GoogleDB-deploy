@@ -86,9 +86,35 @@ class MatchDetailsManager:
             'studios', match.get('studios', []), criteria.get('studio_ids', []),
             self.scoring['production']['components']['studio']
         )
-        details['team'] = self._process_production_field_match(
-            'team_members', match.get('team_member_names', []), criteria.get('team_member_names', []),
-            self.scoring['production']['components']['team']
+        # Use team_member_ids for matching and team_member_names for display
+        # Use team_member_ids for scoring and team_member_names for display
+        match_ids = match.get('team_member_ids', [])
+        criteria_ids = criteria.get('team_member_ids', [])
+        match_names = match.get('team_member_names', [])
+        criteria_names = criteria.get('team_member_names', [])
+        
+        # Calculate matching IDs
+        matching_ids = set(match_ids) & set(criteria_ids)
+        
+        # Map matching IDs to their names
+        match_id_to_name = dict(zip(match_ids, match_names))
+        matching_names = [match_id_to_name[id] for id in matching_ids if id in match_id_to_name]
+        
+        details['team'] = ArrayFieldMatch(
+            name1='Multiple' if match_names else 'None',
+            name2='Multiple' if criteria_names else 'None',
+            selected=bool(criteria_ids),
+            match=bool(matching_ids),
+            score=self._calculate_team_score(
+                match_ids,
+                criteria_ids,
+                self.scoring['production']['components']['team']
+            ),
+            max_score=self.scoring['production']['components']['team']['first'] + 
+                      self.scoring['production']['components']['team'].get('max_additional', 0),
+            values1=match_names,
+            values2=criteria_names,
+            matches=matching_names
         )
         
         # Setting match details
@@ -171,33 +197,35 @@ class MatchDetailsManager:
             matches=self.get_field_names(field, list(matches))
         )
         
+    def _calculate_team_score(self, values: List[int], selected: List[int], scoring: Dict) -> float:
+        """Calculate score for team member matches."""
+        matches = set(values) & set(selected)
+        if not matches:
+            return 0
+            
+        score = scoring.get('first', 0)
+        additional_matches = len(matches) - 1
+        if additional_matches > 0:
+            additional_score = min(
+                additional_matches * scoring['additional'],
+                scoring.get('max_additional', float('inf'))
+            )
+            score += additional_score
+            
+        return score
+        
     def _process_production_field_match(self, field: str, values: List[int],
                                       selected: List[int], scoring: Dict) -> ArrayFieldMatch:
-        """Process match for production fields (studio, team) with special scoring."""
-        if field == 'team_members':
-            # For team members, get names directly from match data
-            value_names = values
-            selected_names = selected
-            value_set = set(values)
-            selected_set = set(selected)
-        else:
-            # For other fields like studios, convert IDs to names
-            value_names = self.get_field_names(field, values)
-            selected_names = self.get_field_names(field, selected)
-            value_set = set(values)
-            selected_set = set(selected)
-            
+        """Process match for production fields (studio) with special scoring."""
+        value_names = self.get_field_names(field, values)
+        selected_names = self.get_field_names(field, selected)
+        value_set = set(values)
+        selected_set = set(selected)
         matches = value_set & selected_set
         
         score = 0
         if matches:
-            # For team, use 'first' key
-            if field == 'team_members':
-                score += scoring.get('first', 0)
-            # For studios, use 'primary' key
-            else:
-                score += scoring.get('primary', 0)
-                
+            score += scoring.get('primary', 0)
             additional_matches = len(matches) - 1
             if additional_matches > 0:
                 additional_score = min(
