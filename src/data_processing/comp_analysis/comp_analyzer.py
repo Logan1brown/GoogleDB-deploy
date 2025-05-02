@@ -314,8 +314,8 @@ class ScoreEngine:
                     score.team += self.SCORING['production']['components']['team']['additional']
                     
         # Episode scoring
-        if pd.notna(source['tmdb_avg_eps']) and pd.notna(target['tmdb_avg_eps']):
-            diff = abs(source['tmdb_avg_eps'] - target['tmdb_avg_eps'])
+        if pd.notna(source['episode_count']) and pd.notna(target['episode_count']):
+            diff = abs(source['episode_count'] - target['episode_count'])
             if diff <= 2:
                 score.episodes = self.SCORING['format']['components']['episodes']['within_2']
             elif diff <= 4:
@@ -462,7 +462,8 @@ class CompAnalyzer:
             'character_type_ids': 'character_type_ids',
             'plot_element_ids': 'plot_element_ids',
             'thematic_element_ids': 'thematic_element_ids',
-            'team_ids': 'team_member_ids'  # Map UI field to database field
+            'team_ids': 'team_member_ids',  # Map UI field to database field
+            'episode_count': 'episode_count'  # First season episode count
         }
         
         for key, value in criteria.items():
