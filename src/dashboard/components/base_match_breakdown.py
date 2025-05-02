@@ -123,12 +123,12 @@ def render_base_match_breakdown(
             if source['selected']:
                 st.write(f"Source: {scores['source_score']}/15")
                 if source['match']:
-                    st.write(f"🟢 Both {source['type1']} (+{scores['source_score']})")
+                    st.write(f"🟢 Both {source['name1']} (+{scores['source_score']})")
                 else:
-                    st.write(f"⚫ {source['type1']} vs {source['type2']}")
+                    st.write(f"⚫ {source['name1']} vs {source['name2']}")
             else:
                 st.write(f"Source ({scores['source_score']}/15):")
-                st.write(f"⚫ {source['type1']} (not selected)")
+                st.write(f"⚫ {source['name2']} (not selected)")
                 
             # Theme elements
             if 'themes' in details:
@@ -157,12 +157,12 @@ def render_base_match_breakdown(
                 if tone['selected']:
                     st.write(f"\nTone ({scores['tone_score']}/9):")
                     if tone['match']:
-                        st.write(f"🟢 Both {tone['tone1']} (+9)")
+                        st.write(f"🟢 Both {tone['name1']} (+9)")
                     else:
-                        st.write(f"⚫ {tone['tone1']} vs {tone['tone2']}")
+                        st.write(f"⚫ {tone['name1']} vs {tone['name2']}")
                 else:
                     st.write(f"\nTone ({scores['tone_score']}/9):")
-                    st.write(f"⚫ {tone['tone1']} (not selected)")
+                    st.write(f"⚫ {tone['name2']} (not selected)")
         
         # Production section
         prod_total = scores['team_score'] + scores.get('network_score', 0) + scores.get('studio_score', 0)
@@ -242,27 +242,27 @@ def render_base_match_breakdown(
                 with col1:
                     # Episodes
                     st.write(f"Episodes ({scores['episode_score']}/4):")
-                    if format['episode_count1'] == format['episode_count2']:
-                        st.write(f"🟢 Both {int(format['episode_count1'])} (+4)")
+                    if format['episode_count'] == format['target_episode_count']:
+                        st.write(f"🟢 Both {int(format['episode_count'])} (+4)")
                     else:
-                        diff = abs(format['episode_count1'] - format['episode_count2'])
+                        diff = abs(format['episode_count'] - format['target_episode_count'])
                         if diff <= 2:
-                            st.write(f"🟢 {int(format['episode_count1'])} vs {int(format['episode_count2'])} (+4)")
+                            st.write(f"🟢 {int(format['episode_count'])} vs {int(format['target_episode_count'])} (+4)")
                         elif diff <= 4:
-                            st.write(f"🟢 {int(format['episode_count1'])} vs {int(format['episode_count2'])} (+3)")
+                            st.write(f"🟢 {int(format['episode_count'])} vs {int(format['target_episode_count'])} (+3)")
                         elif diff <= 6:
-                            st.write(f"🟢 {int(format['episode_count1'])} vs {int(format['episode_count2'])} (+2)")
+                            st.write(f"🟢 {int(format['episode_count'])} vs {int(format['target_episode_count'])} (+2)")
                         else:
-                            st.write(f"⚫ {int(format['episode_count1'])} vs {int(format['episode_count2'])}")
+                            st.write(f"⚫ {int(format['episode_count'])} vs {int(format['target_episode_count'])}")
                 
                 with col2:
                     # Order type
                     st.write(f"Order Type ({scores['order_score']}/1):")
-                    if format['order_type1'] == format['order_type2']:
-                        st.write(f"🟢 Both {format['order_type1']} (+1)")
+                    if format['name1'] == format['name2']:
+                        st.write(f"🟢 Both {format['name1']} (+1)")
                     else:
                         # Show mismatch with actual score
-                        st.write(f"⚫ {format['order_type1']} vs {format['order_type2']} (+0)")
+                        st.write(f"⚫ {format['name1']} vs {format['name2']} (+0)")
             else:
                 st.markdown(f"\n**Format ({scores['format_total']}/5)**")
                 
@@ -270,7 +270,7 @@ def render_base_match_breakdown(
                 
                 with col1:
                     st.write(f"Episodes ({scores['episode_score']}/4):")
-                    episode_count = format.get('episode_count1')
+                    episode_count = format.get('episode_count')
                     if episode_count is not None:
                         st.write(f"⚫ {int(episode_count)} (not selected)")
                     else:
@@ -278,7 +278,7 @@ def render_base_match_breakdown(
                 
                 with col2:
                     st.write(f"Order Type ({scores['order_score']}/1):")
-                    st.write(f"⚫ {format['order_type1']} (not selected)")
+                    st.write(f"⚫ {format['name2']} (not selected)")
         
         # Setting Match section
         if 'setting' in details:
