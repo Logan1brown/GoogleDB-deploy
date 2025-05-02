@@ -100,7 +100,7 @@ def update_match_details(details: Dict, match: Dict, criteria: Dict, display_opt
                           
     # Array fields
     update_array_field(details, 'characters', match.get('character_type_ids', []), 
-                      criteria.get('character_type_ids', []), display_options['character_types'],
+                      criteria.get('character_types_ids', []), display_options['character_types'],
                       match.get('character_type_names'))
     update_array_field(details, 'plot', match.get('plot_element_ids', []),
                       criteria.get('plot_element_ids', []), display_options['plot_elements'],
