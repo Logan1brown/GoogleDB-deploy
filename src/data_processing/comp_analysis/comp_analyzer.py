@@ -165,7 +165,7 @@ class CompScore:
     
     def content_score(self) -> float:
         """Calculate content match score (82 points)."""
-        return sum([
+        return float(sum([
             self.genre_base,
             self.genre_overlap,
             self.source_type,
@@ -175,20 +175,20 @@ class CompScore:
             self.tone,
             self.time_setting,
             self.location
-        ])
+        ]))
     
     def production_score(self) -> float:
         """Calculate production match score (13 points)."""
-        score = self.network + self.studio + self.team
+        score = float(self.network + self.studio + self.team)
         logger.debug(f"Production score breakdown: network={self.network}, studio={self.studio}, team={self.team}, total={score}")
         return score
     
     def format_score(self) -> float:
         """Calculate format match score (5 points)."""
-        return sum([
+        return float(sum([
             self.episodes,
             self.order_type
-        ])
+        ]))
 
     def to_display_dict(self) -> Dict[str, float]:
         """Convert scores to a display-friendly dictionary."""
@@ -411,6 +411,11 @@ class ScoreEngine:
                     
             # Count matches by unique names
             matches = source_names & target_names
+            
+            # Calculate points based on matches
+            if len(matches) > 0:
+                return first_points + (len(matches) - 1) * second_points
+            return 0
         else:
             # Normal array matching for other fields
             matches = set(source_arr) & set(target_arr)
@@ -572,7 +577,7 @@ class CompAnalyzer:
                 result = {
                     'id': target['id'],
                     'title': target['title'],
-                    'success_score': float(target.get('success_score', 0)),  # Convert to float and handle None
+                    'success_score': float(target.get('success_score', 0)) if target.get('success_score') is not None else 0,  # Handle None
                     'comp_score': score,
                     # Content fields
                     'genre_id': target.get('genre_id'),
