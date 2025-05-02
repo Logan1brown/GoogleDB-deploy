@@ -230,12 +230,12 @@ def create_results_df(results: List[Dict]) -> pd.DataFrame:
     """Create results DataFrame with consistent formatting."""
     return pd.DataFrame([
         {
-            'Show': r.get('title', 'Unknown'),
+            'Show': r['title'],
             'Success': int(r.get('success_score', 0)),
-            'Total Score': int(r['comp_score'].total),
-            'Content': int(r['comp_score'].content_score),
-            'Production': int(r['comp_score'].production_score),
-            'Format': int(r['comp_score'].format_score)
+            'Total Score': int(r['comp_score'].total()),
+            'Content': int(r['comp_score'].content_score()),
+            'Production': int(r['comp_score'].production_score()),
+            'Format': int(r['comp_score'].format_score())
         } for r in results
     ])
 

@@ -474,14 +474,20 @@ class CompAnalyzer:
         source = pd.Series(mapped_criteria)
         
         # Score each show
-        scores = []
+        results = []
         for _, target in self.comp_data.iterrows():
             score = self.score_engine.calculate_score(source, target)
             if score.total() > 0:
-                scores.append((target['id'], score))
+                results.append({
+                    'id': target['id'],
+                    'title': target['title'],
+                    'description': target['description'],
+                    'success_score': target.get('success_score'),
+                    'comp_score': score
+                })
                 
         # Sort by total score descending
-        return sorted(scores, key=lambda x: x[1].total(), reverse=True)
+        return sorted(results, key=lambda x: x['comp_score'].total(), reverse=True)
         
     def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
         """Get similar shows for the given show ID.
