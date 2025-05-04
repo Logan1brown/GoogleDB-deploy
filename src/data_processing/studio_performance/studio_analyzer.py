@@ -342,9 +342,13 @@ def get_studio_insights(shows_df: pd.DataFrame, studio: str, studio_categories_d
     
     # Get genre distribution
     genres = []
-    for show in studio_shows.iterrows():
-        if 'genre_name' in show[1] and show[1]['genre_name'] is not None:
-            genres.extend([g.strip() for g in show[1]['genre_name'].split(',')])
+    for _, show in studio_shows.iterrows():
+        # Add main genre if present
+        if 'genre_name' in show and show['genre_name'] is not None:
+            genres.append(show['genre_name'])
+        # Add subgenres if present
+        if 'subgenre_names' in show and show['subgenre_names'] is not None:
+            genres.extend(show['subgenre_names'])
     top_genres = pd.Series(genres).value_counts().to_dict() if genres else {}
     
     return {
