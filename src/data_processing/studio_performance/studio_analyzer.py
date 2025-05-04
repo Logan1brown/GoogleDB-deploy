@@ -52,25 +52,12 @@ class StudioAnalyzer:
             force (bool): If True, bypass cache and fetch fresh data
 
         Returns:
-            Tuple[pd.DataFrame, pd.DataFrame]: shows_df (with market data), studio_categories_df
+            Tuple[pd.DataFrame, pd.DataFrame]: shows_df (with market and genre data), studio_categories_df
         """
         try:
-            # Get Supabase client with service key for full access
-            supabase = get_client(use_service_key=True)
-            
-            if supabase is None:
-                raise ValueError("Supabase client not initialized. Check your environment variables.")
-            
-            # First get shows data from ShowsAnalyzer
+            # Get shows data from ShowsAnalyzer including genres
             shows_analyzer = ShowsAnalyzer()
-            shows_df, _, _ = shows_analyzer.fetch_market_data(force=force)
-            
-            # Fetch studio_list from Supabase
-            studio_list_data = supabase.table('studio_list').select('*').execute()
-            if not hasattr(studio_list_data, 'data') or not studio_list_data.data:
-                raise ValueError("No data returned from studio_list table")
-                
-            studio_categories_df = pd.DataFrame(studio_list_data.data)
+            shows_df, _, studio_categories_df = shows_analyzer.fetch_studio_data(force=force)
             
             # Verify required columns
             required_cols = ['studio', 'category', 'active']

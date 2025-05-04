@@ -149,6 +149,76 @@ class ShowsAnalyzer:
             raise
 
     @st.cache_data(ttl=3600)
+    def fetch_studio_data(_self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """Fetch data needed for studio analysis.
+        
+        Args:
+            force (bool): If True, bypass cache and fetch fresh data
+
+        Returns:
+            Tuple containing:
+            - DataFrame with show data including genres
+            - DataFrame with network stats
+            - DataFrame with studio categories
+        """
+        try:
+            # Get Supabase client with service key for full access
+            supabase = get_client(use_service_key=True)
+            
+            if supabase is None:
+                raise ValueError("Supabase client not initialized. Check your environment variables.")
+                
+            # Fetch titles data from market analysis
+            logger.info(f"Fetching data from {_self.VIEWS['titles']}...")
+            titles_data = supabase.table(_self.VIEWS['titles']).select('*').execute()
+            
+            if not hasattr(titles_data, 'data') or not titles_data.data:
+                raise ValueError(f"No data returned from {_self.VIEWS['titles']}")
+                
+            titles_df = pd.DataFrame(titles_data.data)
+            
+            # Get show data including genres
+            shows_data = supabase.table('shows').select('id,title,active,genre_id,subgenres').execute()
+            if not hasattr(shows_data, 'data') or not shows_data.data:
+                raise ValueError("No data returned from shows table")
+            shows_df = pd.DataFrame(shows_data.data)
+            
+            # Get genre names
+            genre_data = supabase.table('genre_list').select('id,genre').execute()
+            if not hasattr(genre_data, 'data') or not genre_data.data:
+                raise ValueError("No data returned from genre_list")
+            genre_df = pd.DataFrame(genre_data.data)
+            
+            # Map genre IDs to names
+            genre_map = genre_df.set_index('id')['genre'].to_dict()
+            shows_df['genre_name'] = shows_df['genre_id'].map(genre_map)
+            shows_df['subgenre_names'] = shows_df['subgenres'].apply(
+                lambda x: [genre_map.get(g) for g in (x or []) if g in genre_map]
+            )
+            
+            # Merge show data into titles
+            titles_df = titles_df.merge(shows_df[['title', 'genre_name', 'subgenre_names']], on='title', how='left')
+            
+            # Fetch network stats
+            logger.info(f"Fetching data from {_self.VIEWS['networks']}...")
+            network_data = supabase.table(_self.VIEWS['networks']).select('*').execute()
+            if not hasattr(network_data, 'data') or not network_data.data:
+                raise ValueError(f"No data returned from {_self.VIEWS['networks']}")
+            network_df = pd.DataFrame(network_data.data)
+            
+            # Fetch studio categories
+            studio_list_data = supabase.table('studio_list').select('*').execute()
+            if not hasattr(studio_list_data, 'data') or not studio_list_data.data:
+                raise ValueError("No data returned from studio_list")
+            studio_df = pd.DataFrame(studio_list_data.data)
+            
+            return titles_df, network_df, studio_df
+            
+        except Exception as e:
+            logger.error(f"Error fetching studio data: {str(e)}")
+            raise
+
+    @st.cache_data(ttl=3600)
     def fetch_market_data(_self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Fetch data needed for market analysis.
         
