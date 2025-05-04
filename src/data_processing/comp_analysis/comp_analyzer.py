@@ -304,15 +304,17 @@ class ScoreEngine:
         score = CompScore()
         
         # Content scoring
-        if source.get('genre_id') == target.get('genre_id'):
-            score.genre_base = self.SCORING['content']['components']['genre']['base']
-            
-        source_subgenres = set(source.get('subgenres') or [])
-        target_subgenres = set(target.get('subgenres') or [])
-        if source_subgenres and target_subgenres:
-            overlap = len(source_subgenres & target_subgenres)
-            if overlap > 0:
-                score.genre_overlap = self.SCORING['content']['components']['genre']['overlap']
+        # Only apply genre scoring if genre is specified in criteria
+        if source.get('genre_id') is not None:
+            if source.get('genre_id') == target.get('genre_id'):
+                score.genre_base = self.SCORING['content']['components']['genre']['base']
+                
+            source_subgenres = set(source.get('subgenres') or [])
+            target_subgenres = set(target.get('subgenres') or [])
+            if source_subgenres and target_subgenres:
+                overlap = len(source_subgenres & target_subgenres)
+                if overlap > 0:
+                    score.genre_overlap = self.SCORING['content']['components']['genre']['overlap']
                 
         # Source type
         if source.get('source_type_id') == target.get('source_type_id'):
@@ -453,19 +455,22 @@ class ScoreEngine:
             return 0
         else:
             # Normal array matching for other fields
-            matches = set(source_arr) & set(target_arr)
+            # Handle None values in arrays
+            source_set = set(x for x in source_arr if x is not None)
+            target_set = set(x for x in target_arr if x is not None)
+            matches = source_set & target_set
             
-        if not matches:
-            return 0
+            if not matches:
+                return 0
+                
+            # First match is worth more
+            score = first_points
             
-        # First match is worth more
-        score = first_points
-        
-        # Additional matches get lower points
-        if len(matches) > 1:
-            score += (len(matches) - 1) * second_points
-            
-        return score
+            # Additional matches get lower points
+            if len(matches) > 1:
+                score += (len(matches) - 1) * second_points
+                
+            return score
     
     def calculate_episode_score(self, source_eps: int, target_eps: int) -> float:
         """Calculate episode count similarity score.
