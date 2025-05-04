@@ -281,11 +281,15 @@ def render_studio_filter(shows_df: pd.DataFrame, studio_categories_df: pd.DataFr
     
     # Studio selection in first column
     with filter_cols[0]:
+        # Initialize session state if needed
+        if 'selected_studio_option' not in st.session_state:
+            st.session_state.selected_studio_option = studio_options[0] if studio_options else None
+            
         selected_option = st.selectbox(
             "Select Studio",
             studio_options,
             help="Choose a studio to analyze",
-            key="studio_filter_studio"
+            key="selected_studio_option"
         )
     
     # Extract studio name from selection and handle 'Other:' prefix
@@ -449,11 +453,12 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame, studio_categorie
                 valid_studios = valid_studios.sort_values(ascending=False)
                 studio_options = [f"{studio} ({count} shows)" for studio, count in valid_studios.items()]
                 
+                # Use same session state key as filter
                 selected_option = st.selectbox(
                     "Select Studio",
                     studio_options,
                     help="Choose a studio to analyze",
-                    key="studio_filter_tab_studio"
+                    key="selected_studio_option"
                 )
                 
             with content_col:
