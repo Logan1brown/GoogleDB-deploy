@@ -331,14 +331,16 @@ class ScoreEngine:
             source.get('plot_element_ids') or [],
             target.get('plot_element_ids') or [],
             self.SCORING['content']['components']['plot_elements']['first'],
-            self.SCORING['content']['components']['plot_elements']['second']
+            self.SCORING['content']['components']['plot_elements']['second'],
+            'plot_elements'
         )
         
         score.theme_elements = self._calculate_array_match(
             source.get('thematic_element_ids') or [],
             target.get('thematic_element_ids') or [],
             self.SCORING['content']['components']['theme_elements']['first'],
-            self.SCORING['content']['components']['theme_elements']['second']
+            self.SCORING['content']['components']['theme_elements']['second'],
+            'thematic_elements'
         )
         
         # Direct matches
@@ -607,7 +609,8 @@ class CompAnalyzer:
         st.write(dict(self.comp_data.iloc[0]))
         for _, target in self.comp_data.iterrows():
             score = self.score_engine.calculate_score(source, target)
-            if score.total() > 0:
+            # Include results with any matching criteria
+            if score.total() > 0 or score.character_types > 0 or score.plot_elements > 0 or score.theme_elements > 0:
                 # Include all fields needed for match details
                 result = {
                     'id': target['id'],
