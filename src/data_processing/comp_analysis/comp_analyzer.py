@@ -601,8 +601,10 @@ class CompAnalyzer:
         
         # Score each show
         results = []
-        logger.info("Source criteria: %s", dict(source))
-        logger.info("First target fields: %s", dict(self.comp_data.iloc[0]))
+        st.write("Source criteria:")
+        st.write(dict(source))
+        st.write("First target fields:")
+        st.write(dict(self.comp_data.iloc[0]))
         for _, target in self.comp_data.iterrows():
             score = self.score_engine.calculate_score(source, target)
             if score.total() > 0:
