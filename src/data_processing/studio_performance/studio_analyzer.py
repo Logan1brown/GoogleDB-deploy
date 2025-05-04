@@ -262,15 +262,8 @@ def analyze_studio_relationships(shows_df: pd.DataFrame, studio_categories_df: p
             # Get genres from filtered shows
             genres = []
             for _, show in studio_shows.iterrows():
-                genre = show.get('genre_name')
-                if genre is not None:
-                    if isinstance(genre, list):
-                        genres.extend(genre)
-                    elif isinstance(genre, str):
-                        genres.extend([g.strip() for g in genre.split(',')])
-                    else:
-                        logger.warning(f"Unexpected genre_name type {type(genre)} for show {show['title']}")
-
+                if 'genre_name' in show and show['genre_name']:
+                    genres.extend([g.strip() for g in str(show['genre_name']).split(',')])
             
             indie_studios[studio] = {
                 'show_count': len(studio_shows),
@@ -352,7 +345,7 @@ def get_studio_insights(shows_df: pd.DataFrame, studio: str, studio_categories_d
             'status': show['status_name'],
             'seasons': show['tmdb_seasons'],
             'episodes': show['tmdb_total_episodes'],
-            'genre': show.get('genre_name', ['Unknown'])[0] if isinstance(show.get('genre_name'), list) else show.get('genre_name', 'Unknown')  # Handle both list and string genre_name
+            'genre': show.get('genre_name', 'Unknown')  # Add genre which studio_view expects
         }
         if 'active' in show:
             show_info['active'] = show['active']
@@ -363,15 +356,8 @@ def get_studio_insights(shows_df: pd.DataFrame, studio: str, studio_categories_d
     # Get genre distribution
     genres = []
     for show in studio_shows.iterrows():
-        genre = show[1].get('genre_name')
-        if genre is not None:
-            if isinstance(genre, list):
-                genres.extend(genre)
-            elif isinstance(genre, str):
-                genres.extend([g.strip() for g in genre.split(',')])
-            else:
-                logger.warning(f"Unexpected genre_name type {type(genre)} for show {show[1]['title']}")
-
+        if 'genre_name' in show[1] and show[1]['genre_name'] is not None:
+            genres.extend([g.strip() for g in show[1]['genre_name'].split(',')])
     top_genres = pd.Series(genres).value_counts().to_dict() if genres else {}
     
     return {
