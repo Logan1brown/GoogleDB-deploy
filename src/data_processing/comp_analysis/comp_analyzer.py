@@ -635,6 +635,7 @@ class CompAnalyzer:
                     'team_member_ids': target.get('team_member_ids', []),
                     'team_member_names': target.get('team_member_names', []),
                     'studios': target.get('studios', []),
+                    'studio_names': target.get('studio_names', []),  # For display
                     # Format
                     'episode_count': target.get('episode_count'),
                     'order_type_id': target.get('order_type_id')
