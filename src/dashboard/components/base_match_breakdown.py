@@ -46,7 +46,7 @@ def render_match_details_section(details: Dict) -> None:
     production_max = 13  # From CompScore total
     
     # Content Match section
-    st.write(f"## Content Match ({content_score:.1f}/{content_max:.1f})")
+    st.write("## Content Match ({:.1f}/{:.1f})".format(content_score, content_max))
     
     col1, col2 = st.columns(2)
     with col1:
@@ -218,7 +218,41 @@ def render_matches_section(matches: List[Dict], details_manager, criteria: Dict)
             expanded=match == matches[0]
         ):
             details = details_manager.create_match_details(match, criteria)
-            details['comp_score'] = comp_score  # Add CompScore object to details
+            # Add CompScore object and raw match data to details
+            details['comp_score'] = comp_score
+            details.update({
+                'genre_name': match.get('genre_name'),
+                'selected_genre_name': criteria.get('genre_name'),
+                'character_type_names': match.get('character_type_names', []),
+                'selected_character_type_names': criteria.get('character_type_names', []),
+                'matching_character_types': match.get('matching_character_types', []),
+                'plot_element_names': match.get('plot_element_names', []),
+                'selected_plot_element_names': criteria.get('plot_element_names', []),
+                'matching_plot_elements': match.get('matching_plot_elements', []),
+                'source_type_name': match.get('source_type_name'),
+                'selected_source_type_name': criteria.get('source_type_name'),
+                'theme_element_names': match.get('theme_element_names', []),
+                'selected_theme_element_names': criteria.get('theme_element_names', []),
+                'matching_theme_elements': match.get('matching_theme_elements', []),
+                'tone_name': match.get('tone_name'),
+                'selected_tone_name': criteria.get('tone_name'),
+                'network_name': match.get('network_name'),
+                'selected_network_name': criteria.get('network_name'),
+                'studio_names': match.get('studio_names', []),
+                'selected_studio_names': criteria.get('studio_names', []),
+                'matching_studios': match.get('matching_studios', []),
+                'team_member_names': match.get('team_member_names', []),
+                'selected_team_member_names': criteria.get('team_member_names', []),
+                'matching_team_members': match.get('matching_team_members', []),
+                'time_setting_name': match.get('time_setting_name'),
+                'selected_time_setting_name': criteria.get('time_setting_name'),
+                'location_setting_name': match.get('location_setting_name'),
+                'selected_location_setting_name': criteria.get('location_setting_name'),
+                'episode_count': match.get('episode_count'),
+                'selected_episode_count': criteria.get('episode_count'),
+                'order_type_name': match.get('order_type_name'),
+                'selected_order_type_name': criteria.get('order_type_name')
+            })
             render_match_details_section(details)
 
 def render_field_base(label: str, score: Optional[ScoreDisplay] = None) -> None:
@@ -255,43 +289,37 @@ def render_field_match(label: str, match: FieldMatch, show_score: bool = True) -
     """Render a single field match using base template methods."""
     col1, col2 = st.columns([1, 2])
     with col1:
-        st.write(f"**{label}:**")
+        st.markdown(f"**{label}:**")
     with col2:
         if show_score:
-            st.write(f"Score: {match.score:.1f}/{match.max_score:.1f}")
+            st.markdown(f"**Score:** {match.score:.1f}/{match.max_score:.1f}")
         if match.selected:
-            st.write(f"Selected: {match.name2}")
-            st.write(f"Match: {'✓' if match.match else '✗'}")
-            st.write(f"Value: {match.name1}")
+            st.markdown(f"**Selected:** {match.name2}")
+            st.markdown(f"**Match:** {'✓' if match.match else '✗'}")
+            st.markdown(f"**Value:** {match.name1}")
         else:
-            st.write("Not selected")
+            st.markdown("*Not selected*")
 
 def render_array_field_match(label: str, match: ArrayFieldMatch) -> None:
     """Render a multi-value field match using base template methods."""
     col1, col2 = st.columns([1, 2])
     with col1:
-        st.write(f"**{label}:**")
+        st.markdown(f"**{label}:**")
     with col2:
-        st.write(f"Score: {match.score:.1f}/{match.max_score:.1f}")
+        st.markdown(f"**Score:** {match.score:.1f}/{match.max_score:.1f}")
         if match.selected:
-            st.write("Selected:")
+            st.markdown("**Selected:**")
             for value in match.values2:
-                st.write(f"- {value}")
+                st.markdown(f"* {value}")
             if match.matches:
-                st.write("Matches:")
+                st.markdown("**Matches:**")
                 for value in match.matches:
-                    st.write(f"- {value}")
-            st.write("Show has:")
+                    st.markdown(f"* {value}")
+            st.markdown("**Show has:**")
             for value in match.values1:
-                st.write(f"- {value}")
+                st.markdown(f"* {value}")
         else:
-            st.write("Not selected")
-    
-    render_array_field_base(
-        values=match['values1'],
-        matches=match['matches'],
-        selected=match['selected']
-    )
+            st.markdown("*Not selected*")
 
 def render_base_match_breakdown(
     title: str,
