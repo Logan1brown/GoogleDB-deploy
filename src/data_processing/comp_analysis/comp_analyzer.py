@@ -70,36 +70,30 @@ class FieldManager:
                 
                 # Special handling for team members from api_show_comp_data
                 if field_name == 'team_members':
-                    st.write("Loading team members...")
-                    # Debug: Print first few rows
-                    st.write("First few rows:")
-                    st.write(df.head())
+                    # Create empty lists to store all team members
+                    all_ids = []
+                    all_names = []
                     
-                    # Explode arrays into rows
-                    team_data = set()  # Use set for deduplication
+                    # Collect all team members from each show
                     for _, row in df.iterrows():
                         if isinstance(row['team_member_ids'], list) and isinstance(row['team_member_names'], list):
-                            # Debug: Print arrays for first row
-                            if len(team_data) == 0:
-                                st.write("First row arrays:")
-                                st.write("IDs:", row['team_member_ids'])
-                                st.write("Names:", row['team_member_names'])
-                            # Create tuples of (id, name) for uniqueness
-                            team_data.update(zip(row['team_member_ids'], row['team_member_names']))
+                            all_ids.extend(row['team_member_ids'])
+                            all_names.extend(row['team_member_names'])
                     
-                    # Debug: Print unique entries
-                    st.write("Unique entries:")
-                    st.write(sorted(list(team_data), key=lambda x: x[1].lower())[:10])
+                    # Create DataFrame for deduplication
+                    team_df = pd.DataFrame({
+                        'id': all_ids,
+                        'name': all_names
+                    })
                     
-                    # Convert unique tuples to options
+                    # Drop duplicates and sort by name
+                    team_df = team_df.drop_duplicates().sort_values('name', key=lambda x: x.str.lower())
+                    
+                    # Convert to options
                     options = []
-                    for id, name in sorted(team_data, key=lambda x: x[1].lower()):  # Sort by name case-insensitive
-                        opt = FieldOption(id=id, name=name)
+                    for _, row in team_df.iterrows():
+                        opt = FieldOption(id=row['id'], name=row['name'])
                         options.append(opt)
-                    
-                    # Debug: Print first few options
-                    st.write("First few options:")
-                    st.write([opt.name for opt in options[:10]])
                     
                     self.options[field_name] = options
                     continue
