@@ -1,85 +1,120 @@
-"""View component for rendering match details."""
+"""View component for rendering match details.
+
+This module uses the base template methods from base_match_breakdown.py
+to render match details in a compact format for the comp builder.
+"""
 
 import streamlit as st
 from typing import Dict, List
-from .match_details import FieldMatch, ArrayFieldMatch
+from .base_match_breakdown import (
+    ScoreDisplay,
+    render_field_base,
+    render_match_indicator,
+    render_array_field_base,
+    render_section_header,
+    render_two_columns
+)
 
-def render_field_match(label: str, match: FieldMatch, show_score: bool = True) -> None:
-    """Render a single field match."""
-    st.markdown(f"**{label}** {f'({match.score}/{match.max_score})' if show_score else ''}")
-    
-    if not match.selected:
-        st.markdown(f"⚫ {match.name1} (not selected)")
-        return
-        
-    if match.match:
-        st.markdown(f"🟢 {match.name1}")
+def render_field_match(label: str, match: Dict, show_score: bool = True) -> None:
+    """Render a single field match using base template methods."""
+    if show_score:
+        score = ScoreDisplay(match['score'], match['max_score'])
     else:
-        st.markdown(f"🔴 {match.name1} ≠ {match.name2}")
+        score = None
+    
+    render_field_base(label, score)
+    render_match_indicator(
+        value=match['name1'],
+        matched=match['match'],
+        selected=match['selected']
+    )
 
-def render_array_field_match(label: str, match: ArrayFieldMatch, show_score: bool = True) -> None:
-    """Render a multi-value field match."""
-    st.markdown(f"**{label}** {f'({match.score}/{match.max_score})' if show_score else ''}")
+def render_array_field_match(label: str, match: Dict, show_score: bool = True) -> None:
+    """Render a multi-value field match using base template methods."""
+    if show_score:
+        score = ScoreDisplay(match['score'], match['max_score'])
+    else:
+        score = None
+        
+    render_field_base(label, score)
     
     # Special handling for team members to avoid duplicate display
     if label == 'Team':
         # Show selected team members first
-        for value in match.values2:
-            bullet = '🟢' if value in match.matches else '⚫'
-            st.write(f'{bullet} {value}')
+        for value in match['values2']:
+            render_match_indicator(
+                value=value,
+                matched=value in match['matches'],
+                selected=True
+            )
         
         # Show remaining team members
-        remaining = [v for v in match.values1 if v not in match.values2]
+        remaining = [v for v in match['values1'] if v not in match['values2']]
         for value in remaining:
-            st.write(f'⚫ {value}')
+            render_match_indicator(
+                value=value,
+                matched=False,
+                selected=False
+            )
         return
-        
+    
     # Standard handling for other array fields
-    if not match.selected:
-        if not match.values1:
-            st.markdown(f"⚫ No {label.lower()}")
-        else:
-            values = ', '.join(match.values1)
-            st.markdown(f"⚫ {values} (not selected)")
-        return
-    
-    # Show selected values first with green/black bullets
-    for value in match.values2:
-        bullet = '🟢' if value in match.matches else '⚫'
-        st.write(f'{bullet} {value}')
-    
-    # Show remaining values from source show that weren't selected
-    remaining = [v for v in match.values1 if v not in match.values2]
-    if remaining:
-        st.write('⚫ ' + ', '.join(remaining))
+    render_array_field_base(
+        values=match['values1'],
+        matches=match['matches'],
+        selected=match['selected']
+    )
 
 def render_match_details_section(details: Dict) -> None:
     """Render match details section with columns."""
-    # Content match section
-    st.markdown("#### Content Match")
-    render_field_match("Genre", details['genre'])
-    render_array_field_match("Subgenres", details['subgenres'])
-    render_array_field_match("Character Types", details['characters'])
-    render_array_field_match("Plot Elements", details['plot'])
-    render_field_match("Source", details['source'])
-    render_array_field_match("Theme Elements", details['themes'])
-    render_field_match("Tone", details['tone'])
+    # Content Match section
+    col1, col2 = render_two_columns()
+    
+    with col1:
+        render_field_match("Genre", details['genre'])
+        render_array_field_match("Subgenres", details['subgenres'])
+        render_array_field_match("Character Types", details['characters'])
+        render_array_field_match("Plot Elements", details['plot'])
+    
+    with col2:
+        render_field_match("Source", details['source'])
+        render_array_field_match("Theme Elements", details['themes'])
+        render_field_match("Tone", details['tone'])
     
     # Production match section
-    st.markdown("#### Production Match")
-    render_field_match("Network", details['network'])
-    render_array_field_match("Studio", details['studio'])
-    render_array_field_match("Team", details['team'])
+    production_score = ScoreDisplay(
+        details['production']['score'],
+        details['production']['max']
+    )
+    render_section_header("Production Match", production_score)
+    
+    col1, col2 = render_two_columns()
+    
+    with col1:
+        render_field_match("Network", details['network'])
+        render_array_field_match("Studio", details['studio'])
+    
+    with col2:
+        render_array_field_match("Team", details['team'])
     
     # Setting and format sections in two columns
-    col1, col2 = st.columns(2)
+    col1, col2 = render_two_columns()
+    
     with col1:
-        st.markdown(f"#### Setting Match ({details['setting']['total_score']}/{details['setting']['max_score']} points)")
+        setting_score = ScoreDisplay(
+            details['setting']['total_score'],
+            details['setting']['max_score']
+        )
+        render_section_header("Setting Match", setting_score)
         render_field_match("Time", details['setting']['time'], show_score=False)
         render_field_match("Location", details['setting']['location'], show_score=False)
     
     with col2:
-        st.markdown(f"#### Format Match ({details['format']['total_score']}/{details['format']['max_score']} points)")
+        format_score = ScoreDisplay(
+            details['format']['total_score'],
+            details['format']['max_score']
+        )
+        render_section_header("Format Match", format_score)
         render_field_match("Episodes", details['format']['episodes'], show_score=False)
         render_field_match("Order Type", details['format']['order_type'], show_score=False)
 
