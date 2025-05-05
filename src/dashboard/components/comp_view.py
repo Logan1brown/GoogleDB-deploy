@@ -3,16 +3,16 @@
 import streamlit as st
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Any
-from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.utils.style_config import COLORS, FONTS
-from .match_details import MatchDetailsManager
-from .base_match_breakdown import render_matches_section
+# Lazy imports
+from . import get_match_details_manager, get_render_match_details_section
 
 
 def render_comp_builder(state: Dict) -> None:
     """Render the comp builder interface."""
     # Initialize analyzer lazily
     if 'comp_analyzer' not in st.session_state:
+        from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
         st.session_state.comp_analyzer = CompAnalyzer()
     comp_analyzer = st.session_state.comp_analyzer
     
@@ -272,6 +272,7 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
     st.dataframe(df.style.apply(apply_table_styling))
     
     # Create match details manager and show details
+    MatchDetailsManager = get_match_details_manager()
     details_manager = MatchDetailsManager(comp_analyzer)
     
     # Transform results into expected format
@@ -296,4 +297,5 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         'order_type_id': r['order_type_id']
     } for r in results]
     
+    render_matches_section = get_render_match_details_section()
     render_matches_section(match_results, details_manager, state['criteria'])

@@ -10,7 +10,10 @@ Specific views should extend these methods with their own display logic.
 import streamlit as st
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
-from src.dashboard.components.match_details import FieldMatch, ArrayFieldMatch
+# Import types lazily to prevent circular imports
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from src.dashboard.components.match_details import FieldMatch, ArrayFieldMatch
 from src.dashboard.utils.style_config import FONTS
 
 @dataclass
@@ -326,14 +329,14 @@ def render_match_indicator(value: str, matched: bool = True, selected: bool = Tr
     else:
         st.markdown(f"⚫ {value}")
 
-def render_field_match(label: str, match: FieldMatch, show_score: bool = True) -> None:
+def render_field_match(label: str, match: 'FieldMatch', show_score: bool = True) -> None:
     """Render a single field match using base template methods."""
     score = ScoreDisplay(match.score, match.max_score, show_score)
     render_section_header(label, score)
     # Just show the value with appropriate bullet point
     render_match_indicator(match.name1, matched=match.match, selected=match.selected)
 
-def render_array_field_match(label: str, match: ArrayFieldMatch) -> None:
+def render_array_field_match(label: str, match: 'ArrayFieldMatch') -> None:
     """Render a multi-value field match using base template methods."""
     score = ScoreDisplay(match.score, match.max_score, True)
     render_section_header(label, score)
