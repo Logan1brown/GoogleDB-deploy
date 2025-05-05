@@ -65,6 +65,7 @@ class FieldManager:
     def _load_options(self):
         """Load all field options from reference data."""
         for field_name, config in self.FIELD_CONFIGS.items():
+            st.write(f"Loading options for {field_name}")
             if field_name in self.reference_data:
                 df = self.reference_data[field_name]
                 
@@ -112,8 +113,8 @@ class FieldManager:
                     ]
                     
                     self.options[field_name] = options
-                    logger.info("First few options:")
-                    logger.info([opt.name for opt in options[:10]])
+                    st.write("First few options:")
+                    st.write([opt.name for opt in options[:10]])
                     
                     continue
                 
@@ -127,6 +128,7 @@ class FieldManager:
                         ))
                     
                 self.options[field_name] = sorted(options, key=lambda x: x.name)
+                st.write(f"Loaded {len(self.options[field_name])} options for {field_name}")
     
     def _normalize_name(self, name: str) -> str:
         """Normalize a team member name for consistent matching.

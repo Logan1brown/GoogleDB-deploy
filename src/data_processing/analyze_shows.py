@@ -142,6 +142,7 @@ class ShowsAnalyzer:
                 if not hasattr(ref_data, 'data') or not ref_data.data:
                     raise ValueError(f"No data returned from {table_name}")
                 reference_data[ref_name] = pd.DataFrame(ref_data.data)
+                st.write(f"Loaded {len(reference_data[ref_name])} rows for {ref_name} from {table_name}")
             
             return comp_df, reference_data
             
