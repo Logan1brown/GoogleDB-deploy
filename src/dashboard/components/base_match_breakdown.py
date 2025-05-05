@@ -83,19 +83,17 @@ def render_match_details_section(details: Dict) -> None:
     
     with col1:
         if 'setting' in details:
-            setting_score = details['setting']['total_score']
-            setting_max = details['setting']['max_score']
-            st.write(f"## Setting Match ({setting_score:.1f}/{setting_max:.1f})")
-            render_field_match("Time", details['setting']['time'], show_score=False)
-            render_field_match("Location", details['setting']['location'], show_score=False)
+            setting = details['setting']
+            st.write(f"## Setting Match ({setting.score:.1f}/{setting.max_score:.1f})")
+            render_field_match("Time", setting.time, show_score=False)
+            render_field_match("Location", setting.location, show_score=False)
     
     with col2:
         if 'format' in details:
-            format_score = details['format']['total_score']
-            format_max = details['format']['max_score']
-            st.write(f"## Format Match ({format_score:.1f}/{format_max:.1f})")
-            render_field_match("Episodes", details['format']['episodes'], show_score=False)
-            render_field_match("Order Type", details['format']['order_type'], show_score=False)
+            format_match = details['format']
+            st.write(f"## Format Match ({format_match.score:.1f}/{format_match.max_score:.1f})")
+            render_field_match("Episodes", format_match.episodes, show_score=False)
+            render_field_match("Order Type", format_match.order_type, show_score=False)
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
