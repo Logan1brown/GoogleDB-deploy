@@ -113,9 +113,6 @@ class FieldManager:
                     ]
                     
                     self.options[field_name] = options
-                    st.write("First few options:")
-                    st.write([opt.name for opt in options[:10]])
-                    
                     continue
                 
                 # Normal handling for other fields
@@ -590,10 +587,8 @@ class CompAnalyzer:
             self.initialize()
             return self.field_manager.get_name(field_name, id)
         except Exception as e:
-            st.write(f"Error in get_field_display_name: {e}")
-            st.write(f"Field: {field_name}, ID: {id}")
-            import traceback
-            st.write(traceback.format_exc())
+            logger.error(f"Error in get_field_display_name: {e}")
+            logger.error(f"Field: {field_name}, ID: {id}")
             raise
         
     def get_field_display_options(self, field_name: str) -> List[Tuple[int, str]]:
