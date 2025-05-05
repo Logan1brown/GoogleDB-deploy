@@ -10,7 +10,6 @@ Specific views should extend these methods with their own display logic.
 import streamlit as st
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
-from .match_details_view import render_field_match, render_array_field_match
 
 @dataclass
 class ScoreDisplay:
@@ -146,6 +145,56 @@ def render_array_field_base(values: List[str], matches: List[str], selected: boo
     
     for value in values:
         render_match_indicator(value, value in matches, selected)
+
+def render_field_match(label: str, match: Dict, show_score: bool = True) -> None:
+    """Render a single field match using base template methods."""
+    if show_score:
+        score = ScoreDisplay(match['score'], match['max_score'])
+    else:
+        score = None
+    
+    render_field_base(label, score)
+    render_match_indicator(
+        value=match['name1'],
+        matched=match['match'],
+        selected=match['selected']
+    )
+
+def render_array_field_match(label: str, match: Dict, show_score: bool = True) -> None:
+    """Render a multi-value field match using base template methods."""
+    if show_score:
+        score = ScoreDisplay(match['score'], match['max_score'])
+    else:
+        score = None
+        
+    render_field_base(label, score)
+    
+    # Special handling for team members to avoid duplicate display
+    if label == 'Team':
+        # Show selected team members first
+        for value in match['values2']:
+            render_match_indicator(
+                value=value,
+                matched=value in match['matches'],
+                selected=True
+            )
+        
+        # Show remaining team members
+        remaining = [v for v in match['values1'] if v not in match['values2']]
+        for value in remaining:
+            render_match_indicator(
+                value=value,
+                matched=False,
+                selected=False
+            )
+        return
+    
+    # Standard handling for other array fields
+    render_array_field_base(
+        values=match['values1'],
+        matches=match['matches'],
+        selected=match['selected']
+    )
 
 def render_base_match_breakdown(
     title: str,
