@@ -49,8 +49,10 @@ def render_match_details_section(details: Dict) -> None:
     format_max = 5  # From CompScore total
     
     # Content Match section
-    st.markdown("## Content Match ({:.1f}/{:.1f})".format(content_score, content_max))
+    st.markdown("### Content Match ({:.1f}/{:.1f})".format(content_score, content_max))
+    st.write("")
     
+    # Content fields in columns
     col1, col2 = st.columns(2)
     
     with col1:
@@ -118,9 +120,13 @@ def render_match_details_section(details: Dict) -> None:
             max_score=7.0
         ))
     
-    # Production match section
-    st.markdown(f"## Production Match ({production_score:.1f}/{production_max:.1f})")
+    st.write("")
     
+    # Production match section
+    st.markdown(f"### Production Match ({production_score:.1f}/{production_max:.1f})")
+    st.write("")
+    
+    # Production fields in columns
     col1, col2 = st.columns(2)
     
     with col1:
@@ -152,13 +158,16 @@ def render_match_details_section(details: Dict) -> None:
             max_score=4.0
         ))
     
-    # Format match section
-    st.markdown(f"## Format Match ({format_score:.1f}/{format_max:.1f})")
+    st.write("")
     
+    # Format match section
+    st.markdown(f"### Format Match ({format_score:.1f}/{format_max:.1f})")
+    st.write("")
+    
+    # Format fields in columns
     col1, col2 = st.columns(2)
     
     with col1:
-        
         # Setting
         st.markdown("### Setting Details")
         render_field_match("Time", FieldMatch(
@@ -281,33 +290,30 @@ def render_field_match(label: str, match: FieldMatch, show_score: bool = True) -
     score = ScoreDisplay(match.score, match.max_score, show_score)
     render_section_header(label, score)
     
-    st.markdown(f"**Selected:** {match.name2}")
-    st.markdown(f"**Matched:** {match.name1}")
-    if match.match:
-        st.markdown(":white_check_mark: Match")
-    else:
-        st.markdown(":x: No match")
+    st.markdown("**Selected:**")
+    render_match_indicator(match.name2, matched=match.match, selected=True)
+    
+    st.markdown("**Matched:**")
+    render_match_indicator(match.name1, matched=match.match)
 
 def render_array_field_match(label: str, match: ArrayFieldMatch) -> None:
     """Render a multi-value field match using base template methods."""
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.markdown(f"**{label}:**")
-    with col2:
-        st.markdown(f"**Score:** {match.score:.1f}/{match.max_score:.1f}")
-        if match.selected:
-            st.markdown("**Selected:**")
-            for value in match.values2:
-                st.markdown(f"* {value}")
-            if match.matches:
-                st.markdown("**Matches:**")
-                for value in match.matches:
-                    st.markdown(f"* {value}")
-            st.markdown("**Show has:**")
-            for value in match.values1:
-                st.markdown(f"* {value}")
-        else:
-            st.markdown("*Not selected*")
+    score = ScoreDisplay(match.score, match.max_score, True)
+    render_section_header(label, score)
+    
+    st.markdown("**Selected:**")
+    if not match.names2:
+        render_match_indicator("None", matched=False, selected=False)
+    else:
+        for name in match.names2:
+            render_match_indicator(name, matched=name in match.matches, selected=True)
+    
+    st.markdown("**Matched:**")
+    if not match.names1:
+        render_match_indicator("None", matched=False)
+    else:
+        for name in match.names1:
+            render_match_indicator(name, matched=name in match.matches)
 
 def render_base_match_breakdown(
     title: str,
