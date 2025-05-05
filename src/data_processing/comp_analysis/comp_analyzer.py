@@ -117,23 +117,17 @@ class FieldManager:
         df = df.copy()
         df['normalized_name'] = df['name'].apply(self._normalize_name)
         
-        # Fill NULL roles with a placeholder
-        df['role'] = df['role'].fillna('Unknown Role')
-        
-        # Group by normalized name AND role to avoid grouping different people with same name
-        grouped = df.groupby(['normalized_name', 'role']).agg({
+        # Group by normalized name to collect all IDs for each unique name
+        grouped = df.groupby('normalized_name').agg({
             'id': list,
-            'name': 'first',  # Keep first name variant for display
-            'show_id': 'first'  # Keep show ID for reference
+            'name': 'first'  # Keep first name variant for display
         }).reset_index()
         
         # Create options with first ID (for display) but store all IDs
         options = []
         for _, row in grouped.iterrows():
-            # Format name with role for display
-            display_name = f"{row['name']} ({row['role']})"
             # Use first ID for the option (needed for UI)
-            opt = FieldOption(id=row['id'][0], name=display_name)
+            opt = FieldOption(id=row['id'][0], name=row['name'])
             # Store all IDs as additional attribute
             opt.all_ids = row['id']
             options.append(opt)
