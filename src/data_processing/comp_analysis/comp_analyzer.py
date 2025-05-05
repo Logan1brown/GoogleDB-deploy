@@ -603,11 +603,11 @@ class CompAnalyzer:
         source = pd.Series(mapped_criteria)
         
         # Score each show
-        results = []
-        st.write("Source criteria:")
-        st.write(dict(source))
-        st.write("First target fields:")
-        st.write(dict(self.comp_data.iloc[0]))
+        # Debug output commented out for cleaner UI
+        # st.write("Source criteria:")
+        # st.write(dict(source))
+        # st.write("First target fields:")
+        # st.write(dict(self.comp_data.iloc[0]))
         for _, target in self.comp_data.iterrows():
             score = self.score_engine.calculate_score(source, target)
             # Include results with any matching criteria
