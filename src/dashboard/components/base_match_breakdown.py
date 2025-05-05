@@ -8,8 +8,9 @@ Specific views should extend these methods with their own display logic.
 """
 
 import streamlit as st
-from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from src.dashboard.components.match_details import FieldMatch, ArrayFieldMatch
 
 @dataclass
 class ScoreDisplay:
