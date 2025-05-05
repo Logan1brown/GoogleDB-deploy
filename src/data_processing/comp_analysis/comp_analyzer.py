@@ -70,30 +70,22 @@ class FieldManager:
                 
                 # Special handling for team members from api_show_comp_data
                 if field_name == 'team_members':
-                    # Create empty lists to store all team members
-                    all_ids = []
-                    all_names = []
+                    # Use dictionary to maintain unique entries by ID
+                    unique_members = {}
                     
-                    # Collect all team members from each show
+                    # Collect unique team members
                     for _, row in df.iterrows():
                         if isinstance(row['team_member_ids'], list) and isinstance(row['team_member_names'], list):
-                            all_ids.extend(row['team_member_ids'])
-                            all_names.extend(row['team_member_names'])
+                            for id, name in zip(row['team_member_ids'], row['team_member_names']):
+                                # Only add if we haven't seen this ID before
+                                if id not in unique_members:
+                                    unique_members[id] = name
                     
-                    # Create DataFrame for deduplication
-                    team_df = pd.DataFrame({
-                        'id': all_ids,
-                        'name': all_names
-                    })
-                    
-                    # Drop duplicates and sort by name
-                    team_df = team_df.drop_duplicates().sort_values('name', key=lambda x: x.str.lower())
-                    
-                    # Convert to options
-                    options = []
-                    for _, row in team_df.iterrows():
-                        opt = FieldOption(id=row['id'], name=row['name'])
-                        options.append(opt)
+                    # Convert to options and sort by name
+                    options = [
+                        FieldOption(id=id, name=name)
+                        for id, name in sorted(unique_members.items(), key=lambda x: x[1].lower())
+                    ]
                     
                     self.options[field_name] = options
                     continue
