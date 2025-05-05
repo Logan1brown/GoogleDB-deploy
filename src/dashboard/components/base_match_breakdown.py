@@ -50,53 +50,161 @@ def render_match_details_section(details: Dict) -> None:
     
     col1, col2 = st.columns(2)
     with col1:
-        if 'genre' in details:
-            render_field_match("Genre", details['genre'])
-        if 'subgenres' in details:
-            render_array_field_match("Subgenres", details['subgenres'])
-        if 'characters' in details:
-            render_array_field_match("Character Types", details['characters'])
-        if 'plot' in details:
-            render_array_field_match("Plot Elements", details['plot'])
+        # Genre and subgenres
+        score_display = ScoreDisplay(comp_score.genre_base, 9)
+        render_field_match("Genre", FieldMatch(
+            name1=details.get('genre_name', 'Unknown'),
+            name2=details.get('selected_genre_name', 'Unknown'),
+            selected=True,
+            match=comp_score.genre_base > 0,
+            score=comp_score.genre_base,
+            max_score=9
+        ))
+        
+        # Character types
+        render_array_field_match("Character Types", ArrayFieldMatch(
+            name1='Multiple' if details.get('character_type_names') else 'None',
+            name2='Multiple' if details.get('selected_character_type_names') else 'None',
+            selected=bool(details.get('selected_character_type_names')),
+            match=comp_score.character_types > 0,
+            score=comp_score.character_types,
+            max_score=14,
+            values1=details.get('character_type_names', []),
+            values2=details.get('selected_character_type_names', []),
+            matches=details.get('matching_character_types', [])
+        ))
+        
+        # Plot elements
+        render_array_field_match("Plot Elements", ArrayFieldMatch(
+            name1='Multiple' if details.get('plot_element_names') else 'None',
+            name2='Multiple' if details.get('selected_plot_element_names') else 'None',
+            selected=bool(details.get('selected_plot_element_names')),
+            match=comp_score.plot_elements > 0,
+            score=comp_score.plot_elements,
+            max_score=12,
+            values1=details.get('plot_element_names', []),
+            values2=details.get('selected_plot_element_names', []),
+            matches=details.get('matching_plot_elements', [])
+        ))
     
     with col2:
-        if 'source' in details:
-            render_field_match("Source", details['source'])
-        if 'themes' in details:
-            render_array_field_match("Theme Elements", details['themes'])
-        if 'tone' in details:
-            render_field_match("Tone", details['tone'])
+        # Source type
+        render_field_match("Source", FieldMatch(
+            name1=details.get('source_type_name', 'Unknown'),
+            name2=details.get('selected_source_type_name', 'Unknown'),
+            selected=True,
+            match=comp_score.source_type > 0,
+            score=comp_score.source_type,
+            max_score=10
+        ))
+        
+        # Theme elements
+        render_array_field_match("Theme Elements", ArrayFieldMatch(
+            name1='Multiple' if details.get('theme_element_names') else 'None',
+            name2='Multiple' if details.get('selected_theme_element_names') else 'None',
+            selected=bool(details.get('selected_theme_element_names')),
+            match=comp_score.theme_elements > 0,
+            score=comp_score.theme_elements,
+            max_score=13,
+            values1=details.get('theme_element_names', []),
+            values2=details.get('selected_theme_element_names', []),
+            matches=details.get('matching_theme_elements', [])
+        ))
+        
+        # Tone
+        render_field_match("Tone", FieldMatch(
+            name1=details.get('tone_name', 'Unknown'),
+            name2=details.get('selected_tone_name', 'Unknown'),
+            selected=True,
+            match=comp_score.tone > 0,
+            score=comp_score.tone,
+            max_score=8
+        ))
     
     # Production match section
     st.write(f"## Production Match ({production_score:.1f}/{production_max:.1f})")
     
     col1, col2 = st.columns(2)
     with col1:
-        if 'network' in details:
-            render_field_match("Network", details['network'])
-        if 'studio' in details:
-            render_array_field_match("Studio", details['studio'])
+        # Network
+        render_field_match("Network", FieldMatch(
+            name1=details.get('network_name', 'Unknown'),
+            name2=details.get('selected_network_name', 'Unknown'),
+            selected=True,
+            match=comp_score.network > 0,
+            score=comp_score.network,
+            max_score=4
+        ))
+        
+        # Studio
+        render_array_field_match("Studio", ArrayFieldMatch(
+            name1='Multiple' if details.get('studio_names') else 'None',
+            name2='Multiple' if details.get('selected_studio_names') else 'None',
+            selected=bool(details.get('selected_studio_names')),
+            match=comp_score.studio > 0,
+            score=comp_score.studio,
+            max_score=5,
+            values1=details.get('studio_names', []),
+            values2=details.get('selected_studio_names', []),
+            matches=details.get('matching_studios', [])
+        ))
     
     with col2:
-        if 'team' in details:
-            render_array_field_match("Team", details['team'])
+        # Team
+        render_array_field_match("Team", ArrayFieldMatch(
+            name1='Multiple' if details.get('team_member_names') else 'None',
+            name2='Multiple' if details.get('selected_team_member_names') else 'None',
+            selected=bool(details.get('selected_team_member_names')),
+            match=comp_score.team > 0,
+            score=comp_score.team,
+            max_score=4,
+            values1=details.get('team_member_names', []),
+            values2=details.get('selected_team_member_names', []),
+            matches=details.get('matching_team_members', [])
+        ))
     
     # Setting and format sections
     col1, col2 = st.columns(2)
     
     with col1:
-        if 'setting' in details:
-            setting = details['setting']
-            st.write(f"## Setting Match ({setting.score:.1f}/{setting.max_score:.1f})")
-            render_field_match("Time", setting.time, show_score=False)
-            render_field_match("Location", setting.location, show_score=False)
+        # Setting
+        st.write(f"## Setting Match ({comp_score.setting_time + comp_score.setting_location:.1f}/8.0)")
+        render_field_match("Time", FieldMatch(
+            name1=details.get('time_setting_name', 'Unknown'),
+            name2=details.get('selected_time_setting_name', 'Unknown'),
+            selected=True,
+            match=comp_score.setting_time > 0,
+            score=comp_score.setting_time,
+            max_score=4
+        ), show_score=False)
+        render_field_match("Location", FieldMatch(
+            name1=details.get('location_setting_name', 'Unknown'),
+            name2=details.get('selected_location_setting_name', 'Unknown'),
+            selected=True,
+            match=comp_score.setting_location > 0,
+            score=comp_score.setting_location,
+            max_score=4
+        ), show_score=False)
     
     with col2:
-        if 'format' in details:
-            format_match = details['format']
-            st.write(f"## Format Match ({format_match.score:.1f}/{format_match.max_score:.1f})")
-            render_field_match("Episodes", format_match.episodes, show_score=False)
-            render_field_match("Order Type", format_match.order_type, show_score=False)
+        # Format
+        st.write(f"## Format Match ({comp_score.episodes + comp_score.order_type:.1f}/5.0)")
+        render_field_match("Episodes", FieldMatch(
+            name1=str(details.get('episode_count', 'Unknown')),
+            name2=str(details.get('selected_episode_count', 'Unknown')),
+            selected=True,
+            match=comp_score.episodes > 0,
+            score=comp_score.episodes,
+            max_score=3
+        ), show_score=False)
+        render_field_match("Order Type", FieldMatch(
+            name1=details.get('order_type_name', 'Unknown'),
+            name2=details.get('selected_order_type_name', 'Unknown'),
+            selected=True,
+            match=comp_score.order_type > 0,
+            score=comp_score.order_type,
+            max_score=2
+        ), show_score=False)
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
