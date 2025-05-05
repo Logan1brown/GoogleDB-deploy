@@ -65,24 +65,38 @@ class FieldManager:
     def _load_options(self):
         """Load all field options from reference data."""
         for field_name, config in self.FIELD_CONFIGS.items():
-            # For subgenres, copy options from genre since they use the same table
-            if field_name == 'subgenres' and 'genre' in self.reference_data:
-                df = self.reference_data['genre']
-            elif field_name not in self.reference_data:
-                continue
-            else:
+            if field_name in self.reference_data:
                 df = self.reference_data[field_name]
                 
-            options = []
-            
-            for _, row in df.iterrows():
-                if pd.notna(row[config.id_field]) and pd.notna(row[config.name_field]):
-                    options.append(FieldOption(
-                        id=int(row[config.id_field]),
-                        name=str(row[config.name_field])
-                    ))
+                # Special handling for team members from api_show_comp_data
+                if field_name == 'team_members':
+                    # Explode arrays into rows
+                    team_data = []
+                    for _, row in df.iterrows():
+                        if isinstance(row['team_member_ids'], list) and isinstance(row['team_member_names'], list):
+                            for id, name in zip(row['team_member_ids'], row['team_member_names']):
+                                team_data.append({'id': id, 'name': name})
                     
-            self.options[field_name] = sorted(options, key=lambda x: x.name)
+                    # Convert to DataFrame and deduplicate
+                    team_df = pd.DataFrame(team_data).drop_duplicates()
+                    options = []
+                    for _, row in team_df.iterrows():
+                        opt = FieldOption(id=row['id'], name=row['name'])
+                        options.append(opt)
+                    
+                    self.options[field_name] = sorted(options, key=lambda x: x.name)
+                    continue
+                
+                # Normal handling for other fields
+                options = []
+                for _, row in df.iterrows():
+                    if pd.notna(row[config.id_field]) and pd.notna(row[config.name_field]):
+                        options.append(FieldOption(
+                            id=int(row[config.id_field]),
+                            name=str(row[config.name_field])
+                        ))
+                    
+                self.options[field_name] = sorted(options, key=lambda x: x.name)
     
     def _normalize_name(self, name: str) -> str:
         """Normalize a team member name for consistent matching.
@@ -136,12 +150,6 @@ class FieldManager:
 
     def get_options(self, field_name: str) -> List[FieldOption]:
         """Get all options for a field."""
-        if field_name == 'team_members' and field_name in self.reference_data:
-            # Debug: Print columns in team_members data
-            df = self.reference_data[field_name]
-            st.write(f"Team members columns: {df.columns.tolist()}")
-            # Use special handling for team members to deduplicate names
-            return self._get_team_member_options(df)
         return self.options.get(field_name, [])
         
     def get_display_options(self, field_name: str) -> List[Tuple[int, str]]:
