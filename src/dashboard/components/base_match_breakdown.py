@@ -11,6 +11,7 @@ import streamlit as st
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from src.dashboard.components.match_details import FieldMatch, ArrayFieldMatch
+from src.dashboard.utils.style_config import FONTS
 
 @dataclass
 class ScoreDisplay:
@@ -25,7 +26,7 @@ class ScoreDisplay:
 
 def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> None:
     """Template method for rendering a section header with optional score."""
-    header = f"#### {header}"
+    header = f"<div style='font-size: {FONTS['primary']['sizes']['header']}px'><b>{header}</b></div>"
     if score:
         header += score.format()
     st.markdown(header)
@@ -49,7 +50,7 @@ def render_match_details_section(details: Dict) -> None:
     format_max = 5  # From CompScore total
     
     # Content Match section
-    st.markdown("### Content Match ({:.1f}/{:.1f})".format(content_score, content_max))
+    st.markdown(f"<div style='font-size: {FONTS['primary']['sizes']['header']}px'><b>Content Match ({content_score:.1f}/{content_max:.1f})</b></div>", unsafe_allow_html=True)
     st.write("")
     
     # Content fields in columns
@@ -163,7 +164,7 @@ def render_match_details_section(details: Dict) -> None:
     st.write("")
     
     # Production match section
-    st.markdown(f"### Production Match ({production_score:.1f}/{production_max:.1f})")
+    st.markdown(f"<div style='font-size: {FONTS['primary']['sizes']['header']}px'><b>Production Match ({production_score:.1f}/{production_max:.1f})</b></div>", unsafe_allow_html=True)
     st.write("")
     
     # Production fields in columns
@@ -207,7 +208,7 @@ def render_match_details_section(details: Dict) -> None:
     st.write("")
     
     # Format match section
-    st.markdown(f"### Format Match ({format_score:.1f}/{format_max:.1f})")
+    st.markdown(f"<div style='font-size: {FONTS['primary']['sizes']['header']}px'><b>Format Match ({format_score:.1f}/{format_max:.1f})</b></div>", unsafe_allow_html=True)
     st.write("")
     
     # Format fields in columns
