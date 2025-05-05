@@ -235,34 +235,7 @@ def render_match_details_section(details: Dict) -> None:
             max_score=1.0
         ))
     
-    # Setting match section
-    st.markdown(f"### Setting Match ({format_score:.1f}/{format_max:.1f})")
-    st.write("")
-    
-    # Setting fields in columns
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Time Setting
-        render_field_match("Time Setting", FieldMatch(
-            name1=details.get('time_setting_name', 'Unknown'),
-            name2=details.get('selected_time_setting_name', 'Unknown'),
-            selected=details.get('selected_time_setting_name') is not None,
-            match=details.get('time_setting_match', False),
-            score=comp_score.time_setting,
-            max_score=3.5
-        ))
-        
-    with col2:
-        # Location Setting
-        render_field_match("Location", FieldMatch(
-            name1=details.get('location_setting_name', 'Unknown'),
-            name2=details.get('selected_location_setting_name', 'Unknown'),
-            selected=details.get('selected_location_setting_name') is not None,
-            match=details.get('location_match', False),
-            score=comp_score.location,
-            max_score=3.5
-        ))
+
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
@@ -341,39 +314,29 @@ def render_field_base(label: str, score: Optional[ScoreDisplay] = None) -> None:
 
 def render_match_indicator(value: str, matched: bool = True, selected: bool = True) -> None:
     """Template method for rendering a match indicator."""
+    # Only show green if both selected and matched
     if matched and selected:
         st.markdown(f"🟢 {value}")
     else:
         st.markdown(f"⚫ {value}")
 
-def render_array_field_base(values: List[str], matches: List[str], selected: bool = True) -> None:
-    """Base template for rendering an array field."""
-    if not values:
-        st.markdown("⚫ None")
-        return
-    
-    for value in values:
-        render_match_indicator(value, value in matches, selected)
-
 def render_field_match(label: str, match: FieldMatch, show_score: bool = True) -> None:
     """Render a single field match using base template methods."""
     score = ScoreDisplay(match.score, match.max_score, show_score)
     render_section_header(label, score)
-    
-    # Just show the matched value with appropriate bullet point
+    # Just show the value with appropriate bullet point
     render_match_indicator(match.name1, matched=match.match, selected=match.selected)
 
 def render_array_field_match(label: str, match: ArrayFieldMatch) -> None:
     """Render a multi-value field match using base template methods."""
     score = ScoreDisplay(match.score, match.max_score, True)
     render_section_header(label, score)
-    
-    # Just show the matched values with appropriate bullet points
+    # Just show values with appropriate bullet points
     if not match.values1:
         st.markdown("⚫ None")
     else:
-        for name in match.values1:
-            render_match_indicator(name, matched=name in match.matches)
+        for value in match.values1:
+            render_match_indicator(value, value in match.matches, match.selected)
 
 def render_base_match_breakdown(
     title: str,
