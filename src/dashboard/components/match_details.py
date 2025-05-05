@@ -272,7 +272,7 @@ class MatchDetailsManager:
             max_score=max_score,
             values1=value_names,
             values2=selected_names,
-            # For studios, show all values even if no matches
+            # For studios, show all values for better display
             matches=value_names if field == 'studios'
                    else self.get_field_names(field, list(matches))
         )
