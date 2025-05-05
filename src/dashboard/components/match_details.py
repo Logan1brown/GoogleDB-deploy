@@ -123,15 +123,23 @@ class MatchDetailsManager:
         )
         
         # Setting match details
-        details['setting'] = self._process_setting_match(
-            match.get('time_setting_id'), match.get('location_setting_id'),
-            criteria.get('time_setting_id'), criteria.get('location_setting_id')
+        details['time_setting'] = self._process_single_field_match(
+            'time_setting', match.get('time_setting_id'), criteria.get('time_setting_id'),
+            self.scoring['content']['components']['setting']['time']
+        )
+        details['location'] = self._process_single_field_match(
+            'location_setting', match.get('location_setting_id'), criteria.get('location_setting_id'),
+            self.scoring['content']['components']['setting']['location']
         )
         
         # Format match details
-        details['format'] = self._process_format_match(
-            match.get('episode_count'), criteria.get('episode_count'),
-            match.get('order_type_id'), criteria.get('order_type_id')
+        details['episodes'] = self._process_single_field_match(
+            'episodes', match.get('episode_count'), criteria.get('episode_count'),
+            self.scoring['format']['components']['episodes']['within_2']
+        )
+        details['order_type'] = self._process_single_field_match(
+            'order_type', match.get('order_type_id'), criteria.get('order_type_id'),
+            self.scoring['format']['components']['order_type']['match']
         )
         
         return details

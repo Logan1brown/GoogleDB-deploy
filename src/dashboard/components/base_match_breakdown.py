@@ -222,64 +222,8 @@ def render_matches_section(matches: List[Dict], details_manager, criteria: Dict)
             expanded=match == matches[0]
         ):
             details = details_manager.create_match_details(match, criteria)
-            # Add CompScore object and raw match data to details
+            # Add CompScore object to details
             details['comp_score'] = comp_score
-            details.update({
-                'comp_score': match['comp_score'],
-                'genre': details_manager._process_genre_match(match, criteria),
-                'subgenres': details_manager._process_array_field_match(
-                    'genre', match.get('subgenres', []), criteria.get('subgenres', []),
-                    {'first': details_manager.scoring['content']['components']['genre']['overlap'], 'second': 0}
-                ),
-                'source': details_manager._process_single_field_match(
-                    'source_type', match.get('source_type_id'), criteria.get('source_type_id'),
-                    details_manager.scoring['content']['components']['source_type']['match']
-                ),
-                'characters': details_manager._process_array_field_match(
-                    'character_types', match.get('character_type_ids', []), criteria.get('character_type_ids', []),
-                    details_manager.scoring['content']['components']['character_types']
-                ),
-                'plot': details_manager._process_array_field_match(
-                    'plot_elements', match.get('plot_element_ids', []), criteria.get('plot_element_ids', []),
-                    details_manager.scoring['content']['components']['plot_elements']
-                ),
-                'themes': details_manager._process_array_field_match(
-                    'thematic_elements', match.get('thematic_element_ids', []), criteria.get('thematic_element_ids', []),
-                    details_manager.scoring['content']['components']['theme_elements']
-                ),
-                'tone': details_manager._process_single_field_match(
-                    'tone', match.get('tone_id'), criteria.get('tone_id'),
-                    details_manager.scoring['content']['components']['tone']['match']
-                ),
-                'network': details_manager._process_single_field_match(
-                    'network', match.get('network_id'), criteria.get('network_id'),
-                    details_manager.scoring['production']['components']['network']['match']
-                ),
-                'studio': details_manager._process_production_field_match(
-                    'studios', match.get('studios', []), criteria.get('studio_ids', []),
-                    details_manager.scoring['production']['components']['studio']
-                ),
-                'team': details_manager._process_array_field_match(
-                    'team_members', match.get('team_member_ids', []), criteria.get('team_member_ids', []),
-                    details_manager.scoring['production']['components']['team']
-                ),
-                'time_setting': details_manager._process_single_field_match(
-                    'time_setting', match.get('time_setting_id'), criteria.get('time_setting_id'),
-                    details_manager.scoring['content']['components']['setting']['time']
-                ),
-                'location': details_manager._process_single_field_match(
-                    'location_setting', match.get('location_setting_id'), criteria.get('location_setting_id'),
-                    details_manager.scoring['content']['components']['setting']['location']
-                ),
-                'episodes': details_manager._process_single_field_match(
-                    'episodes', match.get('episode_count'), criteria.get('episode_count'),
-                    details_manager.scoring['format']['components']['episodes']['within_2']
-                ),
-                'order_type': details_manager._process_single_field_match(
-                    'order_type', match.get('order_type_id'), criteria.get('order_type_id'),
-                    details_manager.scoring['format']['components']['order_type']['match']
-                )
-            })
             render_match_details_section(details)
 
 def render_field_base(label: str, score: Optional[ScoreDisplay] = None) -> None:
