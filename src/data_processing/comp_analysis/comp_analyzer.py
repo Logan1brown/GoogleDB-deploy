@@ -117,6 +117,9 @@ class FieldManager:
         df = df.copy()
         df['normalized_name'] = df['name'].apply(self._normalize_name)
         
+        # Fill NULL roles with a placeholder
+        df['role'] = df['role'].fillna('Unknown Role')
+        
         # Group by normalized name AND role to avoid grouping different people with same name
         grouped = df.groupby(['normalized_name', 'role']).agg({
             'id': list,
