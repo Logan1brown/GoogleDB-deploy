@@ -187,12 +187,12 @@ def render_match_details_section(details: Dict) -> None:
             name1='Multiple' if details.get('studio_names') else 'None',
             name2='Multiple' if details.get('selected_studio_names') else 'None',
             selected=bool(details.get('selected_studio_names')),
-            match=bool(details.get('selected_studio_names')) and bool(details.get('studio_matches')),
+            match=False,  # Never match if no selection
             score=comp_score.studio,
             max_score=4.0,
-            values1=details.get('studio_names', []),
-            values2=details.get('selected_studio_names', []),
-            matches=details.get('studio_matches', [])
+            values1=details.get('studio_names', []) or [],  # Ensure we always have a list
+            values2=details.get('selected_studio_names', []) or [],
+            matches=details.get('studio_matches', []) or []
         ))
     
     with col2:
@@ -338,7 +338,7 @@ def render_array_field_match(label: str, match: ArrayFieldMatch) -> None:
     render_section_header(label, score)
     # Just show values with appropriate bullet points
     if not match.values1:
-        st.markdown("⚫ None")
+        render_match_indicator("None", False, match.selected)
     else:
         for value in match.values1:
             render_match_indicator(value, value in match.matches, match.selected)
