@@ -26,7 +26,7 @@ class ScoreDisplay:
 
 def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> None:
     """Template method for rendering a section header with optional score."""
-    header = f"<div style='font-size: {FONTS['primary']['sizes']['header']}px'><b>{header}</b></div>"
+    header = f"#### {header}"
     if score:
         header += score.format()
     st.markdown(header)
@@ -50,7 +50,7 @@ def render_match_details_section(details: Dict) -> None:
     format_max = 5  # From CompScore total
     
     # Content Match section
-    st.markdown(f"<div style='font-size: {FONTS['primary']['sizes']['header']}px'><b>Content Match ({content_score:.1f}/{content_max:.1f})</b></div>", unsafe_allow_html=True)
+    st.markdown(f"### Content Match ({content_score:.1f}/{content_max:.1f})")
     st.write("")
     
     # Content fields in columns
@@ -164,7 +164,7 @@ def render_match_details_section(details: Dict) -> None:
     st.write("")
     
     # Production match section
-    st.markdown(f"<div style='font-size: {FONTS['primary']['sizes']['header']}px'><b>Production Match ({production_score:.1f}/{production_max:.1f})</b></div>", unsafe_allow_html=True)
+    st.markdown(f"### Production Match ({production_score:.1f}/{production_max:.1f})")
     st.write("")
     
     # Production fields in columns
@@ -208,7 +208,7 @@ def render_match_details_section(details: Dict) -> None:
     st.write("")
     
     # Format match section
-    st.markdown(f"<div style='font-size: {FONTS['primary']['sizes']['header']}px'><b>Format Match ({format_score:.1f}/{format_max:.1f})</b></div>", unsafe_allow_html=True)
+    st.markdown(f"### Format Match ({format_score:.1f}/{format_max:.1f})")
     st.write("")
     
     # Format fields in columns
@@ -240,13 +240,13 @@ def render_match_details_section(details: Dict) -> None:
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
-    st.markdown("### Top Matches")
+    st.markdown("## Top Matches")
     
     # Show top 10 matches in expanders
     for match in matches[:10]:
         comp_score = match['comp_score']
         with st.expander(
-            f"#{match['id']}: {match['title']} (Match: {comp_score.total():.1f})", 
+            f"#### #{match['id']}: {match['title']} (Match: {comp_score.total():.1f})", 
             expanded=match == matches[0]
         ):
             # Get display names for all fields
