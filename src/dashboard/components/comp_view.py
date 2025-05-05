@@ -5,11 +5,8 @@ import pandas as pd
 from typing import Dict, List, Tuple, Optional, Any
 from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.utils.style_config import COLORS, FONTS
-from src.dashboard.components.base_match_breakdown import render_base_match_breakdown
-
-
 from .match_details import MatchDetailsManager
-from .match_details_view import render_match_details
+from .base_match_breakdown import render_matches_section
 
 
 def render_comp_builder(state: Dict) -> None:
@@ -286,4 +283,4 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         'order_type_id': r['order_type_id']
     } for r in results]
     
-    render_match_details(match_results, details_manager, state['criteria'])
+    render_matches_section(match_results, details_manager, state['criteria'])
