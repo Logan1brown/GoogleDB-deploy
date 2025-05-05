@@ -272,8 +272,8 @@ class MatchDetailsManager:
             max_score=max_score,
             values1=value_names,
             values2=selected_names,
-            # For studios, get the matching names from the pre-fetched list
-            matches=[name for name, id in zip(value_names, values) if id in matches] if field == 'studios'
+            # For studios, show all values even if no matches
+            matches=value_names if field == 'studios'
                    else self.get_field_names(field, list(matches))
         )
         

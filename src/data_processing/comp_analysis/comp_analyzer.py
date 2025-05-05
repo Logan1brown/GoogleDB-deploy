@@ -604,11 +604,11 @@ class CompAnalyzer:
         
         # Score each show
         results = []
-        # Debug output commented out for cleaner UI
-        # st.write("Source criteria:")
-        # st.write(dict(source))
-        # st.write("First target fields:")
-        # st.write(dict(self.comp_data.iloc[0]))
+        # Debug output to see what's in the data
+        st.write("Source criteria:")
+        st.write(dict(source))
+        st.write("First target fields:")
+        st.write(dict(self.comp_data.iloc[0]))
         for _, target in self.comp_data.iterrows():
             score = self.score_engine.calculate_score(source, target)
             # Include results with any matching criteria
