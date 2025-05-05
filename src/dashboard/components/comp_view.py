@@ -301,6 +301,7 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     } for r in results]
     
     render_matches_section = get_render_match_details_section()
+    criteria = state.get('criteria', {})
     for match in match_results[:10]:
         comp_score = match['comp_score']
         with st.expander(
