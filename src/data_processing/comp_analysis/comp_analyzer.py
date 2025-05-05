@@ -122,11 +122,11 @@ class FieldManager:
                 options = []
                 for _, row in df.iterrows():
                     if pd.notna(row[config.id_field]) and pd.notna(row[config.name_field]):
-                        # For array fields like subgenres, allow the same name to appear multiple times
-                        # For non-array fields, only take first occurrence
+                        # For array fields like subgenres, deduplicate by name but preserve IDs
+                        # For non-array fields, take first occurrence
                         name = str(row[config.name_field])
                         id = int(row[config.id_field])
-                        if config.is_array or not any(opt.name == name for opt in options):
+                        if not any(opt.name == name for opt in options):
                             options.append(FieldOption(id=id, name=name))
                     
                 self.options[field_name] = sorted(options, key=lambda x: x.name)
