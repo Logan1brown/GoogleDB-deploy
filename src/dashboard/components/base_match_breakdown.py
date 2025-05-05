@@ -31,77 +31,70 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
 
 
 
-def render_content_section(details: Dict) -> Tuple[st.columns, st.columns]:
-    """Template method for rendering the content match section."""
-    content_score = ScoreDisplay(details['content']['score'], details['content']['max'])
-    render_section_header("Content Match", content_score)
-    return st.columns(2)
-
-def render_production_section(details: Dict) -> Tuple[st.columns, st.columns]:
-    """Template method for rendering the production match section."""
-    production_score = ScoreDisplay(
-        details['production']['score'],
-        details['production']['max']
-    )
-    render_section_header("Production Match", production_score)
-    return st.columns(2)
-
-def render_setting_format_section(details: Dict) -> Tuple[st.columns, st.columns]:
-    """Template method for rendering setting and format sections."""
-    setting_score = ScoreDisplay(
-        details['setting']['total_score'],
-        details['setting']['max_score']
-    )
-    format_score = ScoreDisplay(
-        details['format']['total_score'],
-        details['format']['max_score']
-    )
-    with st.columns(2)[0]:
-        render_section_header("Setting Match", setting_score)
-    with st.columns(2)[1]:
-        render_section_header("Format Match", format_score)
-    return st.columns(2)
 
 def render_match_details_section(details: Dict) -> None:
     """Template method for rendering match details section with columns."""
+    # Calculate section scores
+    content_score = sum(details[field]['score'] for field in ['genre', 'subgenres', 'source', 'characters', 'plot', 'themes', 'tone'] if field in details)
+    content_max = sum(details[field]['max_score'] for field in ['genre', 'subgenres', 'source', 'characters', 'plot', 'themes', 'tone'] if field in details)
+    
+    production_score = sum(details[field]['score'] for field in ['network', 'studio', 'team'] if field in details)
+    production_max = sum(details[field]['max_score'] for field in ['network', 'studio', 'team'] if field in details)
+    
     # Content Match section
-    render_section_header("Content Match")
+    st.write(f"## Content Match ({content_score:.1f}/{content_max:.1f})")
     
     col1, col2 = st.columns(2)
     with col1:
-        render_field_match("Genre", details['genre'])
-        render_array_field_match("Subgenres", details['subgenres'])
-        render_array_field_match("Character Types", details['characters'])
-        render_array_field_match("Plot Elements", details['plot'])
+        if 'genre' in details:
+            render_field_match("Genre", details['genre'])
+        if 'subgenres' in details:
+            render_array_field_match("Subgenres", details['subgenres'])
+        if 'characters' in details:
+            render_array_field_match("Character Types", details['characters'])
+        if 'plot' in details:
+            render_array_field_match("Plot Elements", details['plot'])
     
     with col2:
-        render_field_match("Source", details['source'])
-        render_array_field_match("Theme Elements", details['themes'])
-        render_field_match("Tone", details['tone'])
+        if 'source' in details:
+            render_field_match("Source", details['source'])
+        if 'themes' in details:
+            render_array_field_match("Theme Elements", details['themes'])
+        if 'tone' in details:
+            render_field_match("Tone", details['tone'])
     
     # Production match section
-    render_section_header("Production Match")
+    st.write(f"## Production Match ({production_score:.1f}/{production_max:.1f})")
     
     col1, col2 = st.columns(2)
     with col1:
-        render_field_match("Network", details['network'])
-        render_array_field_match("Studio", details['studio'])
+        if 'network' in details:
+            render_field_match("Network", details['network'])
+        if 'studio' in details:
+            render_array_field_match("Studio", details['studio'])
     
     with col2:
-        render_array_field_match("Team", details['team'])
+        if 'team' in details:
+            render_array_field_match("Team", details['team'])
     
     # Setting and format sections
     col1, col2 = st.columns(2)
     
     with col1:
-        render_section_header("Setting Match")
-        render_field_match("Time", details['setting']['time'], show_score=False)
-        render_field_match("Location", details['setting']['location'], show_score=False)
+        if 'setting' in details:
+            setting_score = details['setting']['total_score']
+            setting_max = details['setting']['max_score']
+            st.write(f"## Setting Match ({setting_score:.1f}/{setting_max:.1f})")
+            render_field_match("Time", details['setting']['time'], show_score=False)
+            render_field_match("Location", details['setting']['location'], show_score=False)
     
     with col2:
-        render_section_header("Format Match")
-        render_field_match("Episodes", details['format']['episodes'], show_score=False)
-        render_field_match("Order Type", details['format']['order_type'], show_score=False)
+        if 'format' in details:
+            format_score = details['format']['total_score']
+            format_max = details['format']['max_score']
+            st.write(f"## Format Match ({format_score:.1f}/{format_max:.1f})")
+            render_field_match("Episodes", details['format']['episodes'], show_score=False)
+            render_field_match("Order Type", details['format']['order_type'], show_score=False)
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
@@ -148,48 +141,40 @@ def render_array_field_base(values: List[str], matches: List[str], selected: boo
 
 def render_field_match(label: str, match: Dict, show_score: bool = True) -> None:
     """Render a single field match using base template methods."""
-    if show_score:
-        score = ScoreDisplay(match['score'], match['max_score'])
-    else:
-        score = None
-    
-    render_field_base(label, score)
-    render_match_indicator(
-        value=match['name1'],
-        matched=match['match'],
-        selected=match['selected']
-    )
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.write(f"**{label}:**")
+    with col2:
+        if show_score:
+            st.write(f"Score: {match['score']:.1f}/{match['max_score']:.1f}")
+        if match['selected']:
+            st.write(f"Selected: {match['name2']}")
+            st.write(f"Match: {'✓' if match['match'] else '✗'}")
+            st.write(f"Value: {match['name1']}")
+        else:
+            st.write("Not selected")
 
-def render_array_field_match(label: str, match: Dict, show_score: bool = True) -> None:
+def render_array_field_match(label: str, match: Dict) -> None:
     """Render a multi-value field match using base template methods."""
-    if show_score:
-        score = ScoreDisplay(match['score'], match['max_score'])
-    else:
-        score = None
-        
-    render_field_base(label, score)
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.write(f"**{label}:**")
+    with col2:
+        st.write(f"Score: {match['score']:.1f}/{match['max_score']:.1f}")
+        if match['selected']:
+            st.write("Selected:")
+            for value in match['values2']:
+                st.write(f"- {value}")
+            if match['matches']:
+                st.write("Matches:")
+                for value in match['matches']:
+                    st.write(f"- {value}")
+            st.write("Show has:")
+            for value in match['values1']:
+                st.write(f"- {value}")
+        else:
+            st.write("Not selected")
     
-    # Special handling for team members to avoid duplicate display
-    if label == 'Team':
-        # Show selected team members first
-        for value in match['values2']:
-            render_match_indicator(
-                value=value,
-                matched=value in match['matches'],
-                selected=True
-            )
-        
-        # Show remaining team members
-        remaining = [v for v in match['values1'] if v not in match['values2']]
-        for value in remaining:
-            render_match_indicator(
-                value=value,
-                matched=False,
-                selected=False
-            )
-        return
-    
-    # Standard handling for other array fields
     render_array_field_base(
         values=match['values1'],
         matches=match['matches'],
