@@ -153,11 +153,6 @@ class ShowsAnalyzer:
                     reference_data[ref_name] = pd.DataFrame(ref_data.data)
                     
                 st.write(f"Loaded {len(reference_data[ref_name])} rows for {ref_name} from {table_name}")
-                
-                # Debug genre list data
-                if table_name == 'genre_list':
-                    st.write(f"Genre list contents for {ref_name}:")
-                    st.write(reference_data[ref_name])
             
             return comp_df, reference_data
             
