@@ -603,6 +603,7 @@ class CompAnalyzer:
         source = pd.Series(mapped_criteria)
         
         # Score each show
+        results = []
         # Debug output commented out for cleaner UI
         # st.write("Source criteria:")
         # st.write(dict(source))
