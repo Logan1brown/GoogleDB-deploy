@@ -56,29 +56,85 @@ def render_match_details_section(details: Dict) -> None:
     col1, col2 = st.columns(2)
     
     with col1:
-        # Genre
-        render_field_match("Genre", details['genre'])
+        # Genre and subgenres
+        render_field_match("Genre", FieldMatch(
+            name1=details.get('genre_name', 'Unknown'),
+            name2=details.get('selected_genre_name', 'Unknown'),
+            selected=details.get('selected_genre_name') is not None,
+            match=details.get('genre_match', False),
+            score=comp_score.genre_base + comp_score.genre_overlap,
+            max_score=17.0
+        ))
         
         # Source type
-        render_field_match("Source Type", details['source'])
+        render_field_match("Source Type", FieldMatch(
+            name1=details.get('source_type_name', 'Unknown'),
+            name2=details.get('selected_source_type_name', 'Unknown'),
+            selected=details.get('selected_source_type_name') is not None,
+            match=details.get('source_type_match', False),
+            score=comp_score.source_type,
+            max_score=10.0
+        ))
         
         # Character types
-        render_array_field_match("Character Types", details['characters'])
+        render_array_field_match("Character Types", ArrayFieldMatch(
+            name1='Multiple' if details.get('character_type_names') else 'None',
+            name2='Multiple' if details.get('selected_character_type_names') else 'None',
+            selected=bool(details.get('selected_character_type_names')),
+            match=bool(details.get('character_type_matches')),
+            score=comp_score.character_types,
+            max_score=14.0,
+            values1=details.get('character_type_names', []),
+            values2=details.get('selected_character_type_names', []),
+            matches=details.get('character_type_matches', [])
+        ))
     
     with col2:
         # Plot elements
-        render_array_field_match("Plot Elements", details['plot'])
+        render_array_field_match("Plot Elements", ArrayFieldMatch(
+            name1='Multiple' if details.get('plot_element_names') else 'None',
+            name2='Multiple' if details.get('selected_plot_element_names') else 'None',
+            selected=bool(details.get('selected_plot_element_names')),
+            match=bool(details.get('plot_element_matches')),
+            score=comp_score.plot_elements,
+            max_score=12.0,
+            values1=details.get('plot_element_names', []),
+            values2=details.get('selected_plot_element_names', []),
+            matches=details.get('plot_element_matches', [])
+        ))
         
         # Theme elements
-        render_array_field_match("Theme Elements", details['themes'])
+        render_array_field_match("Theme Elements", ArrayFieldMatch(
+            name1='Multiple' if details.get('theme_element_names') else 'None',
+            name2='Multiple' if details.get('selected_theme_element_names') else 'None',
+            selected=bool(details.get('selected_theme_element_names')),
+            match=bool(details.get('theme_element_matches')),
+            score=comp_score.theme_elements,
+            max_score=13.0,
+            values1=details.get('theme_element_names', []),
+            values2=details.get('selected_theme_element_names', []),
+            matches=details.get('theme_element_matches', [])
+        ))
         
         # Tone
-        render_field_match("Tone", details['tone'])
+        render_field_match("Tone", FieldMatch(
+            name1=details.get('tone_name', 'Unknown'),
+            name2=details.get('selected_tone_name', 'Unknown'),
+            selected=details.get('selected_tone_name') is not None,
+            match=details.get('tone_match', False),
+            score=comp_score.tone,
+            max_score=9.0
+        ))
         
         # Setting
-        st.markdown("**Setting:**")
-        render_field_match("Time", details['time_setting'])
-        render_field_match("Location", details['location'])
+        render_field_match("Setting", FieldMatch(
+            name1=f"{details.get('time_setting_name', 'Unknown')} / {details.get('location_setting_name', 'Unknown')}",
+            name2=f"{details.get('selected_time_setting_name', 'Unknown')} / {details.get('selected_location_setting_name', 'Unknown')}",
+            selected=details.get('selected_time_setting_name') is not None and details.get('selected_location_setting_name') is not None,
+            match=details.get('time_setting_match', False) and details.get('location_match', False),
+            score=comp_score.time_setting + comp_score.location,
+            max_score=7.0
+        ))
     
     st.write("")
     
@@ -91,14 +147,38 @@ def render_match_details_section(details: Dict) -> None:
     
     with col1:
         # Network
-        render_field_match("Network", details['network'])
+        render_field_match("Network", FieldMatch(
+            name1=details.get('network_name', 'Unknown'),
+            name2=details.get('selected_network_name', 'Unknown'),
+            selected=details.get('selected_network_name') is not None,
+            match=details.get('network_match', False),
+            score=comp_score.network,
+            max_score=5.0
+        ))
         
         # Studio
-        render_field_match("Studio", details['studio'])
+        render_field_match("Studio", FieldMatch(
+            name1=details.get('studio_name', 'Unknown'),
+            name2=details.get('selected_studio_name', 'Unknown'),
+            selected=details.get('selected_studio_name') is not None,
+            match=details.get('studio_match', False),
+            score=comp_score.studio,
+            max_score=4.0
+        ))
     
     with col2:
         # Team
-        render_array_field_match("Team", details['team'])
+        render_array_field_match("Team", ArrayFieldMatch(
+            name1='Multiple' if details.get('team_member_names') else 'None',
+            name2='Multiple' if details.get('selected_team_member_names') else 'None',
+            selected=bool(details.get('selected_team_member_names')),
+            match=bool(details.get('team_member_matches')),
+            score=comp_score.team,
+            max_score=4.0,
+            values1=details.get('team_member_names', []),
+            values2=details.get('selected_team_member_names', []),
+            matches=details.get('team_member_matches', [])
+        ))
     
     st.write("")
     
@@ -111,10 +191,24 @@ def render_match_details_section(details: Dict) -> None:
     
     with col1:
         # Episodes
-        render_field_match("Episodes", details['episodes'])
+        render_field_match("Episodes", FieldMatch(
+            name1=str(details.get('episode_count', 'Unknown')),
+            name2=str(details.get('selected_episode_count', 'Unknown')),
+            selected=details.get('selected_episode_count') is not None,
+            match=details.get('episode_count_match', False),
+            score=comp_score.episodes,
+            max_score=4.0
+        ))
         
         # Order Type
-        render_field_match("Order Type", details['order_type'])
+        render_field_match("Order Type", FieldMatch(
+            name1=details.get('order_type_name', 'Unknown'),
+            name2=details.get('selected_order_type_name', 'Unknown'),
+            selected=details.get('selected_order_type_name') is not None,
+            match=details.get('order_type_match', False),
+            score=comp_score.order_type,
+            max_score=1.0
+        ))
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
