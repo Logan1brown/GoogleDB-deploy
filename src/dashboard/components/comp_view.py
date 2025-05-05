@@ -2,7 +2,10 @@
 
 import streamlit as st
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 from src.dashboard.utils.style_config import COLORS, FONTS
 # Lazy imports
 from . import get_match_details_manager, get_render_match_details_section
@@ -94,7 +97,7 @@ def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_na
     # Map names to IDs in the original order
     return [id_map[name] for name in names if name in id_map]
 
-def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
+def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     """Render criteria selection panel."""
     # Get field options lazily
     if not hasattr(comp_analyzer, 'field_options'):
@@ -248,7 +251,7 @@ def apply_table_css() -> None:
         </style>
     """, unsafe_allow_html=True)
 
-def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
+def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     """Render comp results panel."""
     if not state.get('criteria'):
         st.info("Select criteria to find matches.")
