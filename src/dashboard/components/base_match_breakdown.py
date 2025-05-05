@@ -184,15 +184,16 @@ def render_match_details_section(details: Dict) -> None:
         
         # Studios
         render_array_field_match("Studios", ArrayFieldMatch(
-            name1='Multiple' if details.get('studio_names') else 'None',
-            name2='Multiple' if details.get('selected_studio_names') else 'None',
-            selected=bool(details.get('selected_studio_names')),
-            match=False,  # Never match if no selection
+            name1='Multiple' if match.get('studio_names') else 'None',
+            name2='Multiple' if criteria.get('studio_ids') else 'None',
+            selected=bool(criteria.get('studio_ids')),
+            match=bool(set(match.get('studios', [])) & set(criteria.get('studio_ids', []))),
             score=comp_score.studio,
             max_score=4.0,
-            values1=details.get('studio_names', []) or [],  # Ensure we always have a list
-            values2=details.get('selected_studio_names', []) or [],
-            matches=details.get('studio_matches', []) or []
+            values1=match.get('studio_names', []) or [],  # Ensure we always have a list
+            values2=[field_manager.get_field_name('studios', id) for id in criteria.get('studio_ids', [])],
+            matches=[name for name, id in zip(match.get('studio_names', []), match.get('studios', [])) 
+                    if id in set(criteria.get('studio_ids', []))]
         ))
     
     with col2:
