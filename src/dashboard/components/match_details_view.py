@@ -11,8 +11,9 @@ from .base_match_breakdown import (
     render_field_base,
     render_match_indicator,
     render_array_field_base,
-    render_section_header,
-    render_two_columns
+    render_content_section,
+    render_production_section,
+    render_setting_format_section
 )
 
 def render_field_match(label: str, match: Dict, show_score: bool = True) -> None:

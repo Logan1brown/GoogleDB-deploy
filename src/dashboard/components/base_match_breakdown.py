@@ -29,29 +29,13 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
         header += score.format()
     st.markdown(header)
 
-def render_two_column_section(left_header: str, right_header: str,
-                            left_score: Optional[ScoreDisplay] = None,
-                            right_score: Optional[ScoreDisplay] = None) -> Tuple[st.columns, st.columns]:
-    """Template method for rendering a section with two columns and headers."""
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        render_section_header(left_header, left_score)
-    
-    with col2:
-        render_section_header(right_header, right_score)
-    
-    return col1, col2
 
-def render_single_column_section(header: str, score: Optional[ScoreDisplay] = None) -> Tuple[st.columns, st.columns]:
-    """Template method for rendering a section with a single column and header."""
-    render_section_header(header, score)
-    return st.columns(2)
 
 def render_content_section(details: Dict) -> Tuple[st.columns, st.columns]:
     """Template method for rendering the content match section."""
     content_score = ScoreDisplay(details['content']['score'], details['content']['max'])
-    return render_single_column_section("Content Match", content_score)
+    render_section_header("Content Match", content_score)
+    return st.columns(2)
 
 def render_production_section(details: Dict) -> Tuple[st.columns, st.columns]:
     """Template method for rendering the production match section."""
@@ -59,7 +43,8 @@ def render_production_section(details: Dict) -> Tuple[st.columns, st.columns]:
         details['production']['score'],
         details['production']['max']
     )
-    return render_single_column_section("Production Match", production_score)
+    render_section_header("Production Match", production_score)
+    return st.columns(2)
 
 def render_setting_format_section(details: Dict) -> Tuple[st.columns, st.columns]:
     """Template method for rendering setting and format sections."""
