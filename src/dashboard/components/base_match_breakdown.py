@@ -56,10 +56,24 @@ def render_setting_format_section(details: Dict) -> Tuple[st.columns, st.columns
         details['format']['total_score'],
         details['format']['max_score']
     )
-    return render_two_column_section(
-        "Setting Match", "Format Match",
-        setting_score, format_score
-    )
+    with st.columns(2)[0]:
+        render_section_header("Setting Match", setting_score)
+    with st.columns(2)[1]:
+        render_section_header("Format Match", format_score)
+    return st.columns(2)
+
+def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
+    """Template method for rendering the matches section."""
+    st.markdown("### Top Matches")
+    
+    # Show top 10 matches in expanders
+    for match in matches[:10]:
+        with st.expander(
+            f"#{match['id']}: {match['title']} (Match: {match['comp_score'].total():.1f})", 
+            expanded=match == matches[0]
+        ):
+            details = details_manager.create_match_details(match, criteria)
+            render_match_details_section(details)
 
 def render_field_base(label: str, score: Optional[ScoreDisplay] = None) -> None:
     """Base template for rendering a field with optional score."""
