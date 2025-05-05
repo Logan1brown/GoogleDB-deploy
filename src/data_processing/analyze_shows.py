@@ -141,12 +141,22 @@ class ShowsAnalyzer:
                     ref_data = supabase.table(table_name).select('*').execute()
                 if not hasattr(ref_data, 'data') or not ref_data.data:
                     raise ValueError(f"No data returned from {table_name}")
-                reference_data[ref_name] = pd.DataFrame(ref_data.data)
+                    
+                # For genre_list table, we need to handle both genre and subgenres
+                if table_name == 'genre_list':
+                    df = pd.DataFrame(ref_data.data)
+                    # For primary genre, only include rows where is_primary=true
+                    if ref_name == 'genre':
+                        df = df[df['is_primary'] == True]
+                    reference_data[ref_name] = df
+                else:
+                    reference_data[ref_name] = pd.DataFrame(ref_data.data)
+                    
                 st.write(f"Loaded {len(reference_data[ref_name])} rows for {ref_name} from {table_name}")
                 
-                # Debug genre_list table
+                # Debug genre list data
                 if table_name == 'genre_list':
-                    st.write("Genre list contents:")
+                    st.write(f"Genre list contents for {ref_name}:")
                     st.write(reference_data[ref_name])
             
             return comp_df, reference_data
