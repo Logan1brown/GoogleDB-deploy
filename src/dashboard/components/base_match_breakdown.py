@@ -187,7 +187,7 @@ def render_match_details_section(details: Dict) -> None:
             name1='Multiple' if details.get('studio_names') else 'None',
             name2='Multiple' if details.get('selected_studio_names') else 'None',
             selected=bool(details.get('selected_studio_names')),
-            match=bool(details.get('studio_matches')),
+            match=bool(details.get('selected_studio_names')) and bool(details.get('studio_matches')),
             score=comp_score.studio,
             max_score=4.0,
             values1=details.get('studio_names', []),
