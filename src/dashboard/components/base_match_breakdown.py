@@ -35,12 +35,15 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
 
 def render_match_details_section(details: Dict) -> None:
     """Template method for rendering match details section with columns."""
-    # Calculate section scores
-    content_score = sum(details[field].score for field in ['genre', 'subgenres', 'source', 'characters', 'plot', 'themes', 'tone'] if field in details)
-    content_max = sum(details[field].max_score for field in ['genre', 'subgenres', 'source', 'characters', 'plot', 'themes', 'tone'] if field in details)
+    # Get the CompScore object
+    comp_score = details['comp_score']
     
-    production_score = sum(details[field].score for field in ['network', 'studio', 'team'] if field in details)
-    production_max = sum(details[field].max_score for field in ['network', 'studio', 'team'] if field in details)
+    # Get section scores from CompScore
+    content_score = comp_score.content_score()
+    content_max = 82  # From CompScore total
+    
+    production_score = comp_score.production_score()
+    production_max = 13  # From CompScore total
     
     # Content Match section
     st.write(f"## Content Match ({content_score:.1f}/{content_max:.1f})")
@@ -101,11 +104,13 @@ def render_matches_section(matches: List[Dict], details_manager, criteria: Dict)
     
     # Show top 10 matches in expanders
     for match in matches[:10]:
+        comp_score = match['comp_score']
         with st.expander(
-            f"#{match['id']}: {match['title']} (Match: {match['comp_score'].total():.1f})", 
+            f"#{match['id']}: {match['title']} (Match: {comp_score.total():.1f})", 
             expanded=match == matches[0]
         ):
             details = details_manager.create_match_details(match, criteria)
+            details['comp_score'] = comp_score  # Add CompScore object to details
             render_match_details_section(details)
 
 def render_field_base(label: str, score: Optional[ScoreDisplay] = None) -> None:
