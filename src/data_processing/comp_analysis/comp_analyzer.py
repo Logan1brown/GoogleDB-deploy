@@ -128,7 +128,7 @@ class FieldManager:
                     options.append(opt)
                 
                 self.options[field_name] = sorted(options, key=lambda x: x.name)
-                st.write(f"Loaded {len(self.options[field_name])} options for {field_name}")
+                pass  # Options loaded
     
     def _normalize_name(self, name: str) -> str:
         """Normalize a team member name for consistent matching.
@@ -645,11 +645,6 @@ class CompAnalyzer:
         
         # Score each show
         results = []
-        # Debug output to see what's in the data
-        st.write("Source criteria:")
-        st.write(dict(source))
-        st.write("First target fields:")
-        st.write(dict(self.comp_data.iloc[0]))
         for _, target in self.comp_data.iterrows():
             score = self.score_engine.calculate_score(source, target)
             # Include results with any matching criteria

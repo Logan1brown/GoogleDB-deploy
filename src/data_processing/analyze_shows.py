@@ -152,7 +152,7 @@ class ShowsAnalyzer:
                 else:
                     reference_data[ref_name] = pd.DataFrame(ref_data.data)
                     
-                st.write(f"Loaded {len(reference_data[ref_name])} rows for {ref_name} from {table_name}")
+                pass  # Reference data loaded
             
             return comp_df, reference_data
             
