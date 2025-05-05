@@ -73,19 +73,39 @@ class FieldManager:
                     # Use dictionary to maintain unique entries by ID
                     unique_members = {}
                     
+                    # Debug: Print first few rows
+                    logger.info("First few rows of team member data:")
+                    logger.info(df.head().to_dict())
+                    
                     # Collect unique team members
                     for _, row in df.iterrows():
                         if isinstance(row['team_member_ids'], list) and isinstance(row['team_member_names'], list):
+                            # Debug: Print arrays for first row
+                            if len(unique_members) == 0:
+                                logger.info(f"First row IDs: {row['team_member_ids']}")
+                                logger.info(f"First row names: {row['team_member_names']}")
+                            
                             for id, name in zip(row['team_member_ids'], row['team_member_names']):
+                                # Debug: Print each ID/name pair
+                                if name == 'Adam Bernstein':
+                                    logger.info(f"Found Adam Bernstein with ID {id}")
                                 # Only add if we haven't seen this ID before
                                 if id not in unique_members:
                                     unique_members[id] = name
+                    
+                    # Debug: Print unique members
+                    logger.info("Unique members:")
+                    logger.info(unique_members)
                     
                     # Convert to options and sort by name
                     options = [
                         FieldOption(id=id, name=name)
                         for id, name in sorted(unique_members.items(), key=lambda x: x[1].lower())
                     ]
+                    
+                    # Debug: Print first few options
+                    logger.info("First few options:")
+                    logger.info([opt.name for opt in options[:10]])
                     
                     self.options[field_name] = options
                     continue
