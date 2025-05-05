@@ -183,17 +183,18 @@ def render_match_details_section(details: Dict) -> None:
         ))
         
         # Studios
-        render_array_field_match("Studios", ArrayFieldMatch(
-            name1='Multiple' if details['studio'].values1 else 'None',
-            name2='Multiple' if details['studio'].values2 else 'None',
-            selected=details['studio'].selected,
-            match=details['studio'].match,
-            score=comp_score.studio,
+        studio_match = details.get('studio', ArrayFieldMatch(
+            name1='None',
+            name2='None',
+            selected=False,
+            match=False,
+            score=0.0,
             max_score=4.0,
-            values1=details['studio'].values1,
-            values2=details['studio'].values2,
-            matches=details['studio'].matches
+            values1=[],
+            values2=[],
+            matches=[]
         ))
+        render_array_field_match("Studios", studio_match)
     
     with col2:
         # Team
