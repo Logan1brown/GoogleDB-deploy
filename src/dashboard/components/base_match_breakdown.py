@@ -35,11 +35,11 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
 def render_match_details_section(details: Dict) -> None:
     """Template method for rendering match details section with columns."""
     # Calculate section scores
-    content_score = sum(details[field]['score'] for field in ['genre', 'subgenres', 'source', 'characters', 'plot', 'themes', 'tone'] if field in details)
-    content_max = sum(details[field]['max_score'] for field in ['genre', 'subgenres', 'source', 'characters', 'plot', 'themes', 'tone'] if field in details)
+    content_score = sum(details[field].score for field in ['genre', 'subgenres', 'source', 'characters', 'plot', 'themes', 'tone'] if field in details)
+    content_max = sum(details[field].max_score for field in ['genre', 'subgenres', 'source', 'characters', 'plot', 'themes', 'tone'] if field in details)
     
-    production_score = sum(details[field]['score'] for field in ['network', 'studio', 'team'] if field in details)
-    production_max = sum(details[field]['max_score'] for field in ['network', 'studio', 'team'] if field in details)
+    production_score = sum(details[field].score for field in ['network', 'studio', 'team'] if field in details)
+    production_max = sum(details[field].max_score for field in ['network', 'studio', 'team'] if field in details)
     
     # Content Match section
     st.write(f"## Content Match ({content_score:.1f}/{content_max:.1f})")
@@ -139,38 +139,38 @@ def render_array_field_base(values: List[str], matches: List[str], selected: boo
     for value in values:
         render_match_indicator(value, value in matches, selected)
 
-def render_field_match(label: str, match: Dict, show_score: bool = True) -> None:
+def render_field_match(label: str, match: FieldMatch, show_score: bool = True) -> None:
     """Render a single field match using base template methods."""
     col1, col2 = st.columns([1, 2])
     with col1:
         st.write(f"**{label}:**")
     with col2:
         if show_score:
-            st.write(f"Score: {match['score']:.1f}/{match['max_score']:.1f}")
-        if match['selected']:
-            st.write(f"Selected: {match['name2']}")
-            st.write(f"Match: {'✓' if match['match'] else '✗'}")
-            st.write(f"Value: {match['name1']}")
+            st.write(f"Score: {match.score:.1f}/{match.max_score:.1f}")
+        if match.selected:
+            st.write(f"Selected: {match.name2}")
+            st.write(f"Match: {'✓' if match.match else '✗'}")
+            st.write(f"Value: {match.name1}")
         else:
             st.write("Not selected")
 
-def render_array_field_match(label: str, match: Dict) -> None:
+def render_array_field_match(label: str, match: ArrayFieldMatch) -> None:
     """Render a multi-value field match using base template methods."""
     col1, col2 = st.columns([1, 2])
     with col1:
         st.write(f"**{label}:**")
     with col2:
-        st.write(f"Score: {match['score']:.1f}/{match['max_score']:.1f}")
-        if match['selected']:
+        st.write(f"Score: {match.score:.1f}/{match.max_score:.1f}")
+        if match.selected:
             st.write("Selected:")
-            for value in match['values2']:
+            for value in match.values2:
                 st.write(f"- {value}")
-            if match['matches']:
+            if match.matches:
                 st.write("Matches:")
-                for value in match['matches']:
+                for value in match.matches:
                     st.write(f"- {value}")
             st.write("Show has:")
-            for value in match['values1']:
+            for value in match.values1:
                 st.write(f"- {value}")
         else:
             st.write("Not selected")
