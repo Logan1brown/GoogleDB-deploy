@@ -57,13 +57,27 @@ def render_match_details_section(details: Dict) -> None:
     
     with col1:
         # Genre and subgenres
+        # Primary genre
         render_field_match("Genre", FieldMatch(
             name1=details.get('genre_name', 'Unknown'),
             name2=details.get('selected_genre_name', 'Unknown'),
             selected=details.get('selected_genre_name') is not None,
             match=details.get('genre_match', False),
-            score=comp_score.genre_base + comp_score.genre_overlap,
-            max_score=17.0
+            score=comp_score.genre_base,
+            max_score=9.0
+        ))
+        
+        # Subgenres
+        render_array_field_match("Subgenres", ArrayFieldMatch(
+            name1='Multiple' if details.get('subgenre_names') else 'None',
+            name2='Multiple' if details.get('selected_subgenre_names') else 'None',
+            selected=bool(details.get('selected_subgenre_names')),
+            match=bool(details.get('subgenre_matches')),
+            score=comp_score.genre_overlap,
+            max_score=8.0,
+            values1=details.get('subgenre_names', []),
+            values2=details.get('selected_subgenre_names', []),
+            matches=details.get('subgenre_matches', [])
         ))
         
         # Source type
@@ -126,14 +140,24 @@ def render_match_details_section(details: Dict) -> None:
             max_score=9.0
         ))
         
-        # Setting
-        render_field_match("Setting", FieldMatch(
-            name1=f"{details.get('time_setting_name', 'Unknown')} / {details.get('location_setting_name', 'Unknown')}",
-            name2=f"{details.get('selected_time_setting_name', 'Unknown')} / {details.get('selected_location_setting_name', 'Unknown')}",
-            selected=details.get('selected_time_setting_name') is not None and details.get('selected_location_setting_name') is not None,
-            match=details.get('time_setting_match', False) and details.get('location_match', False),
-            score=comp_score.time_setting + comp_score.location,
-            max_score=7.0
+        # Time Setting
+        render_field_match("Time Setting", FieldMatch(
+            name1=details.get('time_setting_name', 'Unknown'),
+            name2=details.get('selected_time_setting_name', 'Unknown'),
+            selected=details.get('selected_time_setting_name') is not None,
+            match=details.get('time_setting_match', False),
+            score=comp_score.time_setting,
+            max_score=3.5
+        ))
+        
+        # Location Setting
+        render_field_match("Location", FieldMatch(
+            name1=details.get('location_setting_name', 'Unknown'),
+            name2=details.get('selected_location_setting_name', 'Unknown'),
+            selected=details.get('selected_location_setting_name') is not None,
+            match=details.get('location_match', False),
+            score=comp_score.location,
+            max_score=3.5
         ))
     
     st.write("")
@@ -200,7 +224,8 @@ def render_match_details_section(details: Dict) -> None:
             max_score=4.0
         ))
         
-        # Order Type
+    with col2:
+        # Order type
         render_field_match("Order Type", FieldMatch(
             name1=details.get('order_type_name', 'Unknown'),
             name2=details.get('selected_order_type_name', 'Unknown'),
@@ -208,6 +233,35 @@ def render_match_details_section(details: Dict) -> None:
             match=details.get('order_type_match', False),
             score=comp_score.order_type,
             max_score=1.0
+        ))
+    
+    # Setting match section
+    st.markdown(f"### Setting Match ({format_score:.1f}/{format_max:.1f})")
+    st.write("")
+    
+    # Setting fields in columns
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Time Setting
+        render_field_match("Time Setting", FieldMatch(
+            name1=details.get('time_setting_name', 'Unknown'),
+            name2=details.get('selected_time_setting_name', 'Unknown'),
+            selected=details.get('selected_time_setting_name') is not None,
+            match=details.get('time_setting_match', False),
+            score=comp_score.time_setting,
+            max_score=3.5
+        ))
+        
+    with col2:
+        # Location Setting
+        render_field_match("Location", FieldMatch(
+            name1=details.get('location_setting_name', 'Unknown'),
+            name2=details.get('selected_location_setting_name', 'Unknown'),
+            selected=details.get('selected_location_setting_name') is not None,
+            match=details.get('location_match', False),
+            score=comp_score.location,
+            max_score=3.5
         ))
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
@@ -228,6 +282,10 @@ def render_matches_section(matches: List[Dict], details_manager, criteria: Dict)
                 'genre_name': details_manager.get_field_name('genre', match.get('genre_id')),
                 'selected_genre_name': details_manager.get_field_name('genre', criteria.get('genre_id')),
                 'genre_match': match.get('genre_id') == criteria.get('genre_id'),
+                'subgenre_names': details_manager.get_field_names('subgenres', match.get('subgenres', [])),
+                'selected_subgenre_names': details_manager.get_field_names('subgenres', criteria.get('subgenres', [])),
+                'subgenre_matches': [name for name in details_manager.get_field_names('subgenres', match.get('subgenres', [])) 
+                                    if name in details_manager.get_field_names('subgenres', criteria.get('subgenres', []))],
                 'source_type_name': details_manager.get_field_name('source_type', match.get('source_type_id')),
                 'selected_source_type_name': details_manager.get_field_name('source_type', criteria.get('source_type_id')),
                 'source_type_match': match.get('source_type_id') == criteria.get('source_type_id'),
@@ -283,22 +341,15 @@ def render_field_base(label: str, score: Optional[ScoreDisplay] = None) -> None:
 
 def render_match_indicator(value: str, matched: bool = True, selected: bool = True) -> None:
     """Template method for rendering a match indicator."""
-    if not selected:
-        st.markdown(f"⚫ {value} (not selected)")
-        return
-    
-    if matched:
+    if matched and selected:
         st.markdown(f"🟢 {value}")
     else:
         st.markdown(f"⚫ {value}")
 
 def render_array_field_base(values: List[str], matches: List[str], selected: bool = True) -> None:
     """Base template for rendering an array field."""
-    if not selected:
-        if not values:
-            st.markdown("⚫ None")
-        else:
-            st.markdown(f"⚫ {', '.join(values)} (not selected)")
+    if not values:
+        st.markdown("⚫ None")
         return
     
     for value in values:
@@ -309,27 +360,17 @@ def render_field_match(label: str, match: FieldMatch, show_score: bool = True) -
     score = ScoreDisplay(match.score, match.max_score, show_score)
     render_section_header(label, score)
     
-    st.markdown("**Selected:**")
-    render_match_indicator(match.name2, matched=match.match, selected=True)
-    
-    st.markdown("**Matched:**")
-    render_match_indicator(match.name1, matched=match.match)
+    # Just show the matched value with appropriate bullet point
+    render_match_indicator(match.name1, matched=match.match, selected=match.selected)
 
 def render_array_field_match(label: str, match: ArrayFieldMatch) -> None:
     """Render a multi-value field match using base template methods."""
     score = ScoreDisplay(match.score, match.max_score, True)
     render_section_header(label, score)
     
-    st.markdown("**Selected:**")
-    if not match.values2:
-        render_match_indicator("None", matched=False, selected=False)
-    else:
-        for name in match.values2:
-            render_match_indicator(name, matched=name in match.matches, selected=True)
-    
-    st.markdown("**Matched:**")
+    # Just show the matched values with appropriate bullet points
     if not match.values1:
-        render_match_indicator("None", matched=False)
+        st.markdown("⚫ None")
     else:
         for name in match.values1:
             render_match_indicator(name, matched=name in match.matches)
