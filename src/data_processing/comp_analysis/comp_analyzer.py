@@ -70,18 +70,36 @@ class FieldManager:
                 
                 # Special handling for team members from api_show_comp_data
                 if field_name == 'team_members':
+                    st.write("Loading team members...")
+                    # Debug: Print first few rows
+                    st.write("First few rows:")
+                    st.write(df.head())
+                    
                     # Explode arrays into rows
                     team_data = set()  # Use set for deduplication
                     for _, row in df.iterrows():
                         if isinstance(row['team_member_ids'], list) and isinstance(row['team_member_names'], list):
+                            # Debug: Print arrays for first row
+                            if len(team_data) == 0:
+                                st.write("First row arrays:")
+                                st.write("IDs:", row['team_member_ids'])
+                                st.write("Names:", row['team_member_names'])
                             # Create tuples of (id, name) for uniqueness
                             team_data.update(zip(row['team_member_ids'], row['team_member_names']))
+                    
+                    # Debug: Print unique entries
+                    st.write("Unique entries:")
+                    st.write(sorted(list(team_data), key=lambda x: x[1].lower())[:10])
                     
                     # Convert unique tuples to options
                     options = []
                     for id, name in sorted(team_data, key=lambda x: x[1].lower()):  # Sort by name case-insensitive
                         opt = FieldOption(id=id, name=name)
                         options.append(opt)
+                    
+                    # Debug: Print first few options
+                    st.write("First few options:")
+                    st.write([opt.name for opt in options[:10]])
                     
                     self.options[field_name] = options
                     continue
