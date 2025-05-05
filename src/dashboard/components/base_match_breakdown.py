@@ -39,7 +39,7 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
 
 
 
-def render_match_details_section(details: Dict) -> None:
+def render_match_details_section(details: Dict, success_score: Optional[float] = None) -> None:
     """Template method for rendering match details section with columns."""
     # Get the CompScore object
     comp_score = details['comp_score']
@@ -47,6 +47,12 @@ def render_match_details_section(details: Dict) -> None:
     # Get section scores from CompScore
     content_score = comp_score.content_score()
     content_max = 82  # From CompScore total
+    
+    # Display success score if available
+    if success_score is not None:
+        success_display = ScoreDisplay(success_score, 100, True)
+        st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Success Score: {success_display.format()}</p>", unsafe_allow_html=True)
+        st.write("")
     
     production_score = comp_score.production_score()
     production_max = 13  # From CompScore total
