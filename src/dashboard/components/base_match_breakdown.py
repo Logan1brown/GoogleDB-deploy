@@ -26,10 +26,11 @@ class ScoreDisplay:
 
 def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> None:
     """Template method for rendering a section header with optional score."""
-    header = f"#### {header}"
+    header_text = f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['body']}px; font-weight: 600; margin-bottom: 0.5em;'>{header}"
     if score:
-        header += score.format()
-    st.markdown(header)
+        header_text += score.format()
+    header_text += "</p>"
+    st.markdown(header_text, unsafe_allow_html=True)
 
 
 
@@ -50,7 +51,7 @@ def render_match_details_section(details: Dict) -> None:
     format_max = 5  # From CompScore total
     
     # Content Match section
-    st.markdown(f"### Content Match ({content_score:.1f}/{content_max:.1f})")
+    st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Content Match ({content_score:.1f}/{content_max:.1f})</p>", unsafe_allow_html=True)
     st.write("")
     
     # Content fields in columns
@@ -164,7 +165,7 @@ def render_match_details_section(details: Dict) -> None:
     st.write("")
     
     # Production match section
-    st.markdown(f"### Production Match ({production_score:.1f}/{production_max:.1f})")
+    st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Production Match ({production_score:.1f}/{production_max:.1f})</p>", unsafe_allow_html=True)
     st.write("")
     
     # Production fields in columns
@@ -208,7 +209,7 @@ def render_match_details_section(details: Dict) -> None:
     st.write("")
     
     # Format match section
-    st.markdown(f"### Format Match ({format_score:.1f}/{format_max:.1f})")
+    st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Format Match ({format_score:.1f}/{format_max:.1f})</p>", unsafe_allow_html=True)
     st.write("")
     
     # Format fields in columns
@@ -240,7 +241,7 @@ def render_match_details_section(details: Dict) -> None:
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
-    st.markdown("## Top Matches")
+    st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['title']}px; font-weight: 600; margin-bottom: 1em;'>Top Matches</p>", unsafe_allow_html=True)
     
     # Show top 10 matches in expanders
     for match in matches[:10]:
