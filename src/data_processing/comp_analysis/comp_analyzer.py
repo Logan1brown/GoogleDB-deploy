@@ -586,7 +586,7 @@ class CompAnalyzer:
         # Map field names to match database schema
         mapped_criteria = {}
         field_mapping = {
-            'studio_ids': 'studios',  # Map UI field to database field
+            'studios': 'studio_ids',  # Map DB field to UI field
             'character_type_ids': 'character_type_ids',
             'plot_element_ids': 'plot_element_ids',
             'thematic_element_ids': 'thematic_element_ids',
