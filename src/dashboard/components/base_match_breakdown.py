@@ -48,11 +48,36 @@ def render_match_details_section(details: Dict) -> None:
     format_score = comp_score.format_score()
     format_max = 5  # From CompScore total
     
+    # Content Match section
+    st.markdown("## Content Match ({:.1f}/{:.1f})".format(content_score, content_max))
+    st.markdown("### Score Breakdown")
+    st.markdown(f"- Genre: {comp_score.genre_base + comp_score.genre_overlap:.1f}/17.0")
+    st.markdown(f"- Source Type: {comp_score.source_type:.1f}/10.0")
+    st.markdown(f"- Character Types: {comp_score.character_types:.1f}/14.0")
+    st.markdown(f"- Plot Elements: {comp_score.plot_elements:.1f}/12.0")
+    st.markdown(f"- Theme Elements: {comp_score.theme_elements:.1f}/13.0")
+    st.markdown(f"- Tone: {comp_score.tone:.1f}/9.0")
+    st.markdown(f"- Setting: {comp_score.time_setting + comp_score.location:.1f}/7.0")
+    
+    # Production match section
+    st.markdown(f"## Production Match ({production_score:.1f}/{production_max:.1f})")
+    st.markdown("### Score Breakdown")
+    st.markdown(f"- Network: {comp_score.network:.1f}/5.0")
+    st.markdown(f"- Studio: {comp_score.studio:.1f}/4.0")
+    st.markdown(f"- Team: {comp_score.team:.1f}/4.0")
+    
+    # Format match section
+    st.markdown(f"## Format Match ({format_score:.1f}/{format_max:.1f})")
+    st.markdown("### Score Breakdown")
+    st.markdown(f"- Episodes: {comp_score.episodes:.1f}/4.0")
+    st.markdown(f"- Order Type: {comp_score.order_type:.1f}/1.0")
+    
+    st.markdown("### Detailed Matches")
     col1, col2 = st.columns(2)
     
     with col1:
         # Content Match section
-        st.markdown("## Content Match ({:.1f}/{:.1f})".format(content_score, content_max))
+        st.markdown("### Content Details")
         
         # Genre and subgenres
         render_field_match("Genre", FieldMatch(
@@ -91,7 +116,7 @@ def render_match_details_section(details: Dict) -> None:
         ))
         
         # Production match section
-        st.markdown(f"## Production Match ({production_score:.1f}/{production_max:.1f})")
+        st.markdown("### Production Details")
         
         # Network
         render_field_match("Network", FieldMatch(
@@ -164,7 +189,7 @@ def render_match_details_section(details: Dict) -> None:
         ))
         
         # Setting
-        st.markdown(f"## Setting Match ({comp_score.time_setting + comp_score.location:.1f}/7.0)")
+        st.markdown("### Setting Details")
         render_field_match("Time", FieldMatch(
             name1=details.get('time_setting_name', 'Unknown'),
             name2=details.get('selected_time_setting_name', 'Unknown'),
@@ -183,7 +208,7 @@ def render_match_details_section(details: Dict) -> None:
         ))
         
         # Format
-        st.markdown(f"## Format Match ({format_score:.1f}/{format_max:.1f})")
+        st.markdown("### Format Details")
         render_field_match("Episodes", FieldMatch(
             name1=str(details.get('episode_count', 'Unknown')),
             name2=str(details.get('selected_episode_count', 'Unknown')),
