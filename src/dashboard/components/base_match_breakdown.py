@@ -220,7 +220,7 @@ def render_match_details_section(details: Dict) -> None:
             name2=str(details.get('selected_episode_count', 'Unknown')),
             selected=details.get('selected_episode_count') is not None,
             match=details.get('episode_count_match', False),
-            score=comp_score.episodes,
+            score=comp_score.episode_count,
             max_score=4.0
         ))
         
