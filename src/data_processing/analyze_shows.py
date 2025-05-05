@@ -145,9 +145,9 @@ class ShowsAnalyzer:
                 # For genre_list table, we need to handle both genre and subgenres
                 if table_name == 'genre_list':
                     df = pd.DataFrame(ref_data.data)
-                    # For primary genre, only include rows where is_primary=true
+                    # For primary genre, only include rows where category='Main'
                     if ref_name == 'genre':
-                        df = df[df['is_primary'] == True]
+                        df = df[df['category'] == 'Main']
                     reference_data[ref_name] = df
                 else:
                     reference_data[ref_name] = pd.DataFrame(ref_data.data)

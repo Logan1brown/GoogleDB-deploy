@@ -65,67 +65,68 @@ class FieldManager:
     def _load_options(self):
         """Load all field options from reference data."""
         for field_name, config in self.FIELD_CONFIGS.items():
-            st.write(f"Loading options for {field_name}")
-            if field_name in self.reference_data:
+            # For subgenres, use the subgenres list
+            if field_name == 'subgenres':
+                df = self.reference_data['subgenres']
+            else:
                 df = self.reference_data[field_name]
                 
-                # Special handling for team members from api_show_comp_data
-                if field_name == 'team_members':
-                    # Use dictionary to maintain unique entries by ID
-                    unique_members = {}
+            # Special handling for team members from api_show_comp_data
+            if field_name == 'team_members':
+                # Use dictionary to maintain unique entries by ID
+                unique_members = {}
                     
-                    # Debug: Print first few rows
-                    logger.info("First few rows of team member data:")
-                    logger.info(df.head().to_dict())
-                    
-                    # Collect unique team members
-                    for _, row in df.iterrows():
-                        if isinstance(row['team_member_ids'], list) and isinstance(row['team_member_names'], list):
-                            # Debug: Print arrays for first row
-                            if len(unique_members) == 0:
-                                logger.info(f"First row IDs: {row['team_member_ids']}")
-                                logger.info(f"First row names: {row['team_member_names']}")
-                            
-                            for id, name in zip(row['team_member_ids'], row['team_member_names']):
-                                # Debug: Print each ID/name pair
-                                if name == 'Adam Bernstein':
-                                    logger.info(f"Found Adam Bernstein with ID {id}")
-                                # Only add if we haven't seen this ID before
-                                if id not in unique_members:
-                                    unique_members[id] = name
-                    
-                    # Debug: Print unique members
-                    logger.info("Unique members:")
-                    logger.info(unique_members)
-                    
-                    # Clean and deduplicate names
-                    clean_members = {}
-                    for id, name in unique_members.items():
-                        clean_name = name.strip() if name else name
+                # Debug: Print first few rows
+                logger.info("First few rows of team member data:")
+                logger.info(df.head().to_dict())
+                
+                # Collect unique team members
+                for _, row in df.iterrows():
+                    if isinstance(row['team_member_ids'], list) and isinstance(row['team_member_names'], list):
+                        # Debug: Print arrays for first row
+                        if len(unique_members) == 0:
+                            logger.info(f"First row IDs: {row['team_member_ids']}")
+                            logger.info(f"First row names: {row['team_member_names']}")
+                        
+                        for id, name in zip(row['team_member_ids'], row['team_member_names']):
+                            # Debug: Print each ID/name pair
+                            if name == 'Adam Bernstein':
+                                logger.info(f"Found Adam Bernstein with ID {id}")
+                            # Only add if we haven't seen this ID before
+                            if name not in unique_members:
+                                unique_members[name] = id
+                                
+                # Convert dictionary to list of options
+                options = [FieldOption(id=id, name=name) for name, id in unique_members.items()]
+                self.options[field_name] = sorted(options, key=lambda x: x.name)
+            else:
+                clean_members = {}
+                for _, row in df.iterrows():
+                    if pd.notna(row[config.id_field]) and pd.notna(row[config.name_field]):
+                        id = int(row[config.id_field])
+                        name = str(row[config.name_field])
+                        clean_name = self._normalize_name(name)
                         if clean_name:
                             if clean_name not in clean_members:
                                 clean_members[clean_name] = id
-                    
-                    # Convert to options and sort by name
-                    options = [
-                        FieldOption(id=id, name=name)
-                        for name, id in sorted(clean_members.items(), key=lambda x: x[0].lower())
-                    ]
-                    
-                    self.options[field_name] = options
-                    continue
-                
-                # Normal handling for other fields
+                            elif isinstance(clean_members[clean_name], int):
+                                # Convert to list if we have a duplicate
+                                clean_members[clean_name] = [clean_members[clean_name], id]
+                            else:
+                                # Add to existing list
+                                clean_members[clean_name].append(id)
+                        
+                # Create options with first ID for display but store all IDs
                 options = []
-                for _, row in df.iterrows():
-                    if pd.notna(row[config.id_field]) and pd.notna(row[config.name_field]):
-                        # For array fields like subgenres, deduplicate by name but preserve IDs
-                        # For non-array fields, take first occurrence
-                        name = str(row[config.name_field])
-                        id = int(row[config.id_field])
-                        if not any(opt.name == name for opt in options):
-                            options.append(FieldOption(id=id, name=name))
-                    
+                for name, id_or_ids in clean_members.items():
+                    if isinstance(id_or_ids, list):
+                        opt = FieldOption(id=id_or_ids[0], name=name)
+                        opt.all_ids = id_or_ids
+                    else:
+                        opt = FieldOption(id=id_or_ids, name=name)
+                        opt.all_ids = [id_or_ids]
+                    options.append(opt)
+                
                 self.options[field_name] = sorted(options, key=lambda x: x.name)
                 st.write(f"Loaded {len(self.options[field_name])} options for {field_name}")
     
