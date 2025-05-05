@@ -1,4 +1,4 @@
-"""Base template for match breakdowns.
+"""Base template for match breakdown components.
 
 This module provides the core template methods for rendering match breakdowns,
 which can be extended by specific views like comp builder and show details.
@@ -8,12 +8,12 @@ Specific views should extend these methods with their own display logic.
 """
 
 import streamlit as st
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 @dataclass
 class ScoreDisplay:
-    """Represents how a score should be displayed."""
+    """Helper class for displaying scores."""
     score: float
     max_score: float
     show_score: bool = True
@@ -22,77 +22,87 @@ class ScoreDisplay:
         """Format the score for display."""
         return f" ({self.score}/{self.max_score})" if self.show_score else ""
 
-def render_section_header(title: str, score: Optional[ScoreDisplay] = None) -> None:
-    """Template method for rendering a section header."""
-    header = f"#### {title}"
+def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> None:
+    """Template method for rendering a section header with optional score."""
+    header = f"#### {header}"
     if score:
         header += score.format()
     st.markdown(header)
 
-def render_content_section(details: Dict) -> None:
-    """Template method for rendering the content match section."""
-    content_score = ScoreDisplay(details['content']['score'], details['content']['max'])
-    render_section_header("Content Match", content_score)
-    
+def render_two_column_section(left_header: str, right_header: str,
+                            left_score: Optional[ScoreDisplay] = None,
+                            right_score: Optional[ScoreDisplay] = None) -> Tuple[st.columns, st.columns]:
+    """Template method for rendering a section with two columns and headers."""
     col1, col2 = st.columns(2)
+    
+    with col1:
+        render_section_header(left_header, left_score)
+    
+    with col2:
+        render_section_header(right_header, right_score)
+    
     return col1, col2
 
-def render_production_section(details: Dict) -> None:
+def render_single_column_section(header: str, score: Optional[ScoreDisplay] = None) -> Tuple[st.columns, st.columns]:
+    """Template method for rendering a section with a single column and header."""
+    render_section_header(header, score)
+    return st.columns(2)
+
+def render_content_section(details: Dict) -> Tuple[st.columns, st.columns]:
+    """Template method for rendering the content match section."""
+    content_score = ScoreDisplay(details['content']['score'], details['content']['max'])
+    return render_single_column_section("Content Match", content_score)
+
+def render_production_section(details: Dict) -> Tuple[st.columns, st.columns]:
     """Template method for rendering the production match section."""
     production_score = ScoreDisplay(
         details['production']['score'],
         details['production']['max']
     )
-    render_section_header("Production Match", production_score)
-    
-    col1, col2 = st.columns(2)
-    return col1, col2
+    return render_single_column_section("Production Match", production_score)
 
-def render_setting_format_section(details: Dict) -> None:
+def render_setting_format_section(details: Dict) -> Tuple[st.columns, st.columns]:
     """Template method for rendering setting and format sections."""
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        setting_score = ScoreDisplay(
-            details['setting']['total_score'],
-            details['setting']['max_score']
-        )
-        render_section_header("Setting Match", setting_score)
-    
-    with col2:
-        format_score = ScoreDisplay(
-            details['format']['total_score'],
-            details['format']['max_score']
-        )
-        render_section_header("Format Match", format_score)
-    
-    return col1, col2
+    setting_score = ScoreDisplay(
+        details['setting']['total_score'],
+        details['setting']['max_score']
+    )
+    format_score = ScoreDisplay(
+        details['format']['total_score'],
+        details['format']['max_score']
+    )
+    return render_two_column_section(
+        "Setting Match", "Format Match",
+        setting_score, format_score
+    )
 
 def render_field_base(label: str, score: Optional[ScoreDisplay] = None) -> None:
     """Base template for rendering a field with optional score."""
-    text = f"**{label}**"
+    header = f"**{label}**"
     if score:
-        text += score.format()
-    st.markdown(text)
+        header += score.format()
+    st.markdown(header)
 
-def render_match_indicator(value: str, matched: bool, selected: bool = True) -> None:
+def render_match_indicator(value: str, matched: bool = True, selected: bool = True) -> None:
     """Template method for rendering a match indicator."""
     if not selected:
-        st.write(f"⚫ {value} (not selected)")
-    elif matched:
-        st.write(f"🟢 {value}")
+        st.markdown(f"⚫ {value} (not selected)")
+        return
+    
+    if matched:
+        st.markdown(f"🟢 {value}")
     else:
-        st.write(f"⚫ {value}")
+        st.markdown(f"⚫ {value}")
 
 def render_array_field_base(values: List[str], matches: List[str], selected: bool = True) -> None:
     """Base template for rendering an array field."""
     if not selected:
         if not values:
-            st.write("⚫ None")
+            st.markdown("⚫ None")
         else:
-            st.write(f"⚫ {', '.join(values)} (not selected)")
+            st.markdown(f"⚫ {', '.join(values)} (not selected)")
         return
-        
+    
     for value in values:
         render_match_indicator(value, value in matches, selected)
 
