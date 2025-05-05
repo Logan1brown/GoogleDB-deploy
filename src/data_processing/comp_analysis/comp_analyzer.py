@@ -137,8 +137,11 @@ class FieldManager:
     def get_options(self, field_name: str) -> List[FieldOption]:
         """Get all options for a field."""
         if field_name == 'team_members' and field_name in self.reference_data:
+            # Debug: Print columns in team_members data
+            df = self.reference_data[field_name]
+            st.write(f"Team members columns: {df.columns.tolist()}")
             # Use special handling for team members to deduplicate names
-            return self._get_team_member_options(self.reference_data[field_name])
+            return self._get_team_member_options(df)
         return self.options.get(field_name, [])
         
     def get_display_options(self, field_name: str) -> List[Tuple[int, str]]:
