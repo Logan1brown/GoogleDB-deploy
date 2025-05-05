@@ -10,10 +10,11 @@ Specific views should extend these methods with their own display logic.
 import streamlit as st
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
+from dashboard.components.match_details import FieldMatch, ArrayFieldMatch
 # Import types lazily to prevent circular imports
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from src.dashboard.components.match_details import FieldMatch, ArrayFieldMatch
+    from dashboard.components.comp_analyzer import CompScore
 from src.dashboard.utils.style_config import FONTS
 
 @dataclass
