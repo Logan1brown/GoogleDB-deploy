@@ -11,9 +11,6 @@ from .base_match_breakdown import (
     render_field_base,
     render_match_indicator,
     render_array_field_base,
-    render_content_section,
-    render_production_section,
-    render_setting_format_section,
     render_matches_section
 )
 
@@ -66,43 +63,6 @@ def render_array_field_match(label: str, match: Dict, show_score: bool = True) -
         matches=match['matches'],
         selected=match['selected']
     )
-
-def render_match_details_section(details: Dict) -> None:
-    """Render match details section with columns."""
-    # Content Match section
-    col1, col2 = render_content_section(details)
-    
-    with col1:
-        render_field_match("Genre", details['genre'])
-        render_array_field_match("Subgenres", details['subgenres'])
-        render_array_field_match("Character Types", details['characters'])
-        render_array_field_match("Plot Elements", details['plot'])
-    
-    with col2:
-        render_field_match("Source", details['source'])
-        render_array_field_match("Theme Elements", details['themes'])
-        render_field_match("Tone", details['tone'])
-    
-    # Production match section
-    col1, col2 = render_production_section(details)
-    
-    with col1:
-        render_field_match("Network", details['network'])
-        render_array_field_match("Studio", details['studio'])
-    
-    with col2:
-        render_array_field_match("Team", details['team'])
-    
-    # Setting and format sections
-    col1, col2 = render_setting_format_section(details)
-    
-    with col1:
-        render_field_match("Time", details['setting']['time'], show_score=False)
-        render_field_match("Location", details['setting']['location'], show_score=False)
-    
-    with col2:
-        render_field_match("Episodes", details['format']['episodes'], show_score=False)
-        render_field_match("Order Type", details['format']['order_type'], show_score=False)
 
 def render_match_details(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Render match details for top matches."""

@@ -62,6 +62,47 @@ def render_setting_format_section(details: Dict) -> Tuple[st.columns, st.columns
         render_section_header("Format Match", format_score)
     return st.columns(2)
 
+def render_match_details_section(details: Dict) -> None:
+    """Template method for rendering match details section with columns."""
+    # Content Match section
+    col1, col2 = st.columns(2)
+    render_section_header("Content Match")
+    
+    with col1:
+        render_field_base("Genre", details['genre'])
+        render_field_base("Subgenres", details['subgenres'])
+        render_field_base("Character Types", details['characters'])
+        render_field_base("Plot Elements", details['plot'])
+    
+    with col2:
+        render_field_base("Source", details['source'])
+        render_field_base("Theme Elements", details['themes'])
+        render_field_base("Tone", details['tone'])
+    
+    # Production match section
+    render_section_header("Production Match")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        render_field_base("Network", details['network'])
+        render_field_base("Studio", details['studio'])
+    
+    with col2:
+        render_field_base("Team", details['team'])
+    
+    # Setting and format sections
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        render_section_header("Setting Match")
+        render_field_base("Time", details['setting']['time'])
+        render_field_base("Location", details['setting']['location'])
+    
+    with col2:
+        render_section_header("Format Match")
+        render_field_base("Episodes", details['format']['episodes'])
+        render_field_base("Order Type", details['format']['order_type'])
+
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
     st.markdown("### Top Matches")
