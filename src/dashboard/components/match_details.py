@@ -2,7 +2,6 @@
 
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
-from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
 
 @dataclass
 class FieldMatch:
@@ -24,7 +23,9 @@ class ArrayFieldMatch(FieldMatch):
 class MatchDetailsManager:
     """Manages transformation of comp data into UI-friendly match details."""
     
-    def __init__(self, comp_analyzer: CompAnalyzer):
+    def __init__(self, comp_analyzer):
+        # Import here to prevent early initialization
+        from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
         self.comp_analyzer = comp_analyzer
         self.scoring = comp_analyzer.score_engine.SCORING
         
