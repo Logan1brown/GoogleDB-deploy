@@ -65,9 +65,9 @@ def render_setting_format_section(details: Dict) -> Tuple[st.columns, st.columns
 def render_match_details_section(details: Dict) -> None:
     """Template method for rendering match details section with columns."""
     # Content Match section
-    col1, col2 = st.columns(2)
     render_section_header("Content Match")
     
+    col1, col2 = st.columns(2)
     with col1:
         render_field_match("Genre", details['genre'])
         render_array_field_match("Subgenres", details['subgenres'])
@@ -81,8 +81,8 @@ def render_match_details_section(details: Dict) -> None:
     
     # Production match section
     render_section_header("Production Match")
-    col1, col2 = st.columns(2)
     
+    col1, col2 = st.columns(2)
     with col1:
         render_field_match("Network", details['network'])
         render_array_field_match("Studio", details['studio'])
