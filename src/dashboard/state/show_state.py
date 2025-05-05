@@ -27,7 +27,7 @@ class ShowFormState:
         if self.date is None:
             self.date = date.today()
     episode_count: int = 0
-    studios: List[int] = field(default_factory=list)
+    studio_ids: List[int] = field(default_factory=list)  # List of studio IDs for matching
     new_studios: List[str] = field(default_factory=list)  # List of studio names
     active: bool = True
     created_at: Optional[str] = None
