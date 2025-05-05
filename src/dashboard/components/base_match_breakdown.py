@@ -186,18 +186,17 @@ def render_match_details_section(details: Dict) -> None:
         ))
         
         # Studios
-        studio_match = details.get('studio', ArrayFieldMatch(
-            name1='None',
-            name2='None',
-            selected=False,
-            match=False,
-            score=0.0,
+        render_array_field_match("Studios", ArrayFieldMatch(
+            name1='Multiple' if details.get('studio_names') else 'None',
+            name2='Multiple' if details.get('selected_studio_names') else 'None',
+            selected=bool(details.get('selected_studio_names')),
+            match=bool(details.get('studio_matches')),
+            score=comp_score.studios,
             max_score=4.0,
-            values1=[],
-            values2=[],
-            matches=[]
+            values1=details.get('studio_names', []),
+            values2=details.get('selected_studio_names', []),
+            matches=details.get('studio_matches', [])
         ))
-        render_array_field_match("Studios", studio_match)
     
     with col2:
         # Team
@@ -297,9 +296,10 @@ def render_matches_section(matches: List[Dict], details_manager, criteria: Dict)
                 'network_name': details_manager.get_field_name('network', match.get('network_id')),
                 'selected_network_name': details_manager.get_field_name('network', criteria.get('network_id')),
                 'network_match': match.get('network_id') == criteria.get('network_id'),
-                'studio_name': details_manager.get_field_name('studio', match.get('studio_id')),
-                'selected_studio_name': details_manager.get_field_name('studio', criteria.get('studio_id')),
-                'studio_match': match.get('studio_id') == criteria.get('studio_id'),
+                'studio_names': details_manager.get_field_names('studios', match.get('studios', [])),
+                'selected_studio_names': details_manager.get_field_names('studios', criteria.get('studio_ids', [])),
+                'studio_matches': [name for name in details_manager.get_field_names('studios', match.get('studios', [])) 
+                                  if name in details_manager.get_field_names('studios', criteria.get('studio_ids', []))],
                 'team_member_names': match.get('team_member_names', []),
                 'selected_team_member_names': criteria.get('team_member_names', []),
                 'team_member_matches': [name for name in match.get('team_member_names', []) 
