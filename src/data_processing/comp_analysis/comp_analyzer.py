@@ -97,17 +97,24 @@ class FieldManager:
                     logger.info("Unique members:")
                     logger.info(unique_members)
                     
+                    # Clean and deduplicate names
+                    clean_members = {}
+                    for id, name in unique_members.items():
+                        clean_name = name.strip() if name else name
+                        if clean_name:
+                            if clean_name not in clean_members:
+                                clean_members[clean_name] = id
+                    
                     # Convert to options and sort by name
                     options = [
                         FieldOption(id=id, name=name)
-                        for id, name in sorted(unique_members.items(), key=lambda x: x[1].lower())
+                        for name, id in sorted(clean_members.items(), key=lambda x: x[0].lower())
                     ]
                     
-                    # Debug: Print first few options
+                    self.options[field_name] = options
                     logger.info("First few options:")
                     logger.info([opt.name for opt in options[:10]])
                     
-                    self.options[field_name] = options
                     continue
                 
                 # Normal handling for other fields
