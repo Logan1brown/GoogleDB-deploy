@@ -10,6 +10,7 @@ Specific views should extend these methods with their own display logic.
 import streamlit as st
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+from .match_details_view import render_field_match, render_array_field_match
 
 @dataclass
 class ScoreDisplay:
@@ -69,39 +70,39 @@ def render_match_details_section(details: Dict) -> None:
     render_section_header("Content Match")
     
     with col1:
-        render_field_base("Genre", details['genre'])
-        render_field_base("Subgenres", details['subgenres'])
-        render_field_base("Character Types", details['characters'])
-        render_field_base("Plot Elements", details['plot'])
+        render_field_match("Genre", details['genre'])
+        render_array_field_match("Subgenres", details['subgenres'])
+        render_array_field_match("Character Types", details['characters'])
+        render_array_field_match("Plot Elements", details['plot'])
     
     with col2:
-        render_field_base("Source", details['source'])
-        render_field_base("Theme Elements", details['themes'])
-        render_field_base("Tone", details['tone'])
+        render_field_match("Source", details['source'])
+        render_array_field_match("Theme Elements", details['themes'])
+        render_field_match("Tone", details['tone'])
     
     # Production match section
     render_section_header("Production Match")
     col1, col2 = st.columns(2)
     
     with col1:
-        render_field_base("Network", details['network'])
-        render_field_base("Studio", details['studio'])
+        render_field_match("Network", details['network'])
+        render_array_field_match("Studio", details['studio'])
     
     with col2:
-        render_field_base("Team", details['team'])
+        render_array_field_match("Team", details['team'])
     
     # Setting and format sections
     col1, col2 = st.columns(2)
     
     with col1:
         render_section_header("Setting Match")
-        render_field_base("Time", details['setting']['time'])
-        render_field_base("Location", details['setting']['location'])
+        render_field_match("Time", details['setting']['time'], show_score=False)
+        render_field_match("Location", details['setting']['location'], show_score=False)
     
     with col2:
         render_section_header("Format Match")
-        render_field_base("Episodes", details['format']['episodes'])
-        render_field_base("Order Type", details['format']['order_type'])
+        render_field_match("Episodes", details['format']['episodes'], show_score=False)
+        render_field_match("Order Type", details['format']['order_type'], show_score=False)
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
