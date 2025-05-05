@@ -56,69 +56,29 @@ def render_match_details_section(details: Dict) -> None:
     col1, col2 = st.columns(2)
     
     with col1:
-        # Genre and subgenres
-        render_field_match("Genre", FieldMatch(
-            name1=details.get('genre_name', 'Unknown'),
-            name2=details.get('selected_genre_name', 'Unknown'),
-            match=details.get('genre_match', False),
-            score=comp_score.genre_base + comp_score.genre_overlap,
-            max_score=17.0
-        ))
+        # Genre
+        render_field_match("Genre", details['genre'])
         
         # Source type
-        render_field_match("Source Type", FieldMatch(
-            name1=details.get('source_type_name', 'Unknown'),
-            name2=details.get('selected_source_type_name', 'Unknown'),
-            match=details.get('source_type_match', False),
-            score=comp_score.source_type,
-            max_score=10.0
-        ))
+        render_field_match("Source Type", details['source'])
         
         # Character types
-        render_array_field_match("Character Types", ArrayFieldMatch(
-            names1=details.get('character_type_names', []),
-            names2=details.get('selected_character_type_names', []),
-            matches=details.get('character_type_matches', []),
-            score=comp_score.character_types,
-            max_score=14.0
-        ))
+        render_array_field_match("Character Types", details['characters'])
     
     with col2:
         # Plot elements
-        render_array_field_match("Plot Elements", ArrayFieldMatch(
-            names1=details.get('plot_element_names', []),
-            names2=details.get('selected_plot_element_names', []),
-            matches=details.get('plot_element_matches', []),
-            score=comp_score.plot_elements,
-            max_score=12.0
-        ))
+        render_array_field_match("Plot Elements", details['plot'])
         
         # Theme elements
-        render_array_field_match("Theme Elements", ArrayFieldMatch(
-            names1=details.get('theme_element_names', []),
-            names2=details.get('selected_theme_element_names', []),
-            matches=details.get('theme_element_matches', []),
-            score=comp_score.theme_elements,
-            max_score=13.0
-        ))
+        render_array_field_match("Theme Elements", details['themes'])
         
         # Tone
-        render_field_match("Tone", FieldMatch(
-            name1=details.get('tone_name', 'Unknown'),
-            name2=details.get('selected_tone_name', 'Unknown'),
-            match=details.get('tone_match', False),
-            score=comp_score.tone,
-            max_score=9.0
-        ))
+        render_field_match("Tone", details['tone'])
         
         # Setting
-        render_field_match("Setting", FieldMatch(
-            name1=f"{details.get('time_setting_name', 'Unknown')} / {details.get('location_name', 'Unknown')}",
-            name2=f"{details.get('selected_time_setting_name', 'Unknown')} / {details.get('selected_location_name', 'Unknown')}",
-            match=details.get('time_setting_match', False) and details.get('location_match', False),
-            score=comp_score.time_setting + comp_score.location,
-            max_score=7.0
-        ))
+        st.markdown("**Setting:**")
+        render_field_match("Time", details['time_setting'])
+        render_field_match("Location", details['location'])
     
     st.write("")
     
@@ -131,32 +91,14 @@ def render_match_details_section(details: Dict) -> None:
     
     with col1:
         # Network
-        render_field_match("Network", FieldMatch(
-            name1=details.get('network_name', 'Unknown'),
-            name2=details.get('selected_network_name', 'Unknown'),
-            match=details.get('network_match', False),
-            score=comp_score.network,
-            max_score=5.0
-        ))
+        render_field_match("Network", details['network'])
         
         # Studio
-        render_field_match("Studio", FieldMatch(
-            name1=details.get('studio_name', 'Unknown'),
-            name2=details.get('selected_studio_name', 'Unknown'),
-            match=details.get('studio_match', False),
-            score=comp_score.studio,
-            max_score=4.0
-        ))
+        render_field_match("Studio", details['studio'])
     
     with col2:
         # Team
-        render_array_field_match("Team", ArrayFieldMatch(
-            names1=details.get('team_member_names', []),
-            names2=details.get('selected_team_member_names', []),
-            matches=details.get('team_member_matches', []),
-            score=comp_score.team,
-            max_score=4.0
-        ))
+        render_array_field_match("Team", details['team'])
     
     st.write("")
     
@@ -168,43 +110,11 @@ def render_match_details_section(details: Dict) -> None:
     col1, col2 = st.columns(2)
     
     with col1:
-        # Setting
-        st.markdown("### Setting Details")
-        render_field_match("Time", FieldMatch(
-            name1=details.get('time_setting_name', 'Unknown'),
-            name2=details.get('selected_time_setting_name', 'Unknown'),
-            selected=True,
-            match=comp_score.time_setting > 0,
-            score=comp_score.time_setting,
-            max_score=4
-        ))
-        render_field_match("Location", FieldMatch(
-            name1=details.get('location_setting_name', 'Unknown'),
-            name2=details.get('selected_location_setting_name', 'Unknown'),
-            selected=True,
-            match=comp_score.location > 0,
-            score=comp_score.location,
-            max_score=3
-        ))
+        # Episodes
+        render_field_match("Episodes", details['episodes'])
         
-        # Format
-        st.markdown("### Format Details")
-        render_field_match("Episodes", FieldMatch(
-            name1=str(details.get('episode_count', 'Unknown')),
-            name2=str(details.get('selected_episode_count', 'Unknown')),
-            selected=True,
-            match=comp_score.episodes > 0,
-            score=comp_score.episodes,
-            max_score=4
-        ))
-        render_field_match("Order Type", FieldMatch(
-            name1=details.get('order_type_name', 'Unknown'),
-            name2=details.get('selected_order_type_name', 'Unknown'),
-            selected=True,
-            match=comp_score.order_type > 0,
-            score=comp_score.order_type,
-            max_score=1
-        ))
+        # Order Type
+        render_field_match("Order Type", details['order_type'])
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
@@ -221,57 +131,60 @@ def render_matches_section(matches: List[Dict], details_manager, criteria: Dict)
             # Add CompScore object and raw match data to details
             details['comp_score'] = comp_score
             details.update({
-                'genre_name': match.get('genre_name'),
-                'selected_genre_name': criteria.get('genre_name'),
-                'genre_match': match.get('genre_match', False),
-                
-                'character_type_names': match.get('character_type_names', []),
-                'selected_character_type_names': criteria.get('character_type_names', []),
-                'character_type_matches': match.get('character_type_matches', []),
-                
-                'plot_element_names': match.get('plot_element_names', []),
-                'selected_plot_element_names': criteria.get('plot_element_names', []),
-                'plot_element_matches': match.get('plot_element_matches', []),
-                
-                'source_type_name': match.get('source_type_name'),
-                'selected_source_type_name': criteria.get('source_type_name'),
-                'source_type_match': match.get('source_type_match', False),
-                
-                'theme_element_names': match.get('theme_element_names', []),
-                'selected_theme_element_names': criteria.get('theme_element_names', []),
-                'theme_element_matches': match.get('theme_element_matches', []),
-                
-                'tone_name': match.get('tone_name'),
-                'selected_tone_name': criteria.get('tone_name'),
-                'tone_match': match.get('tone_match', False),
-                
-                'network_name': match.get('network_name'),
-                'selected_network_name': criteria.get('network_name'),
-                'network_match': match.get('network_match', False),
-                
-                'studio_name': match.get('studio_name'),
-                'selected_studio_name': criteria.get('studio_name'),
-                'studio_match': match.get('studio_match', False),
-                
-                'team_member_names': match.get('team_member_names', []),
-                'selected_team_member_names': criteria.get('team_member_names', []),
-                'team_member_matches': match.get('team_member_matches', []),
-                
-                'time_setting_name': match.get('time_setting_name'),
-                'selected_time_setting_name': criteria.get('time_setting_name'),
-                'time_setting_match': match.get('time_setting_match', False),
-                
-                'location_name': match.get('location_name'),
-                'selected_location_name': criteria.get('location_name'),
-                'location_match': match.get('location_match', False),
-                
-                'episode_count': match.get('episode_count'),
-                'selected_episode_count': criteria.get('episode_count'),
-                'episode_count_match': match.get('episode_count_match', False),
-                
-                'order_type_name': match.get('order_type_name'),
-                'selected_order_type_name': criteria.get('order_type_name'),
-                'order_type_match': match.get('order_type_match', False)
+                'comp_score': match['comp_score'],
+                'genre': details_manager._process_genre_match(match, criteria),
+                'subgenres': details_manager._process_array_field_match(
+                    'genre', match.get('subgenres', []), criteria.get('subgenres', []),
+                    {'first': details_manager.scoring['content']['components']['genre']['overlap'], 'second': 0}
+                ),
+                'source': details_manager._process_single_field_match(
+                    'source_type', match.get('source_type_id'), criteria.get('source_type_id'),
+                    details_manager.scoring['content']['components']['source_type']['match']
+                ),
+                'characters': details_manager._process_array_field_match(
+                    'character_types', match.get('character_type_ids', []), criteria.get('character_type_ids', []),
+                    details_manager.scoring['content']['components']['character_types']
+                ),
+                'plot': details_manager._process_array_field_match(
+                    'plot_elements', match.get('plot_element_ids', []), criteria.get('plot_element_ids', []),
+                    details_manager.scoring['content']['components']['plot_elements']
+                ),
+                'themes': details_manager._process_array_field_match(
+                    'thematic_elements', match.get('thematic_element_ids', []), criteria.get('thematic_element_ids', []),
+                    details_manager.scoring['content']['components']['theme_elements']
+                ),
+                'tone': details_manager._process_single_field_match(
+                    'tone', match.get('tone_id'), criteria.get('tone_id'),
+                    details_manager.scoring['content']['components']['tone']['match']
+                ),
+                'network': details_manager._process_single_field_match(
+                    'network', match.get('network_id'), criteria.get('network_id'),
+                    details_manager.scoring['production']['components']['network']['match']
+                ),
+                'studio': details_manager._process_production_field_match(
+                    'studios', match.get('studios', []), criteria.get('studio_ids', []),
+                    details_manager.scoring['production']['components']['studio']
+                ),
+                'team': details_manager._process_array_field_match(
+                    'team_members', match.get('team_member_ids', []), criteria.get('team_member_ids', []),
+                    details_manager.scoring['production']['components']['team']
+                ),
+                'time_setting': details_manager._process_single_field_match(
+                    'time_setting', match.get('time_setting_id'), criteria.get('time_setting_id'),
+                    details_manager.scoring['content']['components']['setting']['time']
+                ),
+                'location': details_manager._process_single_field_match(
+                    'location_setting', match.get('location_setting_id'), criteria.get('location_setting_id'),
+                    details_manager.scoring['content']['components']['setting']['location']
+                ),
+                'episodes': details_manager._process_single_field_match(
+                    'episodes', match.get('episode_count'), criteria.get('episode_count'),
+                    details_manager.scoring['format']['components']['episodes']['within_2']
+                ),
+                'order_type': details_manager._process_single_field_match(
+                    'order_type', match.get('order_type_id'), criteria.get('order_type_id'),
+                    details_manager.scoring['format']['components']['order_type']['match']
+                )
             })
             render_match_details_section(details)
 
