@@ -300,8 +300,11 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         'order_type_id': r['order_type_id']
     } for r in results]
     
-    render_matches_section = get_render_match_details_section()
+    render_match_details_section = get_render_match_details_section()
     criteria = state.get('criteria', {})
+    
+    st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['title']}px; font-weight: 600; margin-bottom: 1em;'>Top Matches</p>", unsafe_allow_html=True)
+    
     for match in match_results[:10]:
         comp_score = match['comp_score']
         with st.expander(
