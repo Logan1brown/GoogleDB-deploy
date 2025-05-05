@@ -11,9 +11,10 @@ from .base_match_breakdown import render_matches_section
 
 def render_comp_builder(state: Dict) -> None:
     """Render the comp builder interface."""
-    # Initialize analyzer
-    comp_analyzer = CompAnalyzer()
-    comp_analyzer.initialize()
+    # Initialize analyzer lazily
+    if 'comp_analyzer' not in st.session_state:
+        st.session_state.comp_analyzer = CompAnalyzer()
+    comp_analyzer = st.session_state.comp_analyzer
     
     # Initialize state with all possible criteria fields
     if 'criteria' not in state:
@@ -95,10 +96,15 @@ def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_na
 
 def render_criteria_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
     """Render criteria selection panel."""
-    # Get field options
-    field_options = comp_analyzer.get_field_options()
-    display_options = {field: comp_analyzer.get_field_display_options(field) 
-                      for field in field_options.keys()}
+    # Get field options lazily
+    if not hasattr(comp_analyzer, 'field_options'):
+        comp_analyzer.initialize()
+        field_options = comp_analyzer.get_field_options()
+        comp_analyzer.field_options = field_options
+        comp_analyzer.display_options = {field: comp_analyzer.get_field_display_options(field) 
+                                       for field in field_options.keys()}
+    field_options = comp_analyzer.field_options
+    display_options = comp_analyzer.display_options
     with st.expander("Content Match Criteria (82 pts)", expanded=True):
         # Content criteria
         st.markdown("### Content")
@@ -248,7 +254,14 @@ def render_results_section(comp_analyzer: CompAnalyzer, state: Dict) -> None:
         st.info("Select criteria to find matches.")
         return
         
-    results = comp_analyzer.find_by_criteria(state['criteria'])
+    try:
+        if not hasattr(comp_analyzer, 'initialized'):
+            comp_analyzer.initialize()
+            comp_analyzer.initialized = True
+        results = comp_analyzer.find_by_criteria(state['criteria'])
+    except Exception as e:
+        st.error(f"Error finding matches: {str(e)}")
+        return
     if not results:
         st.info("No matches found for the selected criteria.")
         return
