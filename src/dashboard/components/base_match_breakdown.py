@@ -104,6 +104,16 @@ def render_match_details_section(details: Dict) -> None:
             values2=details.get('selected_character_type_names', []),
             matches=details.get('character_type_matches', [])
         ))
+        
+        # Time Setting
+        render_field_match("Time Setting", FieldMatch(
+            name1=details.get('time_setting_name', 'Unknown'),
+            name2=details.get('selected_time_setting_name', 'Unknown'),
+            selected=details.get('selected_time_setting_name') is not None,
+            match=details.get('time_setting_match', False),
+            score=comp_score.time_setting,
+            max_score=3.5
+        ))
     
     with col2:
         # Plot elements
@@ -142,16 +152,6 @@ def render_match_details_section(details: Dict) -> None:
             max_score=9.0
         ))
         
-        # Time Setting
-        render_field_match("Time Setting", FieldMatch(
-            name1=details.get('time_setting_name', 'Unknown'),
-            name2=details.get('selected_time_setting_name', 'Unknown'),
-            selected=details.get('selected_time_setting_name') is not None,
-            match=details.get('time_setting_match', False),
-            score=comp_score.time_setting,
-            max_score=3.5
-        ))
-        
         # Location Setting
         render_field_match("Location", FieldMatch(
             name1=details.get('location_setting_name', 'Unknown'),
@@ -182,14 +182,17 @@ def render_match_details_section(details: Dict) -> None:
             max_score=5.0
         ))
         
-        # Studio
-        render_field_match("Studio", FieldMatch(
-            name1=details.get('studio_name', 'Unknown'),
-            name2=details.get('selected_studio_name', 'Unknown'),
-            selected=details.get('selected_studio_name') is not None,
-            match=details.get('studio_match', False),
+        # Studios
+        render_array_field_match("Studios", ArrayFieldMatch(
+            name1='Multiple' if details.get('studio_names') else 'None',
+            name2='Multiple' if details.get('selected_studio_names') else 'None',
+            selected=bool(details.get('selected_studio_names')),
+            match=bool(details.get('studio_matches')),
             score=comp_score.studio,
-            max_score=4.0
+            max_score=4.0,
+            values1=details.get('studio_names', []),
+            values2=details.get('selected_studio_names', []),
+            matches=details.get('studio_matches', [])
         ))
     
     with col2:
