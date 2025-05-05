@@ -61,13 +61,6 @@ def main_page():
     - Analyze network patterns across similar show groups
     - Identify trends and relationships in show packaging and development
 
-    **Comp Builder** *(Coming Soon)*  
-    Build and analyze custom show comparisons:
-    - Create detailed show comparison profiles
-    - Score and rank similar shows
-    - Analyze patterns across comparable titles
-    - Generate insights for show development
-
     **Market Snapshot**  
     Track the pulse of the straight-to-series market with real-time metrics and trends. Analyze order volumes, 
     network activities, and success rates through interactive visualizations. Filter by shows, creators, genres, 
@@ -80,6 +73,13 @@ def main_page():
     - Development: Understand format decisions and their impact
 
     Filter by source type and genre to reveal patterns in successful content development.
+
+    **Comp Builder** *(Coming Soon)*  
+    Build and analyze custom show comparisons:
+    - Create detailed show comparison profiles
+    - Score and rank similar shows
+    - Analyze patterns across comparable titles
+    - Generate insights for show development
 
     **Studio Performance**  
     Visualize studio relationships and performance metrics through an interactive network graph. Track studio 
