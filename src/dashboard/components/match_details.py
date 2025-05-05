@@ -230,8 +230,15 @@ class MatchDetailsManager:
     def _process_production_field_match(self, field: str, values: List[int],
                                       selected: List[int], scoring: Dict) -> ArrayFieldMatch:
         """Process match for production fields (studio) with special scoring."""
-        value_names = self.get_field_names(field, values)
-        selected_names = self.get_field_names(field, selected)
+        # For studios, use pre-fetched names from API response
+        if field == 'studios':
+            value_names = self.match.get('studio_names', [])
+            # For selected studios, still need to look up names
+            selected_names = self.get_field_names(field, selected)
+        else:
+            value_names = self.get_field_names(field, values)
+            selected_names = self.get_field_names(field, selected)
+            
         value_set = set(values)
         selected_set = set(selected)
         matches = value_set & selected_set
@@ -265,7 +272,9 @@ class MatchDetailsManager:
             max_score=max_score,
             values1=value_names,
             values2=selected_names,
-            matches=self.get_field_names(field, list(matches))
+            # For studios, get the matching names from the pre-fetched list
+            matches=[name for name, id in zip(value_names, values) if id in matches] if field == 'studios'
+                   else self.get_field_names(field, list(matches))
         )
         
     def _process_setting_match(self, time_id: Optional[int], location_id: Optional[int],
