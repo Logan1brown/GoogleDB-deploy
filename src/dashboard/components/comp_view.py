@@ -60,7 +60,7 @@ def get_id_for_name(name: Optional[str], options: List[Tuple[int, str]]) -> Opti
             return id
     return None
 
-def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_name: str = None, comp_analyzer: Optional[CompAnalyzer] = None) -> List[int]:
+def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_name: str = None, comp_analyzer: Optional['CompAnalyzer'] = None) -> List[int]:
     """Get IDs for display names from options list.
     
     For team members, we need to get all IDs for each name since a person
