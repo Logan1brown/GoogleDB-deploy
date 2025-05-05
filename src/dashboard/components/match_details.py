@@ -159,7 +159,7 @@ class MatchDetailsManager:
             selected=selected_id is not None,
             match=genre_match,
             score=score,
-            max_score=sum(self.scoring['content']['components']['genre'].values())
+            max_score=self.scoring['content']['components']['genre']['base']
         )
         
     def _process_single_field_match(self, field: str, value_id: Optional[int], 
