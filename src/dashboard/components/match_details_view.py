@@ -68,7 +68,7 @@ def render_array_field_match(label: str, match: Dict, show_score: bool = True) -
 def render_match_details_section(details: Dict) -> None:
     """Render match details section with columns."""
     # Content Match section
-    col1, col2 = render_two_columns()
+    col1, col2 = render_content_section(details)
     
     with col1:
         render_field_match("Genre", details['genre'])
@@ -82,13 +82,7 @@ def render_match_details_section(details: Dict) -> None:
         render_field_match("Tone", details['tone'])
     
     # Production match section
-    production_score = ScoreDisplay(
-        details['production']['score'],
-        details['production']['max']
-    )
-    render_section_header("Production Match", production_score)
-    
-    col1, col2 = render_two_columns()
+    col1, col2 = render_production_section(details)
     
     with col1:
         render_field_match("Network", details['network'])
@@ -97,24 +91,14 @@ def render_match_details_section(details: Dict) -> None:
     with col2:
         render_array_field_match("Team", details['team'])
     
-    # Setting and format sections in two columns
-    col1, col2 = render_two_columns()
+    # Setting and format sections
+    col1, col2 = render_setting_format_section(details)
     
     with col1:
-        setting_score = ScoreDisplay(
-            details['setting']['total_score'],
-            details['setting']['max_score']
-        )
-        render_section_header("Setting Match", setting_score)
         render_field_match("Time", details['setting']['time'], show_score=False)
         render_field_match("Location", details['setting']['location'], show_score=False)
     
     with col2:
-        format_score = ScoreDisplay(
-            details['format']['total_score'],
-            details['format']['max_score']
-        )
-        render_section_header("Format Match", format_score)
         render_field_match("Episodes", details['format']['episodes'], show_score=False)
         render_field_match("Order Type", details['format']['order_type'], show_score=False)
 

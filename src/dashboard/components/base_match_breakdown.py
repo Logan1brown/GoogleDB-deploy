@@ -29,9 +29,44 @@ def render_section_header(title: str, score: Optional[ScoreDisplay] = None) -> N
         header += score.format()
     st.markdown(header)
 
-def render_two_columns() -> Tuple[st.columns, st.columns]:
-    """Template method for creating a two-column layout."""
-    return st.columns(2)
+def render_content_section(details: Dict) -> None:
+    """Template method for rendering the content match section."""
+    content_score = ScoreDisplay(details['content']['score'], details['content']['max'])
+    render_section_header("Content Match", content_score)
+    
+    col1, col2 = st.columns(2)
+    return col1, col2
+
+def render_production_section(details: Dict) -> None:
+    """Template method for rendering the production match section."""
+    production_score = ScoreDisplay(
+        details['production']['score'],
+        details['production']['max']
+    )
+    render_section_header("Production Match", production_score)
+    
+    col1, col2 = st.columns(2)
+    return col1, col2
+
+def render_setting_format_section(details: Dict) -> None:
+    """Template method for rendering setting and format sections."""
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        setting_score = ScoreDisplay(
+            details['setting']['total_score'],
+            details['setting']['max_score']
+        )
+        render_section_header("Setting Match", setting_score)
+    
+    with col2:
+        format_score = ScoreDisplay(
+            details['format']['total_score'],
+            details['format']['max_score']
+        )
+        render_section_header("Format Match", format_score)
+    
+    return col1, col2
 
 def render_field_base(label: str, score: Optional[ScoreDisplay] = None) -> None:
     """Base template for rendering a field with optional score."""
