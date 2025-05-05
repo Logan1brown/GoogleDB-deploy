@@ -400,10 +400,6 @@ class ScoreEngine:
         return score
     
     def _calculate_array_match(self, source_arr: List, target_arr: List, first_points: float, second_points: float, field_name: str = None) -> float:
-        st.write(f"Calculating array match for {field_name}")
-        st.write(f"Source: {source_arr}")
-        st.write(f"Target: {target_arr}")
-
         """Calculate score for array field matches.
         
         For team members, we need to check if any of the source IDs match any of the target IDs,
