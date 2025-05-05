@@ -71,20 +71,19 @@ class FieldManager:
                 # Special handling for team members from api_show_comp_data
                 if field_name == 'team_members':
                     # Explode arrays into rows
-                    team_data = []
+                    team_data = set()  # Use set for deduplication
                     for _, row in df.iterrows():
                         if isinstance(row['team_member_ids'], list) and isinstance(row['team_member_names'], list):
-                            for id, name in zip(row['team_member_ids'], row['team_member_names']):
-                                team_data.append({'id': id, 'name': name})
+                            # Create tuples of (id, name) for uniqueness
+                            team_data.update(zip(row['team_member_ids'], row['team_member_names']))
                     
-                    # Convert to DataFrame and deduplicate
-                    team_df = pd.DataFrame(team_data).drop_duplicates()
+                    # Convert unique tuples to options
                     options = []
-                    for _, row in team_df.iterrows():
-                        opt = FieldOption(id=row['id'], name=row['name'])
+                    for id, name in sorted(team_data, key=lambda x: x[1].lower()):  # Sort by name case-insensitive
+                        opt = FieldOption(id=id, name=name)
                         options.append(opt)
                     
-                    self.options[field_name] = sorted(options, key=lambda x: x.name)
+                    self.options[field_name] = options
                     continue
                 
                 # Normal handling for other fields
