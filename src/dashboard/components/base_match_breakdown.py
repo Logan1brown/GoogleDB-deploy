@@ -223,35 +223,55 @@ def render_matches_section(matches: List[Dict], details_manager, criteria: Dict)
             details.update({
                 'genre_name': match.get('genre_name'),
                 'selected_genre_name': criteria.get('genre_name'),
+                'genre_match': match.get('genre_match', False),
+                
                 'character_type_names': match.get('character_type_names', []),
                 'selected_character_type_names': criteria.get('character_type_names', []),
-                'matching_character_types': match.get('matching_character_types', []),
+                'character_type_matches': match.get('character_type_matches', []),
+                
                 'plot_element_names': match.get('plot_element_names', []),
                 'selected_plot_element_names': criteria.get('plot_element_names', []),
-                'matching_plot_elements': match.get('matching_plot_elements', []),
+                'plot_element_matches': match.get('plot_element_matches', []),
+                
                 'source_type_name': match.get('source_type_name'),
                 'selected_source_type_name': criteria.get('source_type_name'),
+                'source_type_match': match.get('source_type_match', False),
+                
                 'theme_element_names': match.get('theme_element_names', []),
                 'selected_theme_element_names': criteria.get('theme_element_names', []),
-                'matching_theme_elements': match.get('matching_theme_elements', []),
+                'theme_element_matches': match.get('theme_element_matches', []),
+                
                 'tone_name': match.get('tone_name'),
                 'selected_tone_name': criteria.get('tone_name'),
+                'tone_match': match.get('tone_match', False),
+                
                 'network_name': match.get('network_name'),
                 'selected_network_name': criteria.get('network_name'),
-                'studio_names': match.get('studio_names', []),
-                'selected_studio_names': criteria.get('studio_names', []),
-                'matching_studios': match.get('matching_studios', []),
+                'network_match': match.get('network_match', False),
+                
+                'studio_name': match.get('studio_name'),
+                'selected_studio_name': criteria.get('studio_name'),
+                'studio_match': match.get('studio_match', False),
+                
                 'team_member_names': match.get('team_member_names', []),
                 'selected_team_member_names': criteria.get('team_member_names', []),
-                'matching_team_members': match.get('matching_team_members', []),
+                'team_member_matches': match.get('team_member_matches', []),
+                
                 'time_setting_name': match.get('time_setting_name'),
                 'selected_time_setting_name': criteria.get('time_setting_name'),
-                'location_setting_name': match.get('location_setting_name'),
-                'selected_location_setting_name': criteria.get('location_setting_name'),
+                'time_setting_match': match.get('time_setting_match', False),
+                
+                'location_name': match.get('location_name'),
+                'selected_location_name': criteria.get('location_name'),
+                'location_match': match.get('location_match', False),
+                
                 'episode_count': match.get('episode_count'),
                 'selected_episode_count': criteria.get('episode_count'),
+                'episode_count_match': match.get('episode_count_match', False),
+                
                 'order_type_name': match.get('order_type_name'),
-                'selected_order_type_name': criteria.get('order_type_name')
+                'selected_order_type_name': criteria.get('order_type_name'),
+                'order_type_match': match.get('order_type_match', False)
             })
             render_match_details_section(details)
 
