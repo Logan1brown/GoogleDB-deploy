@@ -119,6 +119,8 @@ def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         state["criteria"]["genre_id"] = get_id_for_name(genre_name, display_options['genre']) if genre_name else None
         
         # Subgenres
+        st.write("Subgenre options:")
+        st.write(display_options['subgenres'])
         subgenre_names = st.multiselect("Subgenres",
             options=[name for _, name in display_options['subgenres'] if name and name.strip()],
             key="subgenres", placeholder="Select subgenres...")
