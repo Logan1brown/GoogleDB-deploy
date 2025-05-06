@@ -36,10 +36,9 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
 
 
 
-def render_match_details_section(details: Dict, success_score: Optional[float] = None, description: Optional[str] = None) -> None:
+def render_match_details_section(details: Dict, score_details: Dict, success_score: Optional[float] = None, description: Optional[str] = None) -> None:
     """Template method for rendering match details section with columns."""
-    # Get score details
-    score_details = details['score_details']
+    # Score details passed directly
     
     # Display description if available
     if description:
