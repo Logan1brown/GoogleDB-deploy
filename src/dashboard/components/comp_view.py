@@ -261,10 +261,26 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         return
         
     try:
-        if not hasattr(comp_analyzer, 'initialized'):
-            comp_analyzer.initialize()
+        # Force a refresh if we haven't initialized or if we need fresh data
+        if not hasattr(comp_analyzer, 'initialized') or not comp_analyzer.comp_data is not None:
+            st.write("Initializing comp analyzer...")
+            comp_analyzer.initialize(force=True)
             comp_analyzer.initialized = True
+        
+        # Get results
         results = comp_analyzer.find_by_criteria(state['criteria'])
+        
+        # Debug first result
+        if results:
+            first = results[0]
+            st.write("First result:")
+            st.write({
+                'title': first['title'],
+                'success_score': first.get('success_score'),
+                'tmdb_status': first.get('tmdb_status'),
+                'tmdb_seasons': first.get('tmdb_seasons'),
+                'tmdb_avg_eps': first.get('tmdb_avg_eps')
+            })
     except Exception as e:
         st.error(f"Error finding matches: {str(e)}")
         return
