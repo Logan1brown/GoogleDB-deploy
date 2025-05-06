@@ -317,14 +317,14 @@ class ScoreEngine:
         'content': {
             'total': 82,
             'components': {
-                'genre': {'base': 9, 'overlap': 8},
+                'genre': {'base': 15, 'overlap': 8},  # Primary genre more important
                 'source_type': {'match': 10},
-                'character_types': {'first': 10.5, 'second': 3.5},
-                'plot_elements': {'first': 9, 'second': 3},
-                'theme_elements': {'first': 9.75, 'second': 3.25},
+                'character_types': {'first': 9, 'second': 3},  # Reduced to 12 total
+                'plot_elements': {'first': 7.5, 'second': 2.5},  # Reduced to 10 total
+                'theme_elements': {'first': 7.5, 'second': 2.5},  # Reduced to 10 total
                 'tone': {'match': 9},
-                'time_setting': {'match': 3.5},
-                'location_setting': {'match': 3.5}
+                'time_setting': {'match': 4},  # Increased to 4
+                'location_setting': {'match': 4}  # Increased to 4
             }
         },
         'production': {
