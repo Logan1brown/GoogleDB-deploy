@@ -117,17 +117,6 @@ class ShowsAnalyzer:
             logger.info(f"Fetching data from {_self.VIEWS['comp']}...")
             comp_data = supabase.table(_self.VIEWS['comp']).select('*').execute()
             
-            # Debug: Print raw Supabase response
-            import streamlit as st
-            st.write("Debug - Raw Supabase response:")
-            if hasattr(comp_data, 'data') and comp_data.data:
-                first_row = comp_data.data[0]
-                st.write({
-                    'id': first_row.get('id'),
-                    'title': first_row.get('title'),
-                    'description': first_row.get('description', 'NOT FOUND IN SUPABASE')
-                })
-            
             if not hasattr(comp_data, 'data') or not comp_data.data:
                 raise ValueError(f"No data returned from {_self.VIEWS['comp']} view")
                 
