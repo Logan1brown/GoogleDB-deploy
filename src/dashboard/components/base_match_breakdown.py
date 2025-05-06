@@ -8,7 +8,7 @@ Specific views should extend these methods with their own display logic.
 """
 
 import streamlit as st
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from src.dashboard.utils.style_config import FONTS
 
