@@ -435,9 +435,10 @@ class ScoreEngine:
                 if overlap > 0:
                     score.genre_overlap = self.SCORING['content']['components']['genre']['overlap']
                 
-        # Source type
-        if source.get('source_type_id') == target.get('source_type_id'):
-            score.source_type = self.SCORING['content']['components']['source_type']['match']
+        # Only calculate source type score if it was selected in criteria
+        if source.get('source_type_id') is not None:
+            if source.get('source_type_id') == target.get('source_type_id'):
+                score.source_type = self.SCORING['content']['components']['source_type']['match']
             
         # Array field scoring
         score.character_types = self._calculate_array_match(
@@ -465,17 +466,25 @@ class ScoreEngine:
         )
         
         # Direct matches
-        if source.get('tone_id') == target.get('tone_id'):
-            score.tone = self.SCORING['content']['components']['tone']['match']
+        # Only calculate tone score if it was selected in criteria
+        if source.get('tone_id') is not None:
+            if source.get('tone_id') == target.get('tone_id'):
+                score.tone = self.SCORING['content']['components']['tone']['match']
             
-        if source.get('time_setting_id') == target.get('time_setting_id'):
-            score.time_setting = self.SCORING['content']['components']['time_setting']['match']
+        # Only calculate time setting score if it was selected in criteria
+        if source.get('time_setting_id') is not None:
+            if source.get('time_setting_id') == target.get('time_setting_id'):
+                score.time_setting = self.SCORING['content']['components']['time_setting']['match']
             
-        if source.get('location_setting_id') == target.get('location_setting_id'):
-            score.location = self.SCORING['content']['components']['location_setting']['match']
+        # Only calculate location setting score if it was selected in criteria
+        if source.get('location_setting_id') is not None:
+            if source.get('location_setting_id') == target.get('location_setting_id'):
+                score.location = self.SCORING['content']['components']['location_setting']['match']
             
-        if source.get('network_id') == target.get('network_id'):
-            score.network = self.SCORING['production']['components']['network']['match']
+        # Only calculate network score if network was selected in criteria
+        if source.get('network_id') is not None:
+            if source.get('network_id') == target.get('network_id'):
+                score.network = self.SCORING['production']['components']['network']['match']
             
         # Studio matching
         source_studios = set(source.get('studios') or [])
@@ -503,22 +512,24 @@ class ScoreEngine:
             )
                     
         # Episode scoring
-        # Only calculate episode score if both shows have valid numeric episode counts
+        # Only calculate episode score if episode count was selected in criteria and both shows have valid numeric counts
         source_eps = source.get('episode_count')
-        target_eps = target.get('episode_count')
-        if pd.notna(source_eps) and pd.notna(target_eps) and \
-           isinstance(source_eps, (int, float)) and isinstance(target_eps, (int, float)):
-            diff = abs(source_eps - target_eps)
-            if diff <= 2:
-                score.episodes = self.SCORING['format']['components']['episodes']['within_2']
-            elif diff <= 4:
-                score.episodes = self.SCORING['format']['components']['episodes']['within_4']
-            elif diff <= 6:
-                score.episodes = self.SCORING['format']['components']['episodes']['within_6']
+        if source_eps is not None:
+            target_eps = target.get('episode_count')
+            if pd.notna(source_eps) and pd.notna(target_eps) and \
+               isinstance(source_eps, (int, float)) and isinstance(target_eps, (int, float)):
+                diff = abs(source_eps - target_eps)
+                if diff <= 2:
+                    score.episodes = self.SCORING['format']['components']['episodes']['within_2']
+                elif diff <= 4:
+                    score.episodes = self.SCORING['format']['components']['episodes']['within_4']
+                elif diff <= 6:
+                    score.episodes = self.SCORING['format']['components']['episodes']['within_6']
                 
-        # Order type
-        if source['order_type_id'] == target['order_type_id']:
-            score.order_type = self.SCORING['format']['components']['order_type']['match']
+        # Only calculate order type score if it was selected in criteria
+        if source.get('order_type_id') is not None:
+            if source.get('order_type_id') == target.get('order_type_id'):
+                score.order_type = self.SCORING['format']['components']['order_type']['match']
             
         return score
     

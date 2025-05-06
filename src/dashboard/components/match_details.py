@@ -30,6 +30,27 @@ class MatchDetailsManager:
         self.comp_analyzer = comp_analyzer
         self.scoring = comp_analyzer.score_engine.SCORING
         
+    def _get_component_score(self, match: Dict, field: str) -> float:
+        """Get a component's score from the comp_score dictionary.
+        
+        Args:
+            match: Match data containing comp_score
+            field: Field to get score for
+            
+        Returns:
+            Score for the field, or 0 if not found
+        """
+        if not match or 'comp_score' not in match:
+            return 0
+            
+        # Look for the field in each section's components
+        for section in ['content', 'production', 'format']:
+            components = match['comp_score'][section]['components']
+            if field in components:
+                return components[field]['score']
+                
+        return 0
+        
     def get_field_name(self, field: str, id: Optional[int], match: Optional[Dict] = None, default: str = 'Unknown') -> str:
         """Get display name for a field value.
         
@@ -105,10 +126,10 @@ class MatchDetailsManager:
         
         # Content match details
         details['genre'] = self._process_genre_match(match, criteria)
-        # Process subgenres with overlap scoring
+        # Process subgenres with overlap scoring - any match is worth the overlap points
         subgenre_scoring = {
-            'first': self.scoring['content']['components']['genre']['overlap'],  # Use overlap points
-            'second': 0  # No additional points for second match
+            'first': self.scoring['content']['components']['genre']['overlap'],  # Any match gets overlap points
+            'second': 0  # No additional points for more matches
         }
         details['subgenres'] = self._process_array_field_match(
             'genre', match.get('subgenres', []), criteria.get('subgenres', []),
@@ -173,7 +194,7 @@ class MatchDetailsManager:
             name2='Multiple' if target_team else 'None',
             selected=bool(target_team),
             match=bool(matching_ids),
-            score=match['comp_score']['components'].get('team', 0),
+            score=self._get_component_score(match, 'team'),
             max_score=self.scoring['production']['components']['team']['first'] + 
                       (self.scoring['production']['components']['team'].get('additional', 0) 
                        if len(target_team) > 1 else 0),
@@ -206,15 +227,15 @@ class MatchDetailsManager:
         
         # Add section scores
         details['content'] = {
-            'score': match['comp_score']['content'],
+            'score': match['comp_score']['content']['score'],
             'max': self.scoring['content']['total']
         }
         details['production'] = {
-            'score': match['comp_score']['production'],
+            'score': match['comp_score']['production']['score'],
             'max': self.scoring['production']['total']
         }
         details['format'] = {
-            'score': match['comp_score']['format'],
+            'score': match['comp_score']['format']['score'],
             'max': self.scoring['format']['total']
         }
         
@@ -227,8 +248,8 @@ class MatchDetailsManager:
         genre_match = genre_id == selected_id
         
         # Use the score from comp_analyzer instead of recalculating
-        score = match['comp_score']['components'].get('genre', 0)
-        max_score = self.scoring['content']['components']['genre']['base']
+        score = self._get_component_score(match, 'genre')
+        max_score = self.scoring['content']['components']['genre']['base']  # Only use base score for primary genre
             
         return FieldMatch(
             name1=self.get_field_name('genre', genre_id),
@@ -243,14 +264,16 @@ class MatchDetailsManager:
                                   selected_id: Optional[int], max_score: float, 
                                   match: Optional[Dict] = None) -> FieldMatch:
         """Process match for a single-value field."""
-        # Only use provided score from comp_analyzer
-        score = match['comp_score']['components'].get(field, 0) if match else 0
+        # Get score from comp_analyzer
+        score = self._get_component_score(match, field)
+        
+        is_match = value_id == selected_id
             
         return FieldMatch(
             name1=self.get_field_name(field, value_id),
             name2=self.get_field_name(field, selected_id),
             selected=selected_id is not None,
-            match=value_id == selected_id,
+            match=is_match,
             score=score,
             max_score=max_score
         )
@@ -266,8 +289,8 @@ class MatchDetailsManager:
         selected_set = set(selected)
         matches = value_set & selected_set
         
-        # Only use provided score from comp_analyzer
-        score = match['comp_score']['components'].get(field, 0) if match else 0
+        # Get score from comp_analyzer
+        score = self._get_component_score(match, field)
                 
         return ArrayFieldMatch(
             name1='Multiple' if value_names else 'None',
@@ -299,8 +322,8 @@ class MatchDetailsManager:
         selected_set = set(selected)
         matches = value_set & selected_set
         
-        # Only use provided score from comp_analyzer
-        score = match['comp_score']['components'].get(field, 0) if match else 0
+        # Get score from comp_analyzer
+        score = self._get_component_score(match, field)
                 
         # Calculate max score based on field type
         if field == 'team_members':
@@ -351,7 +374,7 @@ class MatchDetailsManager:
                             selected_order_type_id: Optional[int],
                             match: Optional[Dict] = None) -> Dict[str, FieldMatch]:
         """Process episode count and order type matches."""
-        episode_score = match['comp_score']['components'].get('episodes', 0) if match else 0
+        episode_score = self._get_component_score(match, 'episodes')
         diff = abs(episodes - selected_episodes) if episodes is not None and selected_episodes is not None else None
                 
         episode_match = FieldMatch(
