@@ -206,13 +206,10 @@ class MatchDetailsManager:
             matches=list(matching_names)
         )
         
-        # Setting match details
-        details['time_setting'] = self._process_single_component(
-            'time_setting', match, criteria
-        )
-        details['location_setting'] = self._process_single_component(
-            'location_setting', match, criteria
-        )
+        # Map internal field names to UI display names
+        details['source'] = self._process_single_component('source_type', match, criteria)
+        details['time'] = self._process_single_component('time_setting', match, criteria)
+        details['location'] = self._process_single_component('location_setting', match, criteria)
         
         # Format match details
         format_details = self._process_format_match(
@@ -221,34 +218,45 @@ class MatchDetailsManager:
             match
         )
         details['episodes'] = format_details['episodes']
-        details['order_type'] = format_details['order_type']
+        details['order'] = format_details['order_type']
         
         # Calculate section scores by summing their components
         # Map internal field names to UI display names
-        content_components = {
-            'genre': {
+        # Only process fields that are selected in criteria
+        content_components = {}
+        if criteria.get('genre_ids'):
+            content_components['genre'] = {
                 'score': self._get_component_score(match, 'genre'),
                 'match_details': self._process_genre_match(match, criteria)
-            },
-            'source': self._process_single_component('source_type', match, criteria),
-            'characters': self._process_array_component('character_types', match, criteria),
-            'plot': self._process_array_component('plot_elements', match, criteria),
-            'themes': self._process_array_component('thematic_elements', match, criteria),
-            'tone': self._process_single_component('tone', match, criteria),
-            'time': self._process_single_component('time_setting', match, criteria),
-            'location': self._process_single_component('location_setting', match, criteria)
-        }
-        
-        production_components = {
-            'network': self._process_single_component('network', match, criteria),
-            'studios': self._process_array_component('studio', match, criteria),
-            'team': self._process_array_component('team', match, criteria)
-        }
-        
-        format_components = {
-            'episodes': self._process_single_component('episodes', match, criteria),
-            'order': self._process_single_component('order_type', match, criteria)
-        }
+            }
+        if criteria.get('source_type_id'):
+            content_components['source_type'] = self._process_single_component('source_type', match, criteria)
+        if criteria.get('character_type_ids'):
+            content_components['character_types'] = self._process_array_component('character_types', match, criteria)
+        if criteria.get('plot_element_ids'):
+            content_components['plot_elements'] = self._process_array_component('plot_elements', match, criteria)
+        if criteria.get('thematic_element_ids'):
+            content_components['thematic_elements'] = self._process_array_component('thematic_elements', match, criteria)
+        if criteria.get('tone_id'):
+            content_components['tone'] = self._process_single_component('tone', match, criteria)
+        if criteria.get('time_setting_id'):
+            content_components['time_setting'] = self._process_single_component('time_setting', match, criteria)
+        if criteria.get('location_setting_id'):
+            content_components['location_setting'] = self._process_single_component('location_setting', match, criteria)
+            
+        production_components = {}
+        if criteria.get('network_id'):
+            production_components['network'] = self._process_single_component('network', match, criteria)
+        if criteria.get('studio_ids'):
+            production_components['studio'] = self._process_array_component('studio', match, criteria)
+        if criteria.get('team_member_ids'):
+            production_components['team'] = self._process_array_component('team', match, criteria)
+            
+        format_components = {}
+        if criteria.get('episode_count'):
+            format_components['episodes'] = self._process_single_component('episodes', match, criteria)
+        if criteria.get('order_type_id'):
+            format_components['order_type'] = self._process_single_component('order_type', match, criteria)
         
         details['content'] = {
             'score': sum(c['score'] for c in content_components.values()),
