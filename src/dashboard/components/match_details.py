@@ -239,10 +239,7 @@ class MatchDetailsManager:
         }
         
         production_components = {
-            'network': {
-                'score': self._get_component_score(match, 'network'),
-                'match_details': self._process_network_match(match, criteria)
-            },
+            'network': self._process_single_component('network', match, criteria),
             'studio': {
                 'score': self._get_component_score(match, 'studio'),
                 'match_details': self._process_studio_match(match, criteria)
@@ -297,7 +294,8 @@ class MatchDetailsManager:
             'source_type': 'source_type_id',
             'tone': 'tone_id',
             'time_setting': 'time_setting_id',
-            'location_setting': 'location_setting_id'
+            'location_setting': 'location_setting_id',
+            'network': 'network_id'
         }
         
         id_field = id_field_map[field]
