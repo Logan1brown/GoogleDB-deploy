@@ -204,7 +204,7 @@ class CompScore:
     source_type: float = field(default=0)      # Source type match
     character_types: float = field(default=0)  # Character type overlap
     plot_elements: float = field(default=0)    # Plot element overlap
-    theme_elements: float = field(default=0)   # Theme overlap
+    thematic_elements: float = field(default=0)   # Theme overlap
     tone: float = field(default=0)            # Tone match
     time_setting: float = field(default=0)    # Time period match
     location: float = field(default=0)        # Location match
@@ -252,7 +252,7 @@ class CompScore:
             self.source_type,
             self.character_types,
             self.plot_elements,
-            self.theme_elements,
+            self.thematic_elements,
             self.tone,
             self.time_setting,
             self.location
@@ -292,8 +292,8 @@ class CompScore:
                     'plot_elements': {
                         'score': float(self.plot_elements)
                     },
-                    'theme_elements': {
-                        'score': float(self.theme_elements)
+                    'thematic_elements': {
+                        'score': float(self.thematic_elements)
                     },
                     'tone': {
                         'score': float(self.tone)
@@ -366,10 +366,10 @@ class CompScore:
                     'max': float(scoring['content']['components']['plot_elements']['first'] + 
                           scoring['content']['components']['plot_elements']['second'])
                 },
-                'theme_elements': {
-                    'score': float(self.theme_elements),
-                    'max': float(scoring['content']['components']['theme_elements']['first'] + 
-                          scoring['content']['components']['theme_elements']['second'])
+                'thematic_elements': {
+                    'score': float(self.thematic_elements),
+                    'max': float(scoring['content']['components']['thematic_elements']['first'] + 
+                          scoring['content']['components']['thematic_elements']['second'])
                 },
                 'tone': {
                     'score': float(self.tone),
@@ -448,7 +448,7 @@ class ScoreEngine:
                 'source_type': {'match': 10},
                 'character_types': {'first': 9, 'second': 3},  # Reduced to 12 total
                 'plot_elements': {'first': 7.5, 'second': 2.5},  # Reduced to 10 total
-                'theme_elements': {'first': 7.5, 'second': 2.5},  # Reduced to 10 total
+                'thematic_elements': {'first': 7.5, 'second': 2.5},  # Reduced to 10 total
                 'tone': {'match': 9},
                 'time_setting': {'match': 4},  # Increased to 4
                 'location_setting': {'match': 4}  # Increased to 4
@@ -510,11 +510,11 @@ class ScoreEngine:
             'plot_elements'
         )
         
-        score.theme_elements = self._calculate_array_match(
+        score.thematic_elements = self._calculate_array_match(
             source.get('thematic_element_ids') or [],
             target.get('thematic_element_ids') or [],
-            self.SCORING['content']['components']['theme_elements']['first'],
-            self.SCORING['content']['components']['theme_elements']['second'],
+            self.SCORING['content']['components']['thematic_elements']['first'],
+            self.SCORING['content']['components']['thematic_elements']['second'],
             'thematic_elements'
         )
         
@@ -819,7 +819,7 @@ class CompAnalyzer:
         for _, target in self.comp_data.iterrows():
             score = self.score_engine.calculate_score(source, target)
             # Include results with any matching criteria
-            if score.total() > 0 or score.character_types > 0 or score.plot_elements > 0 or score.theme_elements > 0:
+            if score.total() > 0 or score.character_types > 0 or score.plot_elements > 0 or score.thematic_elements > 0:
                 # Calculate success score and ensure it's a float
                 success_score = float(self.success_analyzer.calculate_success(target))
 
@@ -845,7 +845,7 @@ class CompAnalyzer:
                         'source_type': float(score.source_type),
                         'character_types': float(score.character_types),
                         'plot_elements': float(score.plot_elements),
-                        'theme_elements': float(score.theme_elements),
+                        'thematic_elements': float(score.thematic_elements),
                         'tone': float(score.tone),
                         'time_setting': float(score.time_setting),
                         'location': float(score.location),
@@ -951,7 +951,7 @@ class CompAnalyzer:
                         'source_type': float(score.source_type),
                         'character_types': float(score.character_types),
                         'plot_elements': float(score.plot_elements),
-                        'theme_elements': float(score.theme_elements),
+                        'thematic_elements': float(score.thematic_elements),
                         'tone': float(score.tone),
                         'time_setting': float(score.time_setting),
                         'location': float(score.location),
