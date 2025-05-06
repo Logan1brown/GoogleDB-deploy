@@ -331,6 +331,7 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
             # Get display names for all fields
             details = {
                 'comp_score': comp_score,
+                'score_details': comp_score.get_match_details(),  # Add score details for base_match_breakdown
                 # Content fields
                 'genre_name': details_manager.get_field_name('genre', match.get('genre_id')),
                 'selected_genre_name': details_manager.get_field_name('genre', criteria.get('genre_id')),
