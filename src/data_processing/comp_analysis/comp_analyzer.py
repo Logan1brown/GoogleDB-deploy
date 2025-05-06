@@ -503,8 +503,12 @@ class ScoreEngine:
             )
                     
         # Episode scoring
-        if pd.notna(source['episode_count']) and pd.notna(target['episode_count']):
-            diff = abs(source['episode_count'] - target['episode_count'])
+        # Only calculate episode score if both shows have valid numeric episode counts
+        source_eps = source.get('episode_count')
+        target_eps = target.get('episode_count')
+        if pd.notna(source_eps) and pd.notna(target_eps) and \
+           isinstance(source_eps, (int, float)) and isinstance(target_eps, (int, float)):
+            diff = abs(source_eps - target_eps)
             if diff <= 2:
                 score.episodes = self.SCORING['format']['components']['episodes']['within_2']
             elif diff <= 4:
@@ -729,9 +733,11 @@ class CompAnalyzer:
             # Convert arrays to lists if they're not already
             if isinstance(value, (list, set)):
                 mapped_criteria[mapped_key] = list(value)
-            elif value is not None:
-                # Convert scalar values to basic types
-                if isinstance(value, (int, float, str)):
+            else:
+                # Include None values and handle other types
+                if value is None:
+                    mapped_criteria[mapped_key] = pd.NA
+                elif isinstance(value, (int, float, str)):
                     mapped_criteria[mapped_key] = value
                 else:
                     # Try to convert to string if it's some other type
