@@ -198,25 +198,28 @@ class FieldManager:
 class CompScore:
     """Score breakdown for a comparable show match (100 points total)."""
     
-    # Content Match (82 points)
-    genre_base: float = field(default=0)      # Direct genre match (9 points)
-    genre_overlap: float = field(default=0)    # Subgenre overlap (8 points)
-    source_type: float = field(default=0)      # Source type match (10 points)
-    character_types: float = field(default=0)  # Character type overlap (14 points)
-    plot_elements: float = field(default=0)    # Plot element overlap (12 points)
-    theme_elements: float = field(default=0)   # Theme overlap (13 points)
-    tone: float = field(default=0)            # Tone match (9 points)
-    time_setting: float = field(default=0)    # Time period match (4 points)
-    location: float = field(default=0)        # Location match (3 points)
+    # Content Match
+    genre_base: float = field(default=0)      # Direct genre match
+    genre_overlap: float = field(default=0)    # Subgenre overlap
+    source_type: float = field(default=0)      # Source type match
+    character_types: float = field(default=0)  # Character type overlap
+    plot_elements: float = field(default=0)    # Plot element overlap
+    theme_elements: float = field(default=0)   # Theme overlap
+    tone: float = field(default=0)            # Tone match
+    time_setting: float = field(default=0)    # Time period match
+    location: float = field(default=0)        # Location match
     
-    # Production Match (13 points)
-    network: float = field(default=0)         # Network match (5 points)
-    studio: float = field(default=0)          # Studio overlap (3 points)
-    team: float = field(default=0)            # Team overlap (5 points)
+    # Production Match
+    network: float = field(default=0)         # Network match
+    studio: float = field(default=0)          # Studio overlap
+    team: float = field(default=0)            # Team overlap
     
-    # Format Match (5 points)
-    episodes: float = field(default=0)        # Episode count similarity (4 points)
-    order_type: float = field(default=0)      # Order type match (1 point)
+    # Format Match
+    episodes: float = field(default=0)        # Episode count similarity
+    order_type: float = field(default=0)      # Order type match
+    
+    # Reference to scoring config
+    _scoring: Dict = field(default_factory=dict)
     
     def __post_init__(self):
         """Validate all scores are non-negative."""
@@ -269,7 +272,7 @@ class CompScore:
         return {
             'content': {
                 'score': self.content_score(),
-                'max': 82,
+                'max': self._scoring['content']['total'],
                 'components': {
                     'genre_base': self.genre_base,
                     'genre_overlap': self.genre_overlap,
@@ -284,7 +287,7 @@ class CompScore:
             },
             'production': {
                 'score': self.production_score(),
-                'max': 13,
+                'max': self._scoring['production']['total'],
                 'components': {
                     'network': self.network,
                     'studio': self.studio,
@@ -293,7 +296,7 @@ class CompScore:
             },
             'format': {
                 'score': self.format_score(),
-                'max': 5,
+                'max': self._scoring['format']['total'],
                 'components': {
                     'episodes': self.episodes,
                     'order_type': self.order_type
@@ -346,7 +349,7 @@ class ScoreEngine:
     
     def calculate_score(self, source: pd.Series, target: pd.Series) -> CompScore:
         """Calculate comparison score between two shows."""
-        score = CompScore()
+        score = CompScore(_scoring=self.SCORING)
         
         # Content scoring
         # Only apply genre scoring if genre is specified in criteria
