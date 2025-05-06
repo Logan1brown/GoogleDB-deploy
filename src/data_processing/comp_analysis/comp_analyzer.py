@@ -222,10 +222,23 @@ class CompScore:
     _scoring: Dict = field(default_factory=dict)
     
     def __post_init__(self):
-        """Validate all scores are non-negative."""
+        """Validate all scores are non-negative and convert to float."""
         for field_name, field_value in self.__dict__.items():
-            if field_value < 0:
-                raise ValueError(f'Score cannot be negative: {field_name} = {field_value}')
+            if field_name.startswith('_'):
+                continue
+            try:
+                # Convert to float, handle None/empty values
+                if field_value is None or field_value == '':
+                    field_value = 0.0
+                else:
+                    field_value = float(field_value)
+                if field_value < 0:
+                    field_value = 0.0
+                # Update the field with converted value
+                setattr(self, field_name, field_value)
+            except (TypeError, ValueError):
+                # If conversion fails, set to 0
+                setattr(self, field_name, 0.0)
                 
     def total(self) -> float:
         """Calculate total score across all components."""
@@ -708,11 +721,27 @@ class CompAnalyzer:
             'episode_count': 'episode_count'  # First season episode count
         }
         
+        # Convert criteria values to proper types
         for key, value in criteria.items():
             # Use mapped name if it exists, otherwise use original
             mapped_key = field_mapping.get(key, key)
-            mapped_criteria[mapped_key] = value
             
+            # Convert arrays to lists if they're not already
+            if isinstance(value, (list, set)):
+                mapped_criteria[mapped_key] = list(value)
+            elif value is not None:
+                # Convert scalar values to basic types
+                if isinstance(value, (int, float, str)):
+                    mapped_criteria[mapped_key] = value
+                else:
+                    # Try to convert to string if it's some other type
+                    try:
+                        mapped_criteria[mapped_key] = str(value)
+                    except:
+                        # Skip invalid values
+                        continue
+            
+        # Create series with cleaned criteria
         source = pd.Series(mapped_criteria)
         
         # Score each show
