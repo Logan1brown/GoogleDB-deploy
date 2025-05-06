@@ -10,7 +10,6 @@ Specific views should extend these methods with their own display logic.
 import streamlit as st
 from typing import Dict, Optional
 from dataclasses import dataclass
-from .score_display import ScoreDisplay
 from src.dashboard.utils.style_config import FONTS
 
 @dataclass
@@ -21,8 +20,14 @@ class ScoreDisplay:
     show_score: bool = True
     
     def format(self) -> str:
-        """Format the score for display."""
-        return f" ({self.score}/{self.max_score})" if self.show_score else ""
+        """Format score for display.
+        
+        Returns:
+            String in format (X/Y pts) or empty string if show_score is False
+        """
+        if not self.show_score:
+            return ""
+        return f" ({int(self.score)}/{int(self.max_score)} pts)"
 
 def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> None:
     """Template method for rendering a section header with optional score."""
