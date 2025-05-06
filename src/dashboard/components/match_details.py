@@ -154,9 +154,9 @@ class MatchDetailsManager:
             self.scoring['content']['components']['plot_elements'],
             match
         )
-        details['theme_elements'] = self._process_array_field_match(
+        details['thematic_elements'] = self._process_array_field_match(
             'thematic_elements', match.get('thematic_element_ids', []), criteria.get('thematic_element_ids', []),
-            self.scoring['content']['components']['theme_elements'],
+            self.scoring['content']['components']['thematic_elements'],
             match
         )
         details['tone'] = self._process_single_component(
