@@ -206,32 +206,46 @@ class MatchDetailsManager:
             matches=list(matching_names)
         )
         
-        # Content components with UI-friendly names
+        # Process all fields
+        details['source'] = self._process_single_component('source_type', match, criteria)
+        details['characters'] = self._process_array_component('character_types', match, criteria)
+        details['plot'] = self._process_array_component('plot_elements', match, criteria)
+        details['themes'] = self._process_array_component('thematic_elements', match, criteria)
+        details['tone'] = self._process_single_component('tone', match, criteria)
+        details['time'] = self._process_single_component('time_setting', match, criteria)
+        details['location'] = self._process_single_component('location_setting', match, criteria)
+        details['network'] = self._process_single_component('network', match, criteria)
+        details['studios'] = self._process_array_component('studio', match, criteria)
+        details['team'] = self._process_array_component('team', match, criteria)
+        details['episodes'] = self._process_single_component('episodes', match, criteria)
+        details['order'] = self._process_single_component('order_type', match, criteria)
+
+        # Content components
         content_components = {
             'genre': {
                 'score': self._get_component_score(match, 'genre'),
                 'match_details': self._process_genre_match(match, criteria)
             },
-            'source': self._process_single_component('source_type', match, criteria),
-            'characters': self._process_array_component('character_types', match, criteria),
-            'plot': self._process_array_component('plot_elements', match, criteria),
-            'themes': self._process_array_component('thematic_elements', match, criteria),
-            'tone': self._process_single_component('tone', match, criteria),
-            'time': self._process_single_component('time_setting', match, criteria),
-            'location': self._process_single_component('location_setting', match, criteria)
+            'source': details['source'],
+            'characters': details['characters'],
+            'plot': details['plot'],
+            'themes': details['themes'],
+            'tone': details['tone'],
+            'time': details['time'],
+            'location': details['location']
         }
 
         # Production components
         production_components = {
-            'network': self._process_single_component('network', match, criteria),
-            'studios': self._process_array_component('studio', match, criteria),
-            'team': self._process_array_component('team', match, criteria)
+            'network': details['network'],
+            'studios': details['studios'],
+            'team': details['team']
         }
 
         # Format components
         format_components = {
-            'episodes': self._process_single_component('episodes', match, criteria),
-            'order': self._process_single_component('order_type', match, criteria)
+            'episodes': details['episodes'],
+            'order': details['order']
         }
         
         details['content'] = {
