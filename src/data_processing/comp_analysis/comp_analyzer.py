@@ -558,10 +558,6 @@ class CompAnalyzer:
                 except KeyError:
                     pass
             
-            # Debug: Print columns in comp_data
-            logger.info("Columns in comp_data:")
-            logger.info(self.comp_data.columns.tolist())
-            
             # Initialize success analyzer with the comp data
             self.success_analyzer.initialize_data(self.comp_data)
             
