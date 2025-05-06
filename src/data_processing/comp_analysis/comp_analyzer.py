@@ -271,13 +271,66 @@ class CompScore:
             self.order_type
         ]))
 
-    def to_display_dict(self) -> Dict[str, float]:
+    def to_display_dict(self) -> Dict[str, Dict]:
         """Convert scores to a display-friendly dictionary."""
         return {
             'total': float(self.total()),
-            'content': float(self.content_score()),
-            'production': float(self.production_score()),
-            'format': float(self.format_score())
+            'content': {
+                'total': float(self.content_score()),
+                'components': {
+                    'genre': {
+                        'score': float(self.genre_base + self.genre_overlap),
+                        'base': float(self.genre_base),
+                        'overlap': float(self.genre_overlap)
+                    },
+                    'source_type': {
+                        'score': float(self.source_type)
+                    },
+                    'character_types': {
+                        'score': float(self.character_types)
+                    },
+                    'plot_elements': {
+                        'score': float(self.plot_elements)
+                    },
+                    'theme_elements': {
+                        'score': float(self.theme_elements)
+                    },
+                    'tone': {
+                        'score': float(self.tone)
+                    },
+                    'time_setting': {
+                        'score': float(self.time_setting)
+                    },
+                    'location_setting': {
+                        'score': float(self.location)
+                    }
+                }
+            },
+            'production': {
+                'total': float(self.production_score()),
+                'components': {
+                    'network': {
+                        'score': float(self.network)
+                    },
+                    'studio': {
+                        'score': float(self.studio)
+                    },
+                    'team': {
+                        'score': float(self.team)
+                    }
+                }
+            },
+            'format': {
+                'total': float(self.format_score()),
+                'components': {
+                    'episodes': {
+                        'score': float(self.episodes)
+                    },
+                    'order_type': {
+                        'score': float(self.order_type)
+                    }
+                }
+            }
         }
         
     def get_match_details(self) -> Dict[str, Dict[str, Any]]:
