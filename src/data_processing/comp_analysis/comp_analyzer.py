@@ -763,14 +763,18 @@ class CompAnalyzer:
                     'success_score': success_score
                 }
 
+                # Convert CompScore to dict for consistent handling
+                score_dict = score.to_display_dict()
+                score_details = score.get_match_details()
+                
                 # Include all fields needed for match details
                 result = {
                     'id': target['id'],
                     'title': target['title'],
                     'description': target.get('description', ''),  # Add description
                     'success_score': success_score,  # Use calculated success score
-                    'comp_score': score,
-                    'score_details': dict(score.get_match_details()),  # Convert to standard dict
+                    'comp_score': score_dict,  # Store as dict
+                    'score_details': dict(score_details),  # Convert to standard dict
                     'score': float(score.total())  # Add total score for sorting
                 }
                 
@@ -800,18 +804,7 @@ class CompAnalyzer:
                 results.append(result)
                 
         # Sort by total score descending, then by success score descending
-        # Handle both CompScore objects and dictionaries
-        def get_total_score(x):
-            comp_score = x['comp_score']
-            if isinstance(comp_score, CompScore):
-                return comp_score.total()
-            elif isinstance(comp_score, dict):
-                # If it's a dict, sum up all the score components
-                return sum(v for k, v in comp_score.items() if not k.startswith('_') and isinstance(v, (int, float)))
-            else:
-                return 0
-
-        return sorted(results, key=lambda x: (get_total_score(x), x.get('success_score', 0)), reverse=True)
+        return sorted(results, key=lambda x: (x['score'], x.get('success_score', 0)), reverse=True)
         
     def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
         """Get similar shows for the given show ID.
