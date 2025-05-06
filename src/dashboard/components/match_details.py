@@ -128,11 +128,11 @@ class MatchDetailsManager:
         # Setting match details
         details['time_setting'] = self._process_single_field_match(
             'time_setting', match.get('time_setting_id'), criteria.get('time_setting_id'),
-            self.scoring['content']['components']['setting']['time']
+            self.scoring['content']['components']['time_setting']['match']
         )
-        details['location'] = self._process_single_field_match(
+        details['location_setting'] = self._process_single_field_match(
             'location_setting', match.get('location_setting_id'), criteria.get('location_setting_id'),
-            self.scoring['content']['components']['setting']['location']
+            self.scoring['content']['components']['location_setting']['match']
         )
         
         # Format match details
@@ -286,17 +286,17 @@ class MatchDetailsManager:
         """Process time and location setting matches."""
         time_match = self._process_single_field_match(
             'time_setting', time_id, selected_time_id,
-            self.scoring['content']['components']['setting']['time']
+            self.scoring['content']['components']['time_setting']['match']
         )
         
         location_match = self._process_single_field_match(
             'location_setting', location_id, selected_location_id,
-            self.scoring['content']['components']['setting']['location']
+            self.scoring['content']['components']['location_setting']['match']
         )
         
         return {
-            'time': time_match,
-            'location': location_match,
+            'time_setting': time_match,
+            'location_setting': location_match,
             'total_score': time_match.score + location_match.score,
             'max_score': time_match.max_score + location_match.max_score
         }

@@ -397,8 +397,10 @@ class ScoreEngine:
                 'plot_elements': {'first': 7.5, 'second': 2.5},  # Reduced to 10 total
                 'theme_elements': {'first': 7.5, 'second': 2.5},  # Reduced to 10 total
                 'tone': {'match': 9},
-                'time_setting': {'match': 4},  # Increased to 4
-                'location_setting': {'match': 4}  # Increased to 4
+                'setting': {
+                    'time': 4,  # Increased to 4
+                    'location': 4  # Increased to 4
+                }
             }
         },
         'production': {
