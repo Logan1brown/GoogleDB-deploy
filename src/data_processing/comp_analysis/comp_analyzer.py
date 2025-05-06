@@ -552,14 +552,11 @@ class CompAnalyzer:
             
             # Convert numeric fields for success calculation
             numeric_fields = ['tmdb_seasons', 'tmdb_avg_eps']
-            st.write("Available columns in comp_data:", self.comp_data.columns.tolist())
-            
             for field in numeric_fields:
-                if field in self.comp_data.columns:
-                    st.write(f"Converting {field} to numeric")
+                try:
                     self.comp_data[field] = pd.to_numeric(self.comp_data[field], errors='coerce')
-                else:
-                    st.write(f"Warning: {field} not found in comp_data")
+                except KeyError:
+                    logger.warning(f"{field} not found in comp_data")
             
             # Initialize success analyzer with the comp data
             self.success_analyzer.initialize_data(self.comp_data)
@@ -620,10 +617,10 @@ class CompAnalyzer:
             self.initialize()
             return self.field_manager.get_display_options(field_name)
         except Exception as e:
-            st.write(f"Error in get_field_display_options: {e}")
-            st.write(f"Field: {field_name}")
+            logger.error(f"Error in get_field_display_options: {e}")
+            logger.error(f"Field: {field_name}")
             import traceback
-            st.write(traceback.format_exc())
+            logger.error(traceback.format_exc())
             raise
         
     def find_by_criteria(self, criteria: Dict) -> List[Tuple[int, CompScore]]:
@@ -813,9 +810,9 @@ class CompAnalyzer:
         try:
             return self.score_engine.calculate_score(source, target)
         except Exception as e:
-            st.write(f"Error in _calculate_score: {str(e)}")
-            st.write(f"Source columns: {source.index}")
-            st.write(f"Target columns: {target.index}")
+            logger.error(f"Error in _calculate_score: {str(e)}")
+            logger.error(f"Source columns: {source.index}")
+            logger.error(f"Target columns: {target.index}")
             import traceback
-            st.write(traceback.format_exc())
+            logger.error(traceback.format_exc())
             raise
