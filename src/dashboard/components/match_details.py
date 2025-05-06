@@ -207,56 +207,43 @@ class MatchDetailsManager:
         )
         
         # Map internal field names to UI display names
-        details['source'] = self._process_single_component('source_type', match, criteria)
-        details['time'] = self._process_single_component('time_setting', match, criteria)
-        details['location'] = self._process_single_component('location_setting', match, criteria)
-        
-        # Format match details
-        format_details = self._process_format_match(
-            match.get('episode_count'), criteria.get('episode_count'),
-            match.get('order_type_id'), criteria.get('order_type_id'),
-            match
-        )
-        details['episodes'] = format_details['episodes']
-        details['order'] = format_details['order_type']
-        
-        # Calculate section scores by summing their components
-        # Map internal field names to UI display names
-        # Only process fields that are selected in criteria
-        content_components = {}
-        if criteria.get('genre_ids'):
-            content_components['genre'] = {
+        field_map = {
+            'source_type': 'source',
+            'character_types': 'characters',
+            'plot_elements': 'plot',
+            'thematic_elements': 'themes',
+            'time_setting': 'time',
+            'location_setting': 'location',
+            'studio': 'studios',
+            'order_type': 'order'
+        }
+
+        # Process content components
+        content_components = {
+            'genre': {
                 'score': self._get_component_score(match, 'genre'),
                 'match_details': self._process_genre_match(match, criteria)
             }
-        if criteria.get('source_type_id'):
-            content_components['source_type'] = self._process_single_component('source_type', match, criteria)
-        if criteria.get('character_type_ids'):
-            content_components['character_types'] = self._process_array_component('character_types', match, criteria)
-        if criteria.get('plot_element_ids'):
-            content_components['plot_elements'] = self._process_array_component('plot_elements', match, criteria)
-        if criteria.get('thematic_element_ids'):
-            content_components['thematic_elements'] = self._process_array_component('thematic_elements', match, criteria)
-        if criteria.get('tone_id'):
-            content_components['tone'] = self._process_single_component('tone', match, criteria)
-        if criteria.get('time_setting_id'):
-            content_components['time_setting'] = self._process_single_component('time_setting', match, criteria)
-        if criteria.get('location_setting_id'):
-            content_components['location_setting'] = self._process_single_component('location_setting', match, criteria)
-            
-        production_components = {}
-        if criteria.get('network_id'):
-            production_components['network'] = self._process_single_component('network', match, criteria)
-        if criteria.get('studio_ids'):
-            production_components['studio'] = self._process_array_component('studio', match, criteria)
-        if criteria.get('team_member_ids'):
-            production_components['team'] = self._process_array_component('team', match, criteria)
-            
-        format_components = {}
-        if criteria.get('episode_count'):
-            format_components['episodes'] = self._process_single_component('episodes', match, criteria)
-        if criteria.get('order_type_id'):
-            format_components['order_type'] = self._process_single_component('order_type', match, criteria)
+        }
+        for internal, ui in field_map.items():
+            if internal in self.scoring['content']['components']:
+                content_components[ui] = self._process_single_component(internal, match, criteria)
+
+        # Process production components
+        production_components = {
+            'network': self._process_single_component('network', match, criteria)
+        }
+        for internal, ui in field_map.items():
+            if internal in self.scoring['production']['components']:
+                production_components[ui] = self._process_array_component(internal, match, criteria)
+
+        # Process format components
+        format_components = {
+            'episodes': self._process_single_component('episodes', match, criteria)
+        }
+        for internal, ui in field_map.items():
+            if internal in self.scoring['format']['components']:
+                format_components[ui] = self._process_single_component(internal, match, criteria)
         
         details['content'] = {
             'score': sum(c['score'] for c in content_components.values()),
@@ -405,6 +392,20 @@ class MatchDetailsManager:
             max_score=max_score
         )
         
+    def _empty_match_details(self) -> Dict:
+        """Return empty match details for unselected fields."""
+        return {
+            'score': 0,
+            'match_details': FieldMatch(
+                name1='Not Selected',
+                name2='Not Selected',
+                selected=False,
+                match=False,
+                score=0,
+                max_score=0
+            )
+        }
+
     def _process_array_field_match(self, field: str, values: List[int], 
                                  selected: List[int], scoring: Dict,
                                  match: Optional[Dict] = None) -> ArrayFieldMatch:
