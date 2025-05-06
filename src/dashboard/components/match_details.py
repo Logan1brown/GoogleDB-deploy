@@ -30,8 +30,18 @@ class MatchDetailsManager:
         self.comp_analyzer = comp_analyzer
         self.scoring = comp_analyzer.score_engine.SCORING
         
-    def get_field_name(self, field: str, id: Optional[int], default: str = 'Unknown') -> str:
-        """Get display name for a field value."""
+    def get_field_name(self, field: str, id: Optional[int], match: Optional[Dict] = None, default: str = 'Unknown') -> str:
+        """Get display name for a field value.
+        
+        Args:
+            field: Field type (e.g. 'genre', 'source_type')
+            id: ID of the field value
+            match: Optional match data containing name fields. If not provided, will try to use self.match
+            default: Default value if name not found
+            
+        Returns:
+            Display name for the field value
+        """
         if id is None:
             return default
             
@@ -48,7 +58,11 @@ class MatchDetailsManager:
         
         # If we have a direct name field mapping, use that
         if field in name_field_map:
-            return self.match.get(name_field_map[field], default)
+            # Try match data first if provided
+            if match is not None:
+                return match.get(name_field_map[field], default)
+            # Fall back to self.match if available
+            return getattr(self, 'match', {}).get(name_field_map[field], default)
             
         # For array fields, use the corresponding names array
         array_name_map = {
