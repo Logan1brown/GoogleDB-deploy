@@ -45,8 +45,8 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
     content_score = comp_score.content_score()
     content_max = ScoreEngine.SCORING['content']['total']
     
-    # Display success score if available
-    if success_score is not None:
+    # Display success score if available and not 0
+    if success_score is not None and success_score > 0:
         success_display = ScoreDisplay(success_score, 100, True)
         st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Success Score: {success_display.format()}</p>", unsafe_allow_html=True)
         st.write("")
