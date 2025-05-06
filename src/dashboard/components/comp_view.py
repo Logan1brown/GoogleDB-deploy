@@ -392,7 +392,7 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
                 'order_type_match': match.get('order_type_id') == criteria.get('order_type_id')
             }
             # Get total score for sorting
-            total_score = match['score']  # Use the total score field directly
+            total_score = match['comp_score']['total']  # Total score is in comp_score dict
             
             # Transform raw match data into proper UI components using MatchDetailsManager
             match_details = details_manager.create_match_details(match, criteria)
