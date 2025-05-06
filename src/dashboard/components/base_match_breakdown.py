@@ -42,7 +42,13 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
 
 def render_match_details_section(details: Dict, success_score: Optional[float] = None, description: Optional[str] = None) -> None:
     """Template method for rendering match details section with columns."""
-    # Score details passed directly
+    if not details:
+        return
+        
+    # Extract sections
+    content = details.get('content', {})
+    production = details.get('production', {})
+    format_section = details.get('format', {})
     
     # Display description if available
     if description:
@@ -56,85 +62,98 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
         st.write("")
     
     # Content match section
-    render_section_header("Content Match", ScoreDisplay(
-        score=content['score'],
-        max_score=content['max'],
-        show_score=True
-    ))
+    if content:
+        render_section_header("Content Match", ScoreDisplay(
+            score=content.get('score', 0),
+            max_score=content.get('max', 0),
+            show_score=True
+        ))
+        
+        st.write("")
+        
+        # Content fields in columns
+        col1, col2 = st.columns(2)
+        
+        breakdown = content.get('breakdown', {})
+        with col1:
+            # Genre and subgenres
+            render_field_match("Genre", breakdown.get('genre', {}))
+            render_array_field_match("Subgenres", breakdown.get('subgenres', {
+                'score': 0, 'max': 8, 'values1': [], 'selected': False, 'matches': []
+            }))
+            
+            # Source type
+            render_field_match("Source Type", breakdown.get('source', {}))
+            
+            # Character types
+            render_array_field_match("Character Types", breakdown.get('characters', {}))
+            
+            # Time Setting
+            render_field_match("Time Setting", breakdown.get('time_setting', {}))
+        
+        with col2:
+            # Plot elements
+            render_array_field_match("Plot Elements", breakdown.get('plot', {}))
+            
+            # Theme elements
+            render_array_field_match("Theme Elements", breakdown.get('themes', {}))
+            
+            # Tone
+            render_field_match("Tone", breakdown.get('tone', {}))
+            
+            # Location Setting
+            render_field_match("Location", breakdown.get('location_setting', {}))
     
-    st.write("")
-    
-    # Content fields in columns
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        breakdown = content['breakdown']
-        # Genre and subgenres
-        render_field_match("Genre", breakdown['genre'])
-        render_array_field_match("Subgenres", breakdown.get('subgenres', {
-            'score': 0, 'max': 8, 'values1': [], 'selected': False, 'matches': []
-        }))
-        
-        # Source type
-        render_field_match("Source Type", breakdown['source'])
-        
-        # Character types
-        render_array_field_match("Character Types", breakdown['characters'])
-        
-        # Time Setting
-        render_field_match("Time Setting", breakdown['time_setting'])
-    
-    with col2:
-        # Plot elements
-        render_array_field_match("Plot Elements", breakdown['plot'])
-        
-        # Theme elements
-        render_array_field_match("Theme Elements", breakdown['themes'])
-        
-        # Tone
-        render_field_match("Tone", breakdown['tone'])
-        
-        # Location Setting
-        render_field_match("Location", breakdown['location_setting'])
-    
-    st.write("")
+        st.write("")
     
     # Production match section
-    render_section_header("Production Match", ScoreDisplay(
-        score=production['score'],
-        max_score=production['max'],
-        show_score=True
-    ))
-    
-    # Production fields in columns
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        breakdown = production['breakdown']
-        render_field_match("Network", breakdown['network'])
-        render_array_field_match("Studios", breakdown['studio'])
-    
-    with col2:
-        render_array_field_match("Team Members", breakdown['team'])
-    
-    st.write("")
+    if production:
+        render_section_header("Production Match", ScoreDisplay(
+            score=production.get('score', 0),
+            max_score=production.get('max', 0),
+            show_score=True
+        ))
+        
+        st.write("")
+        
+        # Production fields in columns
+        col1, col2 = st.columns(2)
+        
+        breakdown = production.get('breakdown', {})
+        with col1:
+            # Network
+            render_field_match("Network", breakdown.get('network', {}))
+            
+            # Studios
+            render_array_field_match("Studios", breakdown.get('studio', {}))
+        
+        with col2:
+            # Team Members
+            render_array_field_match("Team Members", breakdown.get('team', {}))
+        
+        st.write("")
     
     # Format match section
-    render_section_header("Format Match", ScoreDisplay(
-        score=format_section['score'],
-        max_score=format_section['max'],
-        show_score=True
-    ))
-    
-    # Format fields in columns
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        breakdown = format_section['breakdown']
-        render_field_match("Episode Count", breakdown['episodes'])
-    
-    with col2:
-        render_field_match("Order Type", breakdown['order_type'])
+    if format_section:
+        render_section_header("Format Match", ScoreDisplay(
+            score=format_section.get('score', 0),
+            max_score=format_section.get('max', 0),
+            show_score=True
+        ))
+        
+        st.write("")
+        
+        # Format fields in columns
+        col1, col2 = st.columns(2)
+        
+        breakdown = format_section.get('breakdown', {})
+        with col1:
+            # Episodes
+            render_field_match("Episodes", breakdown.get('episodes', {}))
+        
+        with col2:
+            # Order Type
+            render_field_match("Order Type", breakdown.get('order_type', {}))
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
