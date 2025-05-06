@@ -445,10 +445,10 @@ class ScoreEngine:
             score.tone = self.SCORING['content']['components']['tone']['match']
             
         if source.get('time_setting_id') == target.get('time_setting_id'):
-            score.time_setting = self.SCORING['content']['components']['setting']['time']
+            score.time_setting = self.SCORING['content']['components']['time_setting']['match']
             
         if source.get('location_setting_id') == target.get('location_setting_id'):
-            score.location = self.SCORING['content']['components']['setting']['location']
+            score.location = self.SCORING['content']['components']['location_setting']['match']
             
         if source.get('network_id') == target.get('network_id'):
             score.network = self.SCORING['production']['components']['network']['match']
