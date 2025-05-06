@@ -86,7 +86,8 @@ class MatchDetailsManager:
         )
         details['studio'] = self._process_production_field_match(
             'studios', match.get('studios', []), criteria.get('studio_ids', []),
-            self.scoring['production']['components']['studio']
+            self.scoring['production']['components']['studio'],
+            match=match
         )
         # Get team member matches
         source_team = match.get('team_member_ids', [])
@@ -230,11 +231,11 @@ class MatchDetailsManager:
         return score
         
     def _process_production_field_match(self, field: str, values: List[int],
-                                      selected: List[int], scoring: Dict) -> ArrayFieldMatch:
+                                      selected: List[int], scoring: Dict, match: Dict = None) -> ArrayFieldMatch:
         """Process match for production fields (studio) with special scoring."""
         # For studios, use pre-fetched names from API response
-        if field == 'studios':
-            value_names = self.match.get('studio_names', [])
+        if field == 'studios' and match:
+            value_names = match.get('studio_names', [])
             # For selected studios, still need to look up names
             selected_names = self.get_field_names(field, selected)
         else:
