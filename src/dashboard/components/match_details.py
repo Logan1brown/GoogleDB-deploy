@@ -292,8 +292,16 @@ class MatchDetailsManager:
         # Get scoring section and config based on field type
         if field in self.scoring['content']['components']:
             section = 'content'
+            max_score = self.scoring[section]['components'][field]['match']
         elif field in self.scoring['production']['components']:
             section = 'production'
+            max_score = self.scoring[section]['components'][field]['match']
+        elif field in self.scoring['format']['components']:
+            section = 'format'
+            if field == 'episodes':
+                max_score = self.scoring[section]['components'][field]['within_2']
+            else:
+                max_score = self.scoring[section]['components'][field]['match']
         else:
             raise ValueError(f'Field {field} not found in scoring configuration')
             
@@ -303,7 +311,7 @@ class MatchDetailsManager:
                 field,
                 match.get(id_field),
                 criteria.get(id_field),
-                self.scoring[section]['components'][field]['match'],
+                max_score,
                 match
             )
         }
