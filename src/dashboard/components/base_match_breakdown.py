@@ -47,19 +47,13 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
     
     # Display description if available
     if description:
-        st.write(description)
+        st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['body']}px; margin-bottom: 1em;'>{description}</p>", unsafe_allow_html=True)
         st.write("")
     
     # Display success score if available
     if success_score is not None:
         success_display = ScoreDisplay(success_score, 100, True)
         st.markdown(f"Success Score: {success_display.format()}", unsafe_allow_html=True)
-        st.write("")
-        st.write("")
-        
-    # Display description if available
-    if description:
-        st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['body']}px; margin-bottom: 1em;'>{description}</p>", unsafe_allow_html=True)
         st.write("")
     
     production_score = comp_score.production_score()
@@ -387,11 +381,6 @@ def render_base_match_breakdown(
     header = f"{title} (Match:{title_score.format()})"
     
     def render_content():
-        # Show description if available
-        if description:
-            st.write(description)
-            st.write("")
-            
         # Show success score if available
         if success_score is not None:
             success_display = ScoreDisplay(success_score, 100, True)
