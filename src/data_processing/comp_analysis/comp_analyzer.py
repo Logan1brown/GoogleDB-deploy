@@ -800,6 +800,7 @@ class CompAnalyzer:
                     'description': target.get('description', ''),  # Add description
                     'success_score': success_score,  # Use calculated success score
                     'comp_score': score_dict,  # Store as dict with explicit float conversions
+                    'success_score': success_score,  # Add success score
                     'score': float(score.total())  # Add total score for sorting
                 }
                 

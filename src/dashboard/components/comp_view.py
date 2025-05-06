@@ -213,10 +213,10 @@ def create_results_df(results: List[Dict]) -> pd.DataFrame:
     for r in results:
         comp_score = r['comp_score']
         try:
-            total = int(comp_score.total())
-            content = int(comp_score.content_score())
-            production = int(comp_score.production_score())
-            format_score = int(comp_score.format_score())
+            total = int(comp_score['total'])
+            content = int(comp_score['content'])
+            production = int(comp_score['production'])
+            format_score = int(comp_score['format'])
             success = int(r['success_score'] or 0)
         except (TypeError, AttributeError):
             # Handle case where comp_score is not a CompScore object
@@ -332,13 +332,13 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         comp_score = match['comp_score']
         
         with st.expander(
-            f"#### #{match['id']}: {match['title']} (Match: {comp_score.total():.1f})", 
+            f"#### #{match['id']}: {match['title']} (Match: {comp_score['total']:.1f})", 
             expanded=match == match_results[0]
         ):
             # Get display names for all fields
             details = {
                 'comp_score': comp_score,
-                'score_details': comp_score.get_match_details(),  # Add score details for base_match_breakdown
+                'score_details': comp_score['components'],  # Add score details for base_match_breakdown
                 # Content fields
                 'genre_name': details_manager.get_field_name('genre', match.get('genre_id')),
                 'selected_genre_name': details_manager.get_field_name('genre', criteria.get('genre_id')),
@@ -393,7 +393,7 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
                 'order_type_match': match.get('order_type_id') == criteria.get('order_type_id')
             }
             # Get total score for sorting
-            total_score = match['comp_score'].total()
+            total_score = match['comp_score']['total']
             
             # Transform raw match data into proper UI components using MatchDetailsManager
             match_details = details_manager.create_match_details(match, criteria)
