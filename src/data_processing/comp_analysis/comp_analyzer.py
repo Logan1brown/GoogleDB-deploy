@@ -799,6 +799,24 @@ class CompAnalyzer:
                     'title': target['title'],
                     'description': target.get('description', ''),  # Add description
                     'success_score': success_score,  # Use calculated success score
+                    # Content fields
+                    'genre_id': target.get('genre_id'),
+                    'subgenres': target.get('subgenres', []),
+                    'source_type_id': target.get('source_type_id'),
+                    'character_type_ids': target.get('character_type_ids', []),
+                    'plot_element_ids': target.get('plot_element_ids', []),
+                    'thematic_element_ids': target.get('thematic_element_ids', []),
+                    'tone_id': target.get('tone_id'),
+                    'time_setting_id': target.get('time_setting_id'),
+                    'location_setting_id': target.get('location_setting_id'),
+                    # Production fields
+                    'network_id': target.get('network_id'),
+                    'studios': target.get('studios', []),
+                    'team_member_ids': target.get('team_member_ids', []),
+                    'team_member_names': target.get('team_member_names', []),
+                    # Format fields
+                    'episode_count': target.get('episode_count'),
+                    'order_type_id': target.get('order_type_id')
                     'comp_score': score_dict,  # Store as dict with explicit float conversions
                     'success_score': success_score,  # Add success score
                     'score': float(score.total())  # Add total score for sorting
