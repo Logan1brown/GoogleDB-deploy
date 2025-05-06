@@ -77,8 +77,8 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2=details.get('selected_genre_name', 'Unknown'),
             selected=details.get('selected_genre_name') is not None,
             match=details.get('genre_match', False),
-            score=score_details['content']['components']['genre_base']['score'],
-            max_score=score_details['content']['components']['genre_base']['max']
+            score=score_details['content']['components']['genre']['score'],
+            max_score=score_details['content']['components']['genre']['max']
         ))
         
         # Subgenres
@@ -87,8 +87,8 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2='Multiple' if details.get('selected_subgenre_names') else 'None',
             selected=bool(details.get('selected_subgenre_names')),
             match=bool(details.get('subgenre_matches')),
-            score=score_details['content']['components']['genre_overlap']['score'],
-            max_score=score_details['content']['components']['genre_overlap']['max'],
+            score=score_details['content']['components']['subgenres']['score'],
+            max_score=score_details['content']['components']['subgenres']['max'],
             values1=details.get('subgenre_names', []),
             values2=details.get('selected_subgenre_names', []),
             matches=details.get('subgenre_matches', [])

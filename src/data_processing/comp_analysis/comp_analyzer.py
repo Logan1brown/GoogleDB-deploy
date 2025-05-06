@@ -274,11 +274,11 @@ class CompScore:
                 'score': self.content_score(),
                 'max': self._scoring['content']['total'],
                 'components': {
-                    'genre_base': {
+                    'genre': {
                         'score': self.genre_base,
                         'max': self._scoring['content']['components']['genre']['base']
                     },
-                    'genre_overlap': {
+                    'subgenres': {
                         'score': self.genre_overlap,
                         'max': self._scoring['content']['components']['genre']['overlap']
                     },
