@@ -251,16 +251,19 @@ class MatchDetailsManager:
         
         details['content'] = {
             'score': sum(c['score'] for c in content_components.values()),
+            'max': self.scoring['content']['total'],
             'components': content_components
         }
         
         details['production'] = {
             'score': sum(c['score'] for c in production_components.values()),
+            'max': self.scoring['production']['total'],
             'components': production_components
         }
         
         details['format'] = {
             'score': sum(c['score'] for c in format_components.values()),
+            'max': self.scoring['format']['total'],
             'components': format_components
         }
         
