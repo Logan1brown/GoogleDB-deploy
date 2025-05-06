@@ -376,15 +376,21 @@ def render_base_match_breakdown(
         use_expander: Whether to wrap in an expander
         description: Optional show description
     """
-    # Build title with scores
+    # Build title with match score only
     title_score = ScoreDisplay(details['total'], details['max'], True)
-    header = f"{title} (Match:{title_score.format()}"
-    if success_score is not None:
-        success_display = ScoreDisplay(success_score, 100, True)
-        header += f", Success:{success_display.format()}"
-    header += ")"
+    header = f"{title} (Match:{title_score.format()})"
     
     def render_content():
+        # Show description if available
+        if description:
+            st.write(description)
+            
+        # Show success score if available
+        if success_score is not None:
+            success_display = ScoreDisplay(success_score, 100, True)
+            st.markdown(f"Success Score:{success_display.format()}", unsafe_allow_html=True)
+            st.write("")
+            
         # Content Match section
         content_score = ScoreDisplay(details['content']['score'], details['content']['max'])
         render_section_header("Content Match", content_score)
