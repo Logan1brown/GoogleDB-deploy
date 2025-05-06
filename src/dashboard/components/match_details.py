@@ -1,5 +1,6 @@
 """Manager for match details display logic."""
 
+import streamlit as st
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 
