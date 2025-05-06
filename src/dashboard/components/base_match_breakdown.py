@@ -11,10 +11,7 @@ import streamlit as st
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from dashboard.components.match_details import FieldMatch, ArrayFieldMatch
-# Import types lazily to prevent circular imports
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from dashboard.components.comp_analyzer import CompScore
+from data_processing.comp_analysis.comp_analyzer import CompScore, ScoreEngine
 from src.dashboard.utils.style_config import FONTS
 
 @dataclass
@@ -39,14 +36,14 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
 
 
 
-def render_match_details_section(details: Dict, success_score: Optional[float] = None) -> None:
+def render_match_details_section(details: Dict, success_score: Optional[float] = None, description: Optional[str] = None) -> None:
     """Template method for rendering match details section with columns."""
     # Get the CompScore object
     comp_score = details['comp_score']
     
     # Get section scores from CompScore
     content_score = comp_score.content_score()
-    content_max = 82  # From CompScore total
+    content_max = ScoreEngine.SCORING['content']['total']
     
     # Display success score if available
     if success_score is not None:
@@ -55,10 +52,10 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
         st.write("")
     
     production_score = comp_score.production_score()
-    production_max = 13  # From CompScore total
+    production_max = ScoreEngine.SCORING['production']['total']
     
     format_score = comp_score.format_score()
-    format_max = 5  # From CompScore total
+    format_max = ScoreEngine.SCORING['format']['total']
     
     # Content Match section
     st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Content Match ({content_score:.1f}/{content_max:.1f})</p>", unsafe_allow_html=True)
