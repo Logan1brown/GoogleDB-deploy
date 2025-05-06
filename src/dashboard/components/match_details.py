@@ -240,10 +240,7 @@ class MatchDetailsManager:
         
         production_components = {
             'network': self._process_single_component('network', match, criteria),
-            'studio': {
-                'score': self._get_component_score(match, 'studio'),
-                'match_details': self._process_studio_match(match, criteria)
-            },
+            'studios': self._process_array_component('studios', match, criteria),
             'team': {
                 'score': self._get_component_score(match, 'team'),
                 'match_details': self._process_team_match(match, criteria)
@@ -333,9 +330,18 @@ class MatchDetailsManager:
         id_field_map = {
             'character_types': 'character_type_ids',
             'plot_elements': 'plot_element_ids',
-            'thematic_elements': 'thematic_element_ids'
+            'thematic_elements': 'thematic_element_ids',
+            'studios': 'studio_ids'
         }
         
+        # Get scoring section and config based on field type
+        if field in self.scoring['content']['components']:
+            section = 'content'
+        elif field in self.scoring['production']['components']:
+            section = 'production'
+        else:
+            raise ValueError(f'Field {field} not found in scoring configuration')
+            
         id_field = id_field_map[field]
         return {
             'score': self._get_component_score(match, field),
@@ -343,11 +349,11 @@ class MatchDetailsManager:
                 field,
                 match.get(id_field, []),
                 criteria.get(id_field, []),
-                self.scoring['content']['components'][field],
+                self.scoring[section]['components'][field],
                 match
             )
         }
-
+        
     def _process_genre_match(self, match: Dict, criteria: Dict) -> FieldMatch:
         """Process genre and subgenre matches."""
         genre_id = match.get('genre_id')
