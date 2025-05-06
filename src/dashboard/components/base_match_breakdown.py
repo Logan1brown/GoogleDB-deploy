@@ -57,8 +57,6 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
         max_score=details['content']['max']
     ))
     
-    # Content Match section
-    st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Content Match ({content_score:.1f}/{content_max:.1f})</p>", unsafe_allow_html=True)
     st.write("")
     
     # Content fields in columns
