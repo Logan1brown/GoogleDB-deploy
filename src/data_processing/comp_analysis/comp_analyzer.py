@@ -666,7 +666,7 @@ class CompAnalyzer:
             if score.total() > 0 or score.character_types > 0 or score.plot_elements > 0 or score.theme_elements > 0:
                 # Calculate success score and ensure it's a float
                 success_score = float(self.success_analyzer.calculate_success(target))
-                
+
                 # Store debug info in result dictionary
                 tmdb_debug = {
                     'id': target['id'],
@@ -676,7 +676,7 @@ class CompAnalyzer:
                     'tmdb_avg_eps': target.get('tmdb_avg_eps'),
                     'success_score': success_score
                 }
-                
+
                 # Include all fields needed for match details
                 result = {
                     'id': target['id'],
