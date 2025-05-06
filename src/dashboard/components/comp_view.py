@@ -207,7 +207,8 @@ def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
 
 def create_results_df(results: List[Dict]) -> pd.DataFrame:
     """Create results DataFrame with consistent formatting."""
-    return pd.DataFrame([
+    # Create DataFrame
+    df = pd.DataFrame([
         {
             'Show': r['title'],
             'Success': int(r['success_score'] or 0),
@@ -217,6 +218,11 @@ def create_results_df(results: List[Dict]) -> pd.DataFrame:
             'Format': int(r['comp_score'].format_score())
         } for r in results
     ])
+    
+    # Sort by Total Score descending, then by Success descending
+    df = df.sort_values(['Total Score', 'Success'], ascending=[False, False])
+    
+    return df
 
 def apply_table_styling(s: pd.Series) -> List[str]:
     """Apply consistent styling to results table.

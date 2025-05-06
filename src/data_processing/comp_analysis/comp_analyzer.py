@@ -700,8 +700,8 @@ class CompAnalyzer:
                 }
                 results.append(result)
                 
-        # Sort by total score descending
-        return sorted(results, key=lambda x: x['comp_score'].total(), reverse=True)
+        # Sort by total score descending, then by success score descending
+        return sorted(results, key=lambda x: (x['comp_score'].total(), x.get('success_score', 0)), reverse=True)
         
     def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
         """Get similar shows for the given show ID.
