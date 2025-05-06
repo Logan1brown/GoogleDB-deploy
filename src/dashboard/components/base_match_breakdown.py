@@ -74,51 +74,17 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
         render_array_field_match("Character Types", details['characters'])
         
         # Time Setting
-        render_field_match("Time Setting", FieldMatch(
-            name1=details.get('time_setting_name', 'Unknown'),
-            name2=details.get('selected_time_setting_name', 'Unknown'),
-            selected=details.get('selected_time_setting_name') is not None,
-            match=details.get('time_setting_match', False),
-            score=score_details['content']['components']['time_setting']['score'],
-            max_score=score_details['content']['components']['time_setting']['max']
-        ))
+        render_field_match("Time Setting", details['time_setting'])
     
     with col2:
         # Plot elements
-        render_array_field_match("Plot Elements", ArrayFieldMatch(
-            name1='Multiple' if details.get('plot_element_names') else 'None',
-            name2='Multiple' if details.get('selected_plot_element_names') else 'None',
-            selected=bool(details.get('selected_plot_element_names')),
-            match=bool(details.get('plot_element_matches')),
-            score=score_details['content']['components']['plot_elements']['score'],
-            max_score=score_details['content']['components']['plot_elements']['max'],
-            values1=details.get('plot_element_names', []),
-            values2=details.get('selected_plot_element_names', []),
-            matches=details.get('plot_element_matches', [])
-        ))
+        render_array_field_match("Plot Elements", details['plot_elements'])
         
         # Theme elements
-        render_array_field_match("Theme Elements", ArrayFieldMatch(
-            name1='Multiple' if details.get('theme_element_names') else 'None',
-            name2='Multiple' if details.get('selected_theme_element_names') else 'None',
-            selected=bool(details.get('selected_theme_element_names')),
-            match=bool(details.get('theme_element_matches')),
-            score=score_details['content']['components']['theme_elements']['score'],
-            max_score=score_details['content']['components']['theme_elements']['max'],
-            values1=details.get('theme_element_names', []),
-            values2=details.get('selected_theme_element_names', []),
-            matches=details.get('theme_element_matches', [])
-        ))
+        render_array_field_match("Theme Elements", details['theme_elements'])
         
         # Tone
-        render_field_match("Tone", FieldMatch(
-            name1=details.get('tone_name', 'Unknown'),
-            name2=details.get('selected_tone_name', 'Unknown'),
-            selected=details.get('selected_tone_name') is not None,
-            match=details.get('tone_match', False),
-            score=score_details['content']['components']['tone']['score'],
-            max_score=score_details['content']['components']['tone']['max']
-        ))
+        render_field_match("Tone", details['tone'])
     
     st.write("")
     
