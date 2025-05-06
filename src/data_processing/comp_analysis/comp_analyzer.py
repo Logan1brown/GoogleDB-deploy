@@ -764,8 +764,28 @@ class CompAnalyzer:
                 }
 
                 # Convert CompScore to dict for consistent handling
-                score_dict = score.to_display_dict()
-                score_details = score.get_match_details()
+                score_dict = {
+                    'total': float(score.total()),
+                    'content': float(score.content_score()),
+                    'production': float(score.production_score()),
+                    'format': float(score.format_score()),
+                    'components': {
+                        'genre_base': float(score.genre_base),
+                        'genre_overlap': float(score.genre_overlap),
+                        'source_type': float(score.source_type),
+                        'character_types': float(score.character_types),
+                        'plot_elements': float(score.plot_elements),
+                        'theme_elements': float(score.theme_elements),
+                        'tone': float(score.tone),
+                        'time_setting': float(score.time_setting),
+                        'location': float(score.location),
+                        'network': float(score.network),
+                        'studio': float(score.studio),
+                        'team': float(score.team),
+                        'episodes': float(score.episodes),
+                        'order_type': float(score.order_type)
+                    }
+                }
                 
                 # Include all fields needed for match details
                 result = {
@@ -773,8 +793,7 @@ class CompAnalyzer:
                     'title': target['title'],
                     'description': target.get('description', ''),  # Add description
                     'success_score': success_score,  # Use calculated success score
-                    'comp_score': score_dict,  # Store as dict
-                    'score_details': dict(score_details),  # Convert to standard dict
+                    'comp_score': score_dict,  # Store as dict with explicit float conversions
                     'score': float(score.total())  # Add total score for sorting
                 }
                 
