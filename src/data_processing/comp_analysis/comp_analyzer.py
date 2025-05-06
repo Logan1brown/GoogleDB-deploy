@@ -274,32 +274,79 @@ class CompScore:
                 'score': self.content_score(),
                 'max': self._scoring['content']['total'],
                 'components': {
-                    'genre_base': self.genre_base,
-                    'genre_overlap': self.genre_overlap,
-                    'source_type': self.source_type,
-                    'character_types': self.character_types,
-                    'plot_elements': self.plot_elements,
-                    'theme_elements': self.theme_elements,
-                    'tone': self.tone,
-                    'time_setting': self.time_setting,
-                    'location_setting': self.location,
+                    'genre_base': {
+                        'score': self.genre_base,
+                        'max': self._scoring['content']['components']['genre']['base']
+                    },
+                    'genre_overlap': {
+                        'score': self.genre_overlap,
+                        'max': self._scoring['content']['components']['genre']['overlap']
+                    },
+                    'source_type': {
+                        'score': self.source_type,
+                        'max': self._scoring['content']['components']['source_type']['match']
+                    },
+                    'character_types': {
+                        'score': self.character_types,
+                        'max': self._scoring['content']['components']['character_types']['first'] + 
+                              self._scoring['content']['components']['character_types']['second']
+                    },
+                    'plot_elements': {
+                        'score': self.plot_elements,
+                        'max': self._scoring['content']['components']['plot_elements']['first'] + 
+                              self._scoring['content']['components']['plot_elements']['second']
+                    },
+                    'theme_elements': {
+                        'score': self.theme_elements,
+                        'max': self._scoring['content']['components']['theme_elements']['first'] + 
+                              self._scoring['content']['components']['theme_elements']['second']
+                    },
+                    'tone': {
+                        'score': self.tone,
+                        'max': self._scoring['content']['components']['tone']['match']
+                    },
+                    'time_setting': {
+                        'score': self.time_setting,
+                        'max': self._scoring['content']['components']['time_setting']['match']
+                    },
+                    'location_setting': {
+                        'score': self.location,
+                        'max': self._scoring['content']['components']['location_setting']['match']
+                    }
                 }
             },
             'production': {
                 'score': self.production_score(),
                 'max': self._scoring['production']['total'],
                 'components': {
-                    'network': self.network,
-                    'studio': self.studio,
-                    'team': self.team
+                    'network': {
+                        'score': self.network,
+                        'max': self._scoring['production']['components']['network']['match']
+                    },
+                    'studio': {
+                        'score': self.studio,
+                        'max': self._scoring['production']['components']['studio']['primary'] + 
+                              self._scoring['production']['components']['studio']['max_additional']
+                    },
+                    'team': {
+                        'score': self.team,
+                        'max': self._scoring['production']['components']['team']['first'] + 
+                              self._scoring['production']['components']['team']['max_additional']
+                    }
                 }
             },
             'format': {
                 'score': self.format_score(),
                 'max': self._scoring['format']['total'],
                 'components': {
-                    'episodes': self.episodes,
-                    'order_type': self.order_type
+                    'episodes': {
+                        'score': self.episodes,
+                        'max': self._scoring['format']['components']['episodes']['within_2']
+                    },
+                    'order_type': {
+                        'score': self.order_type,
+                        'max': self._scoring['format']['components']['order_type']['match']
+                    }
                 }
             }
         }
