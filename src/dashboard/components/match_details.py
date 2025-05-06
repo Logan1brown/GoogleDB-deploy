@@ -322,7 +322,8 @@ class MatchDetailsManager:
             'character_types': 'character_type_ids',
             'plot_elements': 'plot_element_ids',
             'thematic_elements': 'thematic_element_ids',
-            'studio': 'studio_ids'
+            'studio': 'studio_ids',
+            'team': 'team_member_ids'
         }
         
         # Get scoring section and config based on field type
