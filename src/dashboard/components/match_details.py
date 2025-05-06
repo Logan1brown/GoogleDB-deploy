@@ -154,9 +154,19 @@ class MatchDetailsManager:
                 
             return default
             
-    def get_field_names(self, field: str, ids: List[int], default: str = 'Unknown') -> List[str]:
-        """Get display names for field values."""
-        return [self.get_field_name(field, id, default) for id in ids]
+    def get_field_names(self, field: str, ids: List[int], match: Optional[Dict] = None, default: str = 'Unknown') -> List[str]:
+        """Get display names for field values.
+        
+        Args:
+            field: Field type (e.g. 'genre', 'source_type')
+            ids: List of field value IDs
+            match: Optional match data containing name fields
+            default: Default value if name not found
+            
+        Returns:
+            List of display names for the field values
+        """
+        return [self.get_field_name(field, id, match, default) for id in ids]
         
     def create_match_details(self, match: Dict, criteria: Dict) -> Dict:
         """Create match details for display in the UI and scoring.
@@ -263,39 +273,57 @@ class MatchDetailsManager:
         
         return details
 
-    def _process_single_field(self, field: str, match: Dict, criteria: Dict) -> Dict:
+    def _process_single_field(self, field: str, match: Dict, criteria: Dict) -> FieldMatch:
         """Process a single field and return a FieldMatch object for UI display."""
         id_field = self.id_field_map[field]
-        name_field = self.name_field_map[field]
         
         value_id = match.get(id_field)
         target_id = criteria.get(id_field)
         
-        return {
-            'name1': match.get(name_field, 'Unknown'),
-            'name2': criteria.get(name_field, 'Unknown'),
-            'selected': bool(target_id),
-            'match': value_id == target_id if value_id and target_id else False
-        }
+        # Get names using field_manager
+        value_name = self.get_field_name(field, value_id, match)
+        target_name = self.get_field_name(field, target_id)
+        
+        # Get score
+        score = self._get_component_score(match, field)
+        max_score = self._get_max_score(field)
+        
+        return FieldMatch(
+            name1=value_name or 'Unknown',
+            name2=target_name or 'Unknown',
+            selected=bool(target_id),
+            match=value_id == target_id if value_id and target_id else False,
+            score=score,
+            max_score=max_score
+        )
 
     def _process_array_field(self, field: str, match: Dict, criteria: Dict) -> ArrayFieldMatch:
         """Process an array field and return an ArrayFieldMatch object for UI display."""
         id_field = self.id_field_map[field]
-        name_field = self.name_field_map[field]
         
         values = match.get(id_field, [])
         selected = criteria.get(id_field, [])
-        matching_ids = set(values) & set(selected)
         
-        return {
-            'name1': 'Multiple' if values else 'Unknown',
-            'name2': 'Multiple' if selected else 'Unknown',
-            'selected': bool(selected),
-            'match': bool(matching_ids),
-            'values1': match.get(name_field, []),
-            'values2': criteria.get(name_field, []),
-            'matches': list(set(match.get(name_field, [])) & set(criteria.get(name_field, [])))
-        }
+        # Get names using field_manager
+        value_names = self.get_field_names(field, values, match) if values else []
+        selected_names = self.get_field_names(field, selected) if selected else []
+        matches = list(set(value_names) & set(selected_names))
+        
+        # Get score
+        score = self._get_component_score(match, field)
+        max_score = self._get_max_score(field)
+        
+        return ArrayFieldMatch(
+            name1='Multiple' if values else 'Unknown',
+            name2='Multiple' if selected else 'Unknown',
+            selected=bool(selected),
+            match=bool(matches),
+            score=score,
+            max_score=max_score,
+            values1=value_names,
+            values2=selected_names,
+            matches=matches
+        )
     def _process_single_component(self, field: str, match: Dict, criteria: Dict) -> Dict:
         """Process single-value component matches (source_type, tone).
         
