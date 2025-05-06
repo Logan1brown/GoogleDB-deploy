@@ -4,6 +4,7 @@ This module uses the base template methods from base_match_breakdown.py
 to render match details in a compact format for the comp builder.
 """
 
+import streamlit as st
 from typing import Dict, List
 from . import get_render_match_details_section
 
