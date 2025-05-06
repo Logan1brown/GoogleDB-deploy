@@ -736,7 +736,7 @@ class CompAnalyzer:
             else:
                 # Include None values and handle other types
                 if value is None:
-                    mapped_criteria[mapped_key] = pd.NA
+                    mapped_criteria[mapped_key] = None
                 elif isinstance(value, (int, float, str)):
                     mapped_criteria[mapped_key] = value
                 else:
