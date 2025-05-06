@@ -401,4 +401,4 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
             # Store total score for sorting
             match_details['total_score'] = total_score
             
-            render_match_details_section(match_details, success_score=match.get('success_score'), description=match.get('description', ''))
+            get_render_match_details_section(match_details, success_score=match.get('success_score'), description=match.get('description', ''))
