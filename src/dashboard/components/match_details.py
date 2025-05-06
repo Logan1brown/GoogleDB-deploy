@@ -123,20 +123,53 @@ class MatchDetailsManager:
         
     def create_match_details(self, match: Dict, criteria: Dict) -> Dict:
         """Create match details for display in the UI and scoring.
-        Merges CompScore's score details with UI-friendly field breakdowns.
+        Creates a properly structured dict for the UI from raw match data.
         """
         if not match or 'comp_score' not in match:
             return {}
             
-        # Get score details from CompScore
-        score_details = match['comp_score'].get_match_details()
+        comp_score = match['comp_score']
+        components = comp_score.get('components', {})
         
         # Create the full details structure
         details = {
             'content': {
-                'score': score_details['content']['score'],
-                'max': score_details['content']['max'],
-                'components': score_details['content']['components'],
+                'score': comp_score.get('content', 0),
+                'max': 82,  # From SCORING_CONFIG
+                'components': {
+                    'genre': {
+                        'score': components.get('genre_base', 0) + components.get('genre_overlap', 0),
+                        'max': 23  # 15 base + 8 overlap
+                    },
+                    'source_type': {
+                        'score': components.get('source_type', 0),
+                        'max': 10
+                    },
+                    'character_types': {
+                        'score': components.get('character_types', 0),
+                        'max': 12  # 9 first + 3 second
+                    },
+                    'plot_elements': {
+                        'score': components.get('plot_elements', 0),
+                        'max': 10  # 7.5 first + 2.5 second
+                    },
+                    'thematic_elements': {
+                        'score': components.get('thematic_elements', 0),
+                        'max': 10  # 7.5 first + 2.5 second
+                    },
+                    'tone': {
+                        'score': components.get('tone', 0),
+                        'max': 9
+                    },
+                    'time_setting': {
+                        'score': components.get('time_setting', 0),
+                        'max': 4
+                    },
+                    'location_setting': {
+                        'score': components.get('location', 0),
+                        'max': 4
+                    }
+                },
                 'breakdown': {
                     'genre': self._process_genre_match(match, criteria),
                     'source': self._process_single_field('source_type', match, criteria),
@@ -149,9 +182,22 @@ class MatchDetailsManager:
                 }
             },
             'production': {
-                'score': score_details['production']['score'],
-                'max': score_details['production']['max'],
-                'components': score_details['production']['components'],
+                'score': comp_score.get('production', 0),
+                'max': 13,
+                'components': {
+                    'network': {
+                        'score': components.get('network', 0),
+                        'max': 5
+                    },
+                    'studio': {
+                        'score': components.get('studio', 0),
+                        'max': 4  # 2 primary + 2 max additional
+                    },
+                    'team': {
+                        'score': components.get('team', 0),
+                        'max': 4  # 2 first + 2 max additional
+                    }
+                },
                 'breakdown': {
                     'network': self._process_single_field('network', match, criteria),
                     'studio': self._process_array_field('studio', match, criteria),
@@ -159,9 +205,18 @@ class MatchDetailsManager:
                 }
             },
             'format': {
-                'score': score_details['format']['score'],
-                'max': score_details['format']['max'],
-                'components': score_details['format']['components'],
+                'score': comp_score.get('format', 0),
+                'max': 5,
+                'components': {
+                    'episodes': {
+                        'score': components.get('episodes', 0),
+                        'max': 3
+                    },
+                    'order_type': {
+                        'score': components.get('order_type', 0),
+                        'max': 2
+                    }
+                },
                 'breakdown': {
                     'episodes': self._process_single_field('episodes', match, criteria),
                     'order_type': self._process_single_field('order_type', match, criteria)
