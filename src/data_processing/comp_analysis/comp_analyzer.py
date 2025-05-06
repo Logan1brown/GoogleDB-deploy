@@ -687,20 +687,10 @@ class CompAnalyzer:
                     'title': target['title'],
                     'description': target.get('description', ''),  # Add description
                     'success_score': success_score,  # Use calculated success score
-                    'comp_score': score,
-                    'debug': tmdb_debug  # Add debug info
+                    'comp_score': score
                 }
                 
-                # Debug: Print raw target data
-                import streamlit as st
-                st.write(f"Raw target data for {target['title']}:")
-                st.write({
-                    'id': target['id'],
-                    'title': target['title'],
-                    'description': target.get('description', 'NOT IN TARGET DATA')
-                })
-                
-                # Continue building result
+                # Build result
                 result.update({
                     # Content fields
                     'genre_id': target.get('genre_id'),

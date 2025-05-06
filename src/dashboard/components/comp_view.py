@@ -272,10 +272,7 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
             comp_analyzer.initialized = True
         results = comp_analyzer.find_by_criteria(state['criteria'])
         
-        # Display debug info for first result
-        if results and 'debug' in results[0]:
-            with st.expander("Debug Info"):
-                st.write("TMDB Data:", results[0]['debug'])
+
     except Exception as e:
         st.error(f"Error finding matches: {str(e)}")
         return
@@ -323,8 +320,6 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     
     for match in match_results[:10]:
         comp_score = match['comp_score']
-        # Debug: Log description for each match
-        st.write(f"Debug - Description for {match['title']}: {match.get('description', 'NOT FOUND')}")
         
         with st.expander(
             f"#### #{match['id']}: {match['title']} (Match: {comp_score.total():.1f})", 
