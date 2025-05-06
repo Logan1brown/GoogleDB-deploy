@@ -270,86 +270,96 @@ class CompScore:
     def get_match_details(self) -> Dict[str, Dict[str, Any]]:
         """Get match details for display."""
         # Convert all scores to float to ensure they're serializable
-        return {
-            'content': {
-                'score': float(self.content_score()),
-                'max': float(self._scoring['content']['total']),
-                'components': {
-                    'genre_base': {
-                        'score': float(self.genre_base),
-                        'max': float(self._scoring['content']['components']['genre']['base'])
-                    },
-                    'genre_overlap': {
-                        'score': float(self.genre_overlap),
-                        'max': float(self._scoring['content']['components']['genre']['overlap'])
-                    },
-                    'source_type': {
-                        'score': float(self.source_type),
-                        'max': float(self._scoring['content']['components']['source_type']['match'])
-                    },
-                    'character_types': {
-                        'score': float(self.character_types),
-                        'max': float(self._scoring['content']['components']['character_types']['first'] + 
-                              self._scoring['content']['components']['character_types']['second'])
-                    },
-                    'plot_elements': {
-                        'score': float(self.plot_elements),
-                        'max': float(self._scoring['content']['components']['plot_elements']['first'] + 
-                              self._scoring['content']['components']['plot_elements']['second'])
-                    },
-                    'theme_elements': {
-                        'score': float(self.theme_elements),
-                        'max': float(self._scoring['content']['components']['theme_elements']['first'] + 
-                              self._scoring['content']['components']['theme_elements']['second'])
-                    },
-                    'tone': {
-                        'score': float(self.tone),
-                        'max': float(self._scoring['content']['components']['tone']['match'])
-                    },
-                    'time_setting': {
-                        'score': float(self.time_setting),
-                        'max': float(self._scoring['content']['components']['time_setting']['match'])
-                    },
-                    'location_setting': {
-                        'score': float(self.location),
-                        'max': float(self._scoring['content']['components']['location_setting']['match'])
-                    }
-                }
-            },
-            'production': {
-                'score': self.production_score(),
-                'max': self._scoring['production']['total'],
-                'components': {
-                    'network': {
-                        'score': self.network,
-                        'max': self._scoring['production']['components']['network']['match']
-                    },
-                    'studio': {
-                        'score': self.studio,
-                        'max': self._scoring['production']['components']['studio']['primary'] + 
-                              self._scoring['production']['components']['studio']['max_additional']
-                    },
-                    'team': {
-                        'score': self.team,
-                        'max': self._scoring['production']['components']['team']['first'] + 
-                              self._scoring['production']['components']['team']['max_additional']
-                    }
-                }
-            },
-            'format': {
-                'score': self.format_score(),
-                'max': self._scoring['format']['total'],
-                'components': {
-                    'episodes': {
-                        'score': self.episodes,
-                        'max': self._scoring['format']['components']['episodes']['within_2']
-                    },
-                    'order_type': {
-                        'score': self.order_type,
-                        'max': self._scoring['format']['components']['order_type']['match']
-                    }
+        # Create a deep copy of the scoring config to avoid modifying the original
+        scoring = dict(self._scoring)
+        
+        # Convert all nested values to standard Python types
+        content = {
+            'score': float(self.content_score()),
+            'max': float(scoring['content']['total']),
+            'components': {
+                'genre_base': {
+                    'score': float(self.genre_base),
+                    'max': float(scoring['content']['components']['genre']['base'])
+                },
+                'genre_overlap': {
+                    'score': float(self.genre_overlap),
+                    'max': float(scoring['content']['components']['genre']['overlap'])
+                },
+                'source_type': {
+                    'score': float(self.source_type),
+                    'max': float(scoring['content']['components']['source_type']['match'])
+                },
+                'character_types': {
+                    'score': float(self.character_types),
+                    'max': float(scoring['content']['components']['character_types']['first'] + 
+                          scoring['content']['components']['character_types']['second'])
+                },
+                'plot_elements': {
+                    'score': float(self.plot_elements),
+                    'max': float(scoring['content']['components']['plot_elements']['first'] + 
+                          scoring['content']['components']['plot_elements']['second'])
+                },
+                'theme_elements': {
+                    'score': float(self.theme_elements),
+                    'max': float(scoring['content']['components']['theme_elements']['first'] + 
+                          scoring['content']['components']['theme_elements']['second'])
+                },
+                'tone': {
+                    'score': float(self.tone),
+                    'max': float(scoring['content']['components']['tone']['match'])
+                },
+                'time_setting': {
+                    'score': float(self.time_setting),
+                    'max': float(scoring['content']['components']['time_setting']['match'])
+                },
+                'location_setting': {
+                    'score': float(self.location),
+                    'max': float(scoring['content']['components']['location_setting']['match'])
                 }
             }
+        }
+        
+        production = {
+            'score': float(self.production_score()),
+            'max': float(scoring['production']['total']),
+            'components': {
+                'network': {
+                    'score': float(self.network),
+                    'max': float(scoring['production']['components']['network']['match'])
+                },
+                'studio': {
+                    'score': float(self.studio),
+                    'max': float(scoring['production']['components']['studio']['primary'] + 
+                          scoring['production']['components']['studio']['max_additional'])
+                },
+                'team': {
+                    'score': float(self.team),
+                    'max': float(scoring['production']['components']['team']['first'] + 
+                          scoring['production']['components']['team']['max_additional'])
+                }
+            }
+        }
+        
+        format_section = {
+            'score': float(self.format_score()),
+            'max': float(scoring['format']['total']),
+            'components': {
+                'episodes': {
+                    'score': float(self.episodes),
+                    'max': float(scoring['format']['components']['episodes']['within_2'])
+                },
+                'order_type': {
+                    'score': float(self.order_type),
+                    'max': float(scoring['format']['components']['order_type']['match'])
+                }
+            }
+        }
+        
+        return {
+            'content': content,
+            'production': production,
+            'format': format_section
         }
 
 class ScoreEngine:

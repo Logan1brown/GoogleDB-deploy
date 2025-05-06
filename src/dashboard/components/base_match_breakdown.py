@@ -36,7 +36,7 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
 
 
 
-def render_match_details_section(details: Dict, score_details: Dict, success_score: Optional[float] = None, description: Optional[str] = None) -> None:
+def render_match_details_section(details: Dict, success_score: Optional[float] = None, description: Optional[str] = None) -> None:
     """Template method for rendering match details section with columns."""
     # Score details passed directly
     
@@ -51,15 +51,11 @@ def render_match_details_section(details: Dict, score_details: Dict, success_sco
         st.markdown(f"Success Score: {success_display.format()}", unsafe_allow_html=True)
         st.write("")
     
-    # Get section scores
-    content_score = score_details['content']['score']
-    content_max = score_details['content']['max']
-    
-    production_score = score_details['production']['score']
-    production_max = score_details['production']['max']
-    
-    format_score = score_details['format']['score']
-    format_max = score_details['format']['max']
+    # Content match section
+    render_section_header("Content Match", ScoreDisplay(
+        score=details['content']['score'],
+        max_score=details['content']['max']
+    ))
     
     # Content Match section
     st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Content Match ({content_score:.1f}/{content_max:.1f})</p>", unsafe_allow_html=True)
@@ -70,51 +66,14 @@ def render_match_details_section(details: Dict, score_details: Dict, success_sco
     
     with col1:
         # Genre and subgenres
-        # Primary genre
-        render_field_match("Genre", FieldMatch(
-            name1=details.get('genre_name', 'Unknown'),
-            name2=details.get('selected_genre_name', 'Unknown'),
-            selected=details.get('selected_genre_name') is not None,
-            match=details.get('genre_match', False),
-            score=score_details['content']['components']['genre_base']['score'],
-            max_score=score_details['content']['components']['genre_base']['max']
-        ))
-        
-        # Subgenres
-        render_array_field_match("Subgenres", ArrayFieldMatch(
-            name1='Multiple' if details.get('subgenre_names') else 'None',
-            name2='Multiple' if details.get('selected_subgenre_names') else 'None',
-            selected=bool(details.get('selected_subgenre_names')),
-            match=bool(details.get('subgenre_matches')),
-            score=score_details['content']['components']['genre_overlap']['score'],
-            max_score=score_details['content']['components']['genre_overlap']['max'],
-            values1=details.get('subgenre_names', []),
-            values2=details.get('selected_subgenre_names', []),
-            matches=details.get('subgenre_matches', [])
-        ))
+        render_field_match("Genre", details['genre'])
+        render_array_field_match("Subgenres", details['subgenres'])
         
         # Source type
-        render_field_match("Source Type", FieldMatch(
-            name1=details.get('source_type_name', 'Unknown'),
-            name2=details.get('selected_source_type_name', 'Unknown'),
-            selected=details.get('selected_source_type_name') is not None,
-            match=details.get('source_type_match', False),
-            score=score_details['content']['components']['source_type']['score'],
-            max_score=score_details['content']['components']['source_type']['max']
-        ))
+        render_field_match("Source Type", details['source'])
         
         # Character types
-        render_array_field_match("Character Types", ArrayFieldMatch(
-            name1='Multiple' if details.get('character_type_names') else 'None',
-            name2='Multiple' if details.get('selected_character_type_names') else 'None',
-            selected=bool(details.get('selected_character_type_names')),
-            match=bool(details.get('character_type_matches')),
-            score=score_details['content']['components']['character_types']['score'],
-            max_score=score_details['content']['components']['character_types']['max'],
-            values1=details.get('character_type_names', []),
-            values2=details.get('selected_character_type_names', []),
-            matches=details.get('character_type_matches', [])
-        ))
+        render_array_field_match("Character Types", details['characters'])
         
         # Time Setting
         render_field_match("Time Setting", FieldMatch(
@@ -162,94 +121,47 @@ def render_match_details_section(details: Dict, score_details: Dict, success_sco
             score=score_details['content']['components']['tone']['score'],
             max_score=score_details['content']['components']['tone']['max']
         ))
-        
-        # Location Setting
-        render_field_match("Location", FieldMatch(
-            name1=details.get('location_setting_name', 'Unknown'),
-            name2=details.get('selected_location_setting_name', 'Unknown'),
-            selected=details.get('selected_location_setting_name') is not None,
-            match=details.get('location_setting_match', False),
-            score=score_details['content']['components']['location_setting']['score'],
-            max_score=score_details['content']['components']['location_setting']['max']
-        ))
     
     st.write("")
     
     # Production match section
-    st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Production Match ({production_score:.1f}/{production_max:.1f})</p>", unsafe_allow_html=True)
-    st.write("")
+    render_section_header("Production Match", ScoreDisplay(
+        score=details['production']['score'],
+        max_score=details['production']['max']
+    ))
     
     # Production fields in columns
     col1, col2 = st.columns(2)
     
     with col1:
         # Network
-        render_field_match("Network", FieldMatch(
-            name1=details.get('network_name', 'Unknown'),
-            name2=details.get('selected_network_name', 'Unknown'),
-            selected=details.get('selected_network_name') is not None,
-            match=details.get('network_match', False),
-            score=score_details['production']['components']['network']['score'],
-            max_score=score_details['production']['components']['network']['max']
-        ))
+        render_field_match("Network", details['network'])
         
         # Studios
-        render_array_field_match("Studios", ArrayFieldMatch(
-            name1='Multiple' if details.get('studio_names') else 'None',
-            name2='Multiple' if details.get('selected_studio_names') else 'None',
-            selected=bool(details.get('selected_studio_names')),
-            match=bool(details.get('studio_matches')),
-            score=score_details['production']['components']['studio']['score'],
-            max_score=score_details['production']['components']['studio']['max'],
-            values1=details.get('studio_names', []),
-            values2=details.get('selected_studio_names', []),
-            matches=details.get('studio_matches', [])
-        ))
+        render_array_field_match("Studios", details['studio'])
     
     with col2:
         # Team
-        render_array_field_match("Team", ArrayFieldMatch(
-            name1='Multiple' if details.get('team_member_names') else 'None',
-            name2='Multiple' if details.get('selected_team_member_names') else 'None',
-            selected=bool(details.get('selected_team_member_names')),
-            match=bool(details.get('team_member_matches')),
-            score=score_details['production']['components']['team']['score'],
-            max_score=score_details['production']['components']['team']['max'],
-            values1=details.get('team_member_names', []),
-            values2=details.get('selected_team_member_names', []),
-            matches=details.get('team_member_matches', [])
-        ))
+        render_array_field_match("Team Members", details['team'])
     
     st.write("")
     
     # Format match section
-    st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Format Match ({format_score:.1f}/{format_max:.1f})</p>", unsafe_allow_html=True)
-    st.write("")
+    render_section_header("Format Match", ScoreDisplay(
+        score=details['format']['score'],
+        max_score=details['format']['max']
+    ))
     
     # Format fields in columns
     col1, col2 = st.columns(2)
     
     with col1:
         # Episodes
-        render_field_match("Episodes", FieldMatch(
-            name1=str(details.get('episode_count', 'Unknown')),
-            name2=str(details.get('selected_episode_count', 'Unknown')),
-            selected=details.get('selected_episode_count') is not None,
-            match=details.get('episode_match', False),
-            score=score_details['format']['components']['episodes']['score'],
-            max_score=score_details['format']['components']['episodes']['max']
-        ))
+        render_field_match("Episode Count", details['episodes'])
         
     with col2:
         # Order type
-        render_field_match("Order Type", FieldMatch(
-            name1=details.get('order_type_name', 'Unknown'),
-            name2=details.get('selected_order_type_name', 'Unknown'),
-            selected=details.get('selected_order_type_name') is not None,
-            match=details.get('order_type_match', False),
-            score=score_details['format']['components']['order_type']['score'],
-            max_score=score_details['format']['components']['order_type']['max']
-        ))
+        render_field_match("Order Type", details['order_type'])
     
 
 
