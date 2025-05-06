@@ -45,11 +45,6 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
     content_score = comp_score.content_score()
     content_max = ScoreEngine.SCORING['content']['total']
     
-    # Display description if available
-    if description:
-        st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['body']}px; margin-bottom: 1em;'>{description}</p>", unsafe_allow_html=True)
-        st.write("")
-    
     # Display success score if available
     if success_score is not None:
         success_display = ScoreDisplay(success_score, 100, True)
@@ -381,6 +376,11 @@ def render_base_match_breakdown(
     header = f"{title} (Match:{title_score.format()})"
     
     def render_content():
+        # Display description if available
+        if description:
+            st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['body']}px; margin-bottom: 1em;'>{description}</p>", unsafe_allow_html=True)
+            st.write("")
+            
         # Show success score if available
         if success_score is not None:
             success_display = ScoreDisplay(success_score, 100, True)
