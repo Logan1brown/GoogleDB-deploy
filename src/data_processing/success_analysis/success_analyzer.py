@@ -176,7 +176,6 @@ class SuccessAnalyzer:
         
     def calculate_success(self, show: pd.Series) -> float:
         """Calculate success score for a single show."""
-        # Shows must have reliable status to get a score
         if show.get('tmdb_status') not in ShowStatus.RELIABLE:
             return 0
             
@@ -193,7 +192,7 @@ class SuccessAnalyzer:
                 # Add points for additional seasons
                 extra_seasons = seasons - 2
                 if extra_seasons > 0:
-                    extra_points = min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 40)
+                    extra_points = min(extra_seasons * self.config.EXTRA_SEASON_VALUE, self.config.MAX_EXTRA_SEASON_POINTS)
                     score += extra_points
         
         # Check episodes
@@ -203,20 +202,18 @@ class SuccessAnalyzer:
                 avg_eps = float(avg_eps)
                 
                 # Add points for high episode counts
-                if avg_eps >= self.config.EPISODE_BONUS_THRESHOLD:
+                if avg_eps >= self.config.HIGH_EPISODE_THRESHOLD:
                     points = self.config.EPISODE_BASE_POINTS + self.config.EPISODE_BONUS_POINTS
                     score += points
                 # Add base points for standard episode counts
-                elif avg_eps >= self.config.EPISODE_MIN_THRESHOLD:
+                elif avg_eps >= self.config.EPISODE_BASE_THRESHOLD:
                     score += self.config.EPISODE_BASE_POINTS
             except (ValueError, TypeError):
                 pass
                 
         # Apply status modifier
         modifier = self.config.STATUS_MODIFIERS.get(show.get('tmdb_status'), 1.0)
-        
-        final_score = min(100, max(0, score * modifier))  # Cap at 100, don't allow negative
-        return final_score
+        final_score = score * modifier
         
     def _get_tier(self, score: float, max_score: float) -> str:
         """Get success tier based on score relative to max."""

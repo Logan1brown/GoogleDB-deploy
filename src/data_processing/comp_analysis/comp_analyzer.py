@@ -556,7 +556,7 @@ class CompAnalyzer:
                 try:
                     self.comp_data[field] = pd.to_numeric(self.comp_data[field], errors='coerce')
                 except KeyError:
-                    logger.warning(f"{field} not found in comp_data")
+                    pass
             
             # Initialize success analyzer with the comp data
             self.success_analyzer.initialize_data(self.comp_data)
@@ -617,10 +617,6 @@ class CompAnalyzer:
             self.initialize()
             return self.field_manager.get_display_options(field_name)
         except Exception as e:
-            logger.error(f"Error in get_field_display_options: {e}")
-            logger.error(f"Field: {field_name}")
-            import traceback
-            logger.error(traceback.format_exc())
             raise
         
     def find_by_criteria(self, criteria: Dict) -> List[Tuple[int, CompScore]]:
@@ -810,9 +806,4 @@ class CompAnalyzer:
         try:
             return self.score_engine.calculate_score(source, target)
         except Exception as e:
-            logger.error(f"Error in _calculate_score: {str(e)}")
-            logger.error(f"Source columns: {source.index}")
-            logger.error(f"Target columns: {target.index}")
-            import traceback
-            logger.error(traceback.format_exc())
             raise
