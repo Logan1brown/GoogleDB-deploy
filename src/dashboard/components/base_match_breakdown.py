@@ -375,6 +375,24 @@ def render_base_match_breakdown(
                     themes['selected']
                 )
             
+            # Time Setting
+            time = details['time_setting']
+            time_score = ScoreDisplay(
+                details['content']['components']['time_setting']['score'],
+                details['content']['components']['time_setting']['max']
+            )
+            render_field_base("Time Setting", time_score)
+            render_match_indicator(time['name1'], time['match'], time['selected'])
+            
+            # Location Setting
+            location = details['location_setting']
+            location_score = ScoreDisplay(
+                details['content']['components']['location_setting']['score'],
+                details['content']['components']['location_setting']['max']
+            )
+            render_field_base("Location Setting", location_score)
+            render_match_indicator(location['name1'], location['match'], location['selected'])
+            
             # Tone
             tone = details['tone']
             tone_score = ScoreDisplay(
@@ -431,25 +449,6 @@ def render_base_match_breakdown(
                     team.get('matches', []),
                     team['selected']
                 )
-        
-        # Setting match section
-        setting_score = ScoreDisplay(
-            details['setting']['total_score'],
-            details['setting']['max_score']
-        )
-        render_section_header("Setting Match", setting_score)
-        
-        col1, col2 = render_two_columns()
-        
-        with col1:
-            # Time setting
-            time = details['setting']['time']
-            render_match_indicator(time['name1'], time['match'], time['selected'])
-        
-        with col2:
-            # Location setting
-            location = details['setting']['location']
-            render_match_indicator(location['name1'], location['match'], location['selected'])
         
         # Format match section
         format_score = ScoreDisplay(

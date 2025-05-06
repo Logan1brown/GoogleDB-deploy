@@ -371,7 +371,7 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
                 'time_setting_match': match.get('time_setting_id') == criteria.get('time_setting_id'),
                 'location_setting_name': details_manager.get_field_name('location_setting', match.get('location_setting_id')),
                 'selected_location_setting_name': details_manager.get_field_name('location_setting', criteria.get('location_setting_id')),
-                'location_match': match.get('location_setting_id') == criteria.get('location_setting_id'),
+                'location_setting_match': match.get('location_setting_id') == criteria.get('location_setting_id'),
                 # Production
                 'network_name': details_manager.get_field_name('network', match.get('network_id')),
                 'selected_network_name': details_manager.get_field_name('network', criteria.get('network_id')),
