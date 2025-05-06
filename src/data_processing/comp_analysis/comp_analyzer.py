@@ -793,30 +793,55 @@ class CompAnalyzer:
                     }
                 }
                 
-                # Include all fields needed for match details
+                # Include all fields exactly as they appear in api_show_comp_data view
                 result = {
+                    # Core Show Data
                     'id': target['id'],
                     'title': target['title'],
-                    'description': target.get('description', ''),  # Add description
-                    'success_score': success_score,  # Use calculated success score
-                    # Content fields
                     'genre_id': target.get('genre_id'),
                     'subgenres': target.get('subgenres', []),
                     'source_type_id': target.get('source_type_id'),
+                    'episode_count': target.get('episode_count'),
+                    'order_type_id': target.get('order_type_id'),
+                    
+                    # Description Analysis
+                    'time_setting_id': target.get('time_setting_id'),
+                    'location_setting_id': target.get('location_setting_id'),
+                    'tone_id': target.get('tone_id'),
                     'character_type_ids': target.get('character_type_ids', []),
                     'plot_element_ids': target.get('plot_element_ids', []),
                     'thematic_element_ids': target.get('thematic_element_ids', []),
-                    'tone_id': target.get('tone_id'),
-                    'time_setting_id': target.get('time_setting_id'),
-                    'location_setting_id': target.get('location_setting_id'),
-                    # Production fields
+                    
+                    # Production Data
                     'network_id': target.get('network_id'),
                     'studios': target.get('studios', []),
                     'team_member_ids': target.get('team_member_ids', []),
+                    'role_categories': target.get('role_categories', []),
+                    
+                    # Display Names
+                    'genre_name': target.get('genre_name'),
+                    'subgenre_names': target.get('subgenre_names', []),
+                    'source_type_name': target.get('source_type_name'),
+                    'order_type_name': target.get('order_type_name'),
+                    'time_setting_name': target.get('time_setting_name'),
+                    'location_setting_name': target.get('location_setting_name'),
+                    'tone_name': target.get('tone_name'),
+                    'character_type_names': target.get('character_type_names', []),
+                    'plot_element_names': target.get('plot_element_names', []),
+                    'thematic_element_names': target.get('thematic_element_names', []),
+                    'network_name': target.get('network_name'),
+                    'studio_names': target.get('studio_names', []),
                     'team_member_names': target.get('team_member_names', []),
-                    # Format fields
-                    'episode_count': target.get('episode_count'),
-                    'order_type_id': target.get('order_type_id'),
+                    
+                    # TMDB Success Metrics
+                    'tmdb_id': target.get('tmdb_id'),
+                    'tmdb_seasons': target.get('tmdb_seasons'),
+                    'tmdb_status': target.get('tmdb_status'),
+                    'tmdb_total_episodes': target.get('tmdb_total_episodes'),
+                    'tmdb_avg_eps': target.get('tmdb_avg_eps'),
+                    
+                    # Description
+                    'description': target.get('description', ''),
                     'comp_score': score_dict,  # Store as dict with explicit float conversions
                     'success_score': success_score,  # Add success score
                     'score': float(score.total())  # Add total score for sorting

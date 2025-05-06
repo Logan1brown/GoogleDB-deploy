@@ -34,6 +34,42 @@ class MatchDetailsManager:
         """Get display name for a field value."""
         if id is None:
             return default
+            
+        # Map field to its corresponding name field in the match data
+        name_field_map = {
+            'genre': 'genre_name',
+            'source_type': 'source_type_name',
+            'tone': 'tone_name',
+            'time_setting': 'time_setting_name',
+            'location_setting': 'location_setting_name',
+            'network': 'network_name',
+            'order_type': 'order_type_name'
+        }
+        
+        # If we have a direct name field mapping, use that
+        if field in name_field_map:
+            return self.match.get(name_field_map[field], default)
+            
+        # For array fields, use the corresponding names array
+        array_name_map = {
+            'character_types': 'character_type_names',
+            'plot_elements': 'plot_element_names',
+            'thematic_elements': 'thematic_element_names',
+            'studios': 'studio_names',
+            'team_members': 'team_member_names'
+        }
+        
+        if field in array_name_map:
+            names = self.match.get(array_name_map[field], [])
+            # Try to find the name at the same index as the ID in the IDs array
+            ids = self.match.get(f'{field}_ids', [])
+            try:
+                idx = ids.index(id)
+                return names[idx]
+            except (ValueError, IndexError):
+                return default
+                
+        # Fallback to the old method
         try:
             return self.comp_analyzer.get_field_display_name(field, id)
         except:
@@ -45,6 +81,8 @@ class MatchDetailsManager:
         
     def create_match_details(self, match: Dict, criteria: Dict) -> Dict:
         """Transform match and criteria into UI-ready match details."""
+        # Store match data for field name lookups
+        self.match = match
         details = {}
         
         # Content match details
