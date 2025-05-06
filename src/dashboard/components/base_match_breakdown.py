@@ -11,7 +11,6 @@ import streamlit as st
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from dashboard.components.match_details import FieldMatch, ArrayFieldMatch
-from data_processing.comp_analysis.comp_analyzer import CompScore
 from src.dashboard.utils.style_config import FONTS
 
 @dataclass
@@ -252,7 +251,9 @@ def render_base_match_breakdown(
         description: Optional show description
     """
     # Build title with match score only
-    title_score = ScoreDisplay(details['total'], details['max'], True)
+    scores = details.get('scores', {})
+    total = scores.get('total', {})
+    title_score = ScoreDisplay(total.get('score', 0), total.get('max', 0), True)
     header = f"{title} (Match:{title_score.format()})"
     
     def render_content():
@@ -263,7 +264,8 @@ def render_base_match_breakdown(
             st.write("")
             
         # Content Match section
-        content_score = ScoreDisplay(details['content']['score'], details['content']['max'])
+        content = scores.get('content', {})
+        content_score = ScoreDisplay(content.get('score', 0), content.get('max', 0))
         render_section_header("Content Match", content_score)
         
         # Create two columns for content
@@ -271,141 +273,159 @@ def render_base_match_breakdown(
         
         with col1:
             # Genre details
-            genre = details['genre']
+            genre = content.get('breakdown', {}).get('genre', {})
             genre_score = ScoreDisplay(
-                content_details['components']['genre']['base'],
-                content_details['components']['genre']['base']
+                genre.get('score', 0),
+                genre.get('max', 0)
             )
             render_field_base("Genre", genre_score)
             
-            if genre['selected']:
+            if genre.get('selected', False):
                 # Primary genre
                 render_match_indicator(
-                    f"Primary: {genre['primary']}",
-                    genre['primary_match'],
+                    f"Primary: {genre.get('name1', 'Unknown')}",
+                    genre.get('match', False),
                     True
                 )
                 
                 # Subgenres
+                subgenres = genre.get('subgenres', {})
                 subgenre_score = ScoreDisplay(
-                    content_details['components']['genre']['overlap'],
-                    content_details['components']['genre']['overlap']
+                    subgenres.get('score', 0),
+                    subgenres.get('max', 0)
                 )
                 render_field_base("Subgenres", subgenre_score)
                 
-                if genre.get('subgenres'):
+                if subgenres.get('selected', False):
                     render_array_field_base(
-                        genre['subgenres'],
-                        genre.get('subgenre_matches', []),
+                        subgenres.get('values1', []),
+                        subgenres.get('matches', []),
                         True
                     )
             else:
-                render_match_indicator(genre['primary'], False, False)
-                if genre.get('subgenres'):
+                render_match_indicator(genre.get('name1', 'Unknown'), False, False)
+                if genre.get('subgenres', {}).get('values1'):
                     render_array_field_base(
-                        genre['subgenres'],
+                        genre.get('subgenres', {}).get('values1', []),
                         [],
                         False
                     )
             
             # Character types
-            if 'characters' in details:
-                chars = details['characters']
+            characters = content.get('breakdown', {}).get('characters', {})
+            if characters:
                 char_score = ScoreDisplay(
-                    content_details['components']['character_types']['score'],
-                    content_details['components']['character_types']['max']
+                    characters.get('score', 0),
+                    characters.get('max', 0)
                 )
                 render_field_base("Character Types", char_score)
                 
-                if chars['selected']:
+                if characters.get('selected', False):
                     render_array_field_base(
-                        chars.get('matches', []) + chars.get('mismatches', []),
-                        chars.get('matches', []),
+                        characters.get('values1', []),
+                        characters.get('matches', []),
                         True
                     )
                 else:
                     render_array_field_base(
-                        chars.get('matches', []) + chars.get('mismatches', []),
+                        characters.get('values1', []),
                         [],
                         False
                     )
                     
             # Plot elements
-            if 'plot' in details:
-                plots = details['plot']
+            plot = content.get('breakdown', {}).get('plot', {})
+            if plot:
                 plot_score = ScoreDisplay(
-                    details['content']['components']['plot_elements']['score'],
-                    details['content']['components']['plot_elements']['max']
+                    plot.get('score', 0),
+                    plot.get('max', 0)
                 )
                 render_field_base("Plot Elements", plot_score)
-                if plots['selected']:
+                if plot.get('selected', False):
                     render_array_field_base(
-                        plots.get('matches', []) + plots.get('mismatches', []),
-                        plots.get('matches', []),
+                        plot.get('values1', []),
+                        plot.get('matches', []),
                         True
                     )
                 else:
                     render_array_field_base(
-                        plots.get('matches', []) + plots.get('mismatches', []),
+                        plot.get('values1', []),
                         [],
                         False
                     )
                 
         with col2:
             # Source type
-            source = details['source']
+            source = content.get('breakdown', {}).get('source', {})
             source_score = ScoreDisplay(
-                details['content']['components']['source_type']['score'],
-                details['content']['components']['source_type']['max']
+                source.get('score', 0),
+                source.get('max', 0)
             )
             render_field_base("Source Type", source_score)
-            render_match_indicator(source['name1'], source['match'], source['selected'])
+            render_match_indicator(
+                source.get('name1', 'Unknown'),
+                source.get('match', False),
+                source.get('selected', False)
+            )
             
             # Theme elements
-            if 'themes' in details:
-                themes = details['themes']
+            themes = content.get('breakdown', {}).get('themes', {})
+            if themes:
                 theme_score = ScoreDisplay(
-                    details['content']['components']['theme_elements']['score'],
-                    details['content']['components']['theme_elements']['max']
+                    themes.get('score', 0),
+                    themes.get('max', 0)
                 )
                 render_field_base("Theme Elements", theme_score)
                 render_array_field_base(
-                    themes.get('matches', []) + themes.get('mismatches', []),
+                    themes.get('values1', []),
                     themes.get('matches', []),
-                    themes['selected']
+                    themes.get('selected', False)
                 )
             
             # Time Setting
-            time = details['time_setting']
+            time = content.get('breakdown', {}).get('time_setting', {})
             time_score = ScoreDisplay(
-                details['content']['components']['time_setting']['score'],
-                details['content']['components']['time_setting']['max']
+                time.get('score', 0),
+                time.get('max', 0)
             )
             render_field_base("Time Setting", time_score)
-            render_match_indicator(time['name1'], time['match'], time['selected'])
+            render_match_indicator(
+                time.get('name1', 'Unknown'),
+                time.get('match', False),
+                time.get('selected', False)
+            )
             
             # Location Setting
-            location = details['location_setting']
+            location = content.get('breakdown', {}).get('location_setting', {})
             location_score = ScoreDisplay(
-                details['content']['components']['location_setting']['score'],
-                details['content']['components']['location_setting']['max']
+                location.get('score', 0),
+                location.get('max', 0)
             )
             render_field_base("Location Setting", location_score)
-            render_match_indicator(location['name1'], location['match'], location['selected'])
+            render_match_indicator(
+                location.get('name1', 'Unknown'),
+                location.get('match', False),
+                location.get('selected', False)
+            )
             
             # Tone
-            tone = details['tone']
+            tone = content.get('breakdown', {}).get('tone', {})
             tone_score = ScoreDisplay(
-                details['content']['components']['tone']['score'],
-                details['content']['components']['tone']['max']
+                tone.get('score', 0),
+                tone.get('max', 0)
             )
             render_field_base("Tone", tone_score)
-            render_match_indicator(tone['name1'], tone['match'], tone['selected'])
+            render_match_indicator(
+                tone.get('name1', 'Unknown'),
+                tone.get('match', False),
+                tone.get('selected', False)
+            )
         
         # Production match section
+        production = scores.get('production', {})
         production_score = ScoreDisplay(
-            details['production']['score'],
-            details['production']['max']
+            production.get('score', 0),
+            production.get('max', 0)
         )
         render_section_header("Production Match", production_score)
         
@@ -413,47 +433,52 @@ def render_base_match_breakdown(
         
         with col1:
             # Network
-            network = details['network']
+            network = production.get('breakdown', {}).get('network', {})
             network_score = ScoreDisplay(
-                details['production']['components']['network']['score'],
-                details['production']['components']['network']['max']
+                network.get('score', 0),
+                network.get('max', 0)
             )
             render_field_base("Network", network_score)
-            render_match_indicator(network['name1'], network['match'], network['selected'])
+            render_match_indicator(
+                network.get('name1', 'Unknown'),
+                network.get('match', False),
+                network.get('selected', False)
+            )
             
             # Studio
-            if 'studio' in details:
-                studio = details['studio']
+            studio = production.get('breakdown', {}).get('studio', {})
+            if studio:
                 studio_score = ScoreDisplay(
-                    details['production']['components']['studio']['score'],
-                    details['production']['components']['studio']['max']
+                    studio.get('score', 0),
+                    studio.get('max', 0)
                 )
                 render_field_base("Studio", studio_score)
                 render_array_field_base(
-                    studio.get('matches', []) + studio.get('mismatches', []),
+                    studio.get('values1', []),
                     studio.get('matches', []),
-                    studio['selected']
+                    studio.get('selected', False)
                 )
         
         with col2:
             # Team members
-            if 'team' in details:
-                team = details['team']
+            team = production.get('breakdown', {}).get('team', {})
+            if team:
                 team_score = ScoreDisplay(
-                    details['production']['components']['team']['score'],
-                    details['production']['components']['team']['max']
+                    team.get('score', 0),
+                    team.get('max', 0)
                 )
                 render_field_base("Team", team_score)
                 render_array_field_base(
-                    team.get('matches', []) + team.get('mismatches', []),
+                    team.get('values1', []),
                     team.get('matches', []),
-                    team['selected']
+                    team.get('selected', False)
                 )
         
         # Format match section
+        format_section = scores.get('format', {})
         format_score = ScoreDisplay(
-            details['format']['total_score'],
-            details['format']['max_score']
+            format_section.get('score', 0),
+            format_section.get('max', 0)
         )
         render_section_header("Format Match", format_score)
         
@@ -461,13 +486,21 @@ def render_base_match_breakdown(
         
         with col1:
             # Episodes
-            episodes = details['format']['episodes']
-            render_match_indicator(episodes['name1'], episodes['match'], episodes['selected'])
+            episodes = format_section.get('breakdown', {}).get('episodes', {})
+            render_match_indicator(
+                episodes.get('name1', 'Unknown'),
+                episodes.get('match', False),
+                episodes.get('selected', False)
+            )
         
         with col2:
             # Order type
-            order = details['format']['order_type']
-            render_match_indicator(order['name1'], order['match'], order['selected'])
+            order = format_section.get('breakdown', {}).get('order_type', {})
+            render_match_indicator(
+                order.get('name1', 'Unknown'),
+                order.get('match', False),
+                order.get('selected', False)
+            )
         
         if description:
             st.markdown(f"\n**Description:**\n{description}")

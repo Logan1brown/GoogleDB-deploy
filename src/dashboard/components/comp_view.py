@@ -207,33 +207,35 @@ def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
 
 def create_results_df(results: List[Dict]) -> pd.DataFrame:
     """Create results DataFrame with consistent formatting."""
-    # Create DataFrame
-    # Convert scores to display format
+    # Create DataFrame using standardized score format
     rows = []
     for r in results:
-        comp_score = r['comp_score']
+        scores = r.get('scores', {})
         try:
-            total = int(comp_score['total'])
-            content = int(comp_score['content'])
-            production = int(comp_score['production'])
-            format_score = int(comp_score['format'])
-            success = int(r['success_score'] or 0)
-        except (TypeError, AttributeError):
-            # Handle case where comp_score is not a CompScore object
-            total = 0
-            content = 0
-            production = 0
-            format_score = 0
-            success = 0
+            total = scores.get('total', {})
+            content = scores.get('content', {})
+            production = scores.get('production', {})
+            format_score = scores.get('format', {})
+            success = int(r.get('success_score', 0) or 0)
             
-        rows.append({
-            'Show': r['title'],
-            'Success': success,
-            'Total Score': f"{total}/{100}",
-            'Content': f"{content}/{82}",
-            'Production': f"{production}/{13}",
-            'Format': f"{format_score}/{5}"
-        })
+            rows.append({
+                'Show': r['title'],
+                'Success': success,
+                'Total Score': f"{int(total.get('score', 0))}/{total.get('max', 0)}",
+                'Content': f"{int(content.get('score', 0))}/{content.get('max', 0)}",
+                'Production': f"{int(production.get('score', 0))}/{production.get('max', 0)}",
+                'Format': f"{int(format_score.get('score', 0))}/{format_score.get('max', 0)}"
+            })
+        except (TypeError, AttributeError):
+            # Handle case where scores are not in expected format
+            rows.append({
+                'Show': r['title'],
+                'Success': 0,
+                'Total Score': '0/0',
+                'Content': '0/0',
+                'Production': '0/0',
+                'Format': '0/0'
+            })
     
     df = pd.DataFrame(rows)
     

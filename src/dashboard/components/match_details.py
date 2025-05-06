@@ -28,7 +28,6 @@ class MatchDetailsManager:
         # Import here to prevent early initialization
         from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
         self.comp_analyzer = comp_analyzer
-        self.scoring = comp_analyzer.score_engine.SCORING
         
     def _get_component_score(self, match: Dict, field: str) -> float:
         """Get a component's score from the comp_score dictionary.
@@ -123,151 +122,121 @@ class MatchDetailsManager:
         return [self.get_field_name(field, id, default) for id in ids]
         
     def create_match_details(self, match: Dict, criteria: Dict) -> Dict:
-        """Transform match and criteria into UI-ready match details."""
-        # Store match data for field name lookups
-        self.match = match
-        details = {}
-        
-        # Content match details
-        details['genre'] = self._process_genre_match(match, criteria)
-        # Process subgenres with overlap scoring - any match is worth the overlap points
-        subgenre_scoring = {
-            'first': self.scoring['content']['components']['genre']['overlap'],  # Any match gets overlap points
-            'second': 0  # No additional points for more matches
+        """Create match details for display in the UI and scoring.
+        Returns a standardized score format that includes both score and max score
+        for each component, along with breakdowns.
+        """
+        # Initialize the standardized score format
+        details = {
+            'scores': {
+                'content': {
+                    'score': 0,
+                    'max': 70,  # From CompScore.CONTENT_MATCH_POINTS
+                    'breakdown': {}
+                },
+                'production': {
+                    'score': 0,
+                    'max': 13,  # From CompScore.PRODUCTION_MATCH_POINTS
+                    'breakdown': {}
+                },
+                'format': {
+                    'score': 0,
+                    'max': 3,  # From CompScore.FORMAT_MATCH_POINTS
+                    'breakdown': {}
+                },
+                'total': {
+                    'score': 0,
+                    'max': 86  # Total possible points
+                }
+            }
         }
-        details['subgenres'] = self._process_array_field_match(
-            'genre', match.get('subgenres', []), criteria.get('subgenres', []),
-            subgenre_scoring
-        )
-        details['source_type'] = self._process_single_field_match(
-            'source_type', match.get('source_type_id'), criteria.get('source_type_id'),
-            self.scoring['content']['components']['source_type']['match'],
-            match
-        )
-        details['character_types'] = self._process_array_field_match(
-            'character_types', match.get('character_type_ids', []), criteria.get('character_type_ids', []),
-            self.scoring['content']['components']['character_types'],
-            match
-        )
-        details['plot_elements'] = self._process_array_field_match(
-            'plot_elements', match.get('plot_element_ids', []), criteria.get('plot_element_ids', []),
-            self.scoring['content']['components']['plot_elements'],
-            match
-        )
-        details['thematic_elements'] = self._process_array_field_match(
-            'thematic_elements', match.get('thematic_element_ids', []), criteria.get('thematic_element_ids', []),
-            self.scoring['content']['components']['thematic_elements'],
-            match
-        )
-        details['tone'] = self._process_single_component(
-            'tone', match, criteria
-        )
         
-        # Production match details
-        details['network'] = self._process_single_field_match(
-            'network', match.get('network_id'), criteria.get('network_id'),
-            self.scoring['production']['components']['network']['match'],
-            match
-        )
-        details['studio'] = self._process_production_field_match(
-            'studios', match.get('studios', []), criteria.get('studio_ids', []),
-            self.scoring['production']['components']['studio'],
-            match=match
-        )
-        # Get team member matches
-        source_team = match.get('team_member_ids', [])
-        target_team = criteria.get('team_member_ids', [])
-        
-        # For team members, we need to check all IDs for each name
-        matching_names = set()
-        matching_ids = set()
-        source_names = match.get('team_member_names', [])
-        target_names = criteria.get('team_member_names', [])
-        
-        # For each source ID, get all possible target IDs with the same name
-        for source_id, source_name in zip(source_team, source_names):
-            for target_id, target_name in zip(target_team, target_names):
-                if source_name == target_name:
-                    matching_names.add(target_name)  # Use exact name from criteria
-                    matching_ids.add(target_id)
-        
-        details['team'] = ArrayFieldMatch(
-            name1='Multiple' if source_team else 'None',
-            name2='Multiple' if target_team else 'None',
-            selected=bool(target_team),
-            match=bool(matching_ids),
-            score=self._get_component_score(match, 'team'),
-            max_score=self.scoring['production']['components']['team']['first'] + 
-                      (self.scoring['production']['components']['team'].get('additional', 0) 
-                       if len(target_team) > 1 else 0),
-            values1=match.get('team_member_names', []),  # Show's team names
-            values2=criteria.get('team_member_names', []),  # Selected names
-            # Use matching_names which contains matched names from criteria
-            matches=list(matching_names)
-        )
-        
-        # Process all fields
-        details['source'] = self._process_single_component('source_type', match, criteria)
-        details['characters'] = self._process_array_component('character_types', match, criteria)
-        details['plot'] = self._process_array_component('plot_elements', match, criteria)
-        details['themes'] = self._process_array_component('thematic_elements', match, criteria)
-        details['tone'] = self._process_single_component('tone', match, criteria)
-        details['time'] = self._process_single_component('time_setting', match, criteria)
-        details['location'] = self._process_single_component('location_setting', match, criteria)
-        details['network'] = self._process_single_component('network', match, criteria)
-        details['studios'] = self._process_array_component('studio', match, criteria)
-        details['team'] = self._process_array_component('team', match, criteria)
-        details['episodes'] = self._process_single_component('episodes', match, criteria)
-        details['order'] = self._process_single_component('order_type', match, criteria)
+        # Process all components and store in breakdown
+        content = details['scores']['content']['breakdown']
+        content['genre'] = self._process_genre_match(match, criteria)
+        content['source'] = self._process_single_field('source_type', match, criteria)
+        content['characters'] = self._process_array_field('character_types', match, criteria)
+        content['plot'] = self._process_array_field('plot_elements', match, criteria)
+        content['themes'] = self._process_array_field('thematic_elements', match, criteria)
+        content['tone'] = self._process_single_field('tone', match, criteria)
+        content['time_setting'] = self._process_single_field('time_setting', match, criteria)
+        content['location_setting'] = self._process_single_field('location_setting', match, criteria)
 
-        # Content components
-        content_components = {
-            'genre': {
-                'score': self._get_component_score(match, 'genre'),
-                'match_details': self._process_genre_match(match, criteria)
-            },
-            'source': details['source'],
-            'characters': details['characters'],
-            'plot': details['plot'],
-            'themes': details['themes'],
-            'tone': details['tone'],
-            'time': details['time'],
-            'location': details['location']
-        }
+        production = details['scores']['production']['breakdown']
+        production['network'] = self._process_single_field('network', match, criteria)
+        production['studio'] = self._process_array_field('studio', match, criteria)
+        production['team'] = self._process_array_field('team', match, criteria)
 
-        # Production components
-        production_components = {
-            'network': details['network'],
-            'studios': details['studios'],
-            'team': details['team']
-        }
+        format_section = details['scores']['format']['breakdown']
+        format_section['episodes'] = self._process_single_field('episodes', match, criteria)
+        format_section['order_type'] = self._process_single_field('order_type', match, criteria)
 
-        # Format components
-        format_components = {
-            'episodes': details['episodes'],
-            'order': details['order']
-        }
+        # Calculate content scores
+        content_fields = ['genre', 'source', 'characters', 'plot', 'themes', 'tone', 'time_setting', 'location_setting']
+        content_score = sum(content[f].score for f in content_fields)
+        details['scores']['content']['score'] = content_score
         
-        details['content'] = {
-            'score': sum(c['score'] for c in content_components.values()),
-            'max': self.scoring['content']['total'],
-            'components': content_components
-        }
+        # Calculate production scores
+        production_fields = ['network', 'studio', 'team']
+        production_score = sum(production[f].score for f in production_fields)
+        details['scores']['production']['score'] = production_score
         
-        details['production'] = {
-            'score': sum(c['score'] for c in production_components.values()),
-            'max': self.scoring['production']['total'],
-            'components': production_components
-        }
+        # Calculate format scores
+        format_fields = ['episodes', 'order_type']
+        format_score = sum(format_section[f].score for f in format_fields)
+        details['scores']['format']['score'] = format_score
         
-        details['format'] = {
-            'score': sum(c['score'] for c in format_components.values()),
-            'max': self.scoring['format']['total'],
-            'components': format_components
-        }
+        # Calculate total score
+        total_score = content_score + production_score + format_score
+        details['scores']['total']['score'] = total_score
         
         return details
+
+    def _process_single_field(self, field: str, match: Dict, criteria: Dict) -> FieldMatch:
+        """Process a single field and return a FieldMatch object for UI display."""
+        id_field = self.id_field_map[field]
+        name_field = self.name_field_map[field]
         
+        value_id = match.get(id_field)
+        target_id = criteria.get(id_field)
+        
+        # Get score from CompAnalyzer
+        score = self.comp_analyzer.get_field_score(field, match) if match else 0
+        max_score = self.comp_analyzer.get_field_max_score(field)
+        
+        return {
+            'name1': match.get(name_field, 'Unknown'),
+            'name2': criteria.get(name_field, 'Unknown'),
+            'selected': bool(target_id),
+            'match': value_id == target_id if value_id and target_id else False,
+            'score': score,
+            'max': max_score
+        }
+
+    def _process_array_field(self, field: str, match: Dict, criteria: Dict) -> ArrayFieldMatch:
+        """Process an array field and return an ArrayFieldMatch object for UI display."""
+        id_field = self.id_field_map[field]
+        name_field = self.name_field_map[field]
+        
+        values = match.get(id_field, [])
+        selected = criteria.get(id_field, [])
+        matching_ids = set(values) & set(selected)
+        
+        # Get score from CompAnalyzer
+        score = self.comp_analyzer.get_field_score(field, match) if match else 0
+        max_score = self.comp_analyzer.get_field_max_score(field)
+        
+        return {
+            'name1': 'Multiple' if values else 'Unknown',
+            'name2': 'Multiple' if selected else 'Unknown',
+            'selected': bool(selected),
+            'match': bool(matching_ids),
+            'score': score,
+            'max': max_score,
+            'values1': match.get(name_field, []),
+            'values2': criteria.get(name_field, []),
+            'matches': list(set(match.get(name_field, [])) & set(criteria.get(name_field, [])))
+        }
     def _process_single_component(self, field: str, match: Dict, criteria: Dict) -> Dict:
         """Process single-value component matches (source_type, tone).
         
@@ -290,34 +259,26 @@ class MatchDetailsManager:
             'order_type': 'order_type_id'
         }
         
-        id_field = id_field_map[field]
-        # Get scoring section and config based on field type
-        if field in self.scoring['content']['components']:
-            section = 'content'
-            max_score = self.scoring[section]['components'][field]['match']
-        elif field in self.scoring['production']['components']:
-            section = 'production'
-            max_score = self.scoring[section]['components'][field]['match']
-        elif field in self.scoring['format']['components']:
-            section = 'format'
-            if field == 'episodes':
-                max_score = self.scoring[section]['components'][field]['within_2']
-            else:
-                max_score = self.scoring[section]['components'][field]['match']
-        else:
-            raise ValueError(f'Field {field} not found in scoring configuration')
-            
+        # Get IDs and check for match
+        value_id = match.get(id_field_map[field])
+        target_id = criteria.get(id_field_map[field])
+        
+        # Get display names
+        value_name = self.get_field_name(field, value_id, match)
+        target_name = self.get_field_name(field, target_id, match)
+        
+        # Return match details using CompAnalyzer scores
         return {
-            'score': self._get_component_score(match, field),
-            'match_details': self._process_single_field_match(
-                field,
-                match.get(id_field),
-                criteria.get(id_field),
-                max_score,
-                match
-            )
+            'score': match.get(f'{field}_score', 0),
+            'max_score': match.get(f'{field}_max_score', 0),
+            'match_details': {
+                'name1': value_name,
+                'name2': target_name,
+                'selected': bool(target_id),
+                'match': value_id == target_id if value_id and target_id else False
+            }
         }
-
+        
     def _process_array_component(self, field: str, match: Dict, criteria: Dict) -> Dict:
         """Process array-based component matches (character_types, plot_elements, thematic_elements).
         
@@ -338,62 +299,59 @@ class MatchDetailsManager:
             'team': 'team_member_ids'
         }
         
-        # Get scoring section and config based on field type
-        if field in self.scoring['content']['components']:
-            section = 'content'
-        elif field in self.scoring['production']['components']:
-            section = 'production'
-        else:
-            raise ValueError(f'Field {field} not found in scoring configuration')
-            
         id_field = id_field_map[field]
+        values = match.get(id_field, [])
+        selected = criteria.get(id_field, [])
+        
         return {
-            'score': self._get_component_score(match, field),
+            'score': match.get(f'{field}_score', 0),
+            'max_score': match.get(f'{field}_max_score', 0),
             'match_details': self._process_array_field_match(
                 field,
-                match.get(id_field, []),
-                criteria.get(id_field, []),
-                self.scoring[section]['components'][field],
+                values,
+                selected,
+                {'first': 0, 'second': 0},  # Dummy scoring since we get scores from CompAnalyzer
                 match
             )
         }
         
-    def _process_genre_match(self, match: Dict, criteria: Dict) -> FieldMatch:
+    def _process_genre_match(self, match: Dict, criteria: Dict) -> Dict:
         """Process genre and subgenre matches."""
         genre_id = match.get('genre_id')
         selected_id = criteria.get('genre_id')
         genre_match = genre_id == selected_id
         
-        # Use the score from comp_analyzer instead of recalculating
-        score = self._get_component_score(match, 'genre')
-        max_score = self.scoring['content']['components']['genre']['base']  # Only use base score for primary genre
-            
-        return FieldMatch(
-            name1=self.get_field_name('genre', genre_id),
-            name2=self.get_field_name('genre', selected_id),
-            selected=selected_id is not None,
-            match=genre_match,
-            score=score,
-            max_score=max_score
-        )
+        # Get score from CompAnalyzer
+        score = self.comp_analyzer.get_field_score('genre', match) if match else 0
+        max_score = self.comp_analyzer.get_field_max_score('genre')
+        
+        return {
+            'name1': self.get_field_name('genre', genre_id),
+            'name2': self.get_field_name('genre', selected_id),
+            'selected': selected_id is not None,
+            'match': genre_match,
+            'score': score,
+            'max': max_score
+        }
         
     def _process_single_field_match(self, field: str, value_id: Optional[int], 
-                                  selected_id: Optional[int], max_score: float, 
-                                  match: Optional[Dict] = None) -> FieldMatch:
+                                   selected_id: Optional[int], max_score: float, 
+                                   match: Optional[Dict] = None) -> Dict:
         """Process match for a single-value field."""
-        # Get score from comp_analyzer
-        score = self._get_component_score(match, field)
-        
         is_match = value_id == selected_id
-            
-        return FieldMatch(
-            name1=self.get_field_name(field, value_id),
-            name2=self.get_field_name(field, selected_id),
-            selected=selected_id is not None,
-            match=is_match,
-            score=score,
-            max_score=max_score
-        )
+        
+        # Get score from CompAnalyzer
+        score = self.comp_analyzer.get_field_score(field, match) if match else 0
+        max_score = self.comp_analyzer.get_field_max_score(field)
+        
+        return {
+            'name1': self.get_field_name(field, value_id),
+            'name2': self.get_field_name(field, selected_id),
+            'selected': selected_id is not None,
+            'match': is_match,
+            'score': score,
+            'max': max_score
+        }
         
     def _empty_match_details(self) -> Dict:
         """Return empty match details for unselected fields."""
