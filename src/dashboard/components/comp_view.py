@@ -297,6 +297,7 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         'id': r['id'],
         'title': r['title'],
         'comp_score': r['comp_score'],
+        'score_details': r['score_details'],  # Add score details for base_match_breakdown
         'success_score': r.get('success_score', 0),  # Add success score
         'description': r.get('description', ''),  # Add description
         'genre_id': r['genre_id'],
