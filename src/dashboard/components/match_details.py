@@ -43,12 +43,17 @@ class MatchDetailsManager:
         if not match or 'comp_score' not in match:
             return 0
             
-        # Look for the field in each section's components
-        for section in ['content', 'production', 'format']:
-            components = match['comp_score'][section]['components']
-            if field in components:
-                return components[field]['score']
-                
+        # Handle genre specially since it's split into base and overlap
+        if field == 'genre':
+            base = match['comp_score']['components'].get('genre_base', 0)
+            overlap = match['comp_score']['components'].get('genre_overlap', 0)
+            return float(base) + float(overlap)
+            
+        # Look for the field directly in components
+        components = match['comp_score']['components']
+        if field in components:
+            return float(components[field])
+            
         return 0
         
     def get_field_name(self, field: str, id: Optional[int], match: Optional[Dict] = None, default: str = 'Unknown') -> str:
@@ -78,25 +83,38 @@ class MatchDetailsManager:
         }
         
         # If match data is provided and has the name field, use that
-        if match is not None and field in name_field_map:
-            name = match.get(name_field_map[field])
-            if name is not None:
-                return name
-                
-        # Otherwise use field_manager to look up name
+        if match is not None:
+            # First check the direct name field map
+            if field in name_field_map:
+                name = match.get(name_field_map[field])
+                if name is not None:
+                    return name
+            
+            # Then check array fields
+            array_name_map = {
+                'character_types': 'character_type_names',
+                'plot_elements': 'plot_element_names',
+                'thematic_elements': 'thematic_element_names',
+                'studios': 'studio_names',
+                'team_members': 'team_member_names'
+            }
+            
+            if field in array_name_map:
+                names = match.get(array_name_map[field], [])
+                # Try to find the name at the same index as the ID in the IDs array
+                ids = match.get(f'{field}_ids', [])
+                try:
+                    idx = ids.index(id)
+                    if idx < len(names):
+                        return names[idx]
+                except (ValueError, IndexError):
+                    pass
+                    
+        # If we didn't find the name in match data, use field_manager
         try:
             return self.comp_analyzer.get_field_display_name(field, id) or default
         except:
             return default
-            
-        # For array fields, use the corresponding names array
-        array_name_map = {
-            'character_types': 'character_type_names',
-            'plot_elements': 'plot_element_names',
-            'thematic_elements': 'thematic_element_names',
-            'studios': 'studio_names',
-            'team_members': 'team_member_names'
-        }
         
         if field in array_name_map:
             names = self.match.get(array_name_map[field], [])
