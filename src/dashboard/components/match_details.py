@@ -299,13 +299,21 @@ class MatchDetailsManager:
         }
         
         id_field = id_field_map[field]
+        # Get scoring section and config based on field type
+        if field in self.scoring['content']['components']:
+            section = 'content'
+        elif field in self.scoring['production']['components']:
+            section = 'production'
+        else:
+            raise ValueError(f'Field {field} not found in scoring configuration')
+            
         return {
             'score': self._get_component_score(match, field),
             'match_details': self._process_single_field_match(
                 field,
                 match.get(id_field),
                 criteria.get(id_field),
-                self.scoring['content']['components'][field]['match'],
+                self.scoring[section]['components'][field]['match'],
                 match
             )
         }
