@@ -243,18 +243,81 @@ class MatchDetailsManager:
         details['episodes'] = format_details['episodes']
         details['order_type'] = format_details['order_type']
         
-        # Add section scores
+        # Calculate section scores by summing their components
+        content_components = {
+            'genre': {
+                'score': self._get_component_score(match, 'genre'),
+                'match_details': self._process_genre_match(match, criteria)
+            },
+            'source_type': {
+                'score': self._get_component_score(match, 'source_type'),
+                'match_details': self._process_source_type_match(match, criteria)
+            },
+            'character_types': {
+                'score': self._get_component_score(match, 'character_types'),
+                'match_details': self._process_character_type_match(match, criteria)
+            },
+            'plot_elements': {
+                'score': self._get_component_score(match, 'plot_elements'),
+                'match_details': self._process_plot_element_match(match, criteria)
+            },
+            'theme_elements': {
+                'score': self._get_component_score(match, 'theme_elements'),
+                'match_details': self._process_theme_element_match(match, criteria)
+            },
+            'tone': {
+                'score': self._get_component_score(match, 'tone'),
+                'match_details': self._process_tone_match(match, criteria)
+            },
+            'time_setting': {
+                'score': self._get_component_score(match, 'time_setting'),
+                'match_details': self._process_time_setting_match(match, criteria)
+            },
+            'location_setting': {
+                'score': self._get_component_score(match, 'location_setting'),
+                'match_details': self._process_location_setting_match(match, criteria)
+            }
+        }
+        
+        production_components = {
+            'network': {
+                'score': self._get_component_score(match, 'network'),
+                'match_details': self._process_network_match(match, criteria)
+            },
+            'studio': {
+                'score': self._get_component_score(match, 'studio'),
+                'match_details': self._process_studio_match(match, criteria)
+            },
+            'team': {
+                'score': self._get_component_score(match, 'team'),
+                'match_details': self._process_team_match(match, criteria)
+            }
+        }
+        
+        format_components = {
+            'episodes': {
+                'score': self._get_component_score(match, 'episodes'),
+                'match_details': self._process_episode_match(match, criteria)
+            },
+            'order_type': {
+                'score': self._get_component_score(match, 'order_type'),
+                'match_details': self._process_order_type_match(match, criteria)
+            }
+        }
+        
         details['content'] = {
-            'score': match['comp_score']['content']['score'],
-            'max': self.scoring['content']['total']
+            'score': sum(c['score'] for c in content_components.values()),
+            'components': content_components
         }
+        
         details['production'] = {
-            'score': match['comp_score']['production']['score'],
-            'max': self.scoring['production']['total']
+            'score': sum(c['score'] for c in production_components.values()),
+            'components': production_components
         }
+        
         details['format'] = {
-            'score': match['comp_score']['format']['score'],
-            'max': self.scoring['format']['total']
+            'score': sum(c['score'] for c in format_components.values()),
+            'components': format_components
         }
         
         return details
