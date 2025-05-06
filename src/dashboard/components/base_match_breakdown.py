@@ -8,9 +8,9 @@ Specific views should extend these methods with their own display logic.
 """
 
 import streamlit as st
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 from dataclasses import dataclass
-from dashboard.components.match_details import FieldMatch, ArrayFieldMatch
+from .score_display import ScoreDisplay
 from src.dashboard.utils.style_config import FONTS
 
 @dataclass
@@ -52,8 +52,9 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
     
     # Content match section
     render_section_header("Content Match", ScoreDisplay(
-        score=details['content']['score'],
-        max_score=details['content']['max']
+        score=content['score'],
+        max_score=content['max'],
+        show_score=True
     ))
     
     st.write("")
@@ -62,71 +63,73 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
     col1, col2 = st.columns(2)
     
     with col1:
+        breakdown = content['breakdown']
         # Genre and subgenres
-        render_field_match("Genre", details['genre'])
-        render_array_field_match("Subgenres", details['subgenres'])
+        render_field_match("Genre", breakdown['genre'])
+        render_array_field_match("Subgenres", breakdown.get('subgenres', {
+            'score': 0, 'max': 8, 'values1': [], 'selected': False, 'matches': []
+        }))
         
         # Source type
-        render_field_match("Source Type", details['source'])
+        render_field_match("Source Type", breakdown['source'])
         
         # Character types
-        render_array_field_match("Character Types", details['characters'])
+        render_array_field_match("Character Types", breakdown['characters'])
         
         # Time Setting
-        render_field_match("Time Setting", details['time_setting'])
+        render_field_match("Time Setting", breakdown['time_setting'])
     
     with col2:
         # Plot elements
-        render_array_field_match("Plot Elements", details['plot_elements'])
+        render_array_field_match("Plot Elements", breakdown['plot'])
         
         # Theme elements
-        render_array_field_match("Theme Elements", details['theme_elements'])
+        render_array_field_match("Theme Elements", breakdown['themes'])
         
         # Tone
-        render_field_match("Tone", details['tone'])
+        render_field_match("Tone", breakdown['tone'])
+        
+        # Location Setting
+        render_field_match("Location", breakdown['location_setting'])
     
     st.write("")
     
     # Production match section
     render_section_header("Production Match", ScoreDisplay(
-        score=details['production']['score'],
-        max_score=details['production']['max']
+        score=production['score'],
+        max_score=production['max'],
+        show_score=True
     ))
     
     # Production fields in columns
     col1, col2 = st.columns(2)
     
     with col1:
-        # Network
-        render_field_match("Network", details['network'])
-        
-        # Studios
-        render_array_field_match("Studios", details['studio'])
+        breakdown = production['breakdown']
+        render_field_match("Network", breakdown['network'])
+        render_array_field_match("Studios", breakdown['studio'])
     
     with col2:
-        # Team
-        render_array_field_match("Team Members", details['team'])
+        render_array_field_match("Team Members", breakdown['team'])
     
     st.write("")
     
     # Format match section
     render_section_header("Format Match", ScoreDisplay(
-        score=details['format']['score'],
-        max_score=details['format']['max']
+        score=format_section['score'],
+        max_score=format_section['max'],
+        show_score=True
     ))
     
     # Format fields in columns
     col1, col2 = st.columns(2)
     
     with col1:
-        # Episodes
-        render_field_match("Episode Count", details['episodes'])
-        
-    with col2:
-        # Order type
-        render_field_match("Order Type", details['order_type'])
+        breakdown = format_section['breakdown']
+        render_field_match("Episode Count", breakdown['episodes'])
     
-
+    with col2:
+        render_field_match("Order Type", breakdown['order_type'])
 
 def render_matches_section(matches: List[Dict], details_manager, criteria: Dict) -> None:
     """Template method for rendering the matches section."""
@@ -212,23 +215,23 @@ def render_match_indicator(value: str, matched: bool = True, selected: bool = Tr
     else:
         st.markdown(f"⚫ {value}")
 
-def render_field_match(label: str, match: 'FieldMatch', show_score: bool = True) -> None:
+def render_field_match(label: str, match: Dict, show_score: bool = True) -> None:
     """Render a single field match using base template methods."""
-    score = ScoreDisplay(match.score, match.max_score, show_score)
+    score = ScoreDisplay(match['score'], match['max'], show_score)
     render_section_header(label, score)
     # Just show the value with appropriate bullet point
-    render_match_indicator(match.name1, matched=match.match, selected=match.selected)
+    render_match_indicator(match['name1'], matched=match['match'], selected=match['selected'])
 
-def render_array_field_match(label: str, match: 'ArrayFieldMatch') -> None:
+def render_array_field_match(label: str, match: Dict) -> None:
     """Render a multi-value field match using base template methods."""
-    score = ScoreDisplay(match.score, match.max_score, True)
+    score = ScoreDisplay(match['score'], match['max'], True)
     render_section_header(label, score)
     # Just show values with appropriate bullet points
-    if not match.values1:
-        render_match_indicator("None", False, match.selected)
+    if not match['values1']:
+        render_match_indicator("None", False, match['selected'])
     else:
-        for value in match.values1:
-            render_match_indicator(value, value in match.matches, match.selected)
+        for value in match['values1']:
+            render_match_indicator(value, value in match['matches'], match['selected'])
 
 def render_base_match_breakdown(
     title: str,
