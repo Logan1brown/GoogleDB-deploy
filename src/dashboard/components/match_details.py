@@ -145,6 +145,20 @@ class MatchDetailsManager:
             self.scoring['format']['components']['order_type']['match']
         )
         
+        # Add section scores
+        details['content'] = {
+            'score': match['comp_score']['content'],
+            'max': self.scoring['content']['total']
+        }
+        details['production'] = {
+            'score': match['comp_score']['production'],
+            'max': self.scoring['production']['total']
+        }
+        details['format'] = {
+            'score': match['comp_score']['format'],
+            'max': self.scoring['format']['total']
+        }
+        
         return details
         
     def _process_genre_match(self, match: Dict, criteria: Dict) -> FieldMatch:
