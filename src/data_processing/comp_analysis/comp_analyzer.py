@@ -503,8 +503,8 @@ class ScoreEngine:
             )
                     
         # Episode scoring
-        if pd.notna(source['episode_count']) and pd.notna(target['episode_count']):
-            diff = abs(source['episode_count'] - target['episode_count'])
+        if pd.notna(source['first_season_episode_count']) and pd.notna(target['first_season_episode_count']):
+            diff = abs(source['first_season_episode_count'] - target['first_season_episode_count'])
             if diff <= 2:
                 score.episodes = self.SCORING['format']['components']['episodes']['within_2']
             elif diff <= 4:
@@ -718,7 +718,7 @@ class CompAnalyzer:
             'thematic_element_ids': 'thematic_element_ids',
             'team_member_ids': 'team_member_ids',  # For matching/scoring
             'team_member_names': 'team_member_names',  # For display
-            'episode_count': 'episode_count'  # First season episode count
+            'episode_count': 'first_season_episode_count'  # First season episode count
         }
         
         # Convert criteria values to proper types
