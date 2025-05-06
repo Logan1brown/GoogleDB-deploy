@@ -547,7 +547,18 @@ class CompAnalyzer:
     def initialize(self, force: bool = False):
         """Initialize or refresh the analyzer data."""
         if force or self.comp_data is None:
-            self.comp_data, self.reference_data = self.shows_analyzer.fetch_comp_data()
+            # Get fresh data from ShowsAnalyzer
+            self.comp_data, self.reference_data = self.shows_analyzer.fetch_comp_data(force=force)
+            
+            # Debug: Print raw data
+            import streamlit as st
+            st.write("Debug - Raw data from first show:")
+            first_show = self.comp_data.iloc[0]
+            st.write({
+                'id': first_show['id'],
+                'title': first_show['title'],
+                'description': first_show.get('description', 'NOT FOUND IN RAW DATA')
+            })
             
             # Convert numeric fields for success calculation
             numeric_fields = ['tmdb_seasons', 'tmdb_avg_eps']
