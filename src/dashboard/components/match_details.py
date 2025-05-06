@@ -409,9 +409,14 @@ class MatchDetailsManager:
         if 'first' in scoring and 'second' in scoring:
             # Content scoring (character_types, plot_elements, etc)
             max_score = scoring['first'] + scoring['second']
-        else:
+        elif 'primary' in scoring and 'max_additional' in scoring:
             # Production scoring (studio)
             max_score = scoring['primary'] + scoring['max_additional']
+        elif 'first' in scoring and 'max_additional' in scoring:
+            # Team scoring
+            max_score = scoring['first'] + scoring['max_additional']
+        else:
+            raise ValueError(f'Unknown scoring format for field: {scoring}')
         
         return ArrayFieldMatch(
             name1='Multiple' if value_names else 'None',
