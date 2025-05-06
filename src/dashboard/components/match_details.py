@@ -115,21 +115,7 @@ class MatchDetailsManager:
             return self.comp_analyzer.get_field_display_name(field, id) or default
         except:
             return default
-        
-        if field in array_name_map:
-            names = self.match.get(array_name_map[field], [])
-            # Try to find the name at the same index as the ID in the IDs array
-            ids = self.match.get(f'{field}_ids', [])
-            try:
-                idx = ids.index(id)
-                return names[idx]
-            except (ValueError, IndexError):
-                return default
                 
-        # Fallback to the old method
-        try:
-            return self.comp_analyzer.get_field_display_name(field, id)
-        except:
             return default
             
     def get_field_names(self, field: str, ids: List[int], default: str = 'Unknown') -> List[str]:
