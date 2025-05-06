@@ -651,10 +651,6 @@ class CompAnalyzer:
             
         source = pd.Series(mapped_criteria)
         
-        # Debug: Check comp data
-        import streamlit as st
-
-                
         # Score each show
         results = []
         for _, target in self.comp_data.iterrows():
