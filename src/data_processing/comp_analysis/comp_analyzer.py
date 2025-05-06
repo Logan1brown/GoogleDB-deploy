@@ -650,6 +650,11 @@ class CompAnalyzer:
             
         source = pd.Series(mapped_criteria)
         
+        # Debug: Check first few rows for description
+        logger.info("First 3 rows of comp data:")
+        for _, row in self.comp_data.head(3).iterrows():
+            logger.info(f"ID: {row['id']}, Title: {row['title']}, Description: {row.get('description', 'NOT FOUND')}")
+                
         # Score each show
         results = []
         for _, target in self.comp_data.iterrows():

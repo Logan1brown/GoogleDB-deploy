@@ -322,6 +322,9 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     
     for match in match_results[:10]:
         comp_score = match['comp_score']
+        # Debug: Log description for each match
+        st.write(f"Debug - Description for {match['title']}: {match.get('description', 'NOT FOUND')}")
+        
         with st.expander(
             f"#### #{match['id']}: {match['title']} (Match: {comp_score.total():.1f})", 
             expanded=match == match_results[0]
