@@ -283,7 +283,9 @@ class MatchDetailsManager:
             'tone': 'tone_id',
             'time_setting': 'time_setting_id',
             'location_setting': 'location_setting_id',
-            'network': 'network_id'
+            'network': 'network_id',
+            'episodes': 'tmdb_total_episodes',
+            'order_type': 'order_type_id'
         }
         
         id_field = id_field_map[field]
