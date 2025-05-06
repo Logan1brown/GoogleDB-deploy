@@ -269,49 +269,50 @@ class CompScore:
         
     def get_match_details(self) -> Dict[str, Dict[str, Any]]:
         """Get match details for display."""
+        # Convert all scores to float to ensure they're serializable
         return {
             'content': {
-                'score': self.content_score(),
-                'max': self._scoring['content']['total'],
+                'score': float(self.content_score()),
+                'max': float(self._scoring['content']['total']),
                 'components': {
                     'genre_base': {
-                        'score': self.genre_base,
-                        'max': self._scoring['content']['components']['genre']['base']
+                        'score': float(self.genre_base),
+                        'max': float(self._scoring['content']['components']['genre']['base'])
                     },
                     'genre_overlap': {
-                        'score': self.genre_overlap,
-                        'max': self._scoring['content']['components']['genre']['overlap']
+                        'score': float(self.genre_overlap),
+                        'max': float(self._scoring['content']['components']['genre']['overlap'])
                     },
                     'source_type': {
-                        'score': self.source_type,
-                        'max': self._scoring['content']['components']['source_type']['match']
+                        'score': float(self.source_type),
+                        'max': float(self._scoring['content']['components']['source_type']['match'])
                     },
                     'character_types': {
-                        'score': self.character_types,
-                        'max': self._scoring['content']['components']['character_types']['first'] + 
-                              self._scoring['content']['components']['character_types']['second']
+                        'score': float(self.character_types),
+                        'max': float(self._scoring['content']['components']['character_types']['first'] + 
+                              self._scoring['content']['components']['character_types']['second'])
                     },
                     'plot_elements': {
-                        'score': self.plot_elements,
-                        'max': self._scoring['content']['components']['plot_elements']['first'] + 
-                              self._scoring['content']['components']['plot_elements']['second']
+                        'score': float(self.plot_elements),
+                        'max': float(self._scoring['content']['components']['plot_elements']['first'] + 
+                              self._scoring['content']['components']['plot_elements']['second'])
                     },
                     'theme_elements': {
-                        'score': self.theme_elements,
-                        'max': self._scoring['content']['components']['theme_elements']['first'] + 
-                              self._scoring['content']['components']['theme_elements']['second']
+                        'score': float(self.theme_elements),
+                        'max': float(self._scoring['content']['components']['theme_elements']['first'] + 
+                              self._scoring['content']['components']['theme_elements']['second'])
                     },
                     'tone': {
-                        'score': self.tone,
-                        'max': self._scoring['content']['components']['tone']['match']
+                        'score': float(self.tone),
+                        'max': float(self._scoring['content']['components']['tone']['match'])
                     },
                     'time_setting': {
-                        'score': self.time_setting,
-                        'max': self._scoring['content']['components']['time_setting']['match']
+                        'score': float(self.time_setting),
+                        'max': float(self._scoring['content']['components']['time_setting']['match'])
                     },
                     'location_setting': {
-                        'score': self.location,
-                        'max': self._scoring['content']['components']['location_setting']['match']
+                        'score': float(self.location),
+                        'max': float(self._scoring['content']['components']['location_setting']['match'])
                     }
                 }
             },
