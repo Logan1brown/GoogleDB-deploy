@@ -241,21 +241,12 @@ class MatchDetailsManager:
         production_components = {
             'network': self._process_single_component('network', match, criteria),
             'studio': self._process_array_component('studio', match, criteria),
-            'team': {
-                'score': self._get_component_score(match, 'team'),
-                'match_details': self._process_team_match(match, criteria)
-            }
+            'team': self._process_array_component('team', match, criteria)
         }
         
         format_components = {
-            'episodes': {
-                'score': self._get_component_score(match, 'episodes'),
-                'match_details': self._process_episode_match(match, criteria)
-            },
-            'order_type': {
-                'score': self._get_component_score(match, 'order_type'),
-                'match_details': self._process_order_type_match(match, criteria)
-            }
+            'episodes': self._process_single_component('episodes', match, criteria),
+            'order_type': self._process_single_component('order_type', match, criteria)
         }
         
         details['content'] = {
