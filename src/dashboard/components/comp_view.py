@@ -208,16 +208,34 @@ def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
 def create_results_df(results: List[Dict]) -> pd.DataFrame:
     """Create results DataFrame with consistent formatting."""
     # Create DataFrame
-    df = pd.DataFrame([
-        {
+    # Convert scores to display format
+    rows = []
+    for r in results:
+        comp_score = r['comp_score']
+        try:
+            total = int(comp_score.total())
+            content = int(comp_score.content_score())
+            production = int(comp_score.production_score())
+            format_score = int(comp_score.format_score())
+            success = int(r['success_score'] or 0)
+        except (TypeError, AttributeError):
+            # Handle case where comp_score is not a CompScore object
+            total = 0
+            content = 0
+            production = 0
+            format_score = 0
+            success = 0
+            
+        rows.append({
             'Show': r['title'],
-            'Success': int(r['success_score'] or 0),
-            'Total Score': f"{int(r['comp_score'].total())}/{100}",  # Total out of 100
-            'Content': f"{int(r['comp_score'].content_score())}/{82}",  # Content out of 82
-            'Production': f"{int(r['comp_score'].production_score())}/{13}",  # Production out of 13
-            'Format': f"{int(r['comp_score'].format_score())}/{5}"  # Format out of 5
-        } for r in results
-    ])
+            'Success': success,
+            'Total Score': f"{total}/{100}",
+            'Content': f"{content}/{82}",
+            'Production': f"{production}/{13}",
+            'Format': f"{format_score}/{5}"
+        })
+    
+    df = pd.DataFrame(rows)
     
     # Sort by Total Score descending, then by Success descending
     # Extract numeric score from 'score/max' format for sorting
