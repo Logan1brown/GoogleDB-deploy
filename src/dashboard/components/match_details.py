@@ -394,27 +394,39 @@ class MatchDetailsManager:
     def _process_array_field_match(self, field: str, values: List[int], 
                                  selected: List[int], scoring: Dict,
                                  match: Optional[Dict] = None) -> ArrayFieldMatch:
+        """Process match for a multi-value field.
+        
+        Handles both content scoring (first/second) and production scoring (primary/additional).
+        
+        Args:
+            field: Field name
+            values: List of field values
+            selected: List of selected values
+            scoring: Scoring config for the field
+            match: Optional match data containing name fields
+            
+        Returns:
+            ArrayFieldMatch with match details
+        """
         """Process match for a multi-value field."""
         value_names = self.get_field_names(field, values)
         selected_names = self.get_field_names(field, selected)
+        matches = [n for n in value_names if n in selected_names]
         
-        value_set = set(values)
-        selected_set = set(selected)
-        matches = value_set & selected_set
+        # Calculate max score based on scoring format
+        if 'first' in scoring and 'second' in scoring:
+            # Content scoring (character_types, plot_elements, etc)
+            max_score = scoring['first'] + scoring['second']
+        else:
+            # Production scoring (studio)
+            max_score = scoring['primary'] + scoring['max_additional']
         
-        # Get score from comp_analyzer
-        score = self._get_component_score(match, field)
-                
         return ArrayFieldMatch(
-            name1='Multiple' if value_names else 'None',
-            name2='Multiple' if selected_names else 'None',
-            selected=bool(selected),
-            match=bool(matches),
-            score=score,
-            max_score=scoring['first'] + scoring['second'],
             values1=value_names,
             values2=selected_names,
-            matches=self.get_field_names(field, list(matches))
+            matches=matches,
+            max_score=max_score,
+            score=self._get_component_score(match, field)
         )
         
 
