@@ -308,6 +308,16 @@ class MatchDetailsManager:
         
         return details
         
+    def _process_source_type_match(self, match: Dict, criteria: Dict) -> Dict:
+        """Process source type match."""
+        return self._process_single_field_match(
+            'source_type',
+            match.get('source_type_id'),
+            criteria.get('source_type_id'),
+            self.scoring['content']['components']['source_type']['match'],
+            match
+        )
+
     def _process_genre_match(self, match: Dict, criteria: Dict) -> FieldMatch:
         """Process genre and subgenre matches."""
         genre_id = match.get('genre_id')
