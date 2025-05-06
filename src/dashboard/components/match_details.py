@@ -29,6 +29,43 @@ class MatchDetailsManager:
         from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
         self.comp_analyzer = comp_analyzer
         
+        # Get field configs from CompAnalyzer
+        self.field_configs = comp_analyzer.field_manager.FIELD_CONFIGS
+        
+        # Map field names to match data fields
+        self.id_field_map = {
+            'genre': 'genre_id',
+            'source_type': 'source_type_id',
+            'character_types': 'character_type_ids',
+            'plot_elements': 'plot_element_ids',
+            'thematic_elements': 'thematic_element_ids',
+            'tone': 'tone_id',
+            'time_setting': 'time_setting_id',
+            'location_setting': 'location_setting_id',
+            'network': 'network_id',
+            'studio': 'studios',
+            'team': 'team_member_ids',
+            'episodes': 'episode_count',
+            'order_type': 'order_type_id'
+        }
+        
+        # Map fields to their name fields
+        self.name_field_map = {
+            'genre': 'genre_name',
+            'source_type': 'source_type_name', 
+            'character_types': 'character_type_names',
+            'plot_elements': 'plot_element_names',
+            'thematic_elements': 'thematic_element_names',
+            'tone': 'tone_name',
+            'time_setting': 'time_setting_name',
+            'location_setting': 'location_setting_name',
+            'network': 'network_name',
+            'studio': 'studio_names',
+            'team': 'team_member_names',
+            'episodes': 'episode_count',
+            'order_type': 'order_type_name'
+        }
+        
     def _get_component_score(self, match: Dict, field: str) -> float:
         """Get a component's score from the comp_score dictionary.
         
