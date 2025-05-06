@@ -849,10 +849,40 @@ class CompAnalyzer:
                 
             score = self.score_engine.calculate_score(source, target)
             if score.total() > 0:
-                scores.append((target['id'], score))
+                # Convert CompScore to dict for consistent handling
+                score_dict = {
+                    'total': float(score.total()),
+                    'content': float(score.content_score()),
+                    'production': float(score.production_score()),
+                    'format': float(score.format_score()),
+                    'components': {
+                        'genre_base': float(score.genre_base),
+                        'genre_overlap': float(score.genre_overlap),
+                        'source_type': float(score.source_type),
+                        'character_types': float(score.character_types),
+                        'plot_elements': float(score.plot_elements),
+                        'theme_elements': float(score.theme_elements),
+                        'tone': float(score.tone),
+                        'time_setting': float(score.time_setting),
+                        'location': float(score.location),
+                        'network': float(score.network),
+                        'studio': float(score.studio),
+                        'team': float(score.team),
+                        'episodes': float(score.episodes),
+                        'order_type': float(score.order_type)
+                    }
+                }
+                result = {
+                    'id': target['id'],
+                    'title': target['title'],
+                    'description': target.get('description', ''),
+                    'comp_score': score_dict,
+                    'score': float(score.total())
+                }
+                scores.append(result)
                 
         # Sort by total score descending and limit results
-        return sorted(scores, key=lambda x: x[1].total(), reverse=True)[:limit]
+        return sorted(scores, key=lambda x: x['score'], reverse=True)[:limit]
         
     def get_comparison_details(self, source_id: int, target_id: int) -> Dict:
         """Get detailed comparison between two shows.

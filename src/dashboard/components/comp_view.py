@@ -310,7 +310,7 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         'id': r['id'],
         'title': r['title'],
         'success_score': r.get('success_score', 0),
-        'total_score': r['comp_score'].total(),
+        'total_score': r['score'],  # Use pre-calculated score
         'comp_score': r['comp_score'],
         'description': r.get('description', '')
     } for r in results]
