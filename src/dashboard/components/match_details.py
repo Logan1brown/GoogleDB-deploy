@@ -224,29 +224,30 @@ class MatchDetailsManager:
         details['order_type'] = format_details['order_type']
         
         # Calculate section scores by summing their components
+        # Map internal field names to UI display names
         content_components = {
             'genre': {
                 'score': self._get_component_score(match, 'genre'),
                 'match_details': self._process_genre_match(match, criteria)
             },
-            'source_type': self._process_single_component('source_type', match, criteria),
-            'character_types': self._process_array_component('character_types', match, criteria),
-            'plot_elements': self._process_array_component('plot_elements', match, criteria),
-            'thematic_elements': self._process_array_component('thematic_elements', match, criteria),
+            'source': self._process_single_component('source_type', match, criteria),
+            'characters': self._process_array_component('character_types', match, criteria),
+            'plot': self._process_array_component('plot_elements', match, criteria),
+            'themes': self._process_array_component('thematic_elements', match, criteria),
             'tone': self._process_single_component('tone', match, criteria),
-            'time_setting': self._process_single_component('time_setting', match, criteria),
-            'location_setting': self._process_single_component('location_setting', match, criteria)
+            'time': self._process_single_component('time_setting', match, criteria),
+            'location': self._process_single_component('location_setting', match, criteria)
         }
         
         production_components = {
             'network': self._process_single_component('network', match, criteria),
-            'studio': self._process_array_component('studio', match, criteria),
+            'studios': self._process_array_component('studio', match, criteria),
             'team': self._process_array_component('team', match, criteria)
         }
         
         format_components = {
             'episodes': self._process_single_component('episodes', match, criteria),
-            'order_type': self._process_single_component('order_type', match, criteria)
+            'order': self._process_single_component('order_type', match, criteria)
         }
         
         details['content'] = {
