@@ -283,49 +283,33 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         st.info("No matches found for the selected criteria.")
         return
         
-    # Sort matches by total score
-    matches = sorted(results, key=lambda x: x.get('total_score', 0), reverse=True)
-    
-    # Create results table
-    if matches:
-        df = create_results_df(matches)
-        apply_table_css()
-        st.dataframe(df.style.apply(apply_table_styling))
-    
-    # Create match details manager and show details
+    # Create match details manager
     MatchDetailsManager = get_match_details_manager()
     details_manager = MatchDetailsManager(comp_analyzer)
     
-    # Transform results into expected format
+    # Transform results into expected format and calculate total scores
     match_results = [{
         'id': r['id'],
         'title': r['title'],
+        'success_score': r.get('success_score', 0),
+        'total_score': r['comp_score'].total(),
         'comp_score': r['comp_score'],
-        'score_details': r['score_details'],  # Add score details for base_match_breakdown
-        'success_score': r.get('success_score', 0),  # Add success score
-        'description': r.get('description', ''),  # Add description
-        'genre_id': r['genre_id'],
-        'subgenres': r.get('subgenres', []),
-        'source_type_id': r['source_type_id'],
-        'character_type_ids': r.get('character_type_ids', []),
-        'plot_element_ids': r.get('plot_element_ids', []),
-        'thematic_element_ids': r.get('thematic_element_ids', []),
-        'tone_id': r['tone_id'],
-        'time_setting_id': r['time_setting_id'],
-        'location_setting_id': r['location_setting_id'],
-        'network_id': r['network_id'],
-        'studios': r.get('studios', []),
-        'team_member_ids': r.get('team_member_ids', []),  # Match view field names
-        'team_member_names': r.get('team_member_names', []),  # Match view field names
-        'episode_count': r['episode_count'],
-        'order_type_id': r['order_type_id']
+        'description': r.get('description', '')
     } for r in results]
     
-    render_match_details_section = get_render_match_details_section()
+    # Sort by total score descending
+    match_results.sort(key=lambda x: x['total_score'], reverse=True)
+    
+    # Create results table
+    if match_results:
+        df = create_results_df(match_results)
+        apply_table_css()
+        st.dataframe(df.style.apply(apply_table_styling))
+    
+    # Get criteria for comparison
     criteria = state.get('criteria', {})
     
-    st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['title']}px; font-weight: 600; margin-bottom: 1em;'>Top Matches</p>", unsafe_allow_html=True)
-    
+    # Process top 10 matches
     for match in match_results[:10]:
         comp_score = match['comp_score']
         
