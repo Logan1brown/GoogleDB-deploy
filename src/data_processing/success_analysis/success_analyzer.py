@@ -177,40 +177,55 @@ class SuccessAnalyzer:
     def calculate_success(self, show: pd.Series) -> float:
         """Calculate success score for a single show."""
         # Shows must have reliable status to get a score
-        if show['tmdb_status'] not in ShowStatus.RELIABLE:
+        st.write(f"Checking status for {show.get('title')}: {show.get('tmdb_status')}")
+        if show.get('tmdb_status') not in ShowStatus.RELIABLE:
+            st.write(f"Status not reliable, returning 0")
             return 0
             
         score = 0
         
         # Season achievements
-        if pd.notna(show['tmdb_seasons']):
+        st.write(f"Checking seasons: {show.get('tmdb_seasons')}")
+        if pd.notna(show.get('tmdb_seasons')):
             seasons = int(show['tmdb_seasons'])
+            st.write(f"Found {seasons} seasons")
             if seasons >= 2:
                 score += self.config.SEASON2_VALUE
+                st.write(f"Added {self.config.SEASON2_VALUE} points for S2")
                 extra_seasons = seasons - 2
                 if extra_seasons > 0:
-                    score += min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 40)  # Cap extra seasons bonus at 40 points
+                    extra_points = min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 40)
+                    score += extra_points
+                    st.write(f"Added {extra_points} points for {extra_seasons} extra seasons")
                 
         # Episode volume points (40% of total possible)
-        if pd.notna(show['tmdb_avg_eps']):
+        st.write(f"Checking episodes: {show.get('tmdb_avg_eps')}")
+        if pd.notna(show.get('tmdb_avg_eps')):
             try:
                 avg_eps = float(show['tmdb_avg_eps'])
+                st.write(f"Average episodes: {avg_eps}")
                 if avg_eps >= self.config.EPISODE_BONUS_THRESHOLD:
                     # High volume show (10+ episodes)
-                    score += self.config.EPISODE_BASE_POINTS + self.config.EPISODE_BONUS_POINTS
+                    points = self.config.EPISODE_BASE_POINTS + self.config.EPISODE_BONUS_POINTS
+                    score += points
+                    st.write(f"Added {points} points for high episode count")
                 elif avg_eps >= self.config.EPISODE_MIN_THRESHOLD:
                     # Standard volume show (8-9 episodes)
                     score += self.config.EPISODE_BASE_POINTS
+                    st.write(f"Added {self.config.EPISODE_BASE_POINTS} points for standard episode count")
                 # No points if below minimum
             except (ValueError, TypeError):
-                # Skip invalid episode count
+                st.write("Invalid episode count, skipping")
                 pass
             
         # Apply status modifier
-        modifier = self.config.STATUS_MODIFIERS.get(show['tmdb_status'], 1.0)
+        modifier = self.config.STATUS_MODIFIERS.get(show.get('tmdb_status'), 1.0)
+        st.write(f"Applying status modifier: {modifier}")
         score *= modifier
         
-        return min(100, max(0, score))  # Cap at 100, don't allow negative
+        final_score = min(100, max(0, score))  # Cap at 100, don't allow negative
+        st.write(f"Final score: {final_score}")
+        return final_score
         
     def _get_tier(self, score: float, max_score: float) -> str:
         """Get success tier based on score relative to max."""
