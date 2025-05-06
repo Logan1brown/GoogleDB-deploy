@@ -664,18 +664,18 @@ class CompAnalyzer:
             score = self.score_engine.calculate_score(source, target)
             # Include results with any matching criteria
             if score.total() > 0 or score.character_types > 0 or score.plot_elements > 0 or score.theme_elements > 0:
-                # Debug TMDB data
-                st.write("TMDB data for show:", {
+                # Calculate success score and ensure it's a float
+                success_score = float(self.success_analyzer.calculate_success(target))
+                
+                # Store debug info in result dictionary
+                tmdb_debug = {
                     'id': target['id'],
                     'title': target['title'],
                     'tmdb_status': target.get('tmdb_status'),
                     'tmdb_seasons': target.get('tmdb_seasons'),
-                    'tmdb_avg_eps': target.get('tmdb_avg_eps')
-                })
-                
-                # Calculate success score and ensure it's a float
-                success_score = float(self.success_analyzer.calculate_success(target))
-                st.write(f"Calculated success score: {success_score}")
+                    'tmdb_avg_eps': target.get('tmdb_avg_eps'),
+                    'success_score': success_score
+                }
                 
                 # Include all fields needed for match details
                 result = {
@@ -684,6 +684,7 @@ class CompAnalyzer:
                     'description': target.get('description', ''),  # Add description
                     'success_score': success_score,  # Use calculated success score
                     'comp_score': score,
+                    'debug': tmdb_debug,  # Add debug info
                     # Content fields
                     'genre_id': target.get('genre_id'),
                     'subgenres': target.get('subgenres', []),  # Include subgenres
