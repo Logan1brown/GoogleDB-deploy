@@ -66,11 +66,11 @@ class MatchDetailsManager:
             'character_types', match.get('character_type_ids', []), criteria.get('character_type_ids', []),
             self.scoring['content']['components']['character_types']
         )
-        details['plot'] = self._process_array_field_match(
+        details['plot_elements'] = self._process_array_field_match(
             'plot_elements', match.get('plot_element_ids', []), criteria.get('plot_element_ids', []),
             self.scoring['content']['components']['plot_elements']
         )
-        details['themes'] = self._process_array_field_match(
+        details['theme_elements'] = self._process_array_field_match(
             'thematic_elements', match.get('thematic_element_ids', []), criteria.get('thematic_element_ids', []),
             self.scoring['content']['components']['theme_elements']
         )
