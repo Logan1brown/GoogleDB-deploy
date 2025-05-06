@@ -680,7 +680,8 @@ class CompAnalyzer:
                     'description': target.get('description', ''),  # Add description
                     'success_score': success_score,  # Use calculated success score
                     'comp_score': score,
-                    'score_details': score.get_match_details()  # Add detailed score breakdown
+                    'score_details': score.get_match_details(),  # Add detailed score breakdown
+                    'score': score.total()  # Add total score for sorting
                 }
                 
                 # Build result

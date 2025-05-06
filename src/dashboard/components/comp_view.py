@@ -212,10 +212,10 @@ def create_results_df(results: List[Dict]) -> pd.DataFrame:
         {
             'Show': r['title'],
             'Success': int(r['success_score'] or 0),
-            'Total Score': f"{int(r['score_details']['content']['score'] + r['score_details']['production']['score'] + r['score_details']['format']['score'])}/{r['score_details']['content']['max'] + r['score_details']['production']['max'] + r['score_details']['format']['max']}",
-            'Content': f"{int(r['score_details']['content']['score'])}/{r['score_details']['content']['max']}",
-            'Production': f"{int(r['score_details']['production']['score'])}/{r['score_details']['production']['max']}",
-            'Format': f"{int(r['score_details']['format']['score'])}/{r['score_details']['format']['max']}"
+            'Total Score': f"{int(r['comp_score'].total())}/{100}",  # Total out of 100
+            'Content': f"{int(r['comp_score'].content_score())}/{82}",  # Content out of 82
+            'Production': f"{int(r['comp_score'].production_score())}/{13}",  # Production out of 13
+            'Format': f"{int(r['comp_score'].format_score())}/{5}"  # Format out of 5
         } for r in results
     ])
     
