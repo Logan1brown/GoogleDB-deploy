@@ -653,10 +653,7 @@ class CompAnalyzer:
         
         # Debug: Check comp data
         import streamlit as st
-        st.write("Debug - Columns in comp_data:")
-        st.write(self.comp_data.columns.tolist())
-        st.write("Debug - First row of comp_data:")
-        st.write(self.comp_data.iloc[0].to_dict())
+
                 
         # Score each show
         results = []
