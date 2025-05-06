@@ -653,6 +653,7 @@ class CompAnalyzer:
                 result = {
                     'id': target['id'],
                     'title': target['title'],
+                    'description': target.get('description', ''),  # Add description
                     'success_score': float(target.get('success_score', 0)) if target.get('success_score') is not None else 0,  # Handle None
                     'comp_score': score,
                     # Content fields
