@@ -371,4 +371,4 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
                 'selected_order_type_name': details_manager.get_field_name('order_type', criteria.get('order_type_id')),
                 'order_type_match': match.get('order_type_id') == criteria.get('order_type_id')
             }
-            render_match_details_section(details, success_score=match.get('success_score'))
+            render_match_details_section(details, success_score=match.get('success_score'), description=match.get('description', ''))

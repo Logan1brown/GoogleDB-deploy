@@ -50,6 +50,11 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
         success_display = ScoreDisplay(success_score, 100, True)
         st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Success Score: {success_display.format()}</p>", unsafe_allow_html=True)
         st.write("")
+        
+    # Display description if available
+    if description:
+        st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['body']}px; margin-bottom: 1em;'>{description}</p>", unsafe_allow_html=True)
+        st.write("")
     
     production_score = comp_score.production_score()
     production_max = ScoreEngine.SCORING['production']['total']
