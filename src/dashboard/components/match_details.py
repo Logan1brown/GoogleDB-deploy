@@ -240,7 +240,7 @@ class MatchDetailsManager:
         
         production_components = {
             'network': self._process_single_component('network', match, criteria),
-            'studios': self._process_array_component('studios', match, criteria),
+            'studio': self._process_array_component('studio', match, criteria),
             'team': {
                 'score': self._get_component_score(match, 'team'),
                 'match_details': self._process_team_match(match, criteria)
@@ -331,7 +331,7 @@ class MatchDetailsManager:
             'character_types': 'character_type_ids',
             'plot_elements': 'plot_element_ids',
             'thematic_elements': 'thematic_element_ids',
-            'studios': 'studio_ids'
+            'studio': 'studio_ids'
         }
         
         # Get scoring section and config based on field type
