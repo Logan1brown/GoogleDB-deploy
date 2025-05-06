@@ -341,14 +341,14 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
                 'score_details': comp_score['components'],  # Add score details for base_match_breakdown
                 # Content fields
                 'genre_name': details_manager.get_field_name('genre', match.get('genre_id'), match),
-                'selected_genre_name': details_manager.get_field_name('genre', criteria.get('genre_id'), match),
+                'selected_genre_name': details_manager.get_field_name('genre', criteria.get('genre_id'), None),
                 'genre_match': match.get('genre_id') == criteria.get('genre_id'),
                 'subgenre_names': details_manager.get_field_names('subgenres', match.get('subgenres', [])),
                 'selected_subgenre_names': details_manager.get_field_names('subgenres', criteria.get('subgenres', [])),
                 'subgenre_matches': [name for name in details_manager.get_field_names('subgenres', match.get('subgenres', [])) 
                                     if name in details_manager.get_field_names('subgenres', criteria.get('subgenres', []))],
                 'source_type_name': details_manager.get_field_name('source_type', match.get('source_type_id'), match),
-                'selected_source_type_name': details_manager.get_field_name('source_type', criteria.get('source_type_id'), match),
+                'selected_source_type_name': details_manager.get_field_name('source_type', criteria.get('source_type_id'), None),
                 'source_type_match': match.get('source_type_id') == criteria.get('source_type_id'),
                 'character_type_names': details_manager.get_field_names('character_types', match.get('character_type_ids', [])),
                 'selected_character_type_names': details_manager.get_field_names('character_types', criteria.get('character_type_ids', [])),
@@ -363,18 +363,18 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
                 'theme_element_matches': [name for name in details_manager.get_field_names('thematic_elements', match.get('thematic_element_ids', [])) 
                                         if name in details_manager.get_field_names('thematic_elements', criteria.get('thematic_element_ids', []))],
                 'tone_name': details_manager.get_field_name('tone', match.get('tone_id'), match),
-                'selected_tone_name': details_manager.get_field_name('tone', criteria.get('tone_id'), match),
+                'selected_tone_name': details_manager.get_field_name('tone', criteria.get('tone_id'), None),
                 'tone_match': match.get('tone_id') == criteria.get('tone_id'),
                 # Setting
                 'time_setting_name': details_manager.get_field_name('time_setting', match.get('time_setting_id'), match),
-                'selected_time_setting_name': details_manager.get_field_name('time_setting', criteria.get('time_setting_id'), match),
+                'selected_time_setting_name': details_manager.get_field_name('time_setting', criteria.get('time_setting_id'), None),
                 'time_setting_match': match.get('time_setting_id') == criteria.get('time_setting_id'),
                 'location_setting_name': details_manager.get_field_name('location_setting', match.get('location_setting_id'), match),
-                'selected_location_setting_name': details_manager.get_field_name('location_setting', criteria.get('location_setting_id'), match),
+                'selected_location_setting_name': details_manager.get_field_name('location_setting', criteria.get('location_setting_id'), None),
                 'location_setting_match': match.get('location_setting_id') == criteria.get('location_setting_id'),
                 # Production
                 'network_name': details_manager.get_field_name('network', match.get('network_id'), match),
-                'selected_network_name': details_manager.get_field_name('network', criteria.get('network_id'), match),
+                'selected_network_name': details_manager.get_field_name('network', criteria.get('network_id'), None),
                 'network_match': match.get('network_id') == criteria.get('network_id'),
                 'studio_names': details_manager.get_field_names('studios', match.get('studios', [])),
                 'selected_studio_names': details_manager.get_field_names('studios', criteria.get('studio_ids', [])),
@@ -388,8 +388,8 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
                 'episode_count': match.get('episode_count'),
                 'selected_episode_count': criteria.get('episode_count'),
                 'episode_count_match': match.get('episode_count') == criteria.get('episode_count'),
-                'order_type_name': details_manager.get_field_name('order_type', match.get('order_type_id')),
-                'selected_order_type_name': details_manager.get_field_name('order_type', criteria.get('order_type_id')),
+                'order_type_name': details_manager.get_field_name('order_type', match.get('order_type_id'), match),
+                'selected_order_type_name': details_manager.get_field_name('order_type', criteria.get('order_type_id'), None),
                 'order_type_match': match.get('order_type_id') == criteria.get('order_type_id')
             }
             # Get total score for sorting

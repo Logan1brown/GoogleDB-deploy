@@ -36,7 +36,7 @@ class MatchDetailsManager:
         Args:
             field: Field type (e.g. 'genre', 'source_type')
             id: ID of the field value
-            match: Optional match data containing name fields. If not provided, will try to use self.match
+            match: Optional match data containing name fields. If not provided, will use field_manager
             default: Default value if name not found
             
         Returns:
@@ -56,13 +56,17 @@ class MatchDetailsManager:
             'order_type': 'order_type_name'
         }
         
-        # If we have a direct name field mapping, use that
-        if field in name_field_map:
-            # Try match data first if provided
-            if match is not None:
-                return match.get(name_field_map[field], default)
-            # Fall back to self.match if available
-            return getattr(self, 'match', {}).get(name_field_map[field], default)
+        # If match data is provided and has the name field, use that
+        if match is not None and field in name_field_map:
+            name = match.get(name_field_map[field])
+            if name is not None:
+                return name
+                
+        # Otherwise use field_manager to look up name
+        try:
+            return self.comp_analyzer.get_field_display_name(field, id) or default
+        except:
+            return default
             
         # For array fields, use the corresponding names array
         array_name_map = {
