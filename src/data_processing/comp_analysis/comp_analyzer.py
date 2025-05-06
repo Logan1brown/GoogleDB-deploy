@@ -539,6 +539,7 @@ class CompAnalyzer:
 
     def __init__(self, shows_analyzer: Optional[ShowsAnalyzer] = None):
         self.shows_analyzer = shows_analyzer or ShowsAnalyzer()
+        self.success_analyzer = SuccessAnalyzer()
         self.comp_data = None
         self.reference_data = None
         self.field_manager = None
@@ -548,6 +549,15 @@ class CompAnalyzer:
         """Initialize or refresh the analyzer data."""
         if force or self.comp_data is None:
             self.comp_data, self.reference_data = self.shows_analyzer.fetch_comp_data()
+            
+            # Convert numeric fields for success calculation
+            numeric_fields = ['tmdb_seasons', 'tmdb_avg_eps']
+            for field in numeric_fields:
+                if field in self.comp_data.columns:
+                    self.comp_data[field] = pd.to_numeric(self.comp_data[field], errors='coerce')
+            
+            # Initialize success analyzer with the comp data
+            self.success_analyzer.initialize_data(self.comp_data)
             
         # Initialize field manager
         self.field_manager = FieldManager(self.reference_data)
@@ -649,12 +659,15 @@ class CompAnalyzer:
             score = self.score_engine.calculate_score(source, target)
             # Include results with any matching criteria
             if score.total() > 0 or score.character_types > 0 or score.plot_elements > 0 or score.theme_elements > 0:
+                # Calculate success score and ensure it's a float
+                success_score = float(self.success_analyzer.calculate_success(target))
+                
                 # Include all fields needed for match details
                 result = {
                     'id': target['id'],
                     'title': target['title'],
                     'description': target.get('description', ''),  # Add description
-                    'success_score': float(target.get('success_score', 0)) if target.get('success_score') is not None else 0,  # Handle None
+                    'success_score': success_score,  # Use calculated success score
                     'comp_score': score,
                     # Content fields
                     'genre_id': target.get('genre_id'),
