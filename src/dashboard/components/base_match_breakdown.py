@@ -11,7 +11,7 @@ import streamlit as st
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from dashboard.components.match_details import FieldMatch, ArrayFieldMatch
-from data_processing.comp_analysis.comp_analyzer import CompScore, ScoreEngine
+from data_processing.comp_analysis.comp_analyzer import CompScore
 from src.dashboard.utils.style_config import FONTS
 
 @dataclass
@@ -38,12 +38,8 @@ def render_section_header(header: str, score: Optional[ScoreDisplay] = None) -> 
 
 def render_match_details_section(details: Dict, success_score: Optional[float] = None, description: Optional[str] = None) -> None:
     """Template method for rendering match details section with columns."""
-    # Get the CompScore object
-    comp_score = details['comp_score']
-    
-    # Get section scores from CompScore
-    content_score = comp_score.content_score()
-    content_max = ScoreEngine.SCORING['content']['total']
+    # Get score details
+    score_details = details['score_details']
     
     # Display description if available
     if description:
@@ -56,11 +52,15 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
         st.markdown(f"Success Score: {success_display.format()}", unsafe_allow_html=True)
         st.write("")
     
-    production_score = comp_score.production_score()
-    production_max = ScoreEngine.SCORING['production']['total']
+    # Get section scores
+    content_score = score_details['content']['score']
+    content_max = score_details['content']['max']
     
-    format_score = comp_score.format_score()
-    format_max = ScoreEngine.SCORING['format']['total']
+    production_score = score_details['production']['score']
+    production_max = score_details['production']['max']
+    
+    format_score = score_details['format']['score']
+    format_max = score_details['format']['max']
     
     # Content Match section
     st.markdown(f"<p style='font-family: {FONTS['primary']['family']}; font-size: {FONTS['primary']['sizes']['header']}px; font-weight: 600; margin-bottom: 0.5em;'>Content Match ({content_score:.1f}/{content_max:.1f})</p>", unsafe_allow_html=True)
@@ -77,7 +77,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2=details.get('selected_genre_name', 'Unknown'),
             selected=details.get('selected_genre_name') is not None,
             match=details.get('genre_match', False),
-            score=comp_score.genre_base,
+            score=score_details['content']['components']['genre_base'],
             max_score=9.0
         ))
         
@@ -87,7 +87,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2='Multiple' if details.get('selected_subgenre_names') else 'None',
             selected=bool(details.get('selected_subgenre_names')),
             match=bool(details.get('subgenre_matches')),
-            score=comp_score.genre_overlap,
+            score=score_details['content']['components']['genre_overlap'],
             max_score=8.0,
             values1=details.get('subgenre_names', []),
             values2=details.get('selected_subgenre_names', []),
@@ -100,7 +100,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2=details.get('selected_source_type_name', 'Unknown'),
             selected=details.get('selected_source_type_name') is not None,
             match=details.get('source_type_match', False),
-            score=comp_score.source_type,
+            score=score_details['content']['components']['source_type'],
             max_score=10.0
         ))
         
@@ -110,7 +110,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2='Multiple' if details.get('selected_character_type_names') else 'None',
             selected=bool(details.get('selected_character_type_names')),
             match=bool(details.get('character_type_matches')),
-            score=comp_score.character_types,
+            score=score_details['content']['components']['character_types'],
             max_score=14.0,
             values1=details.get('character_type_names', []),
             values2=details.get('selected_character_type_names', []),
@@ -123,7 +123,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2=details.get('selected_time_setting_name', 'Unknown'),
             selected=details.get('selected_time_setting_name') is not None,
             match=details.get('time_setting_match', False),
-            score=comp_score.time_setting,
+            score=score_details['content']['components']['time_setting'],
             max_score=3.5
         ))
     
@@ -134,7 +134,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2='Multiple' if details.get('selected_plot_element_names') else 'None',
             selected=bool(details.get('selected_plot_element_names')),
             match=bool(details.get('plot_element_matches')),
-            score=comp_score.plot_elements,
+            score=score_details['content']['components']['plot_elements'],
             max_score=12.0,
             values1=details.get('plot_element_names', []),
             values2=details.get('selected_plot_element_names', []),
@@ -147,7 +147,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2='Multiple' if details.get('selected_theme_element_names') else 'None',
             selected=bool(details.get('selected_theme_element_names')),
             match=bool(details.get('theme_element_matches')),
-            score=comp_score.theme_elements,
+            score=score_details['content']['components']['theme_elements'],
             max_score=13.0,
             values1=details.get('theme_element_names', []),
             values2=details.get('selected_theme_element_names', []),
@@ -160,7 +160,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2=details.get('selected_tone_name', 'Unknown'),
             selected=details.get('selected_tone_name') is not None,
             match=details.get('tone_match', False),
-            score=comp_score.tone,
+            score=score_details['content']['components']['tone'],
             max_score=9.0
         ))
         
@@ -170,7 +170,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2=details.get('selected_location_setting_name', 'Unknown'),
             selected=details.get('selected_location_setting_name') is not None,
             match=details.get('location_match', False),
-            score=comp_score.location,
+            score=score_details['content']['components']['location_setting'],
             max_score=3.5
         ))
     
@@ -190,7 +190,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2=details.get('selected_network_name', 'Unknown'),
             selected=details.get('selected_network_name') is not None,
             match=details.get('network_match', False),
-            score=comp_score.network,
+            score=score_details['production']['components']['network'],
             max_score=5.0
         ))
         
@@ -200,7 +200,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2='Multiple' if details.get('selected_studio_names') else 'None',
             selected=bool(details.get('selected_studio_names')),
             match=bool(details.get('studio_matches')),
-            score=comp_score.studio,
+            score=score_details['production']['components']['studio'],
             max_score=4.0,
             values1=details.get('studio_names', []),
             values2=details.get('selected_studio_names', []),
@@ -214,7 +214,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2='Multiple' if details.get('selected_team_member_names') else 'None',
             selected=bool(details.get('selected_team_member_names')),
             match=bool(details.get('team_member_matches')),
-            score=comp_score.team,
+            score=score_details['production']['components']['team'],
             max_score=4.0,
             values1=details.get('team_member_names', []),
             values2=details.get('selected_team_member_names', []),
@@ -237,7 +237,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2=str(details.get('selected_episode_count', 'Unknown')),
             selected=details.get('selected_episode_count') is not None,
             match=details.get('episode_count_match', False),
-            score=comp_score.episodes,
+            score=score_details['format']['components']['episodes'],
             max_score=4.0
         ))
         
@@ -248,7 +248,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
             name2=details.get('selected_order_type_name', 'Unknown'),
             selected=details.get('selected_order_type_name') is not None,
             match=details.get('order_type_match', False),
-            score=comp_score.order_type,
+            score=score_details['format']['components']['order_type'],
             max_score=1.0
         ))
     

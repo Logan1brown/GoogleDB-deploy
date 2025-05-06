@@ -212,15 +212,18 @@ def create_results_df(results: List[Dict]) -> pd.DataFrame:
         {
             'Show': r['title'],
             'Success': int(r['success_score'] or 0),
-            'Total Score': int(r['comp_score'].total()),
-            'Content': int(r['comp_score'].content_score()),
-            'Production': int(r['comp_score'].production_score()),
-            'Format': int(r['comp_score'].format_score())
+            'Total Score': f"{int(r['score_details']['content']['score'] + r['score_details']['production']['score'] + r['score_details']['format']['score'])}/{r['score_details']['content']['max'] + r['score_details']['production']['max'] + r['score_details']['format']['max']}",
+            'Content': f"{int(r['score_details']['content']['score'])}/{r['score_details']['content']['max']}",
+            'Production': f"{int(r['score_details']['production']['score'])}/{r['score_details']['production']['max']}",
+            'Format': f"{int(r['score_details']['format']['score'])}/{r['score_details']['format']['max']}"
         } for r in results
     ])
     
     # Sort by Total Score descending, then by Success descending
-    df = df.sort_values(['Total Score', 'Success'], ascending=[False, False])
+    # Extract numeric score from 'score/max' format for sorting
+    df['_sort_score'] = df['Total Score'].apply(lambda x: int(x.split('/')[0]))
+    df = df.sort_values(['_sort_score', 'Success'], ascending=[False, False])
+    df = df.drop('_sort_score', axis=1)
     
     return df
 

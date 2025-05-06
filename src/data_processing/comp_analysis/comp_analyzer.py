@@ -271,13 +271,15 @@ class CompScore:
                 'score': self.content_score(),
                 'max': 82,
                 'components': {
-                    'genre': self.genre_base + self.genre_overlap,
+                    'genre_base': self.genre_base,
+                    'genre_overlap': self.genre_overlap,
                     'source_type': self.source_type,
                     'character_types': self.character_types,
                     'plot_elements': self.plot_elements,
                     'theme_elements': self.theme_elements,
                     'tone': self.tone,
-                    'setting': self.time_setting + self.location
+                    'time_setting': self.time_setting,
+                    'location_setting': self.location,
                 }
             },
             'production': {
@@ -321,7 +323,8 @@ class ScoreEngine:
                 'plot_elements': {'first': 9, 'second': 3},
                 'theme_elements': {'first': 9.75, 'second': 3.25},
                 'tone': {'match': 9},
-                'setting': {'time': 4, 'location': 3}
+                'time_setting': {'match': 3.5},
+                'location_setting': {'match': 3.5}
             }
         },
         'production': {
@@ -676,7 +679,8 @@ class CompAnalyzer:
                     'title': target['title'],
                     'description': target.get('description', ''),  # Add description
                     'success_score': success_score,  # Use calculated success score
-                    'comp_score': score
+                    'comp_score': score,
+                    'score_details': score.get_match_details()  # Add detailed score breakdown
                 }
                 
                 # Build result
