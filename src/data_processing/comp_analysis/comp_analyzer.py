@@ -800,7 +800,18 @@ class CompAnalyzer:
                 results.append(result)
                 
         # Sort by total score descending, then by success score descending
-        return sorted(results, key=lambda x: (x['comp_score'].total(), x.get('success_score', 0)), reverse=True)
+        # Handle both CompScore objects and dictionaries
+        def get_total_score(x):
+            comp_score = x['comp_score']
+            if isinstance(comp_score, CompScore):
+                return comp_score.total()
+            elif isinstance(comp_score, dict):
+                # If it's a dict, sum up all the score components
+                return sum(v for k, v in comp_score.items() if not k.startswith('_') and isinstance(v, (int, float)))
+            else:
+                return 0
+
+        return sorted(results, key=lambda x: (get_total_score(x), x.get('success_score', 0)), reverse=True)
         
     def get_similar_shows(self, show_id: int, limit: int = 10) -> List[Tuple[int, CompScore]]:
         """Get similar shows for the given show ID.
