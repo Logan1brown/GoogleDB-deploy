@@ -288,9 +288,8 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         return
         
     try:
-        if not hasattr(comp_analyzer, 'initialized'):
-            comp_analyzer.initialize()
-            comp_analyzer.initialized = True
+        # Always force refresh when finding matches to ensure fresh reference data
+        comp_analyzer.initialize(force=True)
         results = comp_analyzer.find_by_criteria(state['criteria'])
         
 
