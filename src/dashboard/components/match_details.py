@@ -422,11 +422,15 @@ class MatchDetailsManager:
             max_score = scoring['primary'] + scoring['max_additional']
         
         return ArrayFieldMatch(
+            name1='Multiple' if value_names else 'None',
+            name2='Multiple' if selected_names else 'None',
+            selected=bool(selected),
+            match=bool(matches),
+            score=self._get_component_score(match, field),
+            max_score=max_score,
             values1=value_names,
             values2=selected_names,
-            matches=matches,
-            max_score=max_score,
-            score=self._get_component_score(match, field)
+            matches=matches
         )
         
 
