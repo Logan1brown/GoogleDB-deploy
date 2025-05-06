@@ -128,6 +128,13 @@ class ShowsAnalyzer:
             for field in array_fields:
                 if field in comp_df.columns:
                     comp_df[field] = comp_df[field].apply(_self.convert_to_list)
+                    
+            # Ensure description field is present and handled
+            if 'description' not in comp_df.columns:
+                logger.warning("Description field missing from comp_data")
+            else:
+                # Replace None with empty string for consistency
+                comp_df['description'] = comp_df['description'].fillna('')
             
             # Fetch reference tables
             logger.info("Fetching reference tables...")

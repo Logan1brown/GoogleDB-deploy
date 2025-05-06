@@ -688,7 +688,20 @@ class CompAnalyzer:
                     'description': target.get('description', ''),  # Add description
                     'success_score': success_score,  # Use calculated success score
                     'comp_score': score,
-                    'debug': tmdb_debug,  # Add debug info
+                    'debug': tmdb_debug  # Add debug info
+                }
+                
+                # Debug: Print raw target data
+                import streamlit as st
+                st.write(f"Raw target data for {target['title']}:")
+                st.write({
+                    'id': target['id'],
+                    'title': target['title'],
+                    'description': target.get('description', 'NOT IN TARGET DATA')
+                })
+                
+                # Continue building result
+                result.update({
                     # Content fields
                     'genre_id': target.get('genre_id'),
                     'subgenres': target.get('subgenres', []),  # Include subgenres
@@ -709,7 +722,7 @@ class CompAnalyzer:
                     # Format
                     'episode_count': target.get('episode_count'),
                     'order_type_id': target.get('order_type_id')
-                }
+                })
                 results.append(result)
                 
         # Sort by total score descending, then by success score descending

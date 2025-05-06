@@ -298,6 +298,7 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         'title': r['title'],
         'comp_score': r['comp_score'],
         'success_score': r.get('success_score', 0),  # Add success score
+        'description': r.get('description', ''),  # Add description
         'genre_id': r['genre_id'],
         'subgenres': r.get('subgenres', []),
         'source_type_id': r['source_type_id'],
