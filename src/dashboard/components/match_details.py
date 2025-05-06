@@ -159,10 +159,8 @@ class MatchDetailsManager:
             self.scoring['content']['components']['theme_elements'],
             match
         )
-        details['tone'] = self._process_single_field_match(
-            'tone', match.get('tone_id'), criteria.get('tone_id'),
-            self.scoring['content']['components']['tone']['match'],
-            match
+        details['tone'] = self._process_single_component(
+            'tone', match, criteria
         )
         
         # Production match details
@@ -209,15 +207,11 @@ class MatchDetailsManager:
         )
         
         # Setting match details
-        details['time_setting'] = self._process_single_field_match(
-            'time_setting', match.get('time_setting_id'), criteria.get('time_setting_id'),
-            self.scoring['content']['components']['time_setting']['match'],
-            match
+        details['time_setting'] = self._process_single_component(
+            'time_setting', match, criteria
         )
-        details['location_setting'] = self._process_single_field_match(
-            'location_setting', match.get('location_setting_id'), criteria.get('location_setting_id'),
-            self.scoring['content']['components']['location_setting']['match'],
-            match
+        details['location_setting'] = self._process_single_component(
+            'location_setting', match, criteria
         )
         
         # Format match details
@@ -235,34 +229,13 @@ class MatchDetailsManager:
                 'score': self._get_component_score(match, 'genre'),
                 'match_details': self._process_genre_match(match, criteria)
             },
-            'source_type': {
-                'score': self._get_component_score(match, 'source_type'),
-                'match_details': self._process_source_type_match(match, criteria)
-            },
-            'character_types': {
-                'score': self._get_component_score(match, 'character_types'),
-                'match_details': self._process_character_type_match(match, criteria)
-            },
-            'plot_elements': {
-                'score': self._get_component_score(match, 'plot_elements'),
-                'match_details': self._process_plot_element_match(match, criteria)
-            },
-            'theme_elements': {
-                'score': self._get_component_score(match, 'theme_elements'),
-                'match_details': self._process_theme_element_match(match, criteria)
-            },
-            'tone': {
-                'score': self._get_component_score(match, 'tone'),
-                'match_details': self._process_tone_match(match, criteria)
-            },
-            'time_setting': {
-                'score': self._get_component_score(match, 'time_setting'),
-                'match_details': self._process_time_setting_match(match, criteria)
-            },
-            'location_setting': {
-                'score': self._get_component_score(match, 'location_setting'),
-                'match_details': self._process_location_setting_match(match, criteria)
-            }
+            'source_type': self._process_single_component('source_type', match, criteria),
+            'character_types': self._process_array_component('character_types', match, criteria),
+            'plot_elements': self._process_array_component('plot_elements', match, criteria),
+            'thematic_elements': self._process_array_component('thematic_elements', match, criteria),
+            'tone': self._process_single_component('tone', match, criteria),
+            'time_setting': self._process_single_component('time_setting', match, criteria),
+            'location_setting': self._process_single_component('location_setting', match, criteria)
         }
         
         production_components = {
@@ -308,15 +281,66 @@ class MatchDetailsManager:
         
         return details
         
-    def _process_source_type_match(self, match: Dict, criteria: Dict) -> Dict:
-        """Process source type match."""
-        return self._process_single_field_match(
-            'source_type',
-            match.get('source_type_id'),
-            criteria.get('source_type_id'),
-            self.scoring['content']['components']['source_type']['match'],
-            match
-        )
+    def _process_single_component(self, field: str, match: Dict, criteria: Dict) -> Dict:
+        """Process single-value component matches (source_type, tone).
+        
+        Args:
+            field: Field name (e.g. 'source_type')
+            match: Match data
+            criteria: Criteria data
+            
+        Returns:
+            Dict with score and match details
+        """
+        # Map field names to their ID fields in the data
+        id_field_map = {
+            'source_type': 'source_type_id',
+            'tone': 'tone_id',
+            'time_setting': 'time_setting_id',
+            'location_setting': 'location_setting_id'
+        }
+        
+        id_field = id_field_map[field]
+        return {
+            'score': self._get_component_score(match, field),
+            'match_details': self._process_single_field_match(
+                field,
+                match.get(id_field),
+                criteria.get(id_field),
+                self.scoring['content']['components'][field]['match'],
+                match
+            )
+        }
+
+    def _process_array_component(self, field: str, match: Dict, criteria: Dict) -> Dict:
+        """Process array-based component matches (character_types, plot_elements, thematic_elements).
+        
+        Args:
+            field: Field name (e.g. 'character_types')
+            match: Match data
+            criteria: Criteria data
+            
+        Returns:
+            Dict with score and match details
+        """
+        # Map field names to their ID fields in the data
+        id_field_map = {
+            'character_types': 'character_type_ids',
+            'plot_elements': 'plot_element_ids',
+            'thematic_elements': 'thematic_element_ids'
+        }
+        
+        id_field = id_field_map[field]
+        return {
+            'score': self._get_component_score(match, field),
+            'match_details': self._process_array_field_match(
+                field,
+                match.get(id_field, []),
+                criteria.get(id_field, []),
+                self.scoring['content']['components'][field],
+                match
+            )
+        }
 
     def _process_genre_match(self, match: Dict, criteria: Dict) -> FieldMatch:
         """Process genre and subgenre matches."""
