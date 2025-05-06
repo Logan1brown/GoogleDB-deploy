@@ -283,10 +283,14 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         st.info("No matches found for the selected criteria.")
         return
         
-    # Create and style results table
-    df = create_results_df(results)
-    apply_table_css()
-    st.dataframe(df.style.apply(apply_table_styling))
+    # Sort matches by total score
+    matches = sorted(results, key=lambda x: x.get('total_score', 0), reverse=True)
+    
+    # Create results table
+    if matches:
+        df = create_results_df(matches)
+        apply_table_css()
+        st.dataframe(df.style.apply(apply_table_styling))
     
     # Create match details manager and show details
     MatchDetailsManager = get_match_details_manager()
@@ -386,6 +390,13 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
                 'selected_order_type_name': details_manager.get_field_name('order_type', criteria.get('order_type_id')),
                 'order_type_match': match.get('order_type_id') == criteria.get('order_type_id')
             }
+            # Get total score for sorting
+            total_score = match['comp_score'].total()
+            
             # Transform raw match data into proper UI components using MatchDetailsManager
             match_details = details_manager.create_match_details(match, criteria)
+            
+            # Store total score for sorting
+            match_details['total_score'] = total_score
+            
             render_match_details_section(match_details, success_score=match.get('success_score'), description=match.get('description', ''))
