@@ -118,7 +118,7 @@ class FieldManager:
                         id = int(row[config.id_field])
                         name = str(row[config.name_field])
                         clean_name = self._normalize_name(name)
-                        if clean_name:
+                        if isinstance(clean_name, str) and len(clean_name) > 0:
                             if clean_name not in clean_members:
                                 clean_members[clean_name] = id
                             elif isinstance(clean_members[clean_name], int):
