@@ -71,7 +71,7 @@ class FieldManager:
                 df = self.reference_data[field_name]
                 
             # Special handling for team members from api_show_comp_data
-            if field_name == 'team_members':
+            if field_name == 'team_member_ids':
                 # Use dictionary to maintain unique entries by ID
                 unique_members = {}
                     
@@ -91,7 +91,7 @@ class FieldManager:
                             # Debug: Print each ID/name pair
                             if name == 'Adam Bernstein':
                                 logger.info(f"Found Adam Bernstein with ID {id}")
-                            # Only add if we haven't seen this ID before
+                            # Only add if we haven't seen this name before
                             if name not in unique_members:
                                 unique_members[name] = id
                                 
