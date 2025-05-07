@@ -192,8 +192,13 @@ class MatchDetailsManager:
         # Content section
         content_components = {}
         
+        # Get max scores from CompAnalyzer's scoring config
+        scoring = comp_score.get('_scoring', {})
+        content_scoring = scoring.get('content', {}).get('components', {})
+        
         # Genre
-        genre = components.get('genre', {})
+        genre_score = components.get('genre_base', 0) + components.get('genre_overlap', 0)
+        genre_max = content_scoring.get('genre', {}).get('base', 0) + content_scoring.get('genre', {}).get('overlap', 0)
         genre_id = match.get('genre_id')
         target_genre_id = criteria.get('genre_id')
         content_components['genre'] = {
@@ -201,164 +206,170 @@ class MatchDetailsManager:
                 name1=self.get_field_name('genre', genre_id, match),
                 name2=self.get_field_name('genre', target_genre_id),
                 selected=target_genre_id is not None,
-                match=genre.get('match', False),
-                score=genre.get('score', 0),
-                max_score=genre.get('max', 0)
+                match=genre_id == target_genre_id if genre_id and target_genre_id else False,
+                score=genre_score,
+                max_score=genre_max
             )
         }
         
         # Source Type
-        source = components.get('source_type', {})
+        source_score = components.get('source_type', 0)
+        source_max = content_scoring.get('source_type', {}).get('match', 0)
         source_id = match.get('source_type_id')
         target_source_id = criteria.get('source_type_id')
         content_components['source_type'] = {
-            **source,
             'display': FieldMatch(
                 name1=self.get_field_name('source_type', source_id, match),
                 name2=self.get_field_name('source_type', target_source_id),
                 selected=target_source_id is not None,
                 match=source_id == target_source_id if source_id and target_source_id else False,
-                score=source.get('score', 0),
-                max_score=source.get('max', 0)
+                score=source_score,
+                max_score=source_max
             )
         }
         
         # Array fields (character_types, plot_elements, thematic_elements)
         for field in ['character_types', 'plot_elements', 'thematic_elements']:
-            field_data = components.get(field, {})
+            field_score = components.get(field, 0)
+            field_max = content_scoring.get(field, {}).get('first', 0) + content_scoring.get(field, {}).get('second', 0)
             values = match.get(self.id_field_map[field], [])
             selected = criteria.get(self.id_field_map[field], [])
+            # Calculate matches - any values that exist in both arrays
+            matches = [v for v in values if v in selected]
             content_components[field] = {
-                **field_data,
                 'display': ArrayFieldMatch(
                     values1=self.get_field_names(field, values, match),
                     values2=self.get_field_names(field, selected),
-                    matches=self.get_field_names(field, field_data.get('matches', [])),
+                    matches=self.get_field_names(field, matches),
                     selected=bool(selected),
-                    match=field_data.get('match', False),
-                    score=field_data.get('score', 0),
-                    max_score=field_data.get('max', 0)
+                    match=bool(matches),
+                    score=field_score,
+                    max_score=field_max
                 )
             }
             
         # Single fields (tone, time_setting, location_setting)
         for field in ['tone', 'time_setting', 'location_setting']:
-            field_data = components.get(field, {})
+            field_score = components.get(field, 0)
+            field_max = content_scoring.get(field, {}).get('match', 0)
             value_id = match.get(self.id_field_map[field])
             target_id = criteria.get(self.id_field_map[field])
             content_components[field] = {
-                **field_data,
                 'display': FieldMatch(
                     name1=self.get_field_name(field, value_id, match),
                     name2=self.get_field_name(field, target_id),
                     selected=target_id is not None,
                     match=value_id == target_id if value_id and target_id else False,
-                    score=field_data.get('score', 0),
-                    max_score=field_data.get('max', 0)
+                    score=field_score,
+                    max_score=field_max
                 )
             }
             
         details['content'] = {
-            'score': comp_score.get('content', {}).get('score', 0),
-            'max_score': comp_score.get('content', {}).get('max', 0),
+            'score': comp_score.get('content_score', 0),
+            'max_score': scoring.get('content', {}).get('total', 0),
             'components': content_components
         }
         
         # Production section
-        production = comp_score.get('production', {})
+        production_scoring = scoring.get('production', {}).get('components', {})
         production_components = {}
         
         # Network
-        network = components.get('network', {})
+        network_score = components.get('network', 0)
+        network_max = production_scoring.get('network', {}).get('match', 0)
         network_id = match.get('network_id')
         target_network_id = criteria.get('network_id')
         production_components['network'] = {
-            **network,
             'display': FieldMatch(
                 name1=self.get_field_name('network', network_id, match),
                 name2=self.get_field_name('network', target_network_id),
                 selected=target_network_id is not None,
                 match=network_id == target_network_id if network_id and target_network_id else False,
-                score=network.get('score', 0),
-                max_score=network.get('max', 0)
+                score=network_score,
+                max_score=network_max
             )
         }
         
         # Array fields (studio, team)
         for field in ['studio', 'team']:
-            field_data = components.get(field, {})
+            field_score = components.get(field, 0)
+            field_max = (
+                production_scoring.get(field, {}).get('primary', 0) +
+                production_scoring.get(field, {}).get('max_additional', 0)
+            )
             values = match.get(self.id_field_map[field], [])
             selected = criteria.get(self.id_field_map[field], [])
+            matches = [v for v in values if v in selected]
             production_components[field] = {
-                **field_data,
                 'display': ArrayFieldMatch(
                     values1=self.get_field_names(field, values, match),
                     values2=self.get_field_names(field, selected),
-                    matches=self.get_field_names(field, field_data.get('matches', [])),
+                    matches=self.get_field_names(field, matches),
                     selected=bool(selected),
-                    match=field_data.get('match', False),
-                    score=field_data.get('score', 0),
-                    max_score=field_data.get('max', 0)
+                    match=bool(matches),
+                    score=field_score,
+                    max_score=field_max
                 )
             }
         
         # Add production section to details
         details['production'] = {
-            'score': production.get('score', 0),
-            'max_score': production.get('max', 0),
+            'score': comp_score.get('production_score', 0),
+            'max_score': scoring.get('production', {}).get('total', 0),
             'components': production_components
         }
-
-        # Format section
-        format_section = comp_score.get('format', {})
+        
+        # Format match section
+        format_scoring = scoring.get('format', {}).get('components', {})
         format_components = {}
         
         # Episodes
-        episodes = components.get('episodes', {})
+        episode_score = components.get('episodes', 0)
+        episode_max = format_scoring.get('episodes', {}).get('within_2', 0)
         episode_count = match.get('episode_count')
         target_episode_count = criteria.get('episode_count')
         format_components['episodes'] = {
-            **episodes,
             'display': FieldMatch(
                 name1=str(episode_count) if episode_count is not None else 'Unknown',
                 name2=str(target_episode_count) if target_episode_count is not None else 'Unknown',
                 selected=target_episode_count is not None,
-                match=episodes.get('match', False),
-                score=episodes.get('score', 0),
-                max_score=episodes.get('max', 0)
+                match=abs(episode_count - target_episode_count) <= 2 if episode_count is not None and target_episode_count is not None else False,
+                score=episode_score,
+                max_score=episode_max
             )
         }
         
         # Order Type
-        order = components.get('order_type', {})
+        order_score = components.get('order_type', 0)
+        order_max = format_scoring.get('order_type', {}).get('match', 0)
         order_type_id = match.get('order_type_id')
         target_order_type_id = criteria.get('order_type_id')
         format_components['order_type'] = {
-            **order,
             'display': FieldMatch(
                 name1=self.get_field_name('order_type', order_type_id, match),
                 name2=self.get_field_name('order_type', target_order_type_id),
                 selected=target_order_type_id is not None,
                 match=order_type_id == target_order_type_id if order_type_id and target_order_type_id else False,
-                score=order.get('score', 0),
-                max_score=order.get('max', 0)
+                score=order_score,
+                max_score=order_max
             )
         }
         
         details['format'] = {
-            'score': format_section.get('score', 0),
-            'max_score': format_section.get('max', 0),
+            'score': comp_score.get('format_score', 0),
+            'max_score': scoring.get('format', {}).get('total', 0),
             'components': format_components
         }
         
         # Get total scores from comp_score
         details['total'] = {
             'score': comp_score.get('total', 0),
-            'max_score': comp_score.get('max', 0)
+            'max_score': sum([
+                scoring.get('content', {}).get('total', 0),
+                scoring.get('production', {}).get('total', 0),
+                scoring.get('format', {}).get('total', 0)
+            ])
         }
         
         return details
-        
-
-        
-
