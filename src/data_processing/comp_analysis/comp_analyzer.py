@@ -484,9 +484,10 @@ class ScoreEngine:
                 score.network = self.SCORING['production']['components']['network']['match']
             
         # Studio matching
-        source_studios = set(source.get('studios') or [])
-        target_studios = set(target.get('studios') or [])
-        if source_studios and target_studios:
+        source_studios = source.get('studios')
+        if source_studios is not None:  # Check if studios were selected in criteria
+            source_studios = set(source_studios)
+            target_studios = set(target.get('studios') or [])
             matches = len(source_studios & target_studios)
             if matches > 0:
                 score.studio = self.SCORING['production']['components']['studio']['primary']
@@ -500,11 +501,12 @@ class ScoreEngine:
                     score.studio += additional_points
                     
         # Team matching
-        source_team = source.get('team_member_ids') or []
-        target_team = target.get('team_member_ids') or []
-        if source_team and target_team:
+        source_team = source.get('team_member_ids')
+        if source_team is not None:  # Check if team members were selected in criteria
+            target_team = target.get('team_member_ids') or []
             score.team = self._calculate_array_match(
-                source_team, target_team,
+                source_team,
+                target_team,
                 self.SCORING['production']['components']['team']['first'],
                 self.SCORING['production']['components']['team']['additional'],
                 'team_members'

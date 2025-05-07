@@ -227,9 +227,9 @@ class MatchDetailsManager:
         scoring = self.comp_analyzer.score_engine.SCORING
         content_scoring = scoring['content']['components']
         
-        # Genre (combines base + overlap)
-        genre_score = components.get('genre_base', 0) + components.get('genre_overlap', 0)
-        genre_max = content_scoring['genre']['base'] + content_scoring['genre']['overlap']
+        # Genre (primary genre only)
+        genre_score = components.get('genre_base', 0)
+        genre_max = content_scoring['genre']['base']
         genre_id = match.get('genre_id')
         target_genre_id = criteria.get('genre_id')
         content_components['genre'] = {
