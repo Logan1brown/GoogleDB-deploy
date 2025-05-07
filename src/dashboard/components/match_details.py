@@ -175,8 +175,19 @@ class MatchDetailsManager:
                 if is_array:
                     # For array fields, match data should already have the names
                     names = match.get(name_field, [])
-                    if names and len(names) == len(ids):
-                        return names
+                    if names:
+                        # Special handling for team members - they can have multiple roles
+                        # so just show each person once
+                        if field == 'team_members':
+                            # Get unique names, preserving order
+                            unique_names = []
+                            for name in names:
+                                if name not in unique_names:
+                                    unique_names.append(name)
+                            return unique_names
+                        # For other array fields, return names if lengths match
+                        elif len(names) == len(ids):
+                            return names
                 else:
                     # For single fields, get the specific name
                     name = match.get(name_field)
