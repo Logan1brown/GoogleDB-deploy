@@ -288,7 +288,8 @@ class MatchDetailsManager:
             }
         
         # Single-value fields
-        # Note: location_setting maps to 'location' in comp_score
+        # Note: We store the score under the UI field name (location_setting)
+        # even though it comes from 'location' in comp_score
         field_map = {
             'tone': 'tone',
             'time_setting': 'time_setting',
@@ -301,6 +302,7 @@ class MatchDetailsManager:
             value_id = match.get(self.id_field_map[field])
             target_id = criteria.get(self.id_field_map[field])
             
+            # Store under UI field name for consistency
             content_components[field] = {
                 'display': FieldMatch(
                     name1=self.get_field_name(field, value_id, match),

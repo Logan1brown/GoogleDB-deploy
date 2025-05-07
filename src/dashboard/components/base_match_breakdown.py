@@ -103,9 +103,10 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
                     render_array_field_match(label, display)
             
             # Single-value fields
+            # Note: location_setting in UI maps to location in comp_score
             for field, label in [
                 ('tone', 'Tone'),
-                ('location_setting', 'Location')
+                ('location_setting', 'Location')  # This matches our field name in match_details.py
             ]:
                 if display := components.get(field, {}).get('display'):
                     render_field_match(label, display)
