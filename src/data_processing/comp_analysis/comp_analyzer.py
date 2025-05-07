@@ -75,7 +75,7 @@ class FieldManager:
                 df = self.reference_data[field_name]
                 
             # Special handling for team members from api_show_comp_data
-            if field_name == 'team_member_ids':
+            if field_name == 'team_members':
                 # Use dictionary to maintain unique entries by ID
                 unique_members = {}
                     
@@ -486,7 +486,7 @@ class ScoreEngine:
         if source.get('network_id') is not None:
             if source.get('network_id') == target.get('network_id'):
                 score.network = self.SCORING['production']['components']['network']['match']
-            
+        
         # Studio matching
         source_studios = source.get('studios')
         if source_studios:  # Check if studios were selected in criteria

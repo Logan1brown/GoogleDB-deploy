@@ -35,7 +35,7 @@ def render_comp_builder(state: Dict) -> None:
             # Production
             'network_id': None,
             'studio_ids': [],
-            'team_member_ids': [],
+            'team_members': [],  # Use consistent field name
             # Format
             'episode_count': None,
             'order_type_id': None
@@ -178,9 +178,9 @@ def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         # Team Members
         team_names = st.multiselect("Team Members",
             options=[name for _, name in display_options['team_members'] if name and name.strip()],
-            key="team_member_ids", placeholder="Select team members...")
+            key="team_members", placeholder="Select team members...")
         # Pass field_name and comp_analyzer to get all IDs for each team member
-        state["criteria"]["team_member_ids"] = get_ids_for_names(
+        state["criteria"]["team_members"] = get_ids_for_names(
             team_names, 
             display_options['team_members'], 
             'team_members',
