@@ -550,9 +550,7 @@ class ScoreEngine:
             field_name: Name of the field being matched (used to identify team members)
         """
         # Handle empty arrays and non-list inputs
-        if not isinstance(source_arr, (list, np.ndarray)) or not isinstance(target_arr, (list, np.ndarray)):
-            return 0
-        if len(source_arr) == 0 or len(target_arr) == 0:
+        if not source_arr or not target_arr or not isinstance(source_arr, list) or not isinstance(target_arr, list):
             return 0
             
         # For team members, we need to count unique names for scoring
@@ -818,7 +816,6 @@ class CompAnalyzer:
             'plot_element_ids': 'plot_element_ids',
             'thematic_element_ids': 'thematic_element_ids',
             'team_members': 'team_member_ids',  # Map to database field name
-            'team_member_names': 'team_member_names',  # For display only
             'episode_count': 'episode_count'  # First season episode count
         }
         
@@ -830,6 +827,16 @@ class CompAnalyzer:
             # Convert arrays to lists if they're not already
             if isinstance(value, (list, set)):
                 mapped_criteria[mapped_key] = list(value)
+                # For team members, we need both IDs and names
+                if key == 'team_members':
+                    # Get the team member options to map IDs to names
+                    team_options = self.field_manager.get_options('team_members')
+                    # Create a map of ID -> name
+                    id_to_name = {}
+                    for opt in team_options:
+                        id_to_name[opt.id] = opt.name
+                    # Map the IDs to names
+                    mapped_criteria['team_member_names'] = [id_to_name.get(id) for id in value if id in id_to_name]
             else:
                 # Include None values and handle other types
                 if value is None:
