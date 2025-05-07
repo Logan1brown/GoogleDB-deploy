@@ -4,16 +4,30 @@ This component defines the scoring weights and rules that other components
 (like CompBuilder) must reference. It uses ShowsAnalyzer as its data provider
 to maintain consistency with our established component pattern.
 
-Key Features:
-- Scoring system for show similarity
-- Field option management
-- Show comparison and matching
+Key concepts:
+
+1. Scoring:
+   - Content match (82 points): genre, source type, character types, plot elements,
+     theme elements, tone, time/location setting
+   - Production match (13 points): network, studios, team
+   - Format match (5 points): episodes, order type
+
+2. Field configuration:
+   - Each field has a table_name, id_field, and name_field
+   - Array fields (e.g. studios[]) vs single fields (e.g. network)
+   - Special handling for team members (grouped by name)
+
+3. Data flow:
+   - CompAnalyzer gets data from ShowsAnalyzer
+   - ShowsAnalyzer gets data from api_show_comp_data view
+   - View joins all necessary tables for efficient querying
 """
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple, Any, Union
 import pandas as pd
 import numpy as np
+import streamlit as st
 from datetime import datetime
 import logging
 
@@ -585,13 +599,15 @@ class ScoreEngine:
             target_names = {name for name in target_names if name}
             matches = source_names & target_names
             
-            import streamlit as st
-            st.write(f"DEBUG: Comparing team members:")
+            # Debug output for team member matching
+            st.write("")
+            st.write("DEBUG: Comparing team members:")
             st.write(f"DEBUG: Source IDs: {source_arr}")
             st.write(f"DEBUG: Source names: {source_names}")
             st.write(f"DEBUG: Target IDs: {target_arr}")
             st.write(f"DEBUG: Target names: {target_names}")
             st.write(f"DEBUG: Matches: {matches}")
+            st.write("")
             
             # Calculate points based on matches
             if len(matches) > 0:
@@ -847,7 +863,8 @@ class CompAnalyzer:
                     team_options = self.field_manager.get_options('team_members')
                     # Create a map of ID -> name that includes all IDs
                     id_to_name = {}
-                    import streamlit as st
+                    # Debug output for team member mapping
+                    st.write("")
                     st.write("DEBUG: Team member options:")
                     for opt in team_options:
                         st.write(f"DEBUG: {opt.name}: primary={opt.id}, all_ids={opt.all_ids}")
@@ -858,6 +875,7 @@ class CompAnalyzer:
                     # Map the IDs to names
                     mapped_criteria['team_member_names'] = [id_to_name.get(id) for id in value if id in id_to_name]
                     st.write(f"DEBUG: Mapped to names: {mapped_criteria['team_member_names']}")
+                    st.write("")
             else:
                 # Include None values and handle other types
                 if value is None:
