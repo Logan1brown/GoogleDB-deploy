@@ -335,7 +335,7 @@ class MatchDetailsManager:
             selected=bool(selected),
             match=bool(matches),
             score=score,
-            max_score=max_score,
+            max=max_score,
             values1=value_names,
             values2=selected_names,
             matches=matches
@@ -373,7 +373,7 @@ class MatchDetailsManager:
         # Return match details using CompAnalyzer scores
         return {
             'score': match.get(f'{field}_score', 0),
-            'max_score': match.get(f'{field}_max_score', 0),
+            'max': match.get(f'{field}_max_score', 0),
             'match_details': {
                 'name1': value_name,
                 'name2': target_name,
@@ -408,7 +408,7 @@ class MatchDetailsManager:
         
         return {
             'score': match.get(f'{field}_score', 0),
-            'max_score': match.get(f'{field}_max_score', 0),
+            'max': match.get(f'{field}_max_score', 0),
             'match_details': self._process_array_field_match(
                 field,
                 values,
@@ -435,7 +435,7 @@ class MatchDetailsManager:
             'selected': selected_id is not None,
             'match': genre_match,
             'score': score,
-            'max_score': max_score
+            'max': max_score  # Using 'max' to match base_match_breakdown.py
         }
         
     def _process_single_field_match(self, field: str, value_id: Optional[int], 
@@ -467,7 +467,7 @@ class MatchDetailsManager:
                 selected=False,
                 match=False,
                 score=0,
-                max_score=0
+                max=0
             )
         }
 
@@ -509,7 +509,7 @@ class MatchDetailsManager:
             selected=bool(selected),
             match=bool(matches),
             score=score,
-            max_score=max_score,
+            max=max_score,
             values1=value_names,
             values2=selected_names,
             matches=matches
@@ -549,41 +549,13 @@ class MatchDetailsManager:
             selected=bool(selected),
             match=bool(matches),
             score=score,
-            max_score=max_score,
+            max=max_score,
             values1=value_names,
             values2=selected_names,
             # For studios, show all values for better display
             matches=value_names if field == 'studios'
                    else self.get_field_names(field, list(matches))
         )
-        
-    def _process_setting_match(self, time_id: Optional[int], location_id: Optional[int],
-                             selected_time_id: Optional[int], 
-                             selected_location_id: Optional[int]) -> Dict[str, FieldMatch]:
-        """Process time and location setting matches."""
-        # Get scores from comp_score components
-        comp_score = match.get('comp_score', {})
-        components = comp_score.get('components', {})
-        
-        time_score = components.get('time_setting', {}).get('score', 0)
-        time_max = components.get('time_setting', {}).get('max', 0)
-        location_score = components.get('location_setting', {}).get('score', 0)
-        location_max = components.get('location_setting', {}).get('max', 0)
-        
-        time_match = self._process_single_field_match(
-            'time_setting', time_id, selected_time_id, time_max
-        )
-        
-        location_match = self._process_single_field_match(
-            'location_setting', location_id, selected_location_id, location_max
-        )
-        
-        return {
-            'time_setting': time_match,
-            'location_setting': location_match,
-            'total_score': time_score + location_score,
-            'max_score': time_max + location_max
-        }
         
     def _process_format_match(self, episodes: Optional[int], selected_episodes: Optional[int],
                             order_type_id: Optional[int], 
@@ -607,7 +579,7 @@ class MatchDetailsManager:
             selected=selected_episodes is not None,
             match=diff is not None and diff <= 2,  # Consider a match if within 2 episodes
             score=episode_score,
-            max_score=episode_max
+            max=episode_max
         )
         
         order_match = self._process_single_field_match(
@@ -619,6 +591,6 @@ class MatchDetailsManager:
         return {
             'episodes': episode_match,
             'order_type': order_match,
-            'total_score': episode_score + order_score,
-            'max_score': episode_max + order_max
+            'total_score': comp_score.get('format', {}).get('score', 0),
+            'max': comp_score.get('format', {}).get('max', 0)
         }
