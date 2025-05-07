@@ -55,8 +55,8 @@ class MatchDetailsManager:
             'time_setting': 'time_setting_id',
             'location_setting': 'location_setting_id',
             'network': 'network_id',
-            'studio': 'studios',
-            'team': 'team_member_ids',
+            'studios': 'studios',  # Match field config name
+            'team_members': 'team_member_ids',  # Match field config name
             'episodes': 'episode_count',
             'order_type': 'order_type_id'
         }
@@ -73,8 +73,8 @@ class MatchDetailsManager:
             'time_setting': 'time_setting_name',
             'location_setting': 'location_setting_name',
             'network': 'network_name',
-            'studio': 'studio_names',
-            'team': 'team_member_names',
+            'studios': 'studio_names',  # Match field config name
+            'team_members': 'team_member_names',  # Match field config name
             'episodes': 'episode_count',
             'order_type': 'order_type_name'
         }
@@ -322,23 +322,23 @@ class MatchDetailsManager:
             )
         }
         
-        # Array fields (studio, team)
-        for field in ['studio', 'team']:
-            field_score = components.get(field, 0)
-            # Studio uses primary/additional, team uses first/additional
-            if field == 'studio':
-                field_max = (
-                    production_scoring[field]['primary'] +
-                    production_scoring[field]['max_additional']
-                )
-            else:  # team
-                field_max = (
-                    production_scoring[field]['first'] +
-                    production_scoring[field]['max_additional']
-                )
+        # Array fields (studios, team_members)
+        for field in ['studios', 'team_members']:
+            # Get score using base field name (without 's' for studios)
+            score_field = 'studio' if field == 'studios' else 'team'
+            field_score = components.get(score_field, 0)
+            
+            # Get max score from scoring config
+            field_max = (
+                production_scoring[score_field]['primary' if field == 'studios' else 'first'] +
+                production_scoring[score_field]['max_additional']
+            )
+            
+            # Get values and selected from match data using full field name
             values = match.get(self.id_field_map[field], [])
             selected = criteria.get(self.id_field_map[field], [])
             matches = [v for v in values if v in selected]
+            
             production_components[field] = {
                 'display': ArrayFieldMatch(
                     name1='',  # Not used for array fields
