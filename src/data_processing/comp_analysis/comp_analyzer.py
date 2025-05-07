@@ -32,7 +32,7 @@ from datetime import datetime
 import logging
 
 # Test if streamlit writes are working
-st.write("DEBUG: CompAnalyzer module loaded")
+
 
 from src.config.supabase_client import get_client
 from ..analyze_shows import ShowsAnalyzer
@@ -533,9 +533,6 @@ class ScoreEngine:
         source_team = source.get('team_member_ids')  # Match the mapped field name
         if source_team:  # Check if team members were selected in criteria
             target_team = target.get('team_member_ids') or []  # Match the mapped field name
-            st.write(f"DEBUG: Scoring team members for {target.get('title', 'Unknown')}:")
-            st.write(f"- Source team IDs: {source_team}")
-            st.write(f"- Target team IDs: {target_team}")
             score.team = self._calculate_array_match(
                 source_team,
                 target_team,
@@ -712,7 +709,6 @@ class CompAnalyzer:
                     for field in FieldManager.FIELD_CONFIGS.keys()}
                     
         except Exception as e:
-            st.error(f"Error in get_field_options: {e}")
             import traceback
             traceback.print_exc()
             raise
@@ -831,9 +827,7 @@ class CompAnalyzer:
             List of tuples containing (show_id, CompScore) for matching shows,
             sorted by total score descending.
         """
-        st.write("DEBUG: Received criteria:")
-        st.write(criteria)
-        
+            
         self.initialize()
             
         # Create a dummy show with the criteria
@@ -856,12 +850,6 @@ class CompAnalyzer:
             # Convert arrays to lists if they're not already
             if isinstance(value, (list, set)):
                 mapped_criteria[mapped_key] = list(value)
-                # Only debug team member mapping
-                if key == 'team_members':
-                    st.write(f"Team member mapping:")
-                    st.write(f"- Original key: {key}")
-                    st.write(f"- Mapped key: {mapped_key}")
-                    st.write(f"- Value: {value}")
             else:
                 # Include None values and handle other types
                 if value is None:
@@ -876,12 +864,8 @@ class CompAnalyzer:
                         # Skip invalid values
                         continue
             
-        st.write("DEBUG: After mapping:")
-        st.write(f"Mapped criteria: {mapped_criteria}")
-                        
         # Create a dummy show with mapped criteria
         source = pd.Series(mapped_criteria)
-        st.write(f"DEBUG: Source show: {source.to_dict()}")
         
         # Score each show
         results = []
