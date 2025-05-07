@@ -678,7 +678,12 @@ class CompAnalyzer:
         
     def initialize(self, force: bool = False):
         """Initialize or refresh the analyzer data."""
-        if force or self.comp_data is None:
+        import streamlit as st
+        st.write("DEBUG: Initializing CompAnalyzer")
+        
+        # Only initialize if not already initialized or force refresh
+        if self.comp_data is None or force:
+            
             # Get fresh data from ShowsAnalyzer
             self.comp_data, self.reference_data = self.shows_analyzer.fetch_comp_data(force=force)
             
@@ -693,9 +698,10 @@ class CompAnalyzer:
             # Initialize success analyzer with the comp data
             self.success_analyzer.initialize_data(self.comp_data)
             
-        # Initialize field manager
+        # Initialize field manager and score engine
+        st.write("DEBUG: Creating new FieldManager")
         self.field_manager = FieldManager(self.reference_data)
-        # Initialize score engine with field manager
+        st.write(f"DEBUG: FieldManager team options: {len(self.field_manager.get_options('team_member_ids'))}")
         self.score_engine = ScoreEngine(self.field_manager)
     
     def get_field_options(self, force: bool = False) -> Dict[str, List[Tuple[int, str]]]:
