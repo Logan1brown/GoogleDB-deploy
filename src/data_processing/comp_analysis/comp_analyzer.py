@@ -898,8 +898,12 @@ class CompAnalyzer:
                         # Skip invalid values
                         continue
             
-        # Create series with cleaned criteria
+        st.write("DEBUG: After mapping:")
+        st.write(f"Mapped criteria: {mapped_criteria}")
+                        
+        # Create a dummy show with mapped criteria
         source = pd.Series(mapped_criteria)
+        st.write(f"DEBUG: Source show: {source.to_dict()}")
         
         # Score each show
         results = []
