@@ -325,8 +325,28 @@ class MatchDetailsManager:
                 )
             }
             
+        # Add subgenres to content section
+        subgenre_score = components.get('genre_overlap', 0)  # Overlap score from matching subgenres
+        subgenre_max = content_scoring['genre']['overlap']  # Max overlap score
+        subgenre_ids = match.get('subgenres', [])
+        target_subgenre_ids = criteria.get('subgenres', [])
+        matches = [v for v in subgenre_ids if v in target_subgenre_ids]
+        content_components['subgenres'] = {
+            'display': ArrayFieldMatch(
+                name1='',  # Not used for array fields
+                name2='',  # Not used for array fields
+                values1=self.get_field_names('subgenres', subgenre_ids, match),  # Fix: use subgenres not subgenre
+                values2=self.get_field_names('subgenres', target_subgenre_ids),
+                matches=self.get_field_names('subgenres', matches),
+                selected=bool(target_subgenre_ids),
+                match=bool(matches),
+                score=subgenre_score,
+                max_score=subgenre_max
+            )
+        }
+            
         details['content'] = {
-            'score': comp_score.get('content_score', 0),
+            'score': comp_score.get('content', 0),  # Fix: use content not content_score
             'max_score': scoring['content']['total'],
             'components': content_components
         }
@@ -355,26 +375,6 @@ class MatchDetailsManager:
         # but singular names (studio, team) in scoring to distinguish between:
         # - Data fields (plural): collections of IDs (e.g. studios[])
         # - Scoring fields (singular): individual match scores (e.g. studio.primary)
-        
-        # Add subgenres to content section
-        subgenre_score = components.get('genre_overlap', 0)  # Overlap score from matching subgenres
-        subgenre_max = content_scoring['genre']['overlap']  # Max overlap score
-        subgenre_ids = match.get('subgenres', [])
-        target_subgenre_ids = criteria.get('subgenres', [])
-        matches = [v for v in subgenre_ids if v in target_subgenre_ids]
-        content_components['subgenres'] = {
-            'display': ArrayFieldMatch(
-                name1='',  # Not used for array fields
-                name2='',  # Not used for array fields
-                values1=self.get_field_names('subgenre', subgenre_ids, match),
-                values2=self.get_field_names('subgenre', target_subgenre_ids),
-                matches=self.get_field_names('subgenre', matches),
-                selected=bool(target_subgenre_ids),
-                match=bool(matches),
-                score=subgenre_score,
-                max_score=subgenre_max
-            )
-        }
         
         # Map plural field names to singular for production components
         field_map = {
