@@ -89,11 +89,9 @@ class MatchDetailsManager:
         """
         if not match or 'comp_score' not in match:
             return 0
-            
-        components = match['comp_score'].get('components', {})
         
-        # Get score directly from components
-        return float(components.get(field, 0))
+        # Get score from comp_score using CompAnalyzer's method
+        return self.comp_analyzer.get_field_score(field, match)
         
     def get_field_name(self, field: str, id: Optional[int], match: Optional[Dict] = None, default: str = 'Unknown') -> str:
         """Get display name for a field value.
@@ -110,33 +108,19 @@ class MatchDetailsManager:
         if id is None:
             return default
             
-        # Map field to its corresponding name field in the match data
-        name_field_map = {
-            'genre': 'genre_name',
-            'source_type': 'source_type_name',
-            'tone': 'tone_name',
-            'time_setting': 'time_setting_name',
-            'location_setting': 'location_setting_name',
-            'network': 'network_name',
-            'order_type': 'order_type_name'
-        }
-        
-        # If match data is provided and has the name field, use that
+        # First try to get name from match data if provided
         if match is not None:
-            # First check the direct name field map
-            if field in name_field_map:
-                name = match.get(name_field_map[field])
+            name_field = self.name_field_map.get(field)
+            if name_field:
+                name = match.get(name_field)
                 if name is not None:
                     return name
-            
-            # Then check array fields
-            array_name_map = {
-                'character_types': 'character_type_names',
-                'plot_elements': 'plot_element_names',
-                'thematic_elements': 'thematic_element_names',
-                'studios': 'studio_names',
-                'team_members': 'team_member_names'
-            }
+        
+        # If no match data or name not found, use field manager
+        try:
+            return self.comp_analyzer.get_field_display_name(field, id) or default
+        except:
+            return default
             
             if field in array_name_map:
                 names = match.get(array_name_map[field], [])
@@ -167,7 +151,22 @@ class MatchDetailsManager:
         Returns:
             List of display names for the field values
         """
-        return [self.get_field_name(field, id, match, default) for id in ids]
+        if not ids:
+            return []
+            
+        # First try to get names from match data if provided
+        if match is not None:
+            name_field = self.name_field_map.get(field)
+            if name_field:
+                names = match.get(name_field)
+                if names:
+                    return names
+        
+        # If no match data or names not found, use field manager
+        try:
+            return [self.comp_analyzer.get_field_display_name(field, id) or default for id in ids]
+        except:
+            return [default for _ in ids]
         
     def create_match_details(self, match: Dict, criteria: Dict) -> Dict:
         """Add UI display information to CompAnalyzer's match data.
@@ -192,9 +191,8 @@ class MatchDetailsManager:
         # Content section
         content_components = {}
         
-        # Get max scores from CompAnalyzer's scoring config
-        scoring = comp_score.get('_scoring', {})
-        content_scoring = scoring.get('content', {}).get('components', {})
+        # Get scoring config from CompAnalyzer
+        scoring = self.comp_analyzer.score_engine.SCORING
         
         # Genre
         genre_score = components.get('genre_base', 0) + components.get('genre_overlap', 0)
