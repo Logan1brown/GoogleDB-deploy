@@ -197,12 +197,11 @@ class MatchDetailsManager:
         genre_id = match.get('genre_id')
         target_genre_id = criteria.get('genre_id')
         content_components['genre'] = {
-            **genre,  # Keep CompAnalyzer's score data
             'display': FieldMatch(
                 name1=self.get_field_name('genre', genre_id, match),
                 name2=self.get_field_name('genre', target_genre_id),
                 selected=target_genre_id is not None,
-                match=genre_id == target_genre_id if genre_id and target_genre_id else False,
+                match=genre.get('match', False),
                 score=genre.get('score', 0),
                 max_score=genre.get('max', 0)
             )
