@@ -530,14 +530,15 @@ class ScoreEngine:
                     score.studio += additional_points
                     
         # Team matching
-        source_team = source.get('team_member_ids')
+        source_team = source.get('team_members')
         if source_team:  # Check if team members were selected in criteria
-            target_team = target.get('team_member_ids') or []
-            score.team = self._calculate_team_match(
+            target_team = target.get('team_members') or []
+            score.team = self._calculate_array_match(
                 source_team,
                 target_team,
                 self.SCORING['production']['components']['team']['first'],
-                self.SCORING['production']['components']['team']['additional']
+                self.SCORING['production']['components']['team']['additional'],
+                'team_members'
             )
                     
         # Episode scoring
