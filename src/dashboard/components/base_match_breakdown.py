@@ -81,38 +81,33 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
         components = content.get('components', {})
         with col1:
             # Single-value fields
-            for field, label in [
-                ('genre', 'Genre'),
-                ('source_type', 'Source Type'),
-                ('time_setting', 'Time Setting')
-            ]:
-                if display := components.get(field, {}).get('display'):
-                    render_field_match(label, display)
+            if display := components.get('genre', {}).get('display'):
+                render_field_match('Genre', display)
             
-            # Multi-value fields
             if display := components.get('subgenres', {}).get('display'):
-                render_array_field_match("Subgenres", display)
+                render_array_field_match('Subgenres', display)
+                
+            if display := components.get('source_type', {}).get('display'):
+                render_field_match('Source Type', display)
                 
             if display := components.get('character_types', {}).get('display'):
-                render_array_field_match("Character Types", display)
+                render_array_field_match('Character Types', display)
+                
+            if display := components.get('plot_elements', {}).get('display'):
+                render_array_field_match('Plot Elements', display)
+                
+            if display := components.get('thematic_elements', {}).get('display'):
+                render_array_field_match('Theme Elements', display)
         
         with col2:
-            # Multi-value fields
-            for field, label in [
-                ('plot_elements', 'Plot Elements'),
-                ('thematic_elements', 'Theme Elements')
-            ]:
-                if display := components.get(field, {}).get('display'):
-                    render_array_field_match(label, display)
-            
-            # Single-value fields
-            # Note: location_setting in UI maps to location in comp_score
-            for field, label in [
-                ('tone', 'Tone'),
-                ('location_setting', 'Location')  # This matches our field name in match_details.py
-            ]:
-                if display := components.get(field, {}).get('display'):
-                    render_field_match(label, display)
+            if display := components.get('tone', {}).get('display'):
+                render_field_match('Tone', display)
+                
+            if display := components.get('time_setting', {}).get('display'):
+                render_field_match('Time Setting', display)
+                
+            if display := components.get('location_setting', {}).get('display'):
+                render_field_match('Location', display)
         
         st.write("")
     
