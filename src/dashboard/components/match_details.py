@@ -193,10 +193,11 @@ class MatchDetailsManager:
         
         # Get scoring config from CompAnalyzer
         scoring = self.comp_analyzer.score_engine.SCORING
+        content_scoring = scoring['content']['components']
         
         # Genre
         genre_score = components.get('genre_base', 0) + components.get('genre_overlap', 0)
-        genre_max = content_scoring.get('genre', {}).get('base', 0) + content_scoring.get('genre', {}).get('overlap', 0)
+        genre_max = content_scoring['genre']['base'] + content_scoring['genre']['overlap']
         genre_id = match.get('genre_id')
         target_genre_id = criteria.get('genre_id')
         content_components['genre'] = {
@@ -212,7 +213,7 @@ class MatchDetailsManager:
         
         # Source Type
         source_score = components.get('source_type', 0)
-        source_max = content_scoring.get('source_type', {}).get('match', 0)
+        source_max = content_scoring['source_type']['match']
         source_id = match.get('source_type_id')
         target_source_id = criteria.get('source_type_id')
         content_components['source_type'] = {
@@ -229,7 +230,7 @@ class MatchDetailsManager:
         # Array fields (character_types, plot_elements, thematic_elements)
         for field in ['character_types', 'plot_elements', 'thematic_elements']:
             field_score = components.get(field, 0)
-            field_max = content_scoring.get(field, {}).get('first', 0) + content_scoring.get(field, {}).get('second', 0)
+            field_max = content_scoring[field]['first'] + content_scoring[field]['second']
             values = match.get(self.id_field_map[field], [])
             selected = criteria.get(self.id_field_map[field], [])
             # Calculate matches - any values that exist in both arrays
@@ -251,7 +252,7 @@ class MatchDetailsManager:
         # Single fields (tone, time_setting, location_setting)
         for field in ['tone', 'time_setting', 'location_setting']:
             field_score = components.get(field, 0)
-            field_max = content_scoring.get(field, {}).get('match', 0)
+            field_max = content_scoring[field]['match']
             value_id = match.get(self.id_field_map[field])
             target_id = criteria.get(self.id_field_map[field])
             content_components[field] = {
@@ -267,17 +268,17 @@ class MatchDetailsManager:
             
         details['content'] = {
             'score': comp_score.get('content_score', 0),
-            'max_score': scoring.get('content', {}).get('total', 0),
+            'max_score': scoring['content']['total'],
             'components': content_components
         }
         
         # Production section
-        production_scoring = scoring.get('production', {}).get('components', {})
+        production_scoring = scoring['production']['components']
         production_components = {}
         
         # Network
         network_score = components.get('network', 0)
-        network_max = production_scoring.get('network', {}).get('match', 0)
+        network_max = production_scoring['network']['match']
         network_id = match.get('network_id')
         target_network_id = criteria.get('network_id')
         production_components['network'] = {
@@ -295,8 +296,8 @@ class MatchDetailsManager:
         for field in ['studio', 'team']:
             field_score = components.get(field, 0)
             field_max = (
-                production_scoring.get(field, {}).get('primary', 0) +
-                production_scoring.get(field, {}).get('max_additional', 0)
+                production_scoring[field]['primary'] +
+                production_scoring[field]['max_additional']
             )
             values = match.get(self.id_field_map[field], [])
             selected = criteria.get(self.id_field_map[field], [])
@@ -318,17 +319,17 @@ class MatchDetailsManager:
         # Add production section to details
         details['production'] = {
             'score': comp_score.get('production_score', 0),
-            'max_score': scoring.get('production', {}).get('total', 0),
+            'max_score': scoring['production']['total'],
             'components': production_components
         }
         
         # Format match section
-        format_scoring = scoring.get('format', {}).get('components', {})
+        format_scoring = scoring['format']['components']
         format_components = {}
         
         # Episodes
         episode_score = components.get('episodes', 0)
-        episode_max = format_scoring.get('episodes', {}).get('within_2', 0)
+        episode_max = format_scoring['episodes']['within_2']
         episode_count = match.get('episode_count')
         target_episode_count = criteria.get('episode_count')
         format_components['episodes'] = {
@@ -344,7 +345,7 @@ class MatchDetailsManager:
         
         # Order Type
         order_score = components.get('order_type', 0)
-        order_max = format_scoring.get('order_type', {}).get('match', 0)
+        order_max = format_scoring['order_type']['match']
         order_type_id = match.get('order_type_id')
         target_order_type_id = criteria.get('order_type_id')
         format_components['order_type'] = {
@@ -360,7 +361,7 @@ class MatchDetailsManager:
         
         details['format'] = {
             'score': comp_score.get('format_score', 0),
-            'max_score': scoring.get('format', {}).get('total', 0),
+            'max_score': scoring['format']['total'],
             'components': format_components
         }
         
@@ -368,9 +369,9 @@ class MatchDetailsManager:
         details['total'] = {
             'score': comp_score.get('total', 0),
             'max_score': sum([
-                scoring.get('content', {}).get('total', 0),
-                scoring.get('production', {}).get('total', 0),
-                scoring.get('format', {}).get('total', 0)
+                scoring['content']['total'],
+                scoring['production']['total'],
+                scoring['format']['total']
             ])
         }
         
