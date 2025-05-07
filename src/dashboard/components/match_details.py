@@ -125,10 +125,12 @@ class MatchDetailsManager:
             
         # Handle non-array fields
         if not config.is_array:
+            if field == 'genre':
+                st.write(f"Debug - Match data for genre (id={id}):\nname_field={name_field}\nmatch={match}")
             name = match.get(name_field)
             if name is None:
-                # This shouldn't happen - if we have an ID, we should have the name
-                raise ValueError(f"Name missing for {field} ID {id}")
+                # If name is missing in match data, try field manager
+                return self.comp_analyzer.get_field_display_name(field, id) or default
             return name
             
         # Handle array fields

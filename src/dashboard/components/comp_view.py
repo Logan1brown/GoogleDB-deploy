@@ -308,12 +308,8 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     
     # Transform results into expected format and calculate total scores
     match_results = [{
-        'id': r['id'],
-        'title': r['title'],
-        'success_score': r.get('success_score', 0),
-        'total_score': r['score'],  # Use pre-calculated score
-        'comp_score': r['comp_score'],
-        'description': r.get('description', '')
+        **r,  # Keep all original fields
+        'total_score': r['score']  # Just rename score to total_score
     } for r in results]
     
     # Sort by total score descending
