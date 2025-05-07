@@ -533,10 +533,6 @@ class ScoreEngine:
         source_team = source.get('team_members')
         if source_team:  # Check if team members were selected in criteria
             target_team = target.get('team_members') or []
-            # Debug only when team members are in criteria
-            st.write(f"Team member match check for {target.get('title', 'Unknown')}:")
-            st.write(f"- Source team IDs: {source_team}")
-            st.write(f"- Target team IDs: {target_team}")
             score.team = self._calculate_array_match(
                 source_team,
                 target_team,
@@ -876,6 +872,12 @@ class CompAnalyzer:
             # Convert arrays to lists if they're not already
             if isinstance(value, (list, set)):
                 mapped_criteria[mapped_key] = list(value)
+                # Only debug team member mapping
+                if key == 'team_members':
+                    st.write(f"Team member mapping:")
+                    st.write(f"- Original key: {key}")
+                    st.write(f"- Mapped key: {mapped_key}")
+                    st.write(f"- Value: {value}")
             else:
                 # Include None values and handle other types
                 if value is None:
