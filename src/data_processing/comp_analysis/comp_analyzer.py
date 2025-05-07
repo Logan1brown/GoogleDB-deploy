@@ -591,6 +591,10 @@ class ScoreEngine:
                 # We know all_ids is always set for team members
                 for team_id in opt.all_ids:
                     id_to_name[team_id] = opt.name
+            
+            import streamlit as st
+            st.write(f"DEBUG team_member_ids: source={source_arr}, target={target_arr}")
+            st.write(f"DEBUG id_to_name: {id_to_name}")
                     
             # Get unique names for source and target using the lookup map
             source_names = {id_to_name.get(id) for id in source_arr if id in id_to_name}
