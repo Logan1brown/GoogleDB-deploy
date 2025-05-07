@@ -295,10 +295,17 @@ class MatchDetailsManager:
         # Array fields (studio, team)
         for field in ['studio', 'team']:
             field_score = components.get(field, 0)
-            field_max = (
-                production_scoring[field]['primary'] +
-                production_scoring[field]['max_additional']
-            )
+            # Studio uses primary/additional, team uses first/additional
+            if field == 'studio':
+                field_max = (
+                    production_scoring[field]['primary'] +
+                    production_scoring[field]['max_additional']
+                )
+            else:  # team
+                field_max = (
+                    production_scoring[field]['first'] +
+                    production_scoring[field]['max_additional']
+                )
             values = match.get(self.id_field_map[field], [])
             selected = criteria.get(self.id_field_map[field], [])
             matches = [v for v in values if v in selected]
