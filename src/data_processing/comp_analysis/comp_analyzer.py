@@ -560,7 +560,10 @@ class ScoreEngine:
             second_points: Points for additional matches
             field_name: Name of the field being matched (used to identify team members)
         """
-        if not source_arr or not target_arr:
+        # Handle empty arrays and non-list inputs
+        if not isinstance(source_arr, (list, np.ndarray)) or not isinstance(target_arr, (list, np.ndarray)):
+            return 0
+        if len(source_arr) == 0 or len(target_arr) == 0:
             return 0
             
         # For team members, we need to count unique names for scoring
@@ -573,7 +576,7 @@ class ScoreEngine:
             for opt in team_options:
                 # Each ID for this name maps to the same name
                 # Handle case where all_ids might be None
-                if hasattr(opt, 'all_ids') and opt.all_ids:
+                if hasattr(opt, 'all_ids') and isinstance(opt.all_ids, (list, np.ndarray)) and len(opt.all_ids) > 0:
                     for team_id in opt.all_ids:
                         id_to_name[team_id] = opt.name
                 else:
