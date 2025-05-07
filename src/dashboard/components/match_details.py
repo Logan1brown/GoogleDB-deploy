@@ -67,19 +67,25 @@ class MatchDetailsManager:
         }
         
     def _get_component_score(self, match: Dict, field: str) -> float:
-        """Get a component's score using the CompAnalyzer.
+        """Get a component's score from the comp_score dictionary.
         
         Args:
-            match: Match data
+            match: Match data containing comp_score
             field: Field to get score for
             
         Returns:
             Score for the field, or 0 if not found
         """
-        if not match:
+        if not match or 'comp_score' not in match:
             return 0
             
-        return float(self.comp_analyzer.get_field_score(field, match))
+        components = match['comp_score'].get('components', {})
+        
+        # Handle special cases
+        if field == 'genre':
+            return float(components.get('genre_base', 0) + components.get('genre_overlap', 0))
+        
+        return float(components.get(field, 0))
         
     def get_field_name(self, field: str, id: Optional[int], match: Optional[Dict] = None, default: str = 'Unknown') -> str:
         """Get display name for a field value.
@@ -294,11 +300,30 @@ class MatchDetailsManager:
         selected_names = self.get_field_names(field, selected) if selected else []
         matches = list(set(value_names) & set(selected_names))
         
-        # Get score from CompAnalyzer
-        score = self.comp_analyzer.get_field_score(field, match)
+        # Get score from comp_score
+        if not match or 'comp_score' not in match:
+            return ArrayFieldMatch(
+                name1='Multiple' if values else 'Unknown',
+                name2='Multiple' if selected else 'Unknown',
+                selected=bool(selected),
+                match=bool(matches),
+                score=0,
+                max_score=0,
+                values1=value_names,
+                values2=selected_names,
+                matches=matches
+            )
+            
+        components = match['comp_score'].get('components', {})
+        score = components.get(field, 0)
         
-        # Get max score from CompAnalyzer
-        max_val = self.comp_analyzer.get_field_max_score(field)
+        # Get max score from scoring config
+        if field in ['character_types', 'plot_elements', 'thematic_elements']:
+            max_val = 10  # First + second match points from ScoreEngine.SCORING
+        elif field == 'studios':
+            max_val = 5  # From ScoreEngine.SCORING
+        else:
+            max_val = 0
             
         return ArrayFieldMatch(
             name1='Multiple' if values else 'Unknown',
@@ -395,9 +420,23 @@ class MatchDetailsManager:
         selected_id = criteria.get('genre_id')
         genre_match = genre_id == selected_id
         
-        # Get score and max from CompAnalyzer
-        score = self.comp_analyzer.get_field_score('genre', match)
-        max_val = self.comp_analyzer.get_field_max_score('genre')
+        # Get score from comp_score
+        if not match or 'comp_score' not in match:
+            return {
+                'name1': self.get_field_name('genre', genre_id),
+                'name2': self.get_field_name('genre', selected_id),
+                'selected': selected_id is not None,
+                'match': genre_match,
+                'score': 0,
+                'max_score': 23  # From ScoreEngine.SCORING
+            }
+            
+        comp_score = match['comp_score']
+        components = comp_score.get('components', {})
+        
+        # Genre score is split into base and overlap
+        score = components.get('genre_base', 0) + components.get('genre_overlap', 0)
+        max_val = 23  # 15 base + 8 overlap from ScoreEngine.SCORING
         
         return {
             'name1': self.get_field_name('genre', genre_id),
@@ -520,11 +559,20 @@ class MatchDetailsManager:
                             selected_order_type_id: Optional[int],
                             match: Optional[Dict] = None) -> Dict[str, FieldMatch]:
         """Process episode count and order type matches."""
-        # Get scores from CompAnalyzer
-        episode_score = self.comp_analyzer.get_field_score('episodes', match)
-        episode_max = self.comp_analyzer.get_field_max_score('episodes')
-        order_score = self.comp_analyzer.get_field_score('order_type', match)
-        order_max = self.comp_analyzer.get_field_max_score('order_type')
+        # Get scores from comp_score
+        if not match or 'comp_score' not in match:
+            return {
+                'episodes': self._process_single_field_match('episodes', episodes, selected_episodes),
+                'order_type': self._process_single_field_match('order_type', order_type_id, selected_order_type_id),
+                'total_score': 0,
+                'max_score': 3  # From ScoreEngine.SCORING
+            }
+            
+        components = match['comp_score'].get('components', {})
+        episode_score = components.get('episodes', 0)
+        episode_max = 2  # From ScoreEngine.SCORING
+        order_score = components.get('order_type', 0)
+        order_max = 1  # From ScoreEngine.SCORING
         
         diff = abs(episodes - selected_episodes) if episodes is not None and selected_episodes is not None else None
                 
@@ -546,6 +594,6 @@ class MatchDetailsManager:
         return {
             'episodes': episode_match,
             'order_type': order_match,
-            'total_score': self.comp_analyzer.get_field_score('format', match),
-            'max': self.comp_analyzer.get_field_max_score('format')
+            'total_score': episode_score + order_score,
+            'max_score': episode_max + order_max  # 3 points total from ScoreEngine.SCORING
         }
