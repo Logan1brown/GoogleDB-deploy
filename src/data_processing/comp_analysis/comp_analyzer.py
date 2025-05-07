@@ -85,13 +85,15 @@ class FieldManager:
                 
                 # Collect unique team members
                 for _, row in df.iterrows():
-                    if isinstance(row['team_member_ids'], list) and isinstance(row['team_member_names'], list):
+                    team_member_ids = row.get('team_member_ids', [])
+                    team_member_names = row.get('team_member_names', [])
+                    if isinstance(team_member_ids, list) and isinstance(team_member_names, list) and len(team_member_ids) > 0 and len(team_member_names) > 0:
                         # Debug: Print arrays for first row
                         if len(unique_members) == 0:
-                            logger.info(f"First row IDs: {row['team_member_ids']}")
-                            logger.info(f"First row names: {row['team_member_names']}")
+                            logger.info(f"First row IDs: {team_member_ids}")
+                            logger.info(f"First row names: {team_member_names}")
                         
-                        for id, name in zip(row['team_member_ids'], row['team_member_names']):
+                        for id, name in zip(team_member_ids, team_member_names):
                             # Debug: Print each ID/name pair
                             if name == 'Adam Bernstein':
                                 logger.info(f"Found Adam Bernstein with ID {id}")
