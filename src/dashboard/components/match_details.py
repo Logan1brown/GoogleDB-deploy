@@ -284,17 +284,13 @@ class MatchDetailsManager:
         value_name = self.get_field_name(field, value_id, match)
         target_name = self.get_field_name(field, target_id)
         
-        # Get score
-        score = self._get_component_score(match, field)
-        max_score = self._get_max_score(field)
-        
         return FieldMatch(
             name1=value_name or 'Unknown',
             name2=target_name or 'Unknown',
             selected=bool(target_id),
             match=value_id == target_id if value_id and target_id else False,
-            score=score,
-            max_score=max_score
+            score=0,  # Scores come from CompAnalyzer
+            max_score=0
         )
 
     def _process_array_field(self, field: str, match: Dict, criteria: Dict) -> ArrayFieldMatch:
@@ -309,17 +305,13 @@ class MatchDetailsManager:
         selected_names = self.get_field_names(field, selected) if selected else []
         matches = list(set(value_names) & set(selected_names))
         
-        # Get score
-        score = self._get_component_score(match, field)
-        max_score = self._get_max_score(field)
-        
         return ArrayFieldMatch(
             name1='Multiple' if values else 'Unknown',
             name2='Multiple' if selected else 'Unknown',
             selected=bool(selected),
             match=bool(matches),
-            score=score,
-            max_score=max_score,
+            score=0,  # Scores come from CompAnalyzer
+            max_score=0,
             values1=value_names,
             values2=selected_names,
             matches=matches
