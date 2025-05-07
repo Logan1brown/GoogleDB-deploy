@@ -78,32 +78,40 @@ class FieldManager:
             if field_name == 'team_members':
                 # Use dictionary to maintain unique entries by ID
                 unique_members = {}
-                    
-                # Debug: Print first few rows
-                logger.info("First few rows of team member data:")
-                logger.info(df.head().to_dict())
                 
                 # Collect unique team members
                 for _, row in df.iterrows():
+                    # Get team member IDs and names
                     team_member_ids = row.get('team_member_ids', [])
                     team_member_names = row.get('team_member_names', [])
-                    if isinstance(team_member_ids, list) and isinstance(team_member_names, list) and len(team_member_ids) > 0 and len(team_member_names) > 0:
-                        # Debug: Print arrays for first row
-                        if len(unique_members) == 0:
-                            logger.info(f"First row IDs: {team_member_ids}")
-                            logger.info(f"First row names: {team_member_names}")
+                    
+                    # Convert from string if needed
+                    if isinstance(team_member_ids, str):
+                        try:
+                            team_member_ids = eval(team_member_ids)
+                        except:
+                            team_member_ids = []
+                    if isinstance(team_member_names, str):
+                        try:
+                            team_member_names = eval(team_member_names)
+                        except:
+                            team_member_names = []
+                            
+                    # Skip if either array is empty
+                    if not team_member_ids or not team_member_names:
+                        continue
                         
-                        for id, name in zip(team_member_ids, team_member_names):
-                            # Debug: Print each ID/name pair
-                            if name == 'Adam Bernstein':
-                                logger.info(f"Found Adam Bernstein with ID {id}")
-                            # Only add if we haven't seen this name before
-                            if name not in unique_members:
-                                unique_members[name] = id
-                                
+                    # Add each team member
+                    for id, name in zip(team_member_ids, team_member_names):
+                        if not name:
+                            continue
+                        name = str(name).strip()
+                        if name and name not in unique_members:
+                            unique_members[name] = int(id)
+                
                 # Convert dictionary to list of options
-                options = [FieldOption(id=id, name=str(name)) for name, id in unique_members.items()]
-                self.options[field_name] = sorted(options, key=lambda x: str(x.name) if x.name is not None else '')
+                options = [FieldOption(id=id, name=name) for name, id in unique_members.items()]
+                self.options[field_name] = sorted(options, key=lambda x: x.name)
             else:
                 clean_members = {}
                 for _, row in df.iterrows():
