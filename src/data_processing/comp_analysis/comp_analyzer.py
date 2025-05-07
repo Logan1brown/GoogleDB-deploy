@@ -872,30 +872,6 @@ class CompAnalyzer:
             # Convert arrays to lists if they're not already
             if isinstance(value, (list, set)):
                 mapped_criteria[mapped_key] = list(value)
-                # For team members, we need both IDs and names
-                if key == 'team_members':
-                    # Get the team member options to map IDs to names
-                    team_options = self.field_manager.get_options('team_members')
-                    # Create a map of ID -> name that includes all IDs
-                    id_to_name = {}
-                    # Build ID to name mapping
-                    for opt in team_options:
-                        for team_id in opt.all_ids:
-                            id_to_name[team_id] = opt.name
-                            
-                    # Map the IDs to names
-                    mapped_criteria['team_member_names'] = [id_to_name.get(id) for id in value if id in id_to_name]
-                    
-                    # Debug output only for selected team members
-                    st.write("")
-                    st.write("DEBUG: Selected team member details:")
-                    for team_id in value:
-                        for opt in team_options:
-                            if team_id in opt.all_ids:
-                                st.write(f"DEBUG: {opt.name}: primary={opt.id}, all_ids={opt.all_ids}")
-                    st.write(f"DEBUG: Input team member IDs: {value}")
-                    st.write(f"DEBUG: Mapped to names: {mapped_criteria['team_member_names']}")
-                    st.write("")
             else:
                 # Include None values and handle other types
                 if value is None:
