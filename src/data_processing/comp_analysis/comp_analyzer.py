@@ -64,9 +64,11 @@ class FieldManager:
     def _load_options(self):
         """Load all field options from reference data."""
         for field_name, config in self.FIELD_CONFIGS.items():
-            # For subgenres, use the subgenres list
+            # Special handling for different data sources
             if field_name == 'subgenres':
                 df = self.reference_data['subgenres']
+            elif field_name == 'team_member_ids':
+                df = self.reference_data['api_show_comp_data']  # Use the full comp data
             else:
                 df = self.reference_data[field_name]
                 
