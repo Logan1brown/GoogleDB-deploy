@@ -80,7 +80,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
         
         components = content.get('components', {})
         with col1:
-            # Single-value fields
+            # Column 1: Genre through Plot Elements
             if display := components.get('genre', {}).get('display'):
                 render_field_match('Genre', display)
             
@@ -95,11 +95,12 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
                 
             if display := components.get('plot_elements', {}).get('display'):
                 render_array_field_match('Plot Elements', display)
-                
-            if display := components.get('thematic_elements', {}).get('display'):
-                render_array_field_match('Theme Elements', display)
         
         with col2:
+            # Column 2: Theme Elements through Location
+            if display := components.get('thematic_elements', {}).get('display'):
+                render_array_field_match('Theme Elements', display)
+                
             if display := components.get('tone', {}).get('display'):
                 render_field_match('Tone', display)
                 
