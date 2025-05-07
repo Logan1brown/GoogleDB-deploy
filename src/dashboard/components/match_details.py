@@ -289,24 +289,20 @@ class MatchDetailsManager:
         components = comp_score.get('components', {})
         score = components.get(field, 0)
         
-        # Get max score based on field
-        max_scores = {
-            'source_type': 10,
-            'tone': 9,
-            'time_setting': 4,
-            'location_setting': 4,
-            'network': 5,
-            'episodes': 3,
-            'order_type': 2
-        }
-        
+        # Get max score from comp_score components
+        max_score = 0
+        if field in components:
+            field_config = components[field]
+            if isinstance(field_config, dict):
+                max_score = field_config.get('max', 0)
+            
         return FieldMatch(
             name1=value_name or 'Unknown',
             name2=target_name or 'Unknown',
             selected=bool(target_id),
             match=value_id == target_id if value_id and target_id else False,
             score=score,
-            max_score=max_scores.get(field, 10)  # Default to 10 if not found
+            max_score=max_score
         )
 
     def _process_array_field(self, field: str, match: Dict, criteria: Dict) -> ArrayFieldMatch:
@@ -326,22 +322,20 @@ class MatchDetailsManager:
         components = comp_score.get('components', {})
         score = components.get(field, 0)
         
-        # Get max score based on field
-        max_scores = {
-            'character_types': 12,  # 9 first + 3 second
-            'plot_elements': 10,    # 7.5 first + 2.5 second
-            'thematic_elements': 10,# 7.5 first + 2.5 second
-            'studio': 4,           # 2 primary + 2 additional
-            'team': 4              # 2 first + 2 additional
-        }
-        
+        # Get max score from comp_score components
+        max_score = 0
+        if field in components:
+            field_config = components[field]
+            if isinstance(field_config, dict):
+                max_score = field_config.get('max', 0)
+            
         return ArrayFieldMatch(
             name1='Multiple' if values else 'Unknown',
             name2='Multiple' if selected else 'Unknown',
             selected=bool(selected),
             match=bool(matches),
             score=score,
-            max_score=max_scores.get(field, 10),  # Default to 10 if not found
+            max_score=max_score,
             values1=value_names,
             values2=selected_names,
             matches=matches
@@ -430,11 +424,18 @@ class MatchDetailsManager:
         selected_id = criteria.get('genre_id')
         genre_match = genre_id == selected_id
         
+        # Get score from comp_score components
+        components = match.get('comp_score', {}).get('components', {})
+        score = components.get('genre', 0)  # Combined base + overlap score
+        max_score = 23  # 15 base + 8 overlap from ScoreEngine.SCORING
+        
         return {
             'name1': self.get_field_name('genre', genre_id),
             'name2': self.get_field_name('genre', selected_id),
             'selected': selected_id is not None,
-            'match': genre_match
+            'match': genre_match,
+            'score': score,
+            'max_score': max_score
         }
         
     def _process_single_field_match(self, field: str, value_id: Optional[int], 
@@ -492,25 +493,22 @@ class MatchDetailsManager:
         selected_names = self.get_field_names(field, selected)
         matches = [n for n in value_names if n in selected_names]
         
-        # Calculate max score based on scoring format
-        if 'first' in scoring and 'second' in scoring:
-            # Content scoring (character_types, plot_elements, etc)
-            max_score = scoring['first'] + scoring['second']
-        elif 'primary' in scoring and 'max_additional' in scoring:
-            # Production scoring (studio)
-            max_score = scoring['primary'] + scoring['max_additional']
-        elif 'first' in scoring and 'max_additional' in scoring:
-            # Team scoring
-            max_score = scoring['first'] + scoring['max_additional']
-        else:
-            raise ValueError(f'Unknown scoring format for field: {scoring}')
+        # Get score and max score from comp_score
+        score = self._get_component_score(match, field)
+        max_score = 0
+        if match and 'comp_score' in match:
+            components = match['comp_score'].get('components', {})
+            if field in components:
+                field_config = components[field]
+                if isinstance(field_config, dict):
+                    max_score = field_config.get('max', 0)
         
         return ArrayFieldMatch(
             name1='Multiple' if value_names else 'None',
             name2='Multiple' if selected_names else 'None',
             selected=bool(selected),
             match=bool(matches),
-            score=self._get_component_score(match, field),
+            score=score,
             max_score=max_score,
             values1=value_names,
             values2=selected_names,
@@ -535,17 +533,15 @@ class MatchDetailsManager:
         selected_set = set(selected)
         matches = value_set & selected_set
         
-        # Get score from comp_analyzer
+        # Get score and max score from comp_score
         score = self._get_component_score(match, field)
-                
-        # Calculate max score based on field type
-        if field == 'team_members':
-            max_score = scoring.get('first', 0)
-            if len(selected) > 1:
-                max_score += scoring.get('additional', 0)
-        else:
-            max_score = scoring.get('primary', 0)
-            max_score += scoring.get('max_additional', 0)
+        max_score = 0
+        if match and 'comp_score' in match:
+            components = match['comp_score'].get('components', {})
+            if field in components:
+                field_config = components[field]
+                if isinstance(field_config, dict):
+                    max_score = field_config.get('max', 0)
                 
         return ArrayFieldMatch(
             name1='Multiple' if value_names else 'None',
@@ -565,21 +561,28 @@ class MatchDetailsManager:
                              selected_time_id: Optional[int], 
                              selected_location_id: Optional[int]) -> Dict[str, FieldMatch]:
         """Process time and location setting matches."""
+        # Get scores from comp_score components
+        comp_score = match.get('comp_score', {})
+        components = comp_score.get('components', {})
+        
+        time_score = components.get('time_setting', {}).get('score', 0)
+        time_max = components.get('time_setting', {}).get('max', 0)
+        location_score = components.get('location_setting', {}).get('score', 0)
+        location_max = components.get('location_setting', {}).get('max', 0)
+        
         time_match = self._process_single_field_match(
-            'time_setting', time_id, selected_time_id,
-            self.scoring['content']['components']['time_setting']['match']
+            'time_setting', time_id, selected_time_id, time_max
         )
         
         location_match = self._process_single_field_match(
-            'location_setting', location_id, selected_location_id,
-            self.scoring['content']['components']['location_setting']['match']
+            'location_setting', location_id, selected_location_id, location_max
         )
         
         return {
             'time_setting': time_match,
             'location_setting': location_match,
-            'total_score': time_match.score + location_match.score,
-            'max_score': time_match.max_score + location_match.max_score
+            'total_score': time_score + location_score,
+            'max_score': time_max + location_max
         }
         
     def _process_format_match(self, episodes: Optional[int], selected_episodes: Optional[int],
@@ -587,7 +590,15 @@ class MatchDetailsManager:
                             selected_order_type_id: Optional[int],
                             match: Optional[Dict] = None) -> Dict[str, FieldMatch]:
         """Process episode count and order type matches."""
-        episode_score = self._get_component_score(match, 'episodes')
+        # Get scores from comp_score components
+        comp_score = match.get('comp_score', {})
+        components = comp_score.get('components', {})
+        
+        episode_score = components.get('episodes', {}).get('score', 0)
+        episode_max = components.get('episodes', {}).get('max', 0)
+        order_score = components.get('order_type', {}).get('score', 0)
+        order_max = components.get('order_type', {}).get('max', 0)
+        
         diff = abs(episodes - selected_episodes) if episodes is not None and selected_episodes is not None else None
                 
         episode_match = FieldMatch(
@@ -596,18 +607,18 @@ class MatchDetailsManager:
             selected=selected_episodes is not None,
             match=diff is not None and diff <= 2,  # Consider a match if within 2 episodes
             score=episode_score,
-            max_score=self.scoring['format']['components']['episodes']['within_2']
+            max_score=episode_max
         )
         
         order_match = self._process_single_field_match(
             'order_type', order_type_id, selected_order_type_id,
-            self.scoring['format']['components']['order_type']['match'],
+            order_max,
             match
         )
         
         return {
             'episodes': episode_match,
             'order_type': order_match,
-            'total_score': episode_match.score + order_match.score,
-            'max_score': episode_match.max_score + order_match.max_score
+            'total_score': episode_score + order_score,
+            'max_score': episode_max + order_max
         }
