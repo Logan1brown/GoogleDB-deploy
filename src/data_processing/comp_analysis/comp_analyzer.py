@@ -584,10 +584,6 @@ class ScoreEngine:
             
         # For team members, we need to count unique names for scoring
         if field_name == 'team_member_ids':  # Match the mapped field name
-            st.write("DEBUG: Team member array comparison:")
-            st.write(f"Source: {source_arr}")
-            st.write(f"Target: {target_arr}")
-            
             # Get all team member options with their grouped IDs
             team_options = self.field_manager.get_options('team_member_ids')  # Match the mapped field name
             
@@ -598,37 +594,15 @@ class ScoreEngine:
                 # We know all_ids is always set for team members
                 for team_id in opt.all_ids:
                     id_to_name[team_id] = opt.name
-                
-            # Debug the ID to name mapping
-            st.write("")
-            st.write("DEBUG: ID to name mapping:")
-            st.write(f"DEBUG: Number of mappings: {len(id_to_name)}")
-            st.write(f"DEBUG: First few mappings: {dict(list(id_to_name.items())[:5])}")
-            st.write("")
-            
+                    
             # Get unique names for source and target using the lookup map
             source_names = {id_to_name.get(id) for id in source_arr if id in id_to_name}
             target_names = {id_to_name.get(id) for id in target_arr if id in id_to_name}
-            
-            # Debug raw lookups before filtering None
-            st.write("DEBUG: Raw name lookups:")
-            st.write(f"DEBUG: Source IDs: {source_arr}")
-            st.write(f"DEBUG: Source ID lookups: {[id_to_name.get(id) for id in source_arr]}")
-            st.write(f"DEBUG: Target IDs: {target_arr}")
-            st.write(f"DEBUG: Target ID lookups: {[id_to_name.get(id) for id in target_arr]}")
-            st.write("")
                     
             # Remove None values and count matches by unique names
             source_names = {name for name in source_names if name}
             target_names = {name for name in target_names if name}
             matches = source_names & target_names
-            
-            # Debug final sets
-            st.write("DEBUG: Final sets:")
-            st.write(f"DEBUG: Source names: {source_names}")
-            st.write(f"DEBUG: Target names: {target_names}")
-            st.write(f"DEBUG: Matches: {matches}")
-            st.write("")
             
             # Calculate points based on matches
             if len(matches) > 0:
