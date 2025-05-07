@@ -435,7 +435,7 @@ class MatchDetailsManager:
                     name2='',  # Not used for array fields
                     values1=self.get_field_names(field_plural, values, match),
                     values2=self.get_field_names(field_plural, selected),
-                    matches=self.get_field_names(field_plural, matches),
+                    matches=self.get_field_names(field_plural, matches, match),
                     selected=bool(selected),
                     match=bool(matches),
                     score=field_score,
