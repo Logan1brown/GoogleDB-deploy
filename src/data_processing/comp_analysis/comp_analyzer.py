@@ -668,6 +668,77 @@ class CompAnalyzer:
             import traceback
             traceback.print_exc()
             raise
+            
+    def get_field_score(self, field: str, match: Dict) -> float:
+        """Get the score for a specific field from a match's comp_score.
+        
+        Args:
+            field: Field to get score for
+            match: Match data containing comp_score
+            
+        Returns:
+            Score for the field
+        """
+        if not match or 'comp_score' not in match:
+            return 0
+            
+        comp_score = match['comp_score']
+        components = comp_score.get('components', {})
+        
+        if field == 'genre':
+            return float(components.get('genre_base', 0) + components.get('genre_overlap', 0))
+        
+        return float(components.get(field, 0))
+        
+    def get_field_max_score(self, field: str) -> float:
+        """Get the maximum possible score for a field based on scoring config.
+        
+        Args:
+            field: Field to get max score for
+            
+        Returns:
+            Maximum possible score for the field
+        """
+        if not self.score_engine:
+            self.initialize()
+            
+        if field == 'content':
+            return self.score_engine.SCORING['content']['total']
+        elif field == 'production':
+            return self.score_engine.SCORING['production']['total']
+        elif field == 'format':
+            return self.score_engine.SCORING['format']['total']
+        
+        # Individual field scores
+        content = self.score_engine.SCORING['content']['components']
+        production = self.score_engine.SCORING['production']['components']
+        format = self.score_engine.SCORING['format']['components']
+        
+        if field == 'genre':
+            return content['genre']['base'] + content['genre']['overlap']
+        elif field == 'source_type':
+            return content['source_type']['match']
+        elif field in ['character_types', 'plot_elements', 'thematic_elements']:
+            component = content[field]
+            return component['first'] + component['second']
+        elif field == 'tone':
+            return content['tone']['match']
+        elif field == 'time_setting':
+            return content['time_setting']['match']
+        elif field == 'location_setting':
+            return content['location_setting']['match']
+        elif field == 'network':
+            return production['network']['match']
+        elif field == 'studio':
+            return production['studio']['primary'] + production['studio']['max_additional']
+        elif field == 'team':
+            return production['team']['first'] + production['team']['max_additional']
+        elif field == 'episodes':
+            return format['episodes']['within_2']
+        elif field == 'order_type':
+            return format['order_type']['match']
+            
+        return 0
         
     def get_field_display_name(self, field_name: str, id: int) -> str:
         """Get display name for a field value.
