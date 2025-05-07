@@ -576,8 +576,7 @@ class ScoreEngine:
             second_points: Points for additional matches
             field_name: Name of the field being matched (used to identify team members)
         """
-        # Handle empty arrays and non-list inputs
-        if not source_arr or not target_arr or not isinstance(source_arr, list) or not isinstance(target_arr, list):
+        if not source_arr or not target_arr:
             return 0
             
         # For team members, we need to count unique names for scoring
@@ -850,6 +849,9 @@ class CompAnalyzer:
             List of tuples containing (show_id, CompScore) for matching shows,
             sorted by total score descending.
         """
+        st.write("DEBUG: Received criteria:")
+        st.write(criteria)
+        
         self.initialize()
             
         # Create a dummy show with the criteria
