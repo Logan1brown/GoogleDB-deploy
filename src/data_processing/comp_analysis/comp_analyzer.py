@@ -485,14 +485,14 @@ class ScoreEngine:
             
         # Studio matching
         source_studios = source.get('studios')
-        if source_studios is not None:  # Check if studios were selected in criteria
+        if source_studios:  # Check if studios were selected in criteria
             source_studios = set(source_studios)
             target_studios = set(target.get('studios') or [])
-            matches = len(source_studios & target_studios)
-            if matches > 0:
+            matches = source_studios & target_studios
+            if matches:  # If there are any matches
                 score.studio = self.SCORING['production']['components']['studio']['primary']
                 # Calculate additional points for matches beyond the first
-                additional_matches = matches - 1
+                additional_matches = len(matches) - 1
                 if additional_matches > 0:
                     additional_points = min(
                         additional_matches * self.SCORING['production']['components']['studio']['additional'],
@@ -502,7 +502,7 @@ class ScoreEngine:
                     
         # Team matching
         source_team = source.get('team_member_ids')
-        if source_team is not None:  # Check if team members were selected in criteria
+        if source_team:  # Check if team members were selected in criteria
             target_team = target.get('team_member_ids') or []
             score.team = self._calculate_array_match(
                 source_team,
@@ -568,10 +568,12 @@ class ScoreEngine:
                     id_to_name[opt.id] = opt.name
                 
             # Get unique names for source and target using the lookup map
-            source_names = {id_to_name[id] for id in (source_arr or []) if id in id_to_name}
-            target_names = {id_to_name[id] for id in (target_arr or []) if id in id_to_name}
+            source_names = {id_to_name.get(id) for id in source_arr if id in id_to_name}
+            target_names = {id_to_name.get(id) for id in target_arr if id in id_to_name}
                     
-            # Count matches by unique names
+            # Remove None values and count matches by unique names
+            source_names = {name for name in source_names if name}
+            target_names = {name for name in target_names if name}
             matches = source_names & target_names
             
             # Calculate points based on matches
