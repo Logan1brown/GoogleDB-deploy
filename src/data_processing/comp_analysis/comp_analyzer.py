@@ -604,6 +604,7 @@ class ScoreEngine:
             target_names = {name for name in target_names if name}
             matches = source_names & target_names
             
+
             # Calculate points based on matches
             if len(matches) > 0:
                 # First match gets first_points
