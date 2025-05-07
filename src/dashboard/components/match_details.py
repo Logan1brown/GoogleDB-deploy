@@ -284,13 +284,29 @@ class MatchDetailsManager:
         value_name = self.get_field_name(field, value_id, match)
         target_name = self.get_field_name(field, target_id)
         
+        # Get score and max from comp_score
+        comp_score = match.get('comp_score', {})
+        components = comp_score.get('components', {})
+        score = components.get(field, 0)
+        
+        # Get max score based on field
+        max_scores = {
+            'source_type': 10,
+            'tone': 9,
+            'time_setting': 4,
+            'location_setting': 4,
+            'network': 5,
+            'episodes': 3,
+            'order_type': 2
+        }
+        
         return FieldMatch(
             name1=value_name or 'Unknown',
             name2=target_name or 'Unknown',
             selected=bool(target_id),
             match=value_id == target_id if value_id and target_id else False,
-            score=0,  # Scores come from CompAnalyzer
-            max_score=0
+            score=score,
+            max_score=max_scores.get(field, 10)  # Default to 10 if not found
         )
 
     def _process_array_field(self, field: str, match: Dict, criteria: Dict) -> ArrayFieldMatch:
@@ -305,13 +321,27 @@ class MatchDetailsManager:
         selected_names = self.get_field_names(field, selected) if selected else []
         matches = list(set(value_names) & set(selected_names))
         
+        # Get score from comp_score
+        comp_score = match.get('comp_score', {})
+        components = comp_score.get('components', {})
+        score = components.get(field, 0)
+        
+        # Get max score based on field
+        max_scores = {
+            'character_types': 12,  # 9 first + 3 second
+            'plot_elements': 10,    # 7.5 first + 2.5 second
+            'thematic_elements': 10,# 7.5 first + 2.5 second
+            'studio': 4,           # 2 primary + 2 additional
+            'team': 4              # 2 first + 2 additional
+        }
+        
         return ArrayFieldMatch(
             name1='Multiple' if values else 'Unknown',
             name2='Multiple' if selected else 'Unknown',
             selected=bool(selected),
             match=bool(matches),
-            score=0,  # Scores come from CompAnalyzer
-            max_score=0,
+            score=score,
+            max_score=max_scores.get(field, 10),  # Default to 10 if not found
             values1=value_names,
             values2=selected_names,
             matches=matches
