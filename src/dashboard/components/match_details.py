@@ -95,61 +95,57 @@ class MatchDetailsManager:
         # Get score from comp_score using CompAnalyzer's method
         return self.comp_analyzer.get_field_score(field, match)
         
-    def get_field_name(self, field: str, id: Optional[int], match: Optional[Dict] = None, default: str = 'Unknown') -> str:
+    def get_field_name(self, field: str, id: Optional[int], match: Optional[Dict] = None, default: str = 'None') -> str:
         """Get display name for a field value.
         
         Args:
             field: Field type (e.g. 'genre', 'source_type')
             id: ID of the field value
-            match: Optional match data containing name fields. If not provided, will use field_manager
-            default: Default value if name not found
+            match: Match data containing name fields
+            default: Value to return for null fields
             
         Returns:
-            Display name for the field value
+            Display name for the field value, or default for null fields
         """
+        # Handle null field values
         if id is None:
             return default
             
-        # Check if this is an array field
+        # Validate required data is present
+        if match is None:
+            raise ValueError(f"Match data is required for field {field}")
+            
+        name_field = self.name_field_map.get(field)
+        if not name_field:
+            raise ValueError(f"No name field mapping for {field}")
+            
         config = self.field_configs.get(field)
-        is_array = config and config.is_array if config else False
+        if not config:
+            raise ValueError(f"No field config for {field}")
             
-        # For array fields, try to get name from match data first
-        if match is not None and is_array:
-            name_field = self.name_field_map.get(field)
-            if name_field:
-                names = match.get(name_field, [])
-                # Try to find the name at the same index as the ID in the IDs array
-                ids = match.get(self.id_field_map.get(field), [])
-                try:
-                    idx = ids.index(id)
-                    if idx < len(names):
-                        return names[idx]
-                except (ValueError, IndexError):
-                    pass
+        # Handle non-array fields
+        if not config.is_array:
+            name = match.get(name_field)
+            if name is None:
+                # This shouldn't happen - if we have an ID, we should have the name
+                raise ValueError(f"Name missing for {field} ID {id}")
+            return name
+            
+        # Handle array fields
+        names = match.get(name_field)
+        ids = match.get(self.id_field_map.get(field))
         
-        # For non-array fields or if name not found in match data, use field manager
-        try:
-            return self.comp_analyzer.get_field_display_name(field, id) or default
-        except:
-            return default
+        # Arrays should exist if field is array type
+        if names is None or ids is None:
+            raise ValueError(f"Array data missing for {field}")
             
-            if field in array_name_map:
-                names = match.get(array_name_map[field], [])
-                # Try to find the name at the same index as the ID in the IDs array
-                ids = match.get(f'{field}_ids', [])
-                try:
-                    idx = ids.index(id)
-                    if idx < len(names):
-                        return names[idx]
-                except (ValueError, IndexError):
-                    pass
-                    
-        # If we didn't find the name in match data, use field_manager
         try:
-            return self.comp_analyzer.get_field_display_name(field, id) or default
-        except:
-            return default
+            idx = ids.index(id)
+            if idx >= len(names):
+                raise ValueError(f"Name missing for {field} ID {id} at index {idx}")
+            return names[idx]
+        except ValueError:
+            raise ValueError(f"ID {id} not found in {field} list")
             
     def get_field_names(self, field: str, ids: List[int], match: Optional[Dict] = None, default: str = 'Unknown') -> List[str]:
         """Get display names for field values.
