@@ -11,6 +11,7 @@ import streamlit as st
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from src.dashboard.utils.style_config import FONTS
+from src.dashboard.components.match_details import FieldMatch, ArrayFieldMatch
 
 @dataclass
 class ScoreDisplay:
@@ -65,7 +66,7 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
     if content:
         render_section_header("Content Match", ScoreDisplay(
             score=content.get('score', 0),
-            max_score=content.get('max', 0),
+            max_score=content.get('max_score', 0),
             show_score=True
         ))
         
@@ -239,23 +240,25 @@ def render_match_indicator(value: str, matched: bool = True, selected: bool = Tr
     else:
         st.markdown(f"⚫ {value}")
 
-def render_field_match(label: str, match: Dict, show_score: bool = True) -> None:
+def render_field_match(label: str, match: FieldMatch, show_score: bool = True) -> None:
     """Render a single field match using base template methods."""
-    score = ScoreDisplay(match['score'], match['max'], show_score)
+    score = ScoreDisplay(match.score, match.max_score, show_score)
     render_section_header(label, score)
     # Just show the value with appropriate bullet point
-    render_match_indicator(match['name1'], matched=match['match'], selected=match['selected'])
+    render_match_indicator(match.name1, matched=match.match, selected=match.selected)
 
-def render_array_field_match(label: str, match: Dict) -> None:
+def render_array_field_match(label: str, match: ArrayFieldMatch) -> None:
     """Render a multi-value field match using base template methods."""
-    score = ScoreDisplay(match['score'], match['max'], True)
+    score = ScoreDisplay(match.score, match.max_score, True)
     render_section_header(label, score)
-    # Just show values with appropriate bullet points
-    if not match['values1']:
-        render_match_indicator("None", False, match['selected'])
-    else:
-        for value in match['values1']:
-            render_match_indicator(value, value in match['matches'], match['selected'])
+    
+    # Show all values with appropriate bullet points
+    for value in match.values1:
+        render_match_indicator(
+            value,
+            matched=value in match.matches,
+            selected=match.selected
+        )
 
 def render_base_match_breakdown(
     title: str,
@@ -280,7 +283,7 @@ def render_base_match_breakdown(
     # Build title with match score only
     scores = details.get('scores', {})
     total = scores.get('total', {})
-    title_score = ScoreDisplay(total.get('score', 0), total.get('max', 0), True)
+    title_score = ScoreDisplay(total.get('score', 0), total.get('max_score', 0), True)
     header = f"{title} (Match:{title_score.format()})"
     
     def render_content():
@@ -292,7 +295,7 @@ def render_base_match_breakdown(
             
         # Content Match section
         content = scores.get('content', {})
-        content_score = ScoreDisplay(content.get('score', 0), content.get('max', 0))
+        content_score = ScoreDisplay(content.get('score', 0), content.get('max_score', 0))
         render_section_header("Content Match", content_score)
         
         # Create two columns for content

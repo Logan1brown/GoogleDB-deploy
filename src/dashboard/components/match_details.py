@@ -372,7 +372,7 @@ class MatchDetailsManager:
         # Return match details using CompAnalyzer scores
         return {
             'score': self.comp_analyzer.get_field_score(field, match),
-            'max': self.comp_analyzer.get_field_max_score(field),
+            'max_score': self.comp_analyzer.get_field_max_score(field),
             'match_details': {
                 'name1': value_name,
                 'name2': target_name,
@@ -407,7 +407,7 @@ class MatchDetailsManager:
         
         return {
             'score': match.get(f'{field}_score', 0),
-            'max': match.get(f'{field}_max_score', 0),
+            'max_score': match.get(f'{field}_max_score', 0),
             'match_details': self._process_array_field_match(
                 field,
                 values,
@@ -447,7 +447,7 @@ class MatchDetailsManager:
             'selected': selected_id is not None,
             'match': genre_match,
             'score': score,
-            'max': max_val  # Using 'max' to match base_match_breakdown.py
+            'max_score': max_val
         }
         
     def _process_single_field_match(self, field: str, value_id: Optional[int], 
@@ -600,3 +600,53 @@ class MatchDetailsManager:
             'total_score': episode_score + order_score,
             'max_score': episode_max + order_max  # 3 points total from ScoreEngine.SCORING
         }
+
+    def _process_episode_count(self, match: Dict, criteria: Dict) -> Dict:
+        """Process episode count match."""
+        episodes = match.get('episode_count')
+        selected_episodes = criteria.get('episode_count')
+        diff = abs(episodes - selected_episodes) if episodes is not None and selected_episodes is not None else None
+                
+        episode_match = FieldMatch(
+            name1=str(episodes) if episodes is not None else 'Unknown',
+            name2=str(selected_episodes) if selected_episodes is not None else 'Unknown',
+            selected=selected_episodes is not None,
+            match=diff is not None and diff <= 2,  # Consider a match if within 2 episodes
+            score=match.get('episode_count_score', 0),
+            max_score=self.comp_analyzer.get_field_max_score('episode_count')
+        )
+        
+        return episode_match
+
+    def _process_order_type(self, match: Dict, criteria: Dict) -> Dict:
+        """Process order type match."""
+        order_type_id = match.get('order_type_id')
+        selected_order_type_id = criteria.get('order_type_id')
+        order_match = FieldMatch(
+            name1=self.get_field_name('order_type', order_type_id),
+            name2=self.get_field_name('order_type', selected_order_type_id),
+            selected=selected_order_type_id is not None,
+            match=order_type_id == selected_order_type_id,
+            score=match.get('order_type_score', 0),
+            max_score=self.comp_analyzer.get_field_max_score('order_type')
+        )
+        
+        return order_match
+
+    def _process_format_match(self, episodes: Optional[int], selected_episodes: Optional[int],
+                            order_type_id: Optional[int], 
+                            selected_order_type_id: Optional[int],
+                            match: Optional[Dict] = None) -> Dict[str, FieldMatch]:
+        """Process episode count and order type matches."""
+        episode_score = self._process_episode_count(match, {'episode_count': selected_episodes})
+        order_score = self._process_order_type(match, {'order_type_id': selected_order_type_id})
+
+        # Return format match details
+        return ArrayFieldMatch(
+            values1=episode_score.values1,
+            values2=episode_score.values2,
+            matches=episode_score.matches,
+            selected=episode_score.selected,
+            score=episode_score.score + order_score.score,
+            max_score=self.comp_analyzer.get_field_max_score('format')
+        )

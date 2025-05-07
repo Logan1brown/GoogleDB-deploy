@@ -221,10 +221,10 @@ def create_results_df(results: List[Dict]) -> pd.DataFrame:
             rows.append({
                 'Show': r['title'],
                 'Success': success,
-                'Total Score': f"{int(total.get('score', 0))}/{total.get('max', 0)}",
-                'Content': f"{int(content.get('score', 0))}/{content.get('max', 0)}",
-                'Production': f"{int(production.get('score', 0))}/{production.get('max', 0)}",
-                'Format': f"{int(format_score.get('score', 0))}/{format_score.get('max', 0)}"
+                'Total Score': f"{int(total.get('score', 0))}/{total.get('max_score', 0)}",
+                'Content': f"{int(content.get('score', 0))}/{content.get('max_score', 0)}",
+                'Production': f"{int(production.get('score', 0))}/{production.get('max_score', 0)}",
+                'Format': f"{int(format_score.get('score', 0))}/{format_score.get('max_score', 0)}"
             })
         except (TypeError, AttributeError):
             # Handle case where scores are not in expected format
