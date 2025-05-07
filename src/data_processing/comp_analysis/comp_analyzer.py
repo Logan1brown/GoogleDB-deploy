@@ -530,9 +530,12 @@ class ScoreEngine:
                     score.studio += additional_points
                     
         # Team matching
-        source_team = source.get('team_members')
+        source_team = source.get('team_member_ids')  # Match the mapped field name
         if source_team:  # Check if team members were selected in criteria
-            target_team = target.get('team_members') or []
+            target_team = target.get('team_member_ids') or []  # Match the mapped field name
+            st.write(f"DEBUG: Scoring team members for {target.get('title', 'Unknown')}:")
+            st.write(f"- Source team IDs: {source_team}")
+            st.write(f"- Target team IDs: {target_team}")
             score.team = self._calculate_array_match(
                 source_team,
                 target_team,
