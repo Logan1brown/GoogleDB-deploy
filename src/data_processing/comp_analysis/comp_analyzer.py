@@ -52,7 +52,7 @@ class FieldManager:
         'location_setting': FieldConfig('location_setting_types', 'id', 'name'),  # show_description_analysis.location_setting_id
         'network': FieldConfig('network_list', 'id', 'network'),  # shows.network_id
         'studios': FieldConfig('studio_list', 'id', 'studio', True),  # shows.studios[]
-        'team_members': FieldConfig('api_show_comp_data', 'team_member_ids', 'team_member_names', True),  # api_show_comp_data
+        'team_members': FieldConfig('api_show_comp_data', 'team_member_ids', 'team_member_names', True),  # Use view for processed team data
         'order_type': FieldConfig('order_types', 'id', 'type')  # shows.order_type_id
     }
     
@@ -69,7 +69,7 @@ class FieldManager:
                 df = self.reference_data['subgenres']
             elif field_name == 'team_members':
                 logger.info(f"Loading team members from reference data, keys: {list(self.reference_data.keys())}")
-                df = self.reference_data['api_show_comp_data']  # Use the comp data view
+                df = self.reference_data['team_members']  # Use the comp data view through team_members reference
                 logger.info(f"Team members df columns: {list(df.columns)}")
             else:
                 df = self.reference_data[field_name]
