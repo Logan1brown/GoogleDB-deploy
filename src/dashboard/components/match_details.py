@@ -216,7 +216,7 @@ class MatchDetailsManager:
         scoring = self.comp_analyzer.score_engine.SCORING
         content_scoring = scoring['content']['components']
         
-        # Genre
+        # Genre (combines base + overlap)
         genre_score = components.get('genre_base', 0) + components.get('genre_overlap', 0)
         genre_max = content_scoring['genre']['base'] + content_scoring['genre']['overlap']
         genre_id = match.get('genre_id')
@@ -252,14 +252,14 @@ class MatchDetailsManager:
         # Source Type
         source_score = components.get('source_type', 0)
         source_max = content_scoring['source_type']['match']
-        source_id = match.get('source_type_id')
-        target_source_id = criteria.get('source_type_id')
+        source_type_id = match.get('source_type_id')
+        target_source_type_id = criteria.get('source_type_id')
         content_components['source_type'] = {
             'display': FieldMatch(
-                name1=self.get_field_name('source_type', source_id, match),
-                name2=self.get_field_name('source_type', target_source_id),
-                selected=target_source_id is not None,
-                match=source_id == target_source_id if source_id and target_source_id else False,
+                name1=self.get_field_name('source_type', source_type_id, match),
+                name2=self.get_field_name('source_type', target_source_type_id),
+                selected=target_source_type_id is not None,
+                match=source_type_id == target_source_type_id if source_type_id and target_source_type_id else False,
                 score=source_score,
                 max_score=source_max
             )
@@ -271,8 +271,8 @@ class MatchDetailsManager:
             field_max = content_scoring[field]['first'] + content_scoring[field]['second']
             values = match.get(self.id_field_map[field], [])
             selected = criteria.get(self.id_field_map[field], [])
-            # Calculate matches - any values that exist in both arrays
             matches = [v for v in values if v in selected]
+            
             content_components[field] = {
                 'display': ArrayFieldMatch(
                     name1='',  # Not used for array fields
@@ -286,13 +286,21 @@ class MatchDetailsManager:
                     max_score=field_max
                 )
             }
-            
-        # Single fields (tone, time_setting, location_setting)
-        for field in ['tone', 'time_setting', 'location_setting']:
-            field_score = components.get(field, 0)
+        
+        # Single-value fields
+        # Note: location_setting maps to 'location' in comp_score
+        field_map = {
+            'tone': 'tone',
+            'time_setting': 'time_setting',
+            'location_setting': 'location'
+        }
+        
+        for field, score_field in field_map.items():
+            field_score = components.get(score_field, 0)
             field_max = content_scoring[field]['match']
             value_id = match.get(self.id_field_map[field])
             target_id = criteria.get(self.id_field_map[field])
+            
             content_components[field] = {
                 'display': FieldMatch(
                     name1=self.get_field_name(field, value_id, match),
@@ -314,7 +322,7 @@ class MatchDetailsManager:
         production_scoring = scoring['production']['components']
         production_components = {}
         
-        # Network
+        # Network (matches exactly in comp_score)
         network_score = components.get('network', 0)
         network_max = production_scoring['network']['match']
         network_id = match.get('network_id')
@@ -334,29 +342,55 @@ class MatchDetailsManager:
         # but singular names (studio, team) in scoring to distinguish between:
         # - Data fields (plural): collections of IDs (e.g. studios[])
         # - Scoring fields (singular): individual match scores (e.g. studio.primary)
-        for field in ['studios', 'team_members']:
-            # Get score using singular name (remove 's' from studios, team from team_members)
-            score_field = 'studio' if field == 'studios' else 'team'
-            field_score = components.get(score_field, 0)
+        
+        # Add subgenres to content section
+        subgenre_score = components.get('subgenres', 0)
+        subgenre_max = content_scoring['subgenres']['match'] + content_scoring['subgenres']['max_additional']
+        subgenre_values = match.get(self.id_field_map['subgenres'], [])
+        subgenre_selected = criteria.get(self.id_field_map['subgenres'], [])
+        subgenre_matches = [v for v in subgenre_values if v in subgenre_selected]
+        content_components['subgenres'] = {
+            'display': ArrayFieldMatch(
+                name1='',  # Not used for array fields
+                name2='',  # Not used for array fields
+                values1=self.get_field_names('subgenres', subgenre_values, match),
+                values2=self.get_field_names('subgenres', subgenre_selected),
+                matches=self.get_field_names('subgenres', subgenre_matches),
+                selected=bool(subgenre_selected),
+                match=bool(subgenre_matches),
+                score=subgenre_score,
+                max_score=subgenre_max
+            )
+        }
+        
+        # Map plural field names to singular for production components
+        field_map = {
+            'studios': 'studio',
+            'team_members': 'team'
+        }
+        
+        for field_plural, field_singular in field_map.items():
+            # Get score using singular name
+            field_score = components.get(field_singular, 0)
             
             # Get max score from scoring config
             field_max = (
-                production_scoring[score_field]['primary' if field == 'studios' else 'first'] +
-                production_scoring[score_field]['max_additional']
+                production_scoring[field_singular]['primary' if field_plural == 'studios' else 'first'] +
+                production_scoring[field_singular]['max_additional']
             )
             
             # Get values and selected from match data using full field name
-            values = match.get(self.id_field_map[field], [])
-            selected = criteria.get(self.id_field_map[field], [])
+            values = match.get(self.id_field_map[field_plural], [])
+            selected = criteria.get(self.id_field_map[field_plural], [])
             matches = [v for v in values if v in selected]
             
-            production_components[field] = {
+            production_components[field_singular] = {
                 'display': ArrayFieldMatch(
                     name1='',  # Not used for array fields
                     name2='',  # Not used for array fields
-                    values1=self.get_field_names(field, values, match),
-                    values2=self.get_field_names(field, selected),
-                    matches=self.get_field_names(field, matches),
+                    values1=self.get_field_names(field_plural, values, match),
+                    values2=self.get_field_names(field_plural, selected),
+                    matches=self.get_field_names(field_plural, matches),
                     selected=bool(selected),
                     match=bool(matches),
                     score=field_score,
@@ -375,7 +409,7 @@ class MatchDetailsManager:
         format_scoring = scoring['format']['components']
         format_components = {}
         
-        # Episodes
+        # Episodes (matches exactly in comp_score)
         episode_score = components.get('episodes', 0)
         episode_max = format_scoring['episodes']['within_2']
         episode_count = match.get('episode_count')
@@ -391,7 +425,7 @@ class MatchDetailsManager:
             )
         }
         
-        # Order Type
+        # Order Type (matches exactly in comp_score)
         order_score = components.get('order_type', 0)
         order_max = format_scoring['order_type']['match']
         order_type_id = match.get('order_type_id')
