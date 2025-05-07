@@ -521,30 +521,19 @@ class ShowsAnalyzer:
             - JSON array string
             - PostgreSQL array string
             - Single value
-            - None/NULL
             
         Returns:
-            List version of the value, or empty list for None/NULL
+            List version of the value
         """
         try:
-            if x is None:
-                return []
             if isinstance(x, list):
                 return x
             if isinstance(x, str):
-                # Handle empty string
-                if not x.strip():
-                    return []
                 # Handle PostgreSQL array format: {"item1","item2"}
                 if x.startswith('{') and x.endswith('}'):
-                    # Remove outer {}
-                    x = x[1:-1]
-                    if not x.strip():
-                        return []
-                    # Use regex to handle quoted values with commas
-                    import re
-                    items = re.findall(r'"([^"]*)"|([^,]+)', x)
-                    return [item[0] or item[1].strip() for item in items if item[0] or item[1].strip()]
+                    # Remove {} and split on commas, handling escaped quotes
+                    items = x[1:-1].split(',')
+                    return [item.strip('"') for item in items if item.strip()]
                 # Handle JSON array format
                 if x.startswith('[') and x.endswith(']'):
                     import ast

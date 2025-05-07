@@ -98,7 +98,8 @@ class FieldManager:
                             team_member_names = []
                             
                     # Skip if either array is empty
-                    if not team_member_ids or not team_member_names:
+                    if not isinstance(team_member_ids, (list, np.ndarray)) or not isinstance(team_member_names, (list, np.ndarray)) \
+                        or len(team_member_ids) == 0 or len(team_member_names) == 0:
                         continue
                         
                     # Add each team member
