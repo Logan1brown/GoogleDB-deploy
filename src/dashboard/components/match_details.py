@@ -46,6 +46,7 @@ class MatchDetailsManager:
         # Map field names to match data fields
         self.id_field_map = {
             'genre': 'genre_id',
+            'subgenres': 'subgenre_ids',
             'source_type': 'source_type_id',
             'character_types': 'character_type_ids',
             'plot_elements': 'plot_element_ids',
@@ -63,6 +64,7 @@ class MatchDetailsManager:
         # Map fields to their name fields
         self.name_field_map = {
             'genre': 'genre_name',
+            'subgenres': 'subgenre_names',
             'source_type': 'source_type_name', 
             'character_types': 'character_type_names',
             'plot_elements': 'plot_element_names',
@@ -154,13 +156,24 @@ class MatchDetailsManager:
         if not ids:
             return []
             
+        # Check if this is an array field
+        config = self.field_configs.get(field)
+        is_array = config and config.is_array if config else False
+            
         # First try to get names from match data if provided
         if match is not None:
             name_field = self.name_field_map.get(field)
             if name_field:
-                names = match.get(name_field)
-                if names:
-                    return names
+                if is_array:
+                    # For array fields, match data should already have the names
+                    names = match.get(name_field, [])
+                    if names and len(names) == len(ids):
+                        return names
+                else:
+                    # For single fields, get the specific name
+                    name = match.get(name_field)
+                    if name is not None:
+                        return [name]
         
         # If no match data or names not found, use field manager
         try:
@@ -208,6 +221,23 @@ class MatchDetailsManager:
                 match=genre_id == target_genre_id if genre_id and target_genre_id else False,
                 score=genre_score,
                 max_score=genre_max
+            )
+        }
+        
+        # Subgenres (part of genre scoring)
+        subgenre_ids = match.get('subgenre_ids', [])
+        target_subgenre_ids = criteria.get('subgenre_ids', [])
+        content_components['subgenres'] = {
+            'display': ArrayFieldMatch(
+                name1='',  # Not used for array fields
+                name2='',  # Not used for array fields
+                values1=self.get_field_names('subgenres', subgenre_ids, match),
+                values2=self.get_field_names('subgenres', target_subgenre_ids),
+                matches=[v for v in subgenre_ids if v in target_subgenre_ids],
+                selected=bool(target_subgenre_ids),
+                match=bool(set(subgenre_ids) & set(target_subgenre_ids)),
+                score=components.get('genre_overlap', 0),  # Already included in genre_score
+                max_score=content_scoring['genre']['overlap']
             )
         }
         
