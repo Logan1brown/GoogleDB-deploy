@@ -52,7 +52,7 @@ class FieldManager:
         'location_setting': FieldConfig('location_setting_types', 'id', 'name'),  # show_description_analysis.location_setting_id
         'network': FieldConfig('network_list', 'id', 'network'),  # shows.network_id
         'studios': FieldConfig('studio_list', 'id', 'studio', True),  # shows.studios[]
-        'team_member_ids': FieldConfig('api_show_comp_data', 'team_member_ids', 'team_member_names', True),  # api_show_comp_data
+        'team_members': FieldConfig('api_show_comp_data', 'team_member_ids', 'team_member_names', True),  # api_show_comp_data
         'order_type': FieldConfig('order_types', 'id', 'type')  # shows.order_type_id
     }
     
@@ -67,7 +67,7 @@ class FieldManager:
             # Special handling for different data sources
             if field_name == 'subgenres':
                 df = self.reference_data['subgenres']
-            elif field_name == 'team_member_ids':
+            elif field_name == 'team_members':
                 df = self.reference_data['api_show_comp_data']  # Use the full comp data
             else:
                 df = self.reference_data[field_name]
@@ -503,15 +503,15 @@ class ScoreEngine:
                     score.studio += additional_points
                     
         # Team matching
-        source_team = source.get('team_member_ids')
+        source_team = source.get('team_members')
         if source_team:  # Check if team members were selected in criteria
-            target_team = target.get('team_member_ids') or []
+            target_team = target.get('team_members') or []
             score.team = self._calculate_array_match(
                 source_team,
                 target_team,
                 self.SCORING['production']['components']['team']['first'],
                 self.SCORING['production']['components']['team']['additional'],
-                'team_member_ids'
+                'team_members'
             )
                     
         # Episode scoring
@@ -814,7 +814,7 @@ class CompAnalyzer:
             'character_type_ids': 'character_type_ids',
             'plot_element_ids': 'plot_element_ids',
             'thematic_element_ids': 'thematic_element_ids',
-            'team_member_ids': 'team_member_ids',  # Keep same field name as in database
+            'team_members': 'team_member_ids',  # Map to database field name
             'team_member_names': 'team_member_names',  # For display only
             'episode_count': 'episode_count'  # First season episode count
         }
