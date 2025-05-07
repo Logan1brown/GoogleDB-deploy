@@ -687,6 +687,10 @@ class CompAnalyzer:
             # Get fresh data from ShowsAnalyzer
             self.comp_data, self.reference_data = self.shows_analyzer.fetch_comp_data(force=force)
             
+            # Validate data
+            if self.comp_data is None or self.reference_data is None:
+                raise ValueError("Failed to get comp data from ShowsAnalyzer")
+                
             # Convert numeric fields for success calculation
             numeric_fields = ['tmdb_seasons', 'tmdb_avg_eps']
             for field in numeric_fields:
@@ -698,11 +702,12 @@ class CompAnalyzer:
             # Initialize success analyzer with the comp data
             self.success_analyzer.initialize_data(self.comp_data)
             
-        # Initialize field manager and score engine
-        st.write("DEBUG: Creating new FieldManager")
-        self.field_manager = FieldManager(self.reference_data)
-        st.write(f"DEBUG: FieldManager team options: {len(self.field_manager.get_options('team_member_ids'))}")
-        self.score_engine = ScoreEngine(self.field_manager)
+        # Only recreate field manager if data changes
+        if self.field_manager is None or force:
+            st.write("DEBUG: Creating new FieldManager")
+            self.field_manager = FieldManager(self.reference_data)
+            st.write(f"DEBUG: FieldManager team options: {len(self.field_manager.get_options('team_member_ids'))}")
+            self.score_engine = ScoreEngine(self.field_manager)
     
     def get_field_options(self, force: bool = False) -> Dict[str, List[Tuple[int, str]]]:
         """Get all unique values for dropdown fields.
