@@ -196,7 +196,13 @@ class FieldManager:
 
 @dataclass
 class CompScore:
-    """Score breakdown for a comparable show match (100 points total)."""
+    """Score breakdown for a comparable show match (100 points total).
+    
+    Note on field naming:
+    - Array fields in the data use plural names (studios[], team_members[])
+    - Score fields here use singular names (studio, team) since they represent
+      individual match scores (e.g. studio.primary, team.first)
+    """
     
     # Content Match
     genre_base: float = field(default=0)      # Direct genre match

@@ -46,7 +46,7 @@ class MatchDetailsManager:
         # Map field names to match data fields
         self.id_field_map = {
             'genre': 'genre_id',
-            'subgenres': 'subgenre_ids',
+            'subgenres': 'subgenres',  # Direct field name from data
             'source_type': 'source_type_id',
             'character_types': 'character_type_ids',
             'plot_elements': 'plot_element_ids',
@@ -55,8 +55,8 @@ class MatchDetailsManager:
             'time_setting': 'time_setting_id',
             'location_setting': 'location_setting_id',
             'network': 'network_id',
-            'studios': 'studios',  # Match field config name
-            'team_members': 'team_member_ids',  # Match field config name
+            'studios': 'studios',  # Direct field name from data
+            'team_members': 'team_member_ids',
             'episodes': 'episode_count',
             'order_type': 'order_type_id'
         }
@@ -110,15 +110,25 @@ class MatchDetailsManager:
         if id is None:
             return default
             
-        # First try to get name from match data if provided
-        if match is not None:
+        # Check if this is an array field
+        config = self.field_configs.get(field)
+        is_array = config and config.is_array if config else False
+            
+        # For array fields, try to get name from match data first
+        if match is not None and is_array:
             name_field = self.name_field_map.get(field)
             if name_field:
-                name = match.get(name_field)
-                if name is not None:
-                    return name
+                names = match.get(name_field, [])
+                # Try to find the name at the same index as the ID in the IDs array
+                ids = match.get(self.id_field_map.get(field), [])
+                try:
+                    idx = ids.index(id)
+                    if idx < len(names):
+                        return names[idx]
+                except (ValueError, IndexError):
+                    pass
         
-        # If no match data or name not found, use field manager
+        # For non-array fields or if name not found in match data, use field manager
         try:
             return self.comp_analyzer.get_field_display_name(field, id) or default
         except:
@@ -225,8 +235,8 @@ class MatchDetailsManager:
         }
         
         # Subgenres (part of genre scoring)
-        subgenre_ids = match.get('subgenre_ids', [])
-        target_subgenre_ids = criteria.get('subgenre_ids', [])
+        subgenre_ids = match.get('subgenres', [])
+        target_subgenre_ids = criteria.get('subgenres', [])
         content_components['subgenres'] = {
             'display': ArrayFieldMatch(
                 name1='',  # Not used for array fields
@@ -322,9 +332,12 @@ class MatchDetailsManager:
             )
         }
         
-        # Array fields (studios, team_members)
+        # Array fields use plural names (studios, team_members) in the data
+        # but singular names (studio, team) in scoring to distinguish between:
+        # - Data fields (plural): collections of IDs (e.g. studios[])
+        # - Scoring fields (singular): individual match scores (e.g. studio.primary)
         for field in ['studios', 'team_members']:
-            # Get score using base field name (without 's' for studios)
+            # Get score using singular name (remove 's' from studios, team from team_members)
             score_field = 'studio' if field == 'studios' else 'team'
             field_score = components.get(score_field, 0)
             
