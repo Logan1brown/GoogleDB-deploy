@@ -1063,10 +1063,16 @@ class CompAnalyzer:
         
         # Add field details
         for field in FieldManager.FIELD_CONFIGS.keys():
-            # Special handling for team members - use names directly
+            # Special handling for team members - map IDs to names
             if field == 'team_members':
-                source_names = source.get('team_member_names', [])
-                target_names = target.get('team_member_names', [])
+                source_ids = source.get('team_member_ids', [])
+                target_ids = target.get('team_member_ids', [])
+                source_names = [self.field_manager.get_name('team_member_ids', id) for id in source_ids]
+                target_names = [self.field_manager.get_name('team_member_ids', id) for id in target_ids]
+                # Calculate matches based on IDs
+                matches = set(source_ids) & set(target_ids)
+                # Map matched IDs back to names
+                matched_names = [self.field_manager.get_name('team_member_ids', id) for id in matches]
             else:
                 # Get field values
                 source_val = source[f'{field}_id'] if f'{field}_id' in source else source.get(field, [])

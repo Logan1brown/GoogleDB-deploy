@@ -231,9 +231,16 @@ def render_array_field_match(label: str, match: ArrayFieldMatch) -> None:
     for value in match.values1:
         if label == "Team Members":
             st.write(f"DEBUG team member: {value} - matched={value in match.matches}, selected={match.selected}, matches={match.matches}")
-        render_match_indicator(
-            value,
-            matched=value in match.matches,
-            selected=match.selected
-        )
+            # For team members, use the matched_names list from CompAnalyzer
+            render_match_indicator(
+                value,
+                matched=value in match.matches,
+                selected=match.selected
+            )
+        else:
+            render_match_indicator(
+                value,
+                matched=value in match.matches,
+                selected=match.selected
+            )
 
