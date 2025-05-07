@@ -90,6 +90,9 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
                     render_field_match(label, display)
             
             # Multi-value fields
+            if display := components.get('subgenres', {}).get('display'):
+                render_array_field_match("Subgenres", display)
+                
             if display := components.get('character_types', {}).get('display'):
                 render_array_field_match("Character Types", display)
         
