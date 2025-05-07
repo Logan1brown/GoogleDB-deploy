@@ -70,7 +70,7 @@ class ShowsAnalyzer:
         'order_type': 'order_types',
         'plot_elements': 'plot_element_types',
         'studios': 'studio_list',
-        'team_members': 'show_team',  # Use raw team table
+        'team_members': 'api_show_comp_data',  # Use view for processed team data
         'thematic_elements': 'thematic_element_types',
         'tone': 'tone_types',
         'time_setting': 'time_setting_types'

@@ -53,7 +53,7 @@ class FieldManager:
         'location_setting': FieldConfig('location_setting_types', 'id', 'name'),  # show_description_analysis.location_setting_id
         'network': FieldConfig('network_list', 'id', 'network'),  # shows.network_id
         'studios': FieldConfig('studio_list', 'id', 'studio', True),  # shows.studios[]
-        'team_members': FieldConfig('show_team', 'id', 'name', True),  # Use raw team data
+        'team_members': FieldConfig('api_show_comp_data', 'team_member_ids', 'team_member_names', True),  # Use view for processed team data
         'order_type': FieldConfig('order_types', 'id', 'type')  # shows.order_type_id
     }
     
@@ -70,7 +70,7 @@ class FieldManager:
                 df = self.reference_data['subgenres']
             elif field_name == 'team_members':
                 logger.info(f"Loading team members from reference data")
-                df = self.reference_data[field_name]  # Use raw team data
+                df = self.reference_data['api_show_comp_data']  # Use view for processed team data
                 logger.info(f"Team members df columns: {list(df.columns)}")
             else:
                 df = self.reference_data[field_name]
@@ -80,32 +80,20 @@ class FieldManager:
                 # Use dictionary to maintain unique entries by ID
                 unique_members = {}
                 
-                # Collect unique team members
+                # Process each team member
                 for _, row in df.iterrows():
-                    # Get team member IDs and names
                     team_member_ids = row.get('team_member_ids', [])
                     team_member_names = row.get('team_member_names', [])
                     
-                    # Convert from string if needed
-                    if isinstance(team_member_ids, str):
-                        try:
-                            team_member_ids = eval(team_member_ids)
-                        except:
-                            team_member_ids = []
-                    if isinstance(team_member_names, str):
-                        try:
-                            team_member_names = eval(team_member_names)
-                        except:
-                            team_member_names = []
-                            
-                    # Skip if either array is empty
-                    if not team_member_ids or not team_member_names:
+                    # Skip if either array is empty or not a list
+                    if not isinstance(team_member_ids, list) or not isinstance(team_member_names, list) \
+                        or len(team_member_ids) == 0 or len(team_member_names) == 0:
                         continue
                         
-                    # Add each team member
+                    # Process each team member
                     for id, name in zip(team_member_ids, team_member_names):
                         # Convert name to string and check if empty
-                        name_str = str(name).strip() if isinstance(name, (str, int, float)) else ''
+                        name_str = str(name).strip()
                         if len(name_str) > 0 and name_str not in unique_members:
                             unique_members[name_str] = int(id)
                 
