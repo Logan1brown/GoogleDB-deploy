@@ -533,6 +533,10 @@ class ScoreEngine:
         source_team = source.get('team_members')
         if source_team:  # Check if team members were selected in criteria
             target_team = target.get('team_members') or []
+            # Debug only when team members are in criteria
+            st.write(f"Team member match check for {target.get('title', 'Unknown')}:")
+            st.write(f"- Source team IDs: {source_team}")
+            st.write(f"- Target team IDs: {target_team}")
             score.team = self._calculate_array_match(
                 source_team,
                 target_team,
