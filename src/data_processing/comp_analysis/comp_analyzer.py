@@ -837,10 +837,12 @@ class CompAnalyzer:
                 if key == 'team_members':
                     # Get the team member options to map IDs to names
                     team_options = self.field_manager.get_options('team_members')
-                    # Create a map of ID -> name
+                    # Create a map of ID -> name that includes all IDs
                     id_to_name = {}
                     for opt in team_options:
-                        id_to_name[opt.id] = opt.name
+                        # Use all IDs for this name
+                        for team_id in opt.all_ids:
+                            id_to_name[team_id] = opt.name
                     # Map the IDs to names
                     mapped_criteria['team_member_names'] = [id_to_name.get(id) for id in value if id in id_to_name]
             else:
