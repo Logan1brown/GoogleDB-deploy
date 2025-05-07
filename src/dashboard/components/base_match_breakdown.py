@@ -210,7 +210,8 @@ def render_field_base(label: str, score: Optional[ScoreDisplay] = None) -> None:
 def render_match_indicator(value: str, matched: bool = True, selected: bool = True) -> None:
     """Template method for rendering a match indicator."""
     # Only show green if both selected and matched
-    st.write(f"DEBUG: {value} - matched: {matched}, selected: {selected}")
+    if 'Austin Winsberg' in value:
+        st.write(f"DEBUG bullet: {value} - matched: {matched}, selected: {selected}")
     if matched and selected:
         st.markdown(f"🟢 {value}")
     else:
