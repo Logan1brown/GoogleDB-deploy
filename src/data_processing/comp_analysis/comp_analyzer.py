@@ -31,6 +31,9 @@ import streamlit as st
 from datetime import datetime
 import logging
 
+# Test if streamlit writes are working
+st.write("DEBUG: CompAnalyzer module loaded")
+
 from src.config.supabase_client import get_client
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
@@ -527,15 +530,14 @@ class ScoreEngine:
                     score.studio += additional_points
                     
         # Team matching
-        source_team = source.get('team_members')
+        source_team = source.get('team_member_ids')
         if source_team:  # Check if team members were selected in criteria
-            target_team = target.get('team_members') or []
-            score.team = self._calculate_array_match(
+            target_team = target.get('team_member_ids') or []
+            score.team = self._calculate_team_match(
                 source_team,
                 target_team,
                 self.SCORING['production']['components']['team']['first'],
-                self.SCORING['production']['components']['team']['additional'],
-                'team_members'
+                self.SCORING['production']['components']['team']['additional']
             )
                     
         # Episode scoring
@@ -590,21 +592,33 @@ class ScoreEngine:
                 for team_id in opt.all_ids:
                     id_to_name[team_id] = opt.name
                 
+            # Debug the ID to name mapping
+            st.write("")
+            st.write("DEBUG: ID to name mapping:")
+            st.write(f"DEBUG: Number of mappings: {len(id_to_name)}")
+            st.write(f"DEBUG: First few mappings: {dict(list(id_to_name.items())[:5])}")
+            st.write("")
+            
             # Get unique names for source and target using the lookup map
             source_names = {id_to_name.get(id) for id in source_arr if id in id_to_name}
             target_names = {id_to_name.get(id) for id in target_arr if id in id_to_name}
+            
+            # Debug raw lookups before filtering None
+            st.write("DEBUG: Raw name lookups:")
+            st.write(f"DEBUG: Source IDs: {source_arr}")
+            st.write(f"DEBUG: Source ID lookups: {[id_to_name.get(id) for id in source_arr]}")
+            st.write(f"DEBUG: Target IDs: {target_arr}")
+            st.write(f"DEBUG: Target ID lookups: {[id_to_name.get(id) for id in target_arr]}")
+            st.write("")
                     
             # Remove None values and count matches by unique names
             source_names = {name for name in source_names if name}
             target_names = {name for name in target_names if name}
             matches = source_names & target_names
             
-            # Debug output for team member matching
-            st.write("")
-            st.write("DEBUG: Comparing team members:")
-            st.write(f"DEBUG: Source IDs: {source_arr}")
+            # Debug final sets
+            st.write("DEBUG: Final sets:")
             st.write(f"DEBUG: Source names: {source_names}")
-            st.write(f"DEBUG: Target IDs: {target_arr}")
             st.write(f"DEBUG: Target names: {target_names}")
             st.write(f"DEBUG: Matches: {matches}")
             st.write("")
@@ -863,17 +877,22 @@ class CompAnalyzer:
                     team_options = self.field_manager.get_options('team_members')
                     # Create a map of ID -> name that includes all IDs
                     id_to_name = {}
-                    # Debug output for team member mapping
-                    st.write("")
-                    st.write("DEBUG: Team member options:")
+                    # Build ID to name mapping
                     for opt in team_options:
-                        st.write(f"DEBUG: {opt.name}: primary={opt.id}, all_ids={opt.all_ids}")
-                        # Use all IDs for this name
                         for team_id in opt.all_ids:
                             id_to_name[team_id] = opt.name
-                    st.write(f"DEBUG: Input team member IDs: {value}")
+                            
                     # Map the IDs to names
                     mapped_criteria['team_member_names'] = [id_to_name.get(id) for id in value if id in id_to_name]
+                    
+                    # Debug output only for selected team members
+                    st.write("")
+                    st.write("DEBUG: Selected team member details:")
+                    for team_id in value:
+                        for opt in team_options:
+                            if team_id in opt.all_ids:
+                                st.write(f"DEBUG: {opt.name}: primary={opt.id}, all_ids={opt.all_ids}")
+                    st.write(f"DEBUG: Input team member IDs: {value}")
                     st.write(f"DEBUG: Mapped to names: {mapped_criteria['team_member_names']}")
                     st.write("")
             else:
