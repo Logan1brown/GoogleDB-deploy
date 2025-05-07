@@ -400,9 +400,16 @@ class MatchDetailsManager:
                 )
             }
         
+        # Add content section to details
+        details['content'] = {
+            'score': comp_score.get('content', 0),  # Get content score directly from comp_score
+            'max_score': scoring['content']['total'],
+            'components': content_components
+        }
+        
         # Add production section to details
         details['production'] = {
-            'score': comp_score.get('production_score', 0),
+            'score': comp_score.get('production', 0),  # Get production score directly from comp_score
             'max_score': scoring['production']['total'],
             'components': production_components
         }
@@ -444,7 +451,7 @@ class MatchDetailsManager:
         }
         
         details['format'] = {
-            'score': comp_score.get('format_score', 0),
+            'score': comp_score.get('format', 0),  # Fix: use 'format' instead of 'format_score'
             'max_score': scoring['format']['total'],
             'components': format_components
         }
