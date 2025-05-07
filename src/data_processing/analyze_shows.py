@@ -149,13 +149,17 @@ class ShowsAnalyzer:
                 if not hasattr(ref_data, 'data') or not ref_data.data:
                     raise ValueError(f"No data returned from {table_name}")
                     
-                # For genre_list table, we need to handle both genre and subgenres
+                # Special handling for different tables
                 if table_name == 'genre_list':
+                    # For genre_list table, we need to handle both genre and subgenres
                     df = pd.DataFrame(ref_data.data)
                     # For primary genre, only include rows where category='Main'
                     if ref_name == 'genre':
                         df = df[df['category'] == 'Main']
                     reference_data[ref_name] = df
+                elif table_name == 'api_show_comp_data':
+                    # For team members, use the comp data we already fetched
+                    reference_data[ref_name] = comp_df
                 else:
                     reference_data[ref_name] = pd.DataFrame(ref_data.data)
                     
