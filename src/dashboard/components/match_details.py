@@ -238,6 +238,8 @@ class MatchDetailsManager:
             matches = [v for v in values if v in selected]
             content_components[field] = {
                 'display': ArrayFieldMatch(
+                    name1='',  # Not used for array fields
+                    name2='',  # Not used for array fields
                     values1=self.get_field_names(field, values, match),
                     values2=self.get_field_names(field, selected),
                     matches=self.get_field_names(field, matches),
@@ -303,6 +305,8 @@ class MatchDetailsManager:
             matches = [v for v in values if v in selected]
             production_components[field] = {
                 'display': ArrayFieldMatch(
+                    name1='',  # Not used for array fields
+                    name2='',  # Not used for array fields
                     values1=self.get_field_names(field, values, match),
                     values2=self.get_field_names(field, selected),
                     matches=self.get_field_names(field, matches),
