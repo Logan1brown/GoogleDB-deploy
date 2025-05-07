@@ -501,9 +501,9 @@ class ScoreEngine:
                     score.studio += additional_points
                     
         # Team matching
-        source_team = source.get('team_member_ids')
+        source_team = source.get('team_members')
         if source_team:  # Check if team members were selected in criteria
-            target_team = target.get('team_member_ids') or []
+            target_team = target.get('team_members') or []
             score.team = self._calculate_array_match(
                 source_team,
                 target_team,
@@ -808,12 +808,12 @@ class CompAnalyzer:
         # Map field names to match database schema
         mapped_criteria = {}
         field_mapping = {
-            'studios': 'studio_ids',  # Map DB field to UI field
+            'studios': 'studios',  # Keep same field name as in database
             'character_type_ids': 'character_type_ids',
             'plot_element_ids': 'plot_element_ids',
             'thematic_element_ids': 'thematic_element_ids',
-            'team_member_ids': 'team_member_ids',  # For matching/scoring
-            'team_member_names': 'team_member_names',  # For display
+            'team_members': 'team_members',  # Keep same field name as in database
+            'team_member_names': 'team_member_names',  # For display only
             'episode_count': 'episode_count'  # First season episode count
         }
         
