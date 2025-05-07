@@ -68,7 +68,7 @@ class FieldManager:
             if field_name == 'subgenres':
                 df = self.reference_data['subgenres']
             elif field_name == 'team_members':
-                df = self.reference_data['api_show_comp_data']  # Use the full comp data
+                df = self.reference_data['team_members']  # Use the team members reference table
             else:
                 df = self.reference_data[field_name]
                 
