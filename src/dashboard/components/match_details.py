@@ -397,7 +397,7 @@ class MatchDetailsManager:
             selected = criteria.get(self.id_field_map[field_plural], [])
             matches = [v for v in values if v in selected]
             
-            production_components[field_singular] = {
+            production_components[field_plural] = {
                 'display': ArrayFieldMatch(
                     name1='',  # Not used for array fields
                     name2='',  # Not used for array fields

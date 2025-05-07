@@ -131,12 +131,12 @@ def render_match_details_section(details: Dict, success_score: Optional[float] =
                 render_field_match("Network", display)
             
             # Multi-value field
-            if display := components.get('studio', {}).get('display'):
+            if display := components.get('studios', {}).get('display'):
                 render_array_field_match("Studios", display)
         
         with col2:
             # Multi-value field
-            if display := components.get('team', {}).get('display'):
+            if display := components.get('team_members', {}).get('display'):
                 render_array_field_match("Team Members", display)
         
         st.write("")
