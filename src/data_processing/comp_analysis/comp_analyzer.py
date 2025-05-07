@@ -583,13 +583,13 @@ class ScoreEngine:
             return 0
             
         # For team members, we need to count unique names for scoring
-        if field_name == 'team_members':
+        if field_name == 'team_member_ids':  # Match the mapped field name
             st.write("DEBUG: Team member array comparison:")
             st.write(f"Source: {source_arr}")
             st.write(f"Target: {target_arr}")
             
             # Get all team member options with their grouped IDs
-            team_options = self.field_manager.get_options('team_members')
+            team_options = self.field_manager.get_options('team_member_ids')  # Match the mapped field name
             
             # Create a map of ID -> name that includes all IDs for each name
             id_to_name = {}
