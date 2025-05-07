@@ -478,29 +478,33 @@ class ScoreEngine:
             if source.get('location_setting_id') == target.get('location_setting_id'):
                 score.location = self.SCORING['content']['components']['location_setting']['match']
             
-        # Only calculate network score if network was selected in criteria
-        if source.get('network_id') is not None:
+        # Production scores - only calculate if selected in criteria
+        
+        # Network score
+        if 'network_id' in source:
             if source.get('network_id') == target.get('network_id'):
                 score.network = self.SCORING['production']['components']['network']['match']
             
-        # Studio matching
-        source_studios = set(source.get('studios') or [])
-        target_studios = set(target.get('studios') or [])
-        if source_studios and target_studios:
+        # Studio score
+        if 'studios' in source:
+            source_studios = set(source.get('studios') or [])
+            target_studios = set(target.get('studios') or [])
             matches = len(source_studios & target_studios)
             if matches > 0:
                 score.studio = self.SCORING['production']['components']['studio']['primary']
-                additional = min(
-                    matches - 1,
-                    self.SCORING['production']['components']['studio']['max_additional']
-                )
-                if additional > 0:
-                    score.studio += additional * self.SCORING['production']['components']['studio']['additional']
+                # Calculate additional points for matches beyond the first
+                additional_matches = matches - 1
+                if additional_matches > 0:
+                    additional_points = min(
+                        additional_matches * self.SCORING['production']['components']['studio']['additional'],
+                        self.SCORING['production']['components']['studio']['max_additional']
+                    )
+                    score.studio += additional_points
                     
-        # Team matching
-        source_team = source.get('team_member_ids') or []
-        target_team = target.get('team_member_ids') or []
-        if source_team and target_team:
+        # Team score
+        if 'team_member_ids' in source:
+            source_team = source.get('team_member_ids') or []
+            target_team = target.get('team_member_ids') or []
             score.team = self._calculate_array_match(
                 source_team, target_team,
                 self.SCORING['production']['components']['team']['first'],
@@ -577,7 +581,14 @@ class ScoreEngine:
                 # Additional matches get second_points up to max_additional
                 additional_matches = len(matches) - 1
                 if additional_matches > 0:
-                    score += min(additional_matches * second_points, scoring.get('max_additional', float('inf')))
+                    # Get max_additional from the SCORING config for team members
+                    max_additional = self.SCORING['production']['components']['team']['max_additional']
+                    # Calculate additional points capped by max_additional
+                    additional_points = min(
+                        additional_matches * second_points,
+                        max_additional
+                    )
+                    score += additional_points
                 return score
             return 0
         else:
