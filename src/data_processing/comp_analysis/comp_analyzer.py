@@ -69,7 +69,7 @@ class FieldManager:
                 df = self.reference_data['subgenres']
             elif field_name == 'team_members':
                 logger.info(f"Loading team members from reference data, keys: {list(self.reference_data.keys())}")
-                df = self.reference_data['team_members']  # Use the comp data view through team_members reference
+                df = self.reference_data['api_show_comp_data']  # Use the comp data view for team data
                 logger.info(f"Team members df columns: {list(df.columns)}")
             else:
                 df = self.reference_data[field_name]
