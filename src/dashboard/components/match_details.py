@@ -416,6 +416,7 @@ class MatchDetailsManager:
                 source_names = {name for name in source_names if name}
                 target_names = {name for name in target_names if name}
                 matched_names = source_names & target_names
+                st.write(f"DEBUG MatchDetailsManager - source_names={source_names}, target_names={target_names}, matched_names={matched_names}")
                 
                 # Convert matched names back to IDs for consistency
                 # We only need one ID per name since they're equivalent
