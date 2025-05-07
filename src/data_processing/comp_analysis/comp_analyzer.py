@@ -581,6 +581,10 @@ class ScoreEngine:
             
         # For team members, we need to count unique names for scoring
         if field_name == 'team_members':
+            st.write("DEBUG: Team member array comparison:")
+            st.write(f"Source: {source_arr}")
+            st.write(f"Target: {target_arr}")
+            
             # Get all team member options with their grouped IDs
             team_options = self.field_manager.get_options('team_members')
             
