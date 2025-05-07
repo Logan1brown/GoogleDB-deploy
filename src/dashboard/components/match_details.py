@@ -394,7 +394,40 @@ class MatchDetailsManager:
             # Get values and selected from match data using full field name
             values = match.get(self.id_field_map[field_plural], [])
             selected = criteria.get(self.id_field_map[field_plural], [])
-            matches = [v for v in values if v in selected]
+            
+            # For team members, match by name not ID since one person can have multiple IDs
+            if field_plural == 'team_members':
+                # Get all team member options with their grouped IDs
+                team_options = self.comp_analyzer.field_manager.get_options('team_members')
+                
+                # Create a map of ID -> name
+                id_to_name = {}
+                for opt in team_options:
+                    for team_id in opt.all_ids:
+                        id_to_name[team_id] = opt.name
+                        
+                # Get unique names for values and selected
+                value_names = {id_to_name.get(id) for id in values if id in id_to_name}
+                selected_names = {id_to_name.get(id) for id in selected if id in id_to_name}
+                
+                # Remove None values
+                value_names = {name for name in value_names if name}
+                selected_names = {name for name in selected_names if name}
+                
+                # Find matches by name
+                name_matches = value_names & selected_names
+                
+                # Convert back to IDs for display
+                matches = []
+                for name in name_matches:
+                    # Find first ID that maps to this name
+                    for id in values:
+                        if id_to_name.get(id) == name:
+                            matches.append(id)
+                            break
+            else:
+                # For other array fields, match by ID
+                matches = [v for v in values if v in selected]
             
             production_components[field_plural] = {
                 'display': ArrayFieldMatch(
