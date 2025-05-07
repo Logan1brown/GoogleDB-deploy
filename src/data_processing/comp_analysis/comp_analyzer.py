@@ -33,9 +33,14 @@ class FieldConfig:
     
 @dataclass
 class FieldOption:
-    """A single option for a field with its ID and display name."""
+    """A single option for a field with its ID and display name.
+    
+    For team members, all_ids contains all IDs that map to this name.
+    For other fields, all_ids is None.
+    """
     id: int
     name: str
+    all_ids: Optional[List[int]] = None
     
 class FieldManager:
     """Manages field options and mappings."""
@@ -94,11 +99,16 @@ class FieldManager:
                     for id, name in zip(team_member_ids, team_member_names):
                         # Convert name to string and check if empty
                         name_str = str(name).strip()
-                        if len(name_str) > 0 and name_str not in unique_members:
-                            unique_members[name_str] = int(id)
+                        if len(name_str) > 0:
+                            if name_str not in unique_members:
+                                unique_members[name_str] = []
+                            unique_members[name_str].append(int(id))
                 
                 # Convert dictionary to list of options
-                options = [FieldOption(id=id, name=name) for name, id in unique_members.items()]
+                options = []
+                for name, ids in unique_members.items():
+                    # Use first ID as primary and store all IDs
+                    options.append(FieldOption(id=ids[0], name=name, all_ids=ids))
                 self.options[field_name] = sorted(options, key=lambda x: x.name)
             else:
                 clean_members = {}
@@ -116,7 +126,7 @@ class FieldManager:
                             else:
                                 # Add to existing list
                                 clean_members[clean_name].append(id)
-                        
+                                
                 # Create options with first ID for display but store all IDs
                 options = []
                 for name, id_or_ids in clean_members.items():
@@ -562,13 +572,9 @@ class ScoreEngine:
             id_to_name = {}
             for opt in team_options:
                 # Each ID for this name maps to the same name
-                # Handle case where all_ids might be None
-                if hasattr(opt, 'all_ids') and isinstance(opt.all_ids, (list, np.ndarray)) and len(opt.all_ids) > 0:
-                    for team_id in opt.all_ids:
-                        id_to_name[team_id] = opt.name
-                else:
-                    # Fallback to single ID if all_ids not available
-                    id_to_name[opt.id] = opt.name
+                # We know all_ids is always set for team members
+                for team_id in opt.all_ids:
+                    id_to_name[team_id] = opt.name
                 
             # Get unique names for source and target using the lookup map
             source_names = {id_to_name.get(id) for id in source_arr if id in id_to_name}
