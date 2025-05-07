@@ -36,8 +36,6 @@ class MatchDetailsManager:
     """
     
     def __init__(self, comp_analyzer):
-        # Import here to prevent early initialization
-        from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
         self.comp_analyzer = comp_analyzer
         
         # Get field configs from CompAnalyzer
