@@ -346,20 +346,20 @@ class MatchDetailsManager:
         # - Scoring fields (singular): individual match scores (e.g. studio.primary)
         
         # Add subgenres to content section
-        subgenre_score = components.get('subgenres', 0)
-        subgenre_max = content_scoring['subgenres']['match'] + content_scoring['subgenres']['max_additional']
-        subgenre_values = match.get(self.id_field_map['subgenres'], [])
-        subgenre_selected = criteria.get(self.id_field_map['subgenres'], [])
-        subgenre_matches = [v for v in subgenre_values if v in subgenre_selected]
+        subgenre_score = components.get('genre_overlap', 0)  # Overlap score from matching subgenres
+        subgenre_max = content_scoring['genre']['overlap']  # Max overlap score
+        subgenre_ids = match.get('subgenres', [])
+        target_subgenre_ids = criteria.get('subgenres', [])
+        matches = [v for v in subgenre_ids if v in target_subgenre_ids]
         content_components['subgenres'] = {
             'display': ArrayFieldMatch(
                 name1='',  # Not used for array fields
                 name2='',  # Not used for array fields
-                values1=self.get_field_names('subgenres', subgenre_values, match),
-                values2=self.get_field_names('subgenres', subgenre_selected),
-                matches=self.get_field_names('subgenres', subgenre_matches),
-                selected=bool(subgenre_selected),
-                match=bool(subgenre_matches),
+                values1=self.get_field_names('subgenre', subgenre_ids, match),
+                values2=self.get_field_names('subgenre', target_subgenre_ids),
+                matches=self.get_field_names('subgenre', matches),
+                selected=bool(target_subgenre_ids),
+                match=bool(matches),
                 score=subgenre_score,
                 max_score=subgenre_max
             )
