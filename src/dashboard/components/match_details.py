@@ -170,42 +170,48 @@ class MatchDetailsManager:
         if not match:
             return {}
         # Create the full details structure
+        if not match or 'comp_score' not in match:
+            return {}
+            
+        comp_score = match['comp_score']
+        components = comp_score.get('components', {})
+        
         details = {
             'content': {
-                'score': self.comp_analyzer.get_field_score('content', match),
-                'max': self.comp_analyzer.get_field_max_score('content'),
+                'score': components.get('content', {}).get('score', 0),
+                'max_score': 82,  # From ScoreEngine.SCORING
                 'components': {
                     'genre': {
-                        'score': self.comp_analyzer.get_field_score('genre', match),
-                        'max': self.comp_analyzer.get_field_max_score('genre')
+                        'score': components.get('genre_base', 0) + components.get('genre_overlap', 0),
+                        'max_score': 23  # 15 base + 8 overlap from ScoreEngine.SCORING
                     },
                     'source_type': {
-                        'score': self.comp_analyzer.get_field_score('source_type', match),
-                        'max': self.comp_analyzer.get_field_max_score('source_type')
+                        'score': components.get('source_type', 0),
+                        'max_score': 10  # From ScoreEngine.SCORING
                     },
                     'character_types': {
-                        'score': self.comp_analyzer.get_field_score('character_types', match),
-                        'max': self.comp_analyzer.get_field_max_score('character_types')
+                        'score': components.get('character_types', 0),
+                        'max_score': 10  # First + second match from ScoreEngine.SCORING
                     },
                     'plot_elements': {
-                        'score': self.comp_analyzer.get_field_score('plot_elements', match),
-                        'max': self.comp_analyzer.get_field_max_score('plot_elements')
+                        'score': components.get('plot_elements', 0),
+                        'max_score': 10  # First + second match from ScoreEngine.SCORING
                     },
                     'thematic_elements': {
-                        'score': self.comp_analyzer.get_field_score('thematic_elements', match),
-                        'max': self.comp_analyzer.get_field_max_score('thematic_elements')
+                        'score': components.get('thematic_elements', 0),
+                        'max_score': 10  # First + second match from ScoreEngine.SCORING
                     },
                     'tone': {
-                        'score': self.comp_analyzer.get_field_score('tone', match),
-                        'max': self.comp_analyzer.get_field_max_score('tone')
+                        'score': components.get('tone', 0),
+                        'max_score': 8  # From ScoreEngine.SCORING
                     },
                     'time_setting': {
-                        'score': self.comp_analyzer.get_field_score('time_setting', match),
-                        'max': self.comp_analyzer.get_field_max_score('time_setting')
+                        'score': components.get('time_setting', 0),
+                        'max_score': 6  # From ScoreEngine.SCORING
                     },
                     'location_setting': {
-                        'score': self.comp_analyzer.get_field_score('location_setting', match),
-                        'max': self.comp_analyzer.get_field_max_score('location_setting')
+                        'score': components.get('location_setting', 0),
+                        'max_score': 5  # From ScoreEngine.SCORING
                     }
                 },
                 'breakdown': {
@@ -220,20 +226,20 @@ class MatchDetailsManager:
                 }
             },
             'production': {
-                'score': self.comp_analyzer.get_field_score('production', match),
-                'max': self.comp_analyzer.get_field_max_score('production'),
+                'score': components.get('production', {}).get('score', 0),
+                'max_score': 13,  # From ScoreEngine.SCORING
                 'components': {
                     'network': {
-                        'score': self.comp_analyzer.get_field_score('network', match),
-                        'max': self.comp_analyzer.get_field_max_score('network')
+                        'score': components.get('network', 0),
+                        'max_score': 3  # From ScoreEngine.SCORING
                     },
                     'studio': {
-                        'score': self.comp_analyzer.get_field_score('studio', match),
-                        'max': self.comp_analyzer.get_field_max_score('studio')
+                        'score': components.get('studio', 0),
+                        'max_score': 5  # From ScoreEngine.SCORING
                     },
                     'team': {
-                        'score': self.comp_analyzer.get_field_score('team', match),
-                        'max': self.comp_analyzer.get_field_max_score('team')
+                        'score': components.get('team', 0),
+                        'max_score': 5  # From ScoreEngine.SCORING
                     }
                 },
                 'breakdown': {
@@ -243,16 +249,16 @@ class MatchDetailsManager:
                 }
             },
             'format': {
-                'score': self.comp_analyzer.get_field_score('format', match),
-                'max': self.comp_analyzer.get_field_max_score('format'),
+                'score': components.get('format', {}).get('score', 0),
+                'max_score': 3,  # From ScoreEngine.SCORING
                 'components': {
                     'episodes': {
-                        'score': self.comp_analyzer.get_field_score('episodes', match),
-                        'max': self.comp_analyzer.get_field_max_score('episodes')
+                        'score': components.get('episodes', 0),
+                        'max_score': 2  # From ScoreEngine.SCORING
                     },
                     'order_type': {
-                        'score': self.comp_analyzer.get_field_score('order_type', match),
-                        'max': self.comp_analyzer.get_field_max_score('order_type')
+                        'score': components.get('order_type', 0),
+                        'max_score': 1  # From ScoreEngine.SCORING
                     }
                 },
                 'breakdown': {
