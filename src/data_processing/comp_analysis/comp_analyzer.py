@@ -585,6 +585,14 @@ class ScoreEngine:
             target_names = {name for name in target_names if name}
             matches = source_names & target_names
             
+            import streamlit as st
+            st.write(f"DEBUG: Comparing team members:")
+            st.write(f"DEBUG: Source IDs: {source_arr}")
+            st.write(f"DEBUG: Source names: {source_names}")
+            st.write(f"DEBUG: Target IDs: {target_arr}")
+            st.write(f"DEBUG: Target names: {target_names}")
+            st.write(f"DEBUG: Matches: {matches}")
+            
             # Calculate points based on matches
             if len(matches) > 0:
                 # First match gets first_points
@@ -839,12 +847,17 @@ class CompAnalyzer:
                     team_options = self.field_manager.get_options('team_members')
                     # Create a map of ID -> name that includes all IDs
                     id_to_name = {}
+                    import streamlit as st
+                    st.write("DEBUG: Team member options:")
                     for opt in team_options:
+                        st.write(f"DEBUG: {opt.name}: primary={opt.id}, all_ids={opt.all_ids}")
                         # Use all IDs for this name
                         for team_id in opt.all_ids:
                             id_to_name[team_id] = opt.name
+                    st.write(f"DEBUG: Input team member IDs: {value}")
                     # Map the IDs to names
                     mapped_criteria['team_member_names'] = [id_to_name.get(id) for id in value if id in id_to_name]
+                    st.write(f"DEBUG: Mapped to names: {mapped_criteria['team_member_names']}")
             else:
                 # Include None values and handle other types
                 if value is None:

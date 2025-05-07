@@ -125,8 +125,7 @@ class MatchDetailsManager:
             
         # Handle non-array fields
         if not config.is_array:
-            if field == 'genre':
-                st.write(f"Debug - Match data for genre (id={id}):\nname_field={name_field}\nmatch={match}")
+            # Debug output removed to avoid duplication
             name = match.get(name_field)
             if name is None:
                 # If name is missing in match data, try field manager
