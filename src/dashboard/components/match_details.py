@@ -12,7 +12,7 @@ class FieldMatch:
     selected: bool  # Whether criteria was selected
     match: bool  # Whether values match
     score: float  # Points awarded for this match
-    max: float  # Maximum possible points
+    max_score: float  # Maximum possible points
 
 @dataclass
 class ArrayFieldMatch(FieldMatch):
@@ -279,7 +279,7 @@ class MatchDetailsManager:
             selected=bool(target_id),
             match=value_id == target_id if value_id and target_id else False,
             score=score,
-            max=max_val
+            max_score=max_val
         )
 
     def _process_array_field(self, field: str, match: Dict, criteria: Dict) -> ArrayFieldMatch:
@@ -306,7 +306,7 @@ class MatchDetailsManager:
             selected=bool(selected),
             match=bool(matches),
             score=score,
-            max=max_val,
+            max_score=max_val,
             values1=value_names,
             values2=selected_names,
             matches=matches
@@ -437,7 +437,7 @@ class MatchDetailsManager:
                 selected=False,
                 match=False,
                 score=0,
-                max=0
+                max_score=0
             )
         }
 
@@ -473,7 +473,7 @@ class MatchDetailsManager:
             selected=bool(selected),
             match=bool(matches),
             score=score,
-            max=max_val,
+            max_score=max_val,
             values1=value_names,
             values2=selected_names,
             matches=matches
@@ -507,7 +507,7 @@ class MatchDetailsManager:
             selected=bool(selected),
             match=bool(matches),
             score=score,
-            max=max_val,
+            max_score=max_val,
             values1=value_names,
             values2=selected_names,
             # For studios, show all values for better display
@@ -534,7 +534,7 @@ class MatchDetailsManager:
             selected=selected_episodes is not None,
             match=diff is not None and diff <= 2,  # Consider a match if within 2 episodes
             score=episode_score,
-            max=episode_max
+            max_score=episode_max
         )
         
         order_match = self._process_single_field_match(
