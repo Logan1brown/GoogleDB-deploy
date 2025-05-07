@@ -103,11 +103,10 @@ class FieldManager:
                         
                     # Add each team member
                     for id, name in zip(team_member_ids, team_member_names):
-                        if not name:
-                            continue
-                        name = str(name).strip()
-                        if name and name not in unique_members:
-                            unique_members[name] = int(id)
+                        # Convert name to string and check if empty
+                        name_str = str(name).strip() if isinstance(name, (str, int, float)) else ''
+                        if len(name_str) > 0 and name_str not in unique_members:
+                            unique_members[name_str] = int(id)
                 
                 # Convert dictionary to list of options
                 options = [FieldOption(id=id, name=name) for name, id in unique_members.items()]
