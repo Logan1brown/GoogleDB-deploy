@@ -172,8 +172,8 @@ def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         # Studios
         studio_names = st.multiselect("Studios",
             options=[name for _, name in display_options['studios'] if name and name.strip()],
-            key="studio_ids", placeholder="Select studios...")
-        state["criteria"]["studio_ids"] = get_ids_for_names(studio_names, display_options['studios'])
+            key="studios", placeholder="Select studios...")
+        state["criteria"]["studios"] = get_ids_for_names(studio_names, display_options['studios'])
         
         # Team Members
         team_names = st.multiselect("Team Members",

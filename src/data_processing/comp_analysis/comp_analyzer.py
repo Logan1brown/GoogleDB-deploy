@@ -478,17 +478,15 @@ class ScoreEngine:
             if source.get('location_setting_id') == target.get('location_setting_id'):
                 score.location = self.SCORING['content']['components']['location_setting']['match']
             
-        # Production scores - only calculate if selected in criteria
-        
-        # Network score
-        if 'network_id' in source:
+        # Only calculate network score if network was selected in criteria
+        if source.get('network_id') is not None:
             if source.get('network_id') == target.get('network_id'):
                 score.network = self.SCORING['production']['components']['network']['match']
             
-        # Studio score
-        if 'studios' in source:
-            source_studios = set(source.get('studios') or [])
-            target_studios = set(target.get('studios') or [])
+        # Studio matching
+        source_studios = set(source.get('studios') or [])
+        target_studios = set(target.get('studios') or [])
+        if source_studios and target_studios:
             matches = len(source_studios & target_studios)
             if matches > 0:
                 score.studio = self.SCORING['production']['components']['studio']['primary']
@@ -501,10 +499,10 @@ class ScoreEngine:
                     )
                     score.studio += additional_points
                     
-        # Team score
-        if 'team_member_ids' in source:
-            source_team = source.get('team_member_ids') or []
-            target_team = target.get('team_member_ids') or []
+        # Team matching
+        source_team = source.get('team_member_ids') or []
+        target_team = target.get('team_member_ids') or []
+        if source_team and target_team:
             score.team = self._calculate_array_match(
                 source_team, target_team,
                 self.SCORING['production']['components']['team']['first'],
