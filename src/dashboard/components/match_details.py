@@ -101,7 +101,7 @@ class MatchDetailsManager:
         Args:
             field: Field type (e.g. 'genre', 'source_type')
             id: ID of the field value
-            match: Match data containing name fields
+            match: Match data containing name fields. If None, uses field manager.
             default: Value to return for null fields
             
         Returns:
@@ -111,9 +111,9 @@ class MatchDetailsManager:
         if id is None:
             return default
             
-        # Validate required data is present
+        # If no match data, use field manager (for criteria display)
         if match is None:
-            raise ValueError(f"Match data is required for field {field}")
+            return self.comp_analyzer.get_field_display_name(field, id) or default
             
         name_field = self.name_field_map.get(field)
         if not name_field:
