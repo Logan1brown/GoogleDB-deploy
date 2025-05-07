@@ -102,8 +102,8 @@ class FieldManager:
                                 unique_members[name] = id
                                 
                 # Convert dictionary to list of options
-                options = [FieldOption(id=id, name=name) for name, id in unique_members.items()]
-                self.options[field_name] = sorted(options, key=lambda x: x.name)
+                options = [FieldOption(id=id, name=str(name)) for name, id in unique_members.items()]
+                self.options[field_name] = sorted(options, key=lambda x: str(x.name) if x.name is not None else '')
             else:
                 clean_members = {}
                 for _, row in df.iterrows():
@@ -132,7 +132,7 @@ class FieldManager:
                         opt.all_ids = [id_or_ids]
                     options.append(opt)
                 
-                self.options[field_name] = sorted(options, key=lambda x: x.name)
+                self.options[field_name] = sorted(options, key=lambda x: str(x.name) if x.name is not None else '')
                 pass  # Options loaded
     
     def _normalize_name(self, name: str) -> str:
