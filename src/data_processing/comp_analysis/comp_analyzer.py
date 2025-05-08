@@ -830,7 +830,8 @@ class CompAnalyzer:
             List of (id, name) tuples sorted by name
         """
         try:
-            self.initialize()
+            if not self.field_manager:
+                raise RuntimeError("CompAnalyzer not initialized")
             return self.field_manager.get_display_options(field_name)
         except Exception as e:
             raise
@@ -846,7 +847,8 @@ class CompAnalyzer:
             sorted by total score descending.
         """
             
-        self.initialize()
+        if self.comp_data is None:
+            raise RuntimeError("CompAnalyzer not initialized")
             
         # Create a dummy show with the criteria
         # Map field names to match database schema
