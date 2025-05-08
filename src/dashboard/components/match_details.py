@@ -398,13 +398,8 @@ class MatchDetailsManager:
             
             # For team members, we need to match by name using the field manager
             if field_plural == 'team_members':
-                st.write("DEBUG: Processing team members")
-                st.write(f"DEBUG: Raw values (source): {values}")
-                st.write(f"DEBUG: Raw selected (target): {selected}")
-                
                 # Get all team member options with their grouped IDs
                 team_options = self.comp_analyzer.field_manager.get_options('team_members')
-                st.write(f"DEBUG: Team options count: {len(team_options)}")
                 
                 # Create a map of ID -> name that includes all IDs for each name
                 id_to_name = {}
