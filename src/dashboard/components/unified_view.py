@@ -354,6 +354,9 @@ def render_unified_dashboard(success_analyzer: Optional['SuccessAnalyzer'] = Non
         # Initialize analyzer with normalized data
         unified_analyzer = UnifiedAnalyzer(success_analyzer)
         
+        # Add overall description
+        st.write("Analyze the TV market across three key stages: network acquisition patterns, creative packaging trends, and development format decisions.")
+        
         # Create analysis type selector at the top
         analysis_type = st.radio(
             "",
@@ -383,6 +386,8 @@ def render_unified_dashboard(success_analyzer: Optional['SuccessAnalyzer'] = Non
                 )
             
             with content_col:  # Results Panel
+                st.write("Analyze network performance and market trends, with detailed success metrics by network and insights into winning genre-source combinations.")
+                st.write("---")
                 render_acquisition_view(unified_analyzer, source_type, genre)
                 
         elif analysis_type == "Packaging":
@@ -406,6 +411,8 @@ def render_unified_dashboard(success_analyzer: Optional['SuccessAnalyzer'] = Non
                 )
             
             with content_col:  # Results Panel
+                st.write("Explore creator track records and successful creative pairings, filtered by genre and source type to inform packaging decisions.")
+                st.write("---")
                 render_packaging_view(unified_analyzer, source_type, genre)
                 
         else:  # Development
@@ -429,6 +436,8 @@ def render_unified_dashboard(success_analyzer: Optional['SuccessAnalyzer'] = Non
                 )
             
             with content_col:  # Results Panel
+                st.write("Evaluate format decisions and success patterns across episodes, seasons, and order types to guide development strategy.")
+                st.write("---")
                 render_development_view(unified_analyzer, source_type, genre)
             
     except Exception as e:
