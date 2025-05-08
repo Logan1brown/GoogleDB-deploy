@@ -54,7 +54,7 @@ class MatchDetailsManager:
             'location_setting': 'location_setting_id',
             'network': 'network_id',
             'studios': 'studios',  # Direct field name from data
-            'team_members': 'team_member_ids',
+            'team_members': 'team_members',  # Match field config name
             'episodes': 'episode_count',
             'order_type': 'order_type_id'
         }
@@ -400,7 +400,7 @@ class MatchDetailsManager:
                 st.write(f"DEBUG: Raw selected (target): {selected}")
                 
                 # Get all team member options with their grouped IDs
-                team_options = self.comp_analyzer.field_manager.get_options('team_member_ids')
+                team_options = self.comp_analyzer.field_manager.get_options('team_members')
                 st.write(f"DEBUG: Team options count: {len(team_options)}")
                 
                 # Create a map of ID -> name that includes all IDs for each name
@@ -410,19 +410,15 @@ class MatchDetailsManager:
                     # We know all_ids is always set for team members
                     for team_id in opt.all_ids:
                         id_to_name[team_id] = opt.name
-                st.write(f"DEBUG: ID->name map size: {len(id_to_name)}")
                         
                 # Get unique names for source and target using the lookup map
                 source_names = {id_to_name.get(id) for id in values if id in id_to_name}
                 target_names = {id_to_name.get(id) for id in selected if id in id_to_name}
-                st.write(f"DEBUG: Source names: {source_names}")
-                st.write(f"DEBUG: Target names: {target_names}")
                 
                 # Remove None values and find matches by name
                 source_names = {name for name in source_names if name}
                 target_names = {name for name in target_names if name}
                 matched_names = source_names & target_names
-                st.write(f"DEBUG: Matched names: {matched_names}")
                 
                 # Convert matched names back to IDs for consistency
                 # We only need one ID per name since they're equivalent
@@ -432,7 +428,6 @@ class MatchDetailsManager:
                         if opt.name == name:
                             matches.append(opt.all_ids[0])
                             break
-                st.write(f"DEBUG: Final matches (IDs): {matches}")
             else:
                 # For all other array fields, match by ID
                 matches = [v for v in values if v in selected]
