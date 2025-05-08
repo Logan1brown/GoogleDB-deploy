@@ -178,8 +178,11 @@ class MatchDetailsManager:
                         if field == 'team_members':
                             # Get unique names, preserving order
                             unique_names = []
-                            for name in names:
-                                if name not in unique_names:
+                            # Get the IDs from match data
+                            match_ids = match.get(self.id_field_map.get(field), [])
+                            # Only include names whose IDs are in the requested ids list
+                            for idx, name in enumerate(names):
+                                if idx < len(match_ids) and match_ids[idx] in ids and name not in unique_names:
                                     unique_names.append(name)
                             return unique_names
                         # For other array fields, return names if lengths match
