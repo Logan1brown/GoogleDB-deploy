@@ -309,14 +309,23 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     MatchDetailsManager = get_match_details_manager()
     details_manager = MatchDetailsManager(comp_analyzer)
     
-    # Transform results into expected format and calculate total scores
-    match_results = [{
-        **r,  # Keep all original fields
-        'total_score': r['score']  # Just rename score to total_score
-    } for r in results]
+    # Transform results into expected format and include score details
+    match_results = []
+    for r in results:
+        # Get detailed score breakdown
+        details = details_manager.create_match_details(r, criteria)
+        match_results.append({
+            **r,  # Keep all original fields
+            'scores': {
+                'total': {'score': r['score'], 'max_score': 100},
+                'content': details['content'],
+                'production': details['production'],
+                'format': details['format']
+            }
+        })
     
     # Sort by total score descending
-    match_results.sort(key=lambda x: x['total_score'], reverse=True)
+    match_results.sort(key=lambda x: x['scores']['total']['score'], reverse=True)
     
     # Create results table
     if match_results:
