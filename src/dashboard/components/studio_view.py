@@ -436,9 +436,6 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame, studio_categorie
         # Render metrics at the top
         render_studio_metrics(analysis_results)
         
-        # Add description
-        st.write("Explore studio performance through three views: an interactive network graph showing studio collaborations and partnerships, a detailed analysis tool for examining individual studio metrics and show catalogs, and a curated collection of successful studio partnerships and their standout productions.")
-        
         # Create tabs for main content
         graph_tab, filter_tab, stories_tab = st.tabs(["Studio Graph", "Studio Filter", "Success Stories"])
         
