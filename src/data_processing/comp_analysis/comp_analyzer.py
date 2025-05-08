@@ -678,12 +678,6 @@ class CompAnalyzer:
 
     def initialize(self, force: bool = False):
         """Initialize or refresh the analyzer data."""
-        import streamlit as st
-        import traceback
-        st.write("DEBUG: Initializing CompAnalyzer")
-        st.write("Called from:")
-        st.write(traceback.extract_stack()[-2])
-        
         # Only initialize if not already initialized or force refresh
         if self.comp_data is None or force:
             
