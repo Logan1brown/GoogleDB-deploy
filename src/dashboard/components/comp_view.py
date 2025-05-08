@@ -17,6 +17,7 @@ def render_comp_builder(state: Dict) -> None:
     if 'comp_analyzer' not in st.session_state:
         from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
         st.session_state.comp_analyzer = CompAnalyzer()
+        st.session_state.comp_analyzer.initialize()  # Initialize once when created
     comp_analyzer = st.session_state.comp_analyzer
     
     # Initialize state with all possible criteria fields
@@ -99,15 +100,14 @@ def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_na
 
 def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     """Render criteria selection panel."""
-    # Get field options lazily
-    if not hasattr(comp_analyzer, 'field_options'):
-        comp_analyzer.initialize()
+    # Get field options from session state
+    if 'field_options' not in st.session_state:
         field_options = comp_analyzer.get_field_options()
-        comp_analyzer.field_options = field_options
-        comp_analyzer.display_options = {field: comp_analyzer.get_field_display_options(field) 
-                                       for field in field_options.keys()}
-    field_options = comp_analyzer.field_options
-    display_options = comp_analyzer.display_options
+        st.session_state.field_options = field_options
+        st.session_state.display_options = {field: comp_analyzer.get_field_display_options(field) 
+                                          for field in field_options.keys()}
+    field_options = st.session_state.field_options
+    display_options = st.session_state.display_options
     with st.expander("Content Match Criteria (82 pts)", expanded=True):
         # Content criteria
         st.markdown("### Content")
