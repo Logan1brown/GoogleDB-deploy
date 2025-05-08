@@ -22,6 +22,10 @@ def show():
     # Page title using style from style_config
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Detail</p>', unsafe_allow_html=True)
     
+    # Add description
+    st.write("View show details and success metrics, find similar titles ranked by match score, and analyze which networks are most active in this content space.")
+    st.write("---")
+    
     # Initialize analyzers
     from src.data_processing.show_detail.show_detail_analyzer import ShowDetailAnalyzer
     show_analyzer = ShowDetailAnalyzer()
