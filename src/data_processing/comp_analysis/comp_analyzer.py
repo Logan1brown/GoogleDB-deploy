@@ -707,9 +707,7 @@ class CompAnalyzer:
             
         # Only recreate field manager if data changes
         if self.field_manager is None or force:
-            st.write("DEBUG: Creating new FieldManager")
             self.field_manager = FieldManager(self.reference_data)
-            st.write(f"DEBUG: FieldManager team options: {len(self.field_manager.get_options('team_member_ids'))}")
             self.score_engine = ScoreEngine(self.field_manager)
     
     def get_field_options(self, force: bool = False) -> Dict[str, List[Tuple[int, str]]]:
