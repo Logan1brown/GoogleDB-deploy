@@ -13,11 +13,18 @@ from . import get_match_details_manager, get_render_match_details_section
 
 def render_comp_builder(state: Dict) -> None:
     """Render the comp builder interface."""
-    # Initialize analyzer lazily
+    st.title("Comp Builder")
+    
     if 'comp_analyzer' not in st.session_state:
         from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
         st.session_state.comp_analyzer = CompAnalyzer()
-        st.session_state.comp_analyzer.initialize()  # Initialize once when created
+        st.session_state.comp_analyzer.initialize()
+        
+        # Also cache field options
+        field_options = st.session_state.comp_analyzer.get_field_options()
+        st.session_state.field_options = field_options
+        st.session_state.display_options = {field: st.session_state.comp_analyzer.get_field_display_options(field) 
+                                          for field in field_options.keys()}  # Initialize once when created
     comp_analyzer = st.session_state.comp_analyzer
     
     # Initialize state with all possible criteria fields
@@ -101,11 +108,6 @@ def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_na
 def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     """Render criteria selection panel."""
     # Get field options from session state
-    if 'field_options' not in st.session_state:
-        field_options = comp_analyzer.get_field_options()
-        st.session_state.field_options = field_options
-        st.session_state.display_options = {field: comp_analyzer.get_field_display_options(field) 
-                                          for field in field_options.keys()}
     field_options = st.session_state.field_options
     display_options = st.session_state.display_options
     with st.expander("Content Match Criteria (82 pts)", expanded=True):

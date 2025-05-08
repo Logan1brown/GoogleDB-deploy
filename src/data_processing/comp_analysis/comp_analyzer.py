@@ -679,7 +679,10 @@ class CompAnalyzer:
     def initialize(self, force: bool = False):
         """Initialize or refresh the analyzer data."""
         import streamlit as st
+        import traceback
         st.write("DEBUG: Initializing CompAnalyzer")
+        st.write("Called from:")
+        st.write(traceback.extract_stack()[-2])
         
         # Only initialize if not already initialized or force refresh
         if self.comp_data is None or force:
@@ -719,9 +722,7 @@ class CompAnalyzer:
             Dictionary mapping field names to lists of (id, name) tuples
         """
         try:
-            if not self.field_manager:
-                raise RuntimeError("CompAnalyzer not initialized")
-                
+            self.initialize(force)
             return {field: self.field_manager.get_display_options(field)
                     for field in FieldManager.FIELD_CONFIGS.keys()}
                     
