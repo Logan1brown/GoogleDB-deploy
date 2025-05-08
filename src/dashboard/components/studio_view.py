@@ -428,7 +428,7 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame, studio_categorie
     
     try:
         # Add description
-        st.write("Explore studio performance through three views: an interactive network graph showing studio collaborations and partnerships, a detailed analysis tool for examining individual studio metrics and show catalogs, and a curated collection of successful studio partnerships and their standout productions.")
+        st.write("Analyze studio market presence through three views: a distribution chart showing each studio's network reach, a detailed explorer for viewing any studio's genre mix and show catalog, and insights into successful independent studios and their network partnerships.")
         
         # Get analysis results once for all components
         analysis_results = get_cached_analysis(shows_df, studio_categories_df)
