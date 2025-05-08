@@ -182,12 +182,15 @@ def render_criteria_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
             options=[name for _, name in display_options['team_members'] if name and name.strip()],
             key="team_members", placeholder="Select team members...")
         # Pass field_name and comp_analyzer to get all IDs for each team member
-        state["criteria"]["team_members"] = get_ids_for_names(
+        team_member_ids = get_ids_for_names(
             team_names, 
             display_options['team_members'], 
             'team_members',
             comp_analyzer
         )
+        # Store IDs in both fields for compatibility
+        state["criteria"]["team_members"] = team_member_ids
+        state["criteria"]["team_member_ids"] = team_member_ids
         # Also store the names for display
         state["criteria"]["team_member_names"] = team_names
     
