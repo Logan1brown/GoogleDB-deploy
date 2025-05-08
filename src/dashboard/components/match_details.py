@@ -412,22 +412,15 @@ class MatchDetailsManager:
                         id_to_name[team_id] = opt.name
                         
                 # Get unique names for source and target using the lookup map
-                source_names = {id_to_name.get(id) for id in values if id in id_to_name}
-                target_names = {id_to_name.get(id) for id in selected if id in id_to_name}
+                source_names = {id_to_name.get(id): id for id in values if id in id_to_name}
+                target_names = {id_to_name.get(id): id for id in selected if id in id_to_name}
                 
-                # Remove None values and find matches by name
-                source_names = {name for name in source_names if name}
-                target_names = {name for name in target_names if name}
-                matched_names = source_names & target_names
+                # Remove None values
+                source_names = {name: id for name, id in source_names.items() if name}
+                target_names = {name: id for name, id in target_names.items() if name}
                 
-                # Convert matched names back to IDs for consistency
-                # We only need one ID per name since they're equivalent
-                matches = []
-                for name in matched_names:
-                    for opt in team_options:
-                        if opt.name == name:
-                            matches.append(opt.all_ids[0])
-                            break
+                # Find matches by name and use original IDs
+                matches = [source_names[name] for name in source_names.keys() & target_names.keys()]
             else:
                 # For all other array fields, match by ID
                 matches = [v for v in values if v in selected]
