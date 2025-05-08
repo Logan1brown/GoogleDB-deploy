@@ -309,6 +309,9 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
     MatchDetailsManager = get_match_details_manager()
     details_manager = MatchDetailsManager(comp_analyzer)
     
+    # Get criteria for comparison
+    criteria = state.get('criteria', {})
+    
     # Transform results into expected format and include score details
     match_results = []
     for r in results:
@@ -332,9 +335,6 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         df = create_results_df(match_results)
         apply_table_css()
         st.dataframe(df.style.apply(apply_table_styling))
-    
-    # Get criteria for comparison
-    criteria = state.get('criteria', {})
     
     # Process top 10 matches
     for match in match_results[:10]:
