@@ -24,7 +24,6 @@ def show():
     
     # Add description
     st.write("View show details and success metrics, find similar titles ranked by match score, and analyze which networks are most active in this content space.")
-    st.write("---")
     
     # Initialize analyzers
     from src.data_processing.show_detail.show_detail_analyzer import ShowDetailAnalyzer

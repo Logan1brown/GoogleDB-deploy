@@ -92,7 +92,6 @@ def render_market_snapshot(market_analyzer):
         return
     # Add description
     st.write("Explore TV titles with success metrics based on seasons, status, and episode count. Filter by networks, creatives, or success tiers to identify market opportunities.")
-    st.write("---")
     
     # Display key dataset metrics and filters
     try:
