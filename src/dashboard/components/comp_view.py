@@ -15,6 +15,22 @@ def render_comp_builder(state: Dict) -> None:
     """Render the comp builder interface."""
     st.title("Comp Builder")
     
+    # Add intro text and help
+    st.write("The Comp Builder helps you find shows similar to your concept by matching specific creative elements. Select criteria across genre, characters, plot, and more to see how your show compares to others in the market.")
+    
+    with st.expander("How to Get the Best Matches"):
+        st.markdown("""
+        1. Start with Character Dynamics: Combine two character types that capture key relationships (e.g., duo_partners + mentor_student for journey shows, or ensemble_workplace + rivals for office dynamics)
+
+        2. Build on Your Genre: Genre is your foundation - then use source type and tone to refine the style (e.g., Comedy + Original + Satirical, or Drama + Adaptation + Gritty)
+
+        3. Tell a Story with Plot & Themes: Choose plot elements and themes that work together (e.g., survival_stakes + quest_journey, or conflict_power + political_intrigue)
+
+        4. Ground it with Setting: Use time and location settings to narrow the focus (e.g., workplace + contemporary, or post_apocalyptic + multiple_settings)
+
+        The more specific and coherent your criteria, the better your matches will be!
+        """)
+    
     if 'comp_analyzer' not in st.session_state:
         from src.data_processing.comp_analysis.comp_analyzer import CompAnalyzer
         st.session_state.comp_analyzer = CompAnalyzer()
