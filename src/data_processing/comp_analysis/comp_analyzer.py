@@ -75,7 +75,7 @@ class FieldManager:
         'location_setting': FieldConfig('location_setting_types', 'id', 'name'),  # show_description_analysis.location_setting_id
         'network': FieldConfig('network_list', 'id', 'network'),  # shows.network_id
         'studios': FieldConfig('studio_list', 'id', 'studio', True),  # shows.studios[]
-        'team_members': FieldConfig('api_show_comp_data', 'team_member_ids', 'team_member_names', True),  # Use view for processed team data
+        'team_members': FieldConfig('api_show_comp_data', 'team_members', 'team_member_names', True),  # Use view for processed team data
         'order_type': FieldConfig('order_types', 'id', 'type')  # shows.order_type_id
     }
     
@@ -104,7 +104,7 @@ class FieldManager:
                 
                 # Process each team member
                 for _, row in df.iterrows():
-                    team_member_ids = row.get('team_member_ids', [])
+                    team_member_ids = row.get('team_members', [])
                     team_member_names = row.get('team_member_names', [])
                     
                     # Skip if either array is empty or not a list
