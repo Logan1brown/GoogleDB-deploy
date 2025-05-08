@@ -74,7 +74,7 @@ def main_page():
 
     Filter by source type and genre to reveal patterns in successful content development.
 
-    **Comp Builder** *(Coming Soon)*  
+    **Comp Builder**  
     Build and analyze custom show comparisons:
     - Create detailed show comparison profiles
     - Score and rank similar shows
