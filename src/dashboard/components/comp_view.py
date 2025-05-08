@@ -292,8 +292,6 @@ def render_results_section(comp_analyzer: 'CompAnalyzer', state: Dict) -> None:
         return
         
     try:
-        # Always force refresh when finding matches to ensure fresh reference data
-        comp_analyzer.initialize(force=True)
         results = comp_analyzer.find_by_criteria(state['criteria'])
         
 
