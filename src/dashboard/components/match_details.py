@@ -54,7 +54,7 @@ class MatchDetailsManager:
             'location_setting': 'location_setting_id',
             'network': 'network_id',
             'studios': 'studios',  # Direct field name from data
-            'team_members': 'team_members',  # Match field config name
+            'team_members': 'team_member_ids',  # Match SQL view field name
             'episodes': 'episode_count',
             'order_type': 'order_type_id'
         }
