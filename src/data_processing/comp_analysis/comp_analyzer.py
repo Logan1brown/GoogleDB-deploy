@@ -813,7 +813,8 @@ class CompAnalyzer:
             Display name for the ID
         """
         try:
-            self.initialize()
+            if not self.field_manager:
+                raise RuntimeError("CompAnalyzer not initialized")
             return self.field_manager.get_name(field_name, id)
         except Exception as e:
             logger.error(f"Error in get_field_display_name: {e}")
