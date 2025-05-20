@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RT Helper</title>
+    <style>
+        body { padding: 20px; font-family: system-ui; }
+        .section { margin-bottom: 30px; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 4px; }
+        button { padding: 8px 16px; margin-right: 10px; cursor: pointer; }
+        .show-title { font-weight: bold; margin-bottom: 5px; }
+        .score { color: #666; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h1>RT Helper</h1>
+    
+    <div class="section">
+        <h2>Instructions</h2>
+        <ol>
+            <li>Click a show button below to search RT</li>
+            <li>Drag this helper to your bookmarks: 
+                <a href="javascript:void(function(){var t=document.querySelector('h1'),s=document.querySelectorAll('.critics-score'),d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black';d.innerHTML='<h3>Found Scores:</h3>'+Array.from(s).map(e=>e.textContent).join('<br>');document.body.appendChild(d);window.open('http://localhost:8000/test_bookmarklet.html#'+encodeURIComponent(JSON.stringify({title:t?t.textContent:'',scores:Array.from(s).map(e=>e.textContent)})));}());">RT Helper</a>
+            </li>
+            <li>On the RT page, click the helper bookmark</li>
+            <li>Scores will be saved below</li>
+        </ol>
+    </div>
+
+    <!-- Search -->
+    <div class="section">
+        <h2>Search Shows</h2>
+        <div id="search-buttons"></div>
+    </div>
+
+    <!-- Results -->
+    <div class="section">
+        <h2>Collected Scores</h2>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        // Test shows
+        const shows = [
+            'The Last of Us',
+            'House of the Dragon',
+            'Andor'
+        ];
+
+        // Store collected data
+        const collected = {};
+
+        // Generate search URL
+        function generateSearchUrl(title) {
+            const query = `site:rottentomatoes.com tv ${title}`;
+            return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+        }
+
+        // Create search buttons
+        const buttonsDiv = document.getElementById('search-buttons');
+        shows.forEach(title => {
+            const div = document.createElement('div');
+            div.style.marginBottom = '15px';
+            
+            const titleDiv = document.createElement('div');
+            titleDiv.textContent = title;
+            titleDiv.className = 'show-title';
+            div.appendChild(titleDiv);
+            
+            const searchBtn = document.createElement('button');
+            searchBtn.textContent = 'Search RT';
+            searchBtn.onclick = () => window.open(generateSearchUrl(title), '_blank');
+            div.appendChild(searchBtn);
+            
+            const scoreSpan = document.createElement('span');
+            scoreSpan.className = 'score';
+            if (collected[title]) {
+                scoreSpan.textContent = collected[title].scores.join(', ');
+            }
+            div.appendChild(scoreSpan);
+            
+            buttonsDiv.appendChild(div);
+        });
+
+        // Handle incoming data
+        window.addEventListener('hashchange', () => {
+            try {
+                const hash = window.location.hash.slice(1);
+                if (!hash) return;
+                const data = JSON.parse(decodeURIComponent(hash));
+                if (data && data.title && data.scores) {
+                    collected[data.title] = data;
+                    document.getElementById('output').textContent = 
+                        JSON.stringify(collected, null, 2);
+                    
+                    // Update score display
+                    const titleDivs = document.querySelectorAll('.show-title');
+                    titleDivs.forEach(div => {
+                        if (div.textContent === data.title) {
+                            const scoreSpan = div.nextElementSibling.nextElementSibling;
+                            scoreSpan.textContent = data.scores.join(', ');
+                        }
+                    });
+                }
+                window.location.hash = '';
+            } catch (e) {
+                console.error('Failed to parse data:', e);
+            }
+        });
+    </script>
+</body>
+</html>

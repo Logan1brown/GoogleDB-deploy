@@ -35,7 +35,7 @@ from ..services.deadline.deadline_client import DeadlineClient
 from ..utils.style_config import COLORS, FONTS
 from ..state.admin_state import TMDBMatchState
 from ..state.session import get_admin_state, update_admin_state, clear_section_state
-from src.shared.auth import auth_required
+from ..components.rt_tools.rt_matches import RTMatches
 from supabase import create_client
 from dataclasses import dataclass
 
@@ -387,6 +387,37 @@ def render_announcements():
     render_announcements_list(announcements, on_review=handle_review)
 
 
+def render_rt_matches():
+    """Render the RT matches section.
+    
+    This section allows admins to:
+    1. Search for shows on RT
+    2. Collect and save RT scores
+    """
+    try:
+        # Get unmatched shows
+        client = get_admin_client()
+        response = client.from_('shows')\
+            .select('id, title')\
+            .is_('rt_success_metrics.rt_id', 'null')\
+            .order('id')\
+            .limit(5)\
+            .execute()
+            
+        shows = response.data if response else []
+        
+        # Handle score collection
+        def handle_scores(data):
+            st.session_state.rt_scores = data
+            # TODO: Save to database
+        
+        # Create and render component
+        rt_matches = RTMatches(shows, handle_scores)
+        rt_matches.render()
+        
+    except Exception as e:
+        st.error(f"Error loading RT matches: {e}")
+
 def render_tmdb_matches():
     """Render the TMDB matches section.
     
@@ -570,7 +601,7 @@ def admin_show():
         # Update view based on radio selection
         new_view = st.radio(
             "Select Function",
-            ["User Management", "Announcements", "TMDB Matches"],
+            ["User Management", "Announcements", "TMDB Matches", "RT Matches"],
             horizontal=True,
             key="admin_view_selector"
         )
@@ -589,6 +620,8 @@ def admin_show():
             render_user_management()
         elif state.current_view == "Announcements":
             render_announcements()
+        elif state.current_view == "RT Matches":
+            render_rt_matches()
         elif state.current_view == "TMDB Matches":
             render_tmdb_matches()
             
