@@ -49,6 +49,7 @@ class RTMatches:
         # Create batch search HTML
         urls = [f"https://www.google.com/search?q={quote(f'site:rottentomatoes.com tv {show["title"]}')}"
                for show in self.shows]
+        urls_json = json.dumps(urls)
         
         html = f"""
         <div style="margin-bottom: 1rem;">
@@ -58,10 +59,10 @@ class RTMatches:
         </div>
         <script>
             function openAllSearches() {{
-                const urls = {urls};
-                urls.forEach(url => {{
-                    window.open(url, '_blank');
-                }});
+                const urls = {urls_json};
+                for (let i = 0; i < urls.length; i++) {{
+                    setTimeout(() => window.open(urls[i], '_blank'), i * 500);
+                }}
             }}
         </script>
         """
