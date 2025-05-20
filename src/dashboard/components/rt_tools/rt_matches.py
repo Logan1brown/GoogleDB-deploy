@@ -53,16 +53,36 @@ class RTMatches:
         
         html = f"""
         <div style="margin-bottom: 1rem;">
-            <button onclick="openAllSearches()" style="padding: 0.5rem 1rem; border-radius: 0.3rem; border: none; background-color: #ff4b4b; color: white; cursor: pointer;">
+            <button id="batchButton" onclick="prepareSearch()" style="padding: 0.5rem 1rem; border-radius: 0.3rem; border: none; background-color: #ff4b4b; color: white; cursor: pointer;">
                 🔍 Open All Searches ({len(self.shows)})
             </button>
+            <div id="searchStatus" style="margin-top: 0.5rem; font-size: 0.9em;"></div>
         </div>
         <script>
-            function openAllSearches() {{
-                const urls = {urls_json};
-                for (let i = 0; i < urls.length; i++) {{
-                    setTimeout(() => window.open(urls[i], '_blank'), i * 500);
+            const urls = {urls_json};
+            let currentIndex = 0;
+            
+            function updateStatus() {{
+                const status = document.getElementById('searchStatus');
+                if (currentIndex < urls.length) {{
+                    status.innerHTML = `Click anywhere to open next search (${currentIndex + 1}/${urls.length})`;
+                }} else {{
+                    status.innerHTML = 'All searches opened!';
                 }}
+            }}
+            
+            function prepareSearch() {{
+                const btn = document.getElementById('batchButton');
+                btn.style.display = 'none';
+                updateStatus();
+                
+                document.body.onclick = () => {{
+                    if (currentIndex < urls.length) {{
+                        window.open(urls[currentIndex], '_blank');
+                        currentIndex++;
+                        updateStatus();
+                    }}
+                }};
             }}
         </script>
         """
