@@ -4,9 +4,8 @@ import os
 import json
 import streamlit as st
 from typing import Dict, Any, List, Optional
-from urllib.parse import unquote, quote
+from urllib.parse import quote, unquote
 import pandas as pd
-from dashboard.state.supabase import get_admin_client
 
 class RTMatches:
     """Component for RT show matching and score collection."""
@@ -167,7 +166,12 @@ class RTMatches:
                 
                 if st.button("Save All Scores"):
                     try:
-                        client = get_admin_client()
+                        # Get client from session
+                        if not st.session_state.get('supabase'):
+                            st.error("No database connection available")
+                            return
+                            
+                        client = st.session_state.supabase
                         for show_id, data in st.session_state.rt_scores.items():
                             response = client.table('rt_success_metrics').insert({
                                 'show_id': show_id,
