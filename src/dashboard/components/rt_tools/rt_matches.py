@@ -45,10 +45,28 @@ class RTMatches:
         
         # Batch search
         st.markdown("### Unmatched Shows")
+        
+        # Create batch search HTML
         urls = [f"https://www.google.com/search?q={quote(f'site:rottentomatoes.com tv {show["title"]}')}"
                for show in self.shows]
-        js_code = ";".join([f"window.open('{url}', '_blank')" for url in urls])
-        st.markdown(f'<a href="javascript:{quote(js_code)}">🔍 Open All Searches</a>', unsafe_allow_html=True)
+        
+        html = f"""
+        <div style="margin-bottom: 1rem;">
+            <button onclick="openAllSearches()" style="padding: 0.5rem 1rem; border-radius: 0.3rem; border: none; background-color: #ff4b4b; color: white; cursor: pointer;">
+                🔍 Open All Searches ({len(self.shows)})
+            </button>
+        </div>
+        <script>
+            function openAllSearches() {{
+                const urls = {urls};
+                urls.forEach(url => {{
+                    window.open(url, '_blank');
+                }});
+            }}
+        </script>
+        """
+        
+        st.components.v1.html(html, height=50)
         st.markdown("---")
         
         # Show table
