@@ -69,24 +69,33 @@ class RTMatches:
             st.markdown("---")
             st.markdown("##### Batch Search")
             
-            # Create URLs
+            # Create batch search extension code
             urls = []
             for show in self.shows:
                 query = f"site:rottentomatoes.com tv {show['title']}"
                 url = f"https://www.google.com/search?q={quote(query)}"
                 urls.append(url)
             
-            # Show batch options
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("📋 Copy All URLs"):
-                    st.code("\n".join(urls))
-                    st.success("URLs copied to clipboard! Open your browser and paste each URL in a new tab.")
-            with col2:
-                if st.button("🔍 Search First 2"):
-                    for url in urls[:2]:
-                        js = f"window.open('{url}', '_blank');"
-                        st.components.v1.html(f"<script>{js}</script>", height=0)
+            extension_code = f"""
+            javascript:(function() {{
+                const urls = {json.dumps(urls)};
+                let i = 0;
+                function openNext() {{
+                    if (i < urls.length) {{
+                        window.open(urls[i], '_blank');
+                        i++;
+                        setTimeout(openNext, 500);
+                    }}
+                }}
+                openNext();
+            }})();""".replace('\n', '')
+            
+            # Show instructions
+            st.markdown("To search all shows at once:")
+            st.markdown("1. Drag this link to your bookmarks bar: ")
+            st.markdown(f'<a href="{extension_code}">🔍 RT Batch Search</a>', unsafe_allow_html=True)
+            st.markdown("2. Click the bookmark when you want to search all shows")
+            st.caption("Note: You'll need to allow popups once when using this the first time")
         else:
             st.info("No unmatched shows found")
         
