@@ -10,6 +10,7 @@ import os
 import sys
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+from src.shared.auth import auth_required
 
 # Configure logging
 logging.basicConfig(
