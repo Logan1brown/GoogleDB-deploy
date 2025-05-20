@@ -5,6 +5,7 @@ import json
 import streamlit as st
 from typing import Dict, Any, List, Optional
 from urllib.parse import unquote, quote
+import pandas as pd
 
 class RTMatches:
     """Component for RT show matching and score collection."""
@@ -49,63 +50,28 @@ class RTMatches:
         # Batch search
         st.markdown("### Unmatched Shows")
         
-        # Create batch search HTML
-        urls = [f"https://www.google.com/search?q={quote(f'site:rottentomatoes.com tv {show["title"]}')}"
-               for show in self.shows]
-        urls_json = json.dumps(urls)
-        
-        html = f"""
-        <div style="margin-bottom: 1rem;">
-            <button id="batchButton" onclick="prepareSearch()" style="padding: 0.5rem 1rem; border-radius: 0.3rem; border: none; background-color: #ff4b4b; color: white; cursor: pointer;">
-                🔍 Open All Searches ({len(self.shows)})
-            </button>
-            <div id="searchStatus" style="margin-top: 0.5rem; font-size: 0.9em;"></div>
-        </div>
-        <script>
-            const urls = {urls_json};
-            let currentIndex = 0;
-            
-            function updateStatus() {{
-                const status = document.getElementById('searchStatus');
-                if (currentIndex < urls.length) {{
-                    status.innerHTML = `Click anywhere to open next search (${currentIndex + 1}/${urls.length})`;
-                }} else {{
-                    status.innerHTML = 'All searches opened!';
-                }}
-            }}
-            
-            function prepareSearch() {{
-                const btn = document.getElementById('batchButton');
-                btn.style.display = 'none';
-                updateStatus();
-                
-                document.body.onclick = () => {{
-                    if (currentIndex < urls.length) {{
-                        window.open(urls[currentIndex], '_blank');
-                        currentIndex++;
-                        updateStatus();
-                    }}
-                }};
-            }}
-        </script>
-        """
-        
-        st.components.v1.html(html, height=50)
-        st.markdown("---")
-        
-        # Debug
-        st.write("Debug - Shows:", self.shows)
-        
         # Show table
         if self.shows:
+            # Create table data
+            data = []
             for show in self.shows:
-                col1, col2 = st.columns([1, 9])
-                with col1:
-                    query = f"site:rottentomatoes.com tv {show['title']}"
-                    search_url = f"https://www.google.com/search?q={quote(query)}"
-                    st.markdown(f"[🔍]({search_url})")
-                with col2:
-                    st.markdown(f"**{show['title']}**")
+                query = f"site:rottentomatoes.com tv {show['title']}"
+                search_url = f"https://www.google.com/search?q={quote(query)}"
+                data.append({
+                    "Search": f"[🔍]({search_url})",
+                    "Title": show['title']
+                })
+            
+            # Display as dataframe
+            df = pd.DataFrame(data)
+            st.write(df.to_html(escape=False, index=False), unsafe_allow_html=True)
+            
+            # Add batch search button
+            st.markdown("---")
+            st.markdown("##### Batch Search")
+            urls = [f"https://www.google.com/search?q={quote(f'site:rottentomatoes.com tv {show["title"]}')}"
+                   for show in self.shows]
+            st.code("\n".join(urls), language=None)
         else:
             st.info("No unmatched shows found")
         
