@@ -46,10 +46,13 @@ class RTMatches:
         # Batch controls
         st.markdown("### Unmatched Shows")
         if st.button("Search All in Batch", key="batch_search"):
+            st.write("Debug - Starting batch search...")
             for show in self.shows:
                 query = f"site:rottentomatoes.com tv {show['title']}"
+                st.write(f"Debug - Opening search for: {show['title']}")
                 import webbrowser
-                webbrowser.open(f"https://www.google.com/search?q={quote(query)}")
+                webbrowser.open_new_tab(f"https://www.google.com/search?q={quote(query)}")
+                st.write(f"Debug - Search opened for: {show['title']}")
         
         # Show table
         for show in self.shows:
@@ -57,8 +60,10 @@ class RTMatches:
             with col1:
                 if st.button(f"Search RT", key=f"search_{show['id']}"):
                     query = f"site:rottentomatoes.com tv {show['title']}"
+                    st.write(f"Debug - Opening search for: {show['title']}")
                     import webbrowser
-                    webbrowser.open(f"https://www.google.com/search?q={quote(query)}")
+                    webbrowser.open_new_tab(f"https://www.google.com/search?q={quote(query)}")
+                    st.write(f"Debug - Search opened for: {show['title']}")
             with col2:
                 st.write(show['title'])
         
