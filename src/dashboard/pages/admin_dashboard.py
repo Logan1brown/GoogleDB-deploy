@@ -410,13 +410,25 @@ def render_rt_matches():
             client = get_admin_client()
             
             try:
-                response = client.from_('shows')\
-                    .select('shows.id, shows.title')\
-                    .left_join('rt_success_metrics', 'shows.id', 'rt_success_metrics.show_id')\
-                    .is_('rt_success_metrics.rt_id', 'null')\
-                    .order('shows.id')\
+                # Start with basic query
+                response = client.table('shows')\
+                    .select('id, title')\
                     .limit(5)\
                     .execute()
+                st.write("Debug - Raw response:", response.data)
+                
+                # Then filter for shows without RT metrics
+                shows_without_metrics = []
+                for show in response.data:
+                    metrics = client.table('rt_success_metrics')\
+                        .select('rt_id')\
+                        .eq('show_id', show['id'])\
+                        .execute()
+                    if not metrics.data:
+                        shows_without_metrics.append(show)
+                
+                st.write("Debug - Filtered shows:", shows_without_metrics)
+                response.data = shows_without_metrics
                 st.write("Debug - Raw response:", response.data)
                 
                 if not response.data:
