@@ -395,28 +395,49 @@ def render_rt_matches():
     2. Collect and save RT scores
     """
     try:
-        # Get unmatched shows
-        client = get_admin_client()
-        response = client.from_('shows')\
-            .select('id, title')\
-            .is_('rt_success_metrics.rt_id', 'null')\
-            .order('id')\
-            .limit(5)\
-            .execute()
-            
-        shows = response.data if response else []
+        # Get admin state
+        state = get_admin_state()
+        rt_state = state.rt_matching
+        
+        # Get unmatched shows if needed
+        if not rt_state.unmatched_shows:
+            client = get_admin_client()
+            response = client.from_('shows')\
+                .select('id, title')\
+                .is_('rt_success_metrics.rt_id', 'null')\
+                .order('id')\
+                .limit(5)\
+                .execute()
+                
+            rt_state.unmatched_shows = response.data if response else []
+            update_admin_state(state)
         
         # Handle score collection
         def handle_scores(data):
             st.session_state.rt_scores = data
+            rt_state.success_message = f"Collected scores for {data['title']}"
+            update_admin_state(state)
             # TODO: Save to database
         
+        # Show messages
+        if rt_state.error_message:
+            st.error(rt_state.error_message)
+            rt_state.error_message = None
+            update_admin_state(state)
+            
+        if rt_state.success_message:
+            st.success(rt_state.success_message)
+            rt_state.success_message = None
+            update_admin_state(state)
+        
         # Create and render component
-        rt_matches = RTMatches(shows, handle_scores)
+        rt_matches = RTMatches(rt_state.unmatched_shows, handle_scores)
         rt_matches.render()
         
     except Exception as e:
-        st.error(f"Error loading RT matches: {e}")
+        state = get_admin_state()
+        state.rt_matching.error_message = str(e)
+        update_admin_state(state)
 
 def render_tmdb_matches():
     """Render the TMDB matches section.

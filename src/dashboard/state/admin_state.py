@@ -96,6 +96,13 @@ class TMDBMatchingState:
     validated_show_id: Optional[int] = None  # Track which show was just validated
 
 @dataclass
+class RTMatchingState:
+    """State for RT matching section."""
+    unmatched_shows: List[Dict[str, Any]] = field(default_factory=list)
+    error_message: Optional[str] = None
+    success_message: Optional[str] = None
+
+@dataclass
 class AdminState:
     """Top-level state for admin dashboard.
     
@@ -106,3 +113,4 @@ class AdminState:
     user_management: UserManagementState = field(default_factory=UserManagementState)
     announcements: AnnouncementState = field(default_factory=AnnouncementState)
     tmdb_matching: TMDBMatchingState = field(default_factory=TMDBMatchingState)
+    rt_matching: RTMatchingState = field(default_factory=RTMatchingState)

@@ -9,7 +9,7 @@ import streamlit as st
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field, asdict
 from src.dashboard.state.show_state import DataEntryState
-from src.dashboard.state.admin_state import AdminState, TMDBMatchState, UserManagementState, AnnouncementState, TMDBMatchingState
+from src.dashboard.state.admin_state import AdminState, TMDBMatchState, UserManagementState, AnnouncementState, TMDBMatchingState, RTMatchingState
 
 @dataclass
 class FilterState:
@@ -167,6 +167,9 @@ def clear_section_state(state: AdminState, section: str) -> None:
     elif section == "TMDB Matches":
         state.tmdb_matching = TMDBMatchingState()
         prefix = "tmdb_"
+    elif section == "RT Matches":
+        state.rt_matching = RTMatchingState()
+        prefix = "rt_"
     
     # Clear section-specific session state
     for key in list(st.session_state.keys()):
