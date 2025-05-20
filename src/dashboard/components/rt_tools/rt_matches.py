@@ -69,33 +69,25 @@ class RTMatches:
             st.markdown("---")
             st.markdown("##### Batch Search")
             
-            # Create batch search extension code
-            urls = []
+            # Create batches of 2 URLs
+            all_urls = []
             for show in self.shows:
                 query = f"site:rottentomatoes.com tv {show['title']}"
                 url = f"https://www.google.com/search?q={quote(query)}"
-                urls.append(url)
+                all_urls.append(url)
             
-            extension_code = f"""
-            javascript:(function() {{
-                const urls = {json.dumps(urls)};
-                let i = 0;
-                function openNext() {{
-                    if (i < urls.length) {{
-                        window.open(urls[i], '_blank');
-                        i++;
-                        setTimeout(openNext, 500);
-                    }}
-                }}
-                openNext();
-            }})();""".replace('\n', '')
+            batches = [all_urls[i:i+2] for i in range(0, len(all_urls), 2)]
             
-            # Show instructions
-            st.markdown("To search all shows at once:")
-            st.markdown("1. Drag this link to your bookmarks bar: ")
-            st.markdown(f'<a href="{extension_code}">🔍 RT Batch Search</a>', unsafe_allow_html=True)
-            st.markdown("2. Click the bookmark when you want to search all shows")
-            st.caption("Note: You'll need to allow popups once when using this the first time")
+            # Show batch buttons
+            st.write(f"Shows will open in {len(batches)} batches of 2 to avoid popup blocking")
+            
+            for i, batch_urls in enumerate(batches):
+                if st.button(f"Open Batch {i+1}: {', '.join(s['title'] for s in self.shows[i*2:(i+1)*2])}"):
+                    js = ""
+                    for url in batch_urls:
+                        js += f"window.open('{url}', '_blank');"
+                    st.components.v1.html(f"<script>{js}</script>", height=0)
+                    st.success(f"Opening batch {i+1} in new tabs...")
         else:
             st.info("No unmatched shows found")
         
