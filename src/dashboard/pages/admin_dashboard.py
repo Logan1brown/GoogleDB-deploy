@@ -404,11 +404,12 @@ def render_rt_matches():
         if not rt_state.unmatched_shows:
             client = get_admin_client()
             response = client.from_('shows')\
-                .select('id, title')\
+                .select('id, title, rt_success_metrics(rt_id)')\
                 .is_('rt_success_metrics.rt_id', 'null')\
                 .order('id')\
                 .limit(5)\
                 .execute()
+            st.write("Debug - Response:", response.data)
                 
             rt_state.unmatched_shows = response.data if response else []
             update_admin_state(state)
@@ -432,6 +433,10 @@ def render_rt_matches():
             update_admin_state(state)
         
         # Create and render component
+        if not rt_state.unmatched_shows:
+            st.info("No unmatched shows found")
+            return
+            
         rt_matches = RTMatches(rt_state.unmatched_shows, handle_scores)
         rt_matches.render()
         

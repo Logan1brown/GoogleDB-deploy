@@ -105,8 +105,12 @@ def get_admin_state() -> AdminState:
         clear_admin_state()
         state = get_page_state("admin")
     
-    if not state or "admin" not in state:
-        state["admin"] = asdict(AdminState())
+    if not state:
+        state = {}
+    if "admin" not in state:
+        admin_state = AdminState()
+        admin_state.rt_matching = RTMatchingState()
+        state["admin"] = asdict(admin_state)
     
     # Convert nested dicts to proper state objects
     admin_dict = state["admin"]
