@@ -63,7 +63,7 @@ class RTMatches:
                 st.write(show['title'])
         
         # Handle incoming data
-        params = st.experimental_get_query_params()
+        params = st.query_params
         if "data" in params:
             try:
                 data = json.loads(unquote(params["data"][0]))

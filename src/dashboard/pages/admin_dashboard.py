@@ -404,9 +404,10 @@ def render_rt_matches():
         if not rt_state.unmatched_shows:
             client = get_admin_client()
             response = client.from_('shows')\
-                .select('id, title, rt_success_metrics(rt_id)')\
+                .select('shows.id, shows.title')\
+                .left_join('rt_success_metrics', 'shows.id', 'rt_success_metrics.show_id')\
                 .is_('rt_success_metrics.rt_id', 'null')\
-                .order('id')\
+                .order('shows.id')\
                 .limit(5)\
                 .execute()
             st.write("Debug - Response:", response.data)
