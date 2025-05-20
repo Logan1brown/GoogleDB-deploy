@@ -43,24 +43,23 @@ class RTMatches:
             # Bookmarklet
             st.markdown(f'<a href="javascript:{quote(self.bookmarklet_code)}">RT Helper</a>', unsafe_allow_html=True)
         
-        # Batch controls
+        # Batch search
         st.markdown("### Unmatched Shows")
-        if st.button("Search All in Batch", key="batch_search"):
-            st.markdown("### Search Links")
-            for show in self.shows:
-                query = f"site:rottentomatoes.com tv {show['title']}"
-                search_url = f"https://www.google.com/search?q={quote(query)}"
-                st.markdown(f"[Search for {show['title']}]({search_url})")
+        urls = [f"https://www.google.com/search?q={quote(f'site:rottentomatoes.com tv {show["title"]}')}"
+               for show in self.shows]
+        js_code = ";".join([f"window.open('{url}', '_blank')" for url in urls])
+        st.markdown(f'<a href="javascript:{quote(js_code)}">🔍 Open All Searches</a>', unsafe_allow_html=True)
+        st.markdown("---")
         
         # Show table
         for show in self.shows:
-            col1, col2 = st.columns([2, 8])
+            col1, col2 = st.columns([1, 9])
             with col1:
                 query = f"site:rottentomatoes.com tv {show['title']}"
                 search_url = f"https://www.google.com/search?q={quote(query)}"
                 st.markdown(f"[🔍]({search_url})")
             with col2:
-                st.write(show['title'])
+                st.markdown(f"**{show['title']}**")
         
         # Handle incoming data
         params = st.query_params
