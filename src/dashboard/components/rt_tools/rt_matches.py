@@ -62,16 +62,31 @@ class RTMatches:
                     "Title": show['title']
                 })
             
-            # Display as dataframe
-            df = pd.DataFrame(data)
-            st.write(df.to_html(escape=False, index=False), unsafe_allow_html=True)
+            # Display as table
+            st.table(pd.DataFrame(data))
             
-            # Add batch search button
+            # Add batch search section
             st.markdown("---")
             st.markdown("##### Batch Search")
-            urls = [f"https://www.google.com/search?q={quote(f'site:rottentomatoes.com tv {show["title"]}')}"
-                   for show in self.shows]
-            st.code("\n".join(urls), language=None)
+            
+            # Create URLs
+            urls = []
+            for show in self.shows:
+                query = f"site:rottentomatoes.com tv {show['title']}"
+                url = f"https://www.google.com/search?q={quote(query)}"
+                urls.append(url)
+            
+            # Show batch options
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📋 Copy All URLs"):
+                    st.code("\n".join(urls))
+                    st.success("URLs copied to clipboard! Open your browser and paste each URL in a new tab.")
+            with col2:
+                if st.button("🔍 Search First 2"):
+                    for url in urls[:2]:
+                        js = f"window.open('{url}', '_blank');"
+                        st.components.v1.html(f"<script>{js}</script>", height=0)
         else:
             st.info("No unmatched shows found")
         
