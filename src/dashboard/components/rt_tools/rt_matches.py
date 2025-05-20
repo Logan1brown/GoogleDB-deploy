@@ -90,15 +90,21 @@ class RTMatches:
         st.components.v1.html(html, height=50)
         st.markdown("---")
         
+        # Debug
+        st.write("Debug - Shows:", self.shows)
+        
         # Show table
-        for show in self.shows:
-            col1, col2 = st.columns([1, 9])
-            with col1:
-                query = f"site:rottentomatoes.com tv {show['title']}"
-                search_url = f"https://www.google.com/search?q={quote(query)}"
-                st.markdown(f"[🔍]({search_url})")
-            with col2:
-                st.markdown(f"**{show['title']}**")
+        if self.shows:
+            for show in self.shows:
+                col1, col2 = st.columns([1, 9])
+                with col1:
+                    query = f"site:rottentomatoes.com tv {show['title']}"
+                    search_url = f"https://www.google.com/search?q={quote(query)}"
+                    st.markdown(f"[🔍]({search_url})")
+                with col2:
+                    st.markdown(f"**{show['title']}**")
+        else:
+            st.info("No unmatched shows found")
         
         # Handle incoming data
         params = st.query_params

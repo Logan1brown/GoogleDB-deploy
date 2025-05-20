@@ -403,14 +403,25 @@ def render_rt_matches():
         # Get unmatched shows if needed
         if not rt_state.unmatched_shows:
             client = get_admin_client()
-            response = client.from_('shows')\
-                .select('shows.id, shows.title')\
-                .left_join('rt_success_metrics', 'shows.id', 'rt_success_metrics.show_id')\
-                .is_('rt_success_metrics.rt_id', 'null')\
-                .order('shows.id')\
-                .limit(5)\
-                .execute()
-            st.write("Debug - Response:", response.data)
+            # Debug client
+            st.write("Debug - Client:", client)
+            
+            try:
+                response = client.from_('shows')\
+                    .select('shows.id, shows.title')\
+                    .left_join('rt_success_metrics', 'shows.id', 'rt_success_metrics.show_id')\
+                    .is_('rt_success_metrics.rt_id', 'null')\
+                    .order('shows.id')\
+                    .limit(5)\
+                    .execute()
+                st.write("Debug - Response:", response.data)
+                
+                if not response.data:
+                    st.warning("No shows found in database query")
+                    return
+            except Exception as e:
+                st.error(f"Database error: {str(e)}")
+                return
                 
             rt_state.unmatched_shows = response.data if response else []
             update_admin_state(state)
