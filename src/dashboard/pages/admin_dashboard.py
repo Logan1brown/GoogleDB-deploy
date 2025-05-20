@@ -396,15 +396,18 @@ def render_rt_matches():
     2. Collect and save RT scores
     """
     try:
+        st.write("Debug - Starting RT matches render")
+        
         # Get admin state
         state = get_admin_state()
         rt_state = state.rt_matching
         
+        st.write("Debug - Current state:", {"has_shows": bool(rt_state.unmatched_shows)})
+        
         # Get unmatched shows if needed
         if not rt_state.unmatched_shows:
+            st.write("Debug - Fetching shows from database")
             client = get_admin_client()
-            # Debug client
-            st.write("Debug - Client:", client)
             
             try:
                 response = client.from_('shows')\
@@ -414,7 +417,7 @@ def render_rt_matches():
                     .order('shows.id')\
                     .limit(5)\
                     .execute()
-                st.write("Debug - Response:", response.data)
+                st.write("Debug - Raw response:", response.data)
                 
                 if not response.data:
                     st.warning("No shows found in database query")

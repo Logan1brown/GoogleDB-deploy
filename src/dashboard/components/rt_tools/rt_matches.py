@@ -26,6 +26,9 @@ class RTMatches:
         
     def render(self):
         """Render the RT matching interface."""
+        st.write("Debug - RTMatches render start")
+        st.write("Debug - Shows:", self.shows)
+        
         st.markdown("## RT Metrics Collection")
         
         # Instructions
