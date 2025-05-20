@@ -642,10 +642,10 @@ def admin_show():
             render_user_management()
         elif state.current_view == "Announcements":
             render_announcements()
-        elif state.current_view == "RT Matches":
-            render_rt_matches()
         elif state.current_view == "TMDB Matches":
             render_tmdb_matches()
+        elif state.current_view == "RT Matches":
+            render_rt_matches()
             
     except Exception as e:
         # Debug error info
@@ -661,6 +661,8 @@ def admin_show():
         
         if state.current_view == "User Management":
             state.user_management.error_message = error_msg
+        elif state.current_view == "RT Matches":
+            state.rt_matching.error_message = error_msg
         elif state.current_view == "Announcements":
             state.announcements.error_message = error_msg
         elif state.current_view == "TMDB Matches":
