@@ -198,7 +198,7 @@ class RTMatches:
             setInterval(checkForScores, 1000);
             </script>
             """
-            st.components.v1.html(score_checker, height=0, key="score_checker")
+            st.components.v1.html(score_checker, height=0)
             
             # Handle incoming scores from component
             score_data = st.session_state.get("score_checker")
