@@ -23,8 +23,13 @@ class RTMatches:
         
         # Load bookmarklet code
         bookmarklet_path = os.path.join(os.path.dirname(__file__), 'static', 'rt_bookmarklet.js')
-        with open(bookmarklet_path) as f:
-            self.bookmarklet_code = f.read()
+        st.write("Debug - Loading bookmarklet from:", bookmarklet_path)
+        try:
+            with open(bookmarklet_path) as f:
+                self.bookmarklet_code = f.read()
+            st.write("Debug - Bookmarklet loaded, first 100 chars:", self.bookmarklet_code[:100])
+        except Exception as e:
+            st.error(f"Error loading bookmarklet: {e}")
             
         # Initialize session state for scores
         if 'rt_scores' not in st.session_state:
@@ -32,7 +37,7 @@ class RTMatches:
         
     def handle_score_message(self, data: Dict[str, Any]):
         """Handle score data from bookmarklet"""
-        if not data.get('title') or not data.get('scores'):
+        if not data.get('title') or data.get('tomatometer') is None or data.get('audience') is None:
             st.error("Invalid score data received")
             return
             
@@ -42,20 +47,13 @@ class RTMatches:
             st.error(f"Could not match title: {data['title']}")
             return
             
-        # Parse scores
-        try:
-            scores = [int(s.strip('%')) for s in data['scores']]
-            if len(scores) >= 2:
-                st.session_state.rt_scores[show['id']] = {
-                    'tomatometer': scores[0],
-                    'popcornmeter': scores[1],
-                    'title': show['title']
-                }
-                st.success(f"Saved scores for {show['title']}")
-            else:
-                st.error(f"Not enough scores found for {show['title']}")
-        except ValueError as e:
-            st.error(f"Error parsing scores: {e}")
+        # Save scores
+        st.session_state.rt_scores[show['id']] = {
+            'tomatometer': data['tomatometer'],
+            'popcornmeter': data['audience'],
+            'title': show['title']
+        }
+        st.success(f"Saved scores for {show['title']}")
         
     def render(self):
         """Render the RT matching interface."""
@@ -106,15 +104,20 @@ class RTMatches:
             st.markdown("Drag this link to your bookmarks bar:")
             st.markdown(f'<a href="javascript:{quote(self.bookmarklet_code)}">🎭 RT Score Collector</a>', unsafe_allow_html=True)
             
-            # Add message handler
+            # Add message handler with debug
             message_handler = """
             <script>
+            console.log('RT Score handler installed');
             window.addEventListener('message', function(event) {
+                console.log('Message received:', event.data);
                 if (event.data && event.data.type === 'rt_scores') {
+                    console.log('Processing RT scores:', event.data.data);
                     // Send scores to Streamlit
                     const scores = event.data.data;
                     const args = encodeURIComponent(JSON.stringify(scores));
-                    window.location.search = `?rt_scores=${args}`;
+                    const url = `?rt_scores=${args}`;
+                    console.log('Redirecting to:', url);
+                    window.location.search = url;
                 }
             });
             </script>
@@ -122,13 +125,13 @@ class RTMatches:
             st.components.v1.html(message_handler, height=0)
             
             # Handle incoming scores
-            params = st.experimental_get_query_params()
+            params = st.query_params
             if 'rt_scores' in params:
                 try:
-                    scores = json.loads(unquote(params['rt_scores'][0]))
+                    scores = json.loads(unquote(params['rt_scores']))
                     self.handle_score_message(scores)
                     # Clear params
-                    st.experimental_set_query_params()
+                    st.query_params.clear()
                 except Exception as e:
                     st.error(f"Error processing scores: {e}")
             
