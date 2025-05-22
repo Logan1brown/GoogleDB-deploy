@@ -21,15 +21,64 @@ class RTMatches:
         self.on_scores_collected = on_scores_collected
         self.pending_scores = {}
         
-        # Load bookmarklet code
-        bookmarklet_path = os.path.join(os.path.dirname(__file__), 'static', 'rt_bookmarklet.js')
-        st.write("Debug - Loading bookmarklet from:", bookmarklet_path)
-        try:
-            with open(bookmarklet_path) as f:
-                self.bookmarklet_code = f.read()
-            st.write("Debug - Bookmarklet loaded, first 100 chars:", self.bookmarklet_code[:100])
-        except Exception as e:
-            st.error(f"Error loading bookmarklet: {e}")
+        # Inline bookmarklet code for reliability
+        self.bookmarklet_code = """
+(function(){
+    // Extract data from RT page
+    var title = document.querySelector('h1')?.textContent?.trim();
+    
+    // Get main show scores - try different selectors
+    var tomatometer = null;
+    var audience = null;
+    
+    // Try modern selectors first
+    var tomatoEl = document.querySelector('[data-qa="tomatometer"]') || document.querySelector('.tomatometer-score');
+    var audienceEl = document.querySelector('[data-qa="audience-score"]') || document.querySelector('.audience-score');
+    
+    if (tomatoEl) {
+        tomatometer = parseInt(tomatoEl.textContent.trim());
+    }
+    if (audienceEl) {
+        audience = parseInt(audienceEl.textContent.trim());
+    }
+    
+    // Fallback to score containers
+    if (!tomatometer || !audience) {
+        var scores = Array.from(document.querySelectorAll('.score-container .percentage')).map(e => parseInt(e.textContent.trim()));
+        if (scores.length >= 2) {
+            tomatometer = tomatometer || scores[0];
+            audience = audience || scores[1];
+        }
+    }
+    
+    if (!title || (!tomatometer && !audience)) {
+        alert('Could not find show scores. Make sure you are on a show\'s main page.');
+        return;
+    }
+    
+    // Show overlay
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black';
+    d.innerHTML = `
+        <div style="font-family:sans-serif">
+            <h3>${title}</h3>
+            <p>Tomatometer: ${tomatometer}%</p>
+            <p>Audience: ${audience}%</p>
+            <button onclick="this.parentElement.parentElement.remove()">Close</button>
+        </div>
+    `;
+    document.body.appendChild(d);
+    
+    // Send data via postMessage
+    window.opener.postMessage({
+        type: 'rt_scores',
+        data: {
+            title: title,
+            tomatometer: tomatometer,
+            audience: audience
+        }
+    }, '*');
+})();"""
             
         # Initialize session state for scores
         if 'rt_scores' not in st.session_state:
@@ -37,15 +86,21 @@ class RTMatches:
         
     def handle_score_message(self, data: Dict[str, Any]):
         """Handle score data from bookmarklet"""
+        st.write("Debug - Processing score data:", data)
+        
         if not data.get('title') or data.get('tomatometer') is None or data.get('audience') is None:
             st.error("Invalid score data received")
+            st.write("Debug - Missing required fields")
             return
             
         # Find matching show
         show = next((s for s in self.shows if s['title'].lower() in data['title'].lower()), None)
         if not show:
             st.error(f"Could not match title: {data['title']}")
+            st.write("Debug - No matching show found")
             return
+            
+        st.write("Debug - Found matching show:", show)
             
         # Save scores
         st.session_state.rt_scores[show['id']] = {
@@ -53,6 +108,7 @@ class RTMatches:
             'popcornmeter': data['audience'],
             'title': show['title']
         }
+        st.write("Debug - Saved scores to session state")
         st.success(f"Saved scores for {show['title']}")
         
     def render(self):
@@ -126,9 +182,13 @@ class RTMatches:
             
             # Handle incoming scores
             params = st.query_params
+            st.write("Debug - Query params:", params)
             if 'rt_scores' in params:
                 try:
-                    scores = json.loads(unquote(params['rt_scores']))
+                    score_data = unquote(params['rt_scores'])
+                    st.write("Debug - Score data received:", score_data)
+                    scores = json.loads(score_data)
+                    st.write("Debug - Parsed scores:", scores)
                     self.handle_score_message(scores)
                     # Clear params
                     st.query_params.clear()
