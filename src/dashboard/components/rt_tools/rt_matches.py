@@ -203,15 +203,16 @@ class RTMatches:
             setInterval(checkForScores, 1000);
             </script>
             """
-            score_receiver = st.empty()
-            score_receiver.components.html(score_checker, height=0)
+            # Create a component to receive scores
+            score_component = st.components.v1.html(score_checker, height=0, key='score_receiver')
             
             # Handle incoming scores from component
-            score_data = score_receiver.get_value()
-            if score_data:
-                st.write("Debug - Score data received:", score_data)
-                self.handle_score_message(score_data)
-                score_receiver.set_value(None)
+            if 'score_receiver' in st.session_state:
+                score_data = st.session_state.score_receiver
+                if score_data:
+                    st.write("Debug - Score data received:", score_data)
+                    self.handle_score_message(score_data)
+                    st.session_state.score_receiver = None
             
             # Show search batches
             st.markdown("##### 3. Batch Search")
