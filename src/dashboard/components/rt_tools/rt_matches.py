@@ -64,21 +64,24 @@ class RTMatches:
             <h3>${title}</h3>
             <p>Tomatometer: ${tomatometer}%</p>
             <p>Audience: ${audience}%</p>
-            <button onclick="this.parentElement.parentElement.remove()">Close</button>
         </div>
     `;
     document.body.appendChild(d);
     
-    // Send data via postMessage
-    window.opener.postMessage({
-        type: 'rt_scores',
-        data: {
-            title: title,
-            tomatometer: tomatometer,
-            audience: audience
-        }
-    }, '*');
-})();"""
+    // Store data in localStorage of opener window
+    var data = {
+        title: title,
+        tomatometer: tomatometer,
+        audience: audience
+    };
+    
+    window.opener.localStorage.setItem('rt_scores', JSON.stringify(data));
+    
+    // Auto close after showing scores
+    setTimeout(function() {
+        window.close();
+    }, 1500);
+});"""
             
         # Initialize session state for scores
         if 'rt_scores' not in st.session_state:
@@ -114,7 +117,16 @@ class RTMatches:
     def render(self):
         """Render the RT matching interface."""
         st.write("Debug - RTMatches render start")
-        st.write("Debug - Shows:", self.shows)
+        
+        # Handle score messages from component
+        score_data = st.session_state.get("score_handler")
+        if score_data:
+            st.write("Debug - Received score data:", score_data)
+            self.handle_score_message(score_data)
+            del st.session_state["score_handler"]
+        
+        # Show debug info
+        st.write("Debug - Shows:", json.dumps(self.shows, indent=2))
         
         st.markdown("## RT Metrics Collection")
         
@@ -160,40 +172,40 @@ class RTMatches:
             st.markdown("Drag this link to your bookmarks bar:")
             st.markdown(f'<a href="javascript:{quote(self.bookmarklet_code)}">🎭 RT Score Collector</a>', unsafe_allow_html=True)
             
-            # Add message handler with debug
-            message_handler = """
+            # Add score checker
+            score_checker = """
             <script>
-            console.log('RT Score handler installed');
-            window.addEventListener('message', function(event) {
-                console.log('Message received:', event.data);
-                if (event.data && event.data.type === 'rt_scores') {
-                    console.log('Processing RT scores:', event.data.data);
-                    // Send scores to Streamlit
-                    const scores = event.data.data;
-                    const args = encodeURIComponent(JSON.stringify(scores));
-                    const url = `?rt_scores=${args}`;
-                    console.log('Redirecting to:', url);
-                    window.location.search = url;
+            console.log('RT Score checker installed');
+            
+            // Function to check for scores
+            function checkForScores() {
+                const scores = localStorage.getItem('rt_scores');
+                if (scores) {
+                    console.log('Found scores:', scores);
+                    try {
+                        const data = JSON.parse(scores);
+                        // Send to Streamlit
+                        window.parent.Streamlit.setComponentValue(data);
+                        localStorage.removeItem('rt_scores');
+                        console.log('Sent scores to Streamlit');
+                    } catch (e) {
+                        console.error('Error parsing scores:', e);
+                    }
                 }
-            });
+            }
+            
+            // Check periodically
+            setInterval(checkForScores, 1000);
             </script>
             """
-            st.components.v1.html(message_handler, height=0)
+            st.components.v1.html(score_checker, height=0, key="score_checker")
             
-            # Handle incoming scores
-            params = st.query_params
-            st.write("Debug - Query params:", params)
-            if 'rt_scores' in params:
-                try:
-                    score_data = unquote(params['rt_scores'])
-                    st.write("Debug - Score data received:", score_data)
-                    scores = json.loads(score_data)
-                    st.write("Debug - Parsed scores:", scores)
-                    self.handle_score_message(scores)
-                    # Clear params
-                    st.query_params.clear()
-                except Exception as e:
-                    st.error(f"Error processing scores: {e}")
+            # Handle incoming scores from component
+            score_data = st.session_state.get("score_checker")
+            if score_data:
+                st.write("Debug - Score data received:", score_data)
+                self.handle_score_message(score_data)
+                del st.session_state["score_checker"]
             
             # Show search batches
             st.markdown("##### 2. Search Shows")
