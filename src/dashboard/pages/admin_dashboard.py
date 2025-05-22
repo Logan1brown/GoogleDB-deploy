@@ -413,7 +413,7 @@ def render_rt_matches():
                 # Start with basic query
                 response = client.table('shows')\
                     .select('id, title')\
-                    .limit(5)\
+                    .limit(10)\
                     .execute()
                 st.write("Debug - Raw response:", response.data)
                 

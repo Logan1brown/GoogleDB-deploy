@@ -23,69 +23,7 @@ class RTMatches:
         
         # Inline bookmarklet code for reliability
         self.bookmarklet_code = """
-(function() {
-    try {
-        // Extract data from RT page
-        var title = document.querySelector('h1')?.textContent?.trim();
-        
-        // Get main show scores - try different selectors
-        var tomatometer = null;
-        var audience = null;
-        
-        // Try modern selectors first
-        var tomatoEl = document.querySelector('[data-qa="tomatometer"]') || document.querySelector('.tomatometer-score');
-        var audienceEl = document.querySelector('[data-qa="audience-score"]') || document.querySelector('.audience-score');
-        
-        if (tomatoEl) {
-            tomatometer = parseInt(tomatoEl.textContent.trim());
-        }
-        if (audienceEl) {
-            audience = parseInt(audienceEl.textContent.trim());
-        }
-        
-        // Fallback to score containers
-        if (!tomatometer || !audience) {
-            var scores = Array.from(document.querySelectorAll('.score-container .percentage')).map(e => parseInt(e.textContent.trim()));
-            if (scores.length >= 2) {
-                tomatometer = tomatometer || scores[0];
-                audience = audience || scores[1];
-            }
-        }
-        
-        if (!title || (!tomatometer && !audience)) {
-            alert('Could not find show scores. Make sure you are on a show\'s main page.');
-            return;
-        }
-        
-        // Show overlay
-        var d = document.createElement('div');
-        d.style.cssText = 'position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black';
-        d.innerHTML = `
-            <div style="font-family:sans-serif">
-                <h3>${title}</h3>
-                <p>Tomatometer: ${tomatometer}%</p>
-                <p>Audience: ${audience}%</p>
-            </div>
-        `;
-        document.body.appendChild(d);
-        
-        // Store data in localStorage of opener window
-        var data = {
-            title: title,
-            tomatometer: tomatometer,
-            audience: audience
-        };
-        
-        window.opener.localStorage.setItem('rt_scores', JSON.stringify(data));
-        
-        // Auto close after showing scores
-        setTimeout(function() {
-            window.close();
-        }, 1500);
-    } catch (e) {
-        alert('Error: ' + e.message);
-    }
-})();"""
+void(function(){try{var t=document.querySelector('h1')?.textContent?.trim(),o=null,e=null,r=document.querySelector('[data-qa="tomatometer"]')||document.querySelector('.tomatometer-score'),c=document.querySelector('[data-qa="audience-score"]')||document.querySelector('.audience-score');if(r&&(o=parseInt(r.textContent.trim())),c&&(e=parseInt(c.textContent.trim())),!o||!e){var n=Array.from(document.querySelectorAll('.score-container .percentage')).map(function(t){return parseInt(t.textContent.trim())});n.length>=2&&(o=o||n[0],e=e||n[1])}if(!t||!o&&!e)return void alert('Could not find show scores. Make sure you are on a show\'s main page');var l=document.createElement('div');l.style.cssText='position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black',l.innerHTML='<div style="font-family:sans-serif"><h3>'+t+'</h3><p>Tomatometer: '+o+'%</p><p>Audience: '+e+'%</p></div>',document.body.appendChild(l);var a={title:t,tomatometer:o,audience:e};window.opener.localStorage.setItem('rt_scores',JSON.stringify(a)),setTimeout(function(){window.close()},1500)}catch(t){alert('Error: '+t.message)}})();"""
             
         # Initialize session state for scores
         if 'rt_scores' not in st.session_state:
@@ -173,9 +111,12 @@ class RTMatches:
             # Show bookmarklet and message handler
             st.markdown("##### 2. Install Score Collector")
             st.markdown("Drag this link to your bookmarks bar:")
-            # Format bookmarklet code - preserve function structure
-            formatted_code = ' '.join(line.strip() for line in self.bookmarklet_code.split('\n'))
-            st.markdown(f'<a href="javascript:{quote(formatted_code)}">🎭 RT Score Collector</a>', unsafe_allow_html=True)
+            # Format bookmarklet code into a proper bookmarklet URL
+            # 1. Remove newlines and extra spaces
+            formatted_code = ''.join(line.strip() for line in self.bookmarklet_code.split('\n'))
+            # 2. Create proper bookmarklet URL format
+            bookmarklet_url = f'javascript:{quote(formatted_code)}'
+            st.markdown(f'<a href="{bookmarklet_url}">🎭 RT Score Collector</a>', unsafe_allow_html=True)
             
             # Add score checker
             score_checker = """
@@ -217,6 +158,10 @@ class RTMatches:
             # Show search batches
             st.markdown("##### 3. Batch Search")
             
+            if not self.shows:
+                st.info("No shows to search for")
+                return
+                
             # Create batches of shows
             show_batches = [self.shows[i:i+2] for i in range(0, len(self.shows), 2)]
             st.write(f"Shows will open in {len(show_batches)} batches of 2 to avoid popup blocking")
@@ -227,13 +172,18 @@ class RTMatches:
                 urls = []
                 titles = []
                 for show in batch:
-                    titles.append(show['title'])
-                    query = f"site:rottentomatoes.com tv {show['title']}"
-                    url = f"https://www.google.com/search?q={quote(query)}"
-                    urls.append(url)
+                    if isinstance(show, dict) and 'title' in show:
+                        titles.append(show['title'])
+                        query = f"site:rottentomatoes.com tv {show['title']}"
+                        url = f"https://www.google.com/search?q={quote(query)}"
+                        urls.append(url)
                 
+                if not urls:
+                    continue
+                    
                 # Create batch button
-                if st.button(f"Open Batch {i+1}: {', '.join(titles)}"):
+                button_key = f"batch_{i}_{','.join(titles)}"
+                if st.button(f"Open Batch {i+1}: {', '.join(titles)}", key=button_key):
                     js = ""
                     for url in urls:
                         js += f"window.open('{url}', '_blank');"
