@@ -169,8 +169,11 @@ class RTMatches:
             
             # Show bookmarklet and message handler
             st.markdown("##### 1. Install Score Collector")
+            # Format bookmarklet code - remove newlines and extra spaces
+            formatted_code = self.bookmarklet_code.replace('\n', ' ').replace('    ', '')
+            
             st.markdown("Drag this link to your bookmarks bar:")
-            st.markdown(f'<a href="javascript:{quote(self.bookmarklet_code)}">🎭 RT Score Collector</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="javascript:{quote(formatted_code)}">🎭 RT Score Collector</a>', unsafe_allow_html=True)
             
             # Add score checker
             score_checker = """
@@ -185,7 +188,7 @@ class RTMatches:
                     try {
                         const data = JSON.parse(scores);
                         // Send to Streamlit
-                        window.parent.Streamlit.setComponentValue(data);
+                        window.Streamlit.setComponentValue(data);
                         localStorage.removeItem('rt_scores');
                         console.log('Sent scores to Streamlit');
                     } catch (e) {
@@ -198,14 +201,15 @@ class RTMatches:
             setInterval(checkForScores, 1000);
             </script>
             """
-            st.components.v1.html(score_checker, height=0)
+            score_receiver = st.empty()
+            score_receiver.components.html(score_checker, height=0)
             
             # Handle incoming scores from component
-            score_data = st.session_state.get("score_checker")
+            score_data = score_receiver.get_value()
             if score_data:
                 st.write("Debug - Score data received:", score_data)
                 self.handle_score_message(score_data)
-                del st.session_state["score_checker"]
+                score_receiver.set_value(None)
             
             # Show search batches
             st.markdown("##### 2. Search Shows")
