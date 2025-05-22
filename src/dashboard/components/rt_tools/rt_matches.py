@@ -23,64 +23,68 @@ class RTMatches:
         
         # Inline bookmarklet code for reliability
         self.bookmarklet_code = """
-(function(){
-    // Extract data from RT page
-    var title = document.querySelector('h1')?.textContent?.trim();
-    
-    // Get main show scores - try different selectors
-    var tomatometer = null;
-    var audience = null;
-    
-    // Try modern selectors first
-    var tomatoEl = document.querySelector('[data-qa="tomatometer"]') || document.querySelector('.tomatometer-score');
-    var audienceEl = document.querySelector('[data-qa="audience-score"]') || document.querySelector('.audience-score');
-    
-    if (tomatoEl) {
-        tomatometer = parseInt(tomatoEl.textContent.trim());
-    }
-    if (audienceEl) {
-        audience = parseInt(audienceEl.textContent.trim());
-    }
-    
-    // Fallback to score containers
-    if (!tomatometer || !audience) {
-        var scores = Array.from(document.querySelectorAll('.score-container .percentage')).map(e => parseInt(e.textContent.trim()));
-        if (scores.length >= 2) {
-            tomatometer = tomatometer || scores[0];
-            audience = audience || scores[1];
+(function() {
+    try {
+        // Extract data from RT page
+        var title = document.querySelector('h1')?.textContent?.trim();
+        
+        // Get main show scores - try different selectors
+        var tomatometer = null;
+        var audience = null;
+        
+        // Try modern selectors first
+        var tomatoEl = document.querySelector('[data-qa="tomatometer"]') || document.querySelector('.tomatometer-score');
+        var audienceEl = document.querySelector('[data-qa="audience-score"]') || document.querySelector('.audience-score');
+        
+        if (tomatoEl) {
+            tomatometer = parseInt(tomatoEl.textContent.trim());
         }
+        if (audienceEl) {
+            audience = parseInt(audienceEl.textContent.trim());
+        }
+        
+        // Fallback to score containers
+        if (!tomatometer || !audience) {
+            var scores = Array.from(document.querySelectorAll('.score-container .percentage')).map(e => parseInt(e.textContent.trim()));
+            if (scores.length >= 2) {
+                tomatometer = tomatometer || scores[0];
+                audience = audience || scores[1];
+            }
+        }
+        
+        if (!title || (!tomatometer && !audience)) {
+            alert('Could not find show scores. Make sure you are on a show\'s main page.');
+            return;
+        }
+        
+        // Show overlay
+        var d = document.createElement('div');
+        d.style.cssText = 'position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black';
+        d.innerHTML = `
+            <div style="font-family:sans-serif">
+                <h3>${title}</h3>
+                <p>Tomatometer: ${tomatometer}%</p>
+                <p>Audience: ${audience}%</p>
+            </div>
+        `;
+        document.body.appendChild(d);
+        
+        // Store data in localStorage of opener window
+        var data = {
+            title: title,
+            tomatometer: tomatometer,
+            audience: audience
+        };
+        
+        window.opener.localStorage.setItem('rt_scores', JSON.stringify(data));
+        
+        // Auto close after showing scores
+        setTimeout(function() {
+            window.close();
+        }, 1500);
+    } catch (e) {
+        alert('Error: ' + e.message);
     }
-    
-    if (!title || (!tomatometer && !audience)) {
-        alert('Could not find show scores. Make sure you are on a show\'s main page.');
-        return;
-    }
-    
-    // Show overlay
-    var d = document.createElement('div');
-    d.style.cssText = 'position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black';
-    d.innerHTML = `
-        <div style="font-family:sans-serif">
-            <h3>${title}</h3>
-            <p>Tomatometer: ${tomatometer}%</p>
-            <p>Audience: ${audience}%</p>
-        </div>
-    `;
-    document.body.appendChild(d);
-    
-    // Store data in localStorage of opener window
-    var data = {
-        title: title,
-        tomatometer: tomatometer,
-        audience: audience
-    };
-    
-    window.opener.localStorage.setItem('rt_scores', JSON.stringify(data));
-    
-    // Auto close after showing scores
-    setTimeout(function() {
-        window.close();
-    }, 1500);
 })();"""
             
         # Initialize session state for scores
@@ -150,6 +154,7 @@ class RTMatches:
         
         # Show table
         if self.shows:
+            st.markdown("##### 1. Unmatched Shows")
             # Create table data
             data = []
             for show in self.shows:
@@ -163,16 +168,13 @@ class RTMatches:
             # Display as table
             st.table(pd.DataFrame(data))
             
-            # Add batch search section
             st.markdown("---")
-            st.markdown("##### Batch Search")
             
             # Show bookmarklet and message handler
-            st.markdown("##### 1. Install Score Collector")
-            # Format bookmarklet code - remove newlines and extra spaces
-            formatted_code = self.bookmarklet_code.replace('\n', ' ').replace('    ', '')
-            
+            st.markdown("##### 2. Install Score Collector")
             st.markdown("Drag this link to your bookmarks bar:")
+            # Format bookmarklet code - preserve function structure
+            formatted_code = ' '.join(line.strip() for line in self.bookmarklet_code.split('\n'))
             st.markdown(f'<a href="javascript:{quote(formatted_code)}">🎭 RT Score Collector</a>', unsafe_allow_html=True)
             
             # Add score checker
@@ -212,7 +214,7 @@ class RTMatches:
                 score_receiver.set_value(None)
             
             # Show search batches
-            st.markdown("##### 2. Search Shows")
+            st.markdown("##### 3. Batch Search")
             
             # Create batches of shows
             show_batches = [self.shows[i:i+2] for i in range(0, len(self.shows), 2)]
