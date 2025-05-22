@@ -81,7 +81,7 @@ class RTMatches:
     setTimeout(function() {
         window.close();
     }, 1500);
-});"""
+})();"""
             
         # Initialize session state for scores
         if 'rt_scores' not in st.session_state:
@@ -209,19 +209,26 @@ class RTMatches:
             
             # Show search batches
             st.markdown("##### 2. Search Shows")
-            all_urls = []
-            for show in self.shows:
-                query = f"site:rottentomatoes.com tv {show['title']}"
-                url = f"https://www.google.com/search?q={quote(query)}"
-                all_urls.append(url)
             
-            batches = [all_urls[i:i+2] for i in range(0, len(all_urls), 2)]
-            st.write(f"Shows will open in {len(batches)} batches of 2 to avoid popup blocking")
+            # Create batches of shows
+            show_batches = [self.shows[i:i+2] for i in range(0, len(self.shows), 2)]
+            st.write(f"Shows will open in {len(show_batches)} batches of 2 to avoid popup blocking")
             
-            for i, batch_urls in enumerate(batches):
-                if st.button(f"Open Batch {i+1}: {', '.join(s['title'] for s in self.shows[i*2:(i+1)*2])}"):
+            # Create buttons for each batch
+            for i, batch in enumerate(show_batches):
+                # Create URLs for this batch
+                urls = []
+                titles = []
+                for show in batch:
+                    titles.append(show['title'])
+                    query = f"site:rottentomatoes.com tv {show['title']}"
+                    url = f"https://www.google.com/search?q={quote(query)}"
+                    urls.append(url)
+                
+                # Create batch button
+                if st.button(f"Open Batch {i+1}: {', '.join(titles)}"):
                     js = ""
-                    for url in batch_urls:
+                    for url in urls:
                         js += f"window.open('{url}', '_blank');"
                     st.components.v1.html(f"<script>{js}</script>", height=0)
                     st.success(f"Opening batch {i+1} in new tabs...")
