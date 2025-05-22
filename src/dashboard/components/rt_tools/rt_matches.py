@@ -145,7 +145,7 @@ void(function(){try{var t=document.querySelector('h1')?.textContent?.trim(),o=nu
             </script>
             """
             # Create a component to receive scores
-            score_component = st.components.v1.html(score_checker, height=0, key='score_receiver')
+            score_component = st.components.v1.html(score_checker, height=0)
             
             # Handle incoming scores from component
             if 'score_receiver' in st.session_state:
@@ -182,8 +182,7 @@ void(function(){try{var t=document.querySelector('h1')?.textContent?.trim(),o=nu
                     continue
                     
                 # Create batch button
-                button_key = f"batch_{i}_{','.join(titles)}"
-                if st.button(f"Open Batch {i+1}: {', '.join(titles)}", key=button_key):
+                if st.button(f"Open Batch {i+1}: {', '.join(titles)}"):
                     js = ""
                     for url in urls:
                         js += f"window.open('{url}', '_blank');"
