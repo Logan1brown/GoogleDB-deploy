@@ -23,7 +23,7 @@ class RTMatches:
         
         # Inline bookmarklet code for reliability
         self.bookmarklet_code = """
-void(function(){try{var t=document.querySelector('h1')?.textContent?.trim(),o=null,e=null,r=document.querySelector('[data-qa="tomatometer"]')||document.querySelector('.tomatometer-score'),c=document.querySelector('[data-qa="audience-score"]')||document.querySelector('.audience-score');if(r&&(o=parseInt(r.textContent.trim())),c&&(e=parseInt(c.textContent.trim())),!o||!e){var n=Array.from(document.querySelectorAll('.score-container .percentage')).map(function(t){return parseInt(t.textContent.trim())});n.length>=2&&(o=o||n[0],e=e||n[1])}if(!t||!o&&!e)return void alert('Could not find show scores. Make sure you are on a show\'s main page');var l=document.createElement('div');l.style.cssText='position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black',l.innerHTML='<div style="font-family:sans-serif"><h3>'+t+'</h3><p>Tomatometer: '+o+'%</p><p>Audience: '+e+'%</p></div>',document.body.appendChild(l);var a={title:t,tomatometer:o,audience:e};window.opener.localStorage.setItem('rt_scores',JSON.stringify(a)),setTimeout(function(){window.close()},1500)}catch(t){alert('Error: '+t.message)}})();"""
+(function(){var t=document.querySelector('h1');if(!t)return alert('Could not find show title');t=t.textContent.trim();var m=document.querySelector('[data-qa="tomatometer"]')||document.querySelector('.tomatometer-score'),a=document.querySelector('[data-qa="audience-score"]')||document.querySelector('.audience-score'),o=m?parseInt(m.textContent):null,e=a?parseInt(a.textContent):null;if(!o&&!e){var s=Array.from(document.querySelectorAll('.score-container .percentage')).map(function(e){return parseInt(e.textContent)});s.length>=2&&(o=o||s[0],e=e||s[1])}if(!o&&!e)return alert('Could not find show scores');var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black';d.innerHTML='<h3>'+t+'</h3><p>Tomatometer: '+(o||'N/A')+'</p><p>Audience: '+(e||'N/A')+'</p>';document.body.appendChild(d);window.opener.localStorage.setItem('rt_scores',JSON.stringify({title:t,tomatometer:o,audience:e}));setTimeout(function(){window.close()},1500);})()"""
             
         # Initialize session state for scores
         if 'rt_scores' not in st.session_state:
@@ -112,9 +112,11 @@ void(function(){try{var t=document.querySelector('h1')?.textContent?.trim(),o=nu
             st.markdown("##### 2. Install Score Collector")
             st.markdown("Drag this link to your bookmarks bar:")
             # Format bookmarklet code into a proper bookmarklet URL
-            # 1. Remove newlines and extra spaces
             formatted_code = ''.join(line.strip() for line in self.bookmarklet_code.split('\n'))
-            # 2. Create proper bookmarklet URL format
+            # Double-check the code is properly formatted
+            if not formatted_code.startswith('(') or not formatted_code.endswith('()'):
+                st.error('Bookmarklet code is malformed')
+                return
             bookmarklet_url = f'javascript:{quote(formatted_code)}'
             st.markdown(f'<a href="{bookmarklet_url}">🎭 RT Score Collector</a>', unsafe_allow_html=True)
             
