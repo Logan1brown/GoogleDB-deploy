@@ -6,6 +6,9 @@ import streamlit as st
 from typing import Dict, Any, List, Optional
 from urllib.parse import quote, unquote
 import pandas as pd
+from datetime import datetime
+from pathlib import Path
+import requests
 
 class RTMatches:
     """Component for RT show matching and score collection."""
@@ -23,38 +26,105 @@ class RTMatches:
         
         # Inline bookmarklet code for reliability
         self.bookmarklet_code = """
-(function(){var t=document.querySelector('h1');if(!t)return alert('Could not find show title');t=t.textContent.trim();var m=document.querySelector('rt-text[slot="criticsScore"]'),a=document.querySelector('rt-text[slot="audienceScore"]');alert('Selectors found: '+(m?'tomato ':'no tomato ')+(a?'audience':'no audience'));var o=null,e=null;if(m){var mt=m.textContent.trim();alert('Tomato text: '+mt);mt=mt.match(/\d+/);o=mt?parseInt(mt[0]):null;alert('Tomato score: '+o);}if(a){var at=a.textContent.trim();alert('Audience text: '+at);at=at.match(/\d+/);e=at?parseInt(at[0]):null;alert('Audience score: '+e);}if(!o||!e){alert('Trying fallback selectors');var s=document.querySelectorAll('rt-text[context="label"]');alert('Found '+s.length+' fallback scores');Array.from(s).forEach(function(s){var txt=s.textContent.trim();alert('Score text: '+txt);var n=txt.match(/\d+/);if(n){var v=parseInt(n[0]);if(!o){o=v;alert('Set tomato to '+v);}else if(!e){e=v;alert('Set audience to '+v);}}});}if(!o&&!e)return alert('Could not find show scores');var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black';d.innerHTML='<h3>'+t+'</h3><p>Tomatometer: '+(o||'N/A')+'%</p><p>Audience: '+(e||'N/A')+'%</p>';document.body.appendChild(d);window.opener.localStorage.setItem('rt_scores',JSON.stringify({title:t,tomatometer:o,audience:e}));setTimeout(function(){window.close()},1500);})()"""
+(function(){var t=document.querySelector('h1');if(!t)return alert('Could not find show title');t=t.textContent.trim();var m=document.querySelector('rt-text[slot="criticsScore"]'),a=document.querySelector('rt-text[slot="audienceScore"]');var o=null,e=null;if(m){var mt=m.textContent.trim();mt=mt.match(/\d+/);o=mt?parseInt(mt[0]):null;}if(a){var at=a.textContent.trim();at=at.match(/\d+/);e=at?parseInt(at[0]):null;}if(!o||!e){var s=document.querySelectorAll('rt-text[context="label"]');Array.from(s).forEach(function(s){var txt=s.textContent.trim();var n=txt.match(/\d+/);if(n){var v=parseInt(n[0]);if(!o)o=v;else if(!e)e=v;}});}if(!o&&!e)return alert('Could not find show scores');var data={title:t,tomatometer:o,audience:e};var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;background:white;padding:20px;z-index:9999;border:2px solid black';d.innerHTML='<h3>'+t+'</h3><p>Tomatometer: '+o+'%</p><p>Audience: '+e+'%</p><p>Saving scores...</p>';document.body.appendChild(d);fetch('http://localhost:3000/submit-scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json()}).then(function(j){if(j.status==='success'){d.innerHTML+='<p style="color:green">✓ Scores saved!</p>';setTimeout(function(){window.close()},500);}else{throw new Error(j.message||'Unknown error');}}).catch(function(e){d.innerHTML+='<p style="color:red">Error: '+e.message+'</p>';});})()"""
             
-        # Initialize session state for scores
+        # Initialize session state for scores and last check time
         if 'rt_scores' not in st.session_state:
             st.session_state.rt_scores = {}
+        if 'last_score_check' not in st.session_state:
+            st.session_state.last_score_check = datetime.now()
+            
+        # Set up scores directory path
+        self.scores_dir = Path(__file__).parent.parent.parent.parent / 'data_processing' / 'external' / 'rt' / 'scores'
         
+    def check_new_scores(self):
+        """Check for new score files and process them."""
+        try:
+            # Ensure scores directory exists
+            if not self.scores_dir.exists():
+                st.warning("Score directory not found. Creating...")
+                self.scores_dir.mkdir(parents=True, exist_ok=True)
+                return
+                
+            # Get all json files modified after last check
+            new_files = []
+            for file in self.scores_dir.glob('*.json'):
+                try:
+                    if file.stat().st_mtime > st.session_state.last_score_check.timestamp():
+                        new_files.append(file)
+                except Exception as e:
+                    st.error(f"Error checking file {file.name}: {e}")
+                    continue
+            
+            if not new_files:
+                return
+                    
+            # Process new files
+            processed = 0
+            errors = 0
+            for file in new_files:
+                try:
+                    with open(file) as f:
+                        data = json.load(f)
+                    self.handle_score_message(data)
+                    # Archive or delete file after processing
+                    file.unlink()
+                    processed += 1
+                except json.JSONDecodeError as e:
+                    st.error(f"Invalid JSON in {file.name}: {e}")
+                    errors += 1
+                except Exception as e:
+                    st.error(f"Error processing {file.name}: {e}")
+                    errors += 1
+                    
+            # Show summary
+            if processed > 0:
+                st.success(f"✓ Processed {processed} new score files")
+            if errors > 0:
+                st.error(f"✗ Failed to process {errors} files")
+                    
+            # Update last check time
+            st.session_state.last_score_check = datetime.now()
+        except Exception as e:
+            st.error(f"Error checking for new scores: {e}")
+    
     def handle_score_message(self, data: Dict[str, Any]):
-        """Handle score data from bookmarklet"""
-        st.write("Debug - Processing score data:", data)
-        
+        """Handle score data from proxy server."""
+        # Validate required fields
         if not data.get('title') or data.get('tomatometer') is None or data.get('audience') is None:
-            st.error("Invalid score data received")
-            st.write("Debug - Missing required fields")
-            return
+            raise ValueError("Missing required fields in score data")
             
-        # Find matching show
-        show = next((s for s in self.shows if s['title'].lower() in data['title'].lower()), None)
+        # Find matching show using fuzzy match
+        show = None
+        best_match_ratio = 0
+        data_title = data['title'].lower()
+        
+        for s in self.shows:
+            # Check for exact substring match first
+            if s['title'].lower() in data_title or data_title in s['title'].lower():
+                show = s
+                break
+            
+            # If no exact match, try fuzzy matching
+            from difflib import SequenceMatcher
+            ratio = SequenceMatcher(None, s['title'].lower(), data_title).ratio()
+            if ratio > 0.8 and ratio > best_match_ratio:  # 80% similarity threshold
+                show = s
+                best_match_ratio = ratio
+        
         if not show:
-            st.error(f"Could not match title: {data['title']}")
-            st.write("Debug - No matching show found")
-            return
+            raise ValueError(f"Could not match title: {data['title']}")
             
-        st.write("Debug - Found matching show:", show)
-            
-        # Save scores
+        # Save scores with timestamp
         st.session_state.rt_scores[show['id']] = {
             'tomatometer': data['tomatometer'],
             'popcornmeter': data['audience'],
-            'title': show['title']
+            'title': show['title'],
+            'captured_at': data.get('captured_at', datetime.now().isoformat())
         }
-        st.write("Debug - Saved scores to session state")
-        st.success(f"Saved scores for {show['title']}")
+        
+        st.success(f"✓ Saved scores for {show['title']}")
+        return True  # Indicate successful processing
         
     def render(self):
         """Render the RT matching interface."""
@@ -75,14 +145,31 @@ class RTMatches:
         # Instructions
         with st.expander("Instructions"):
             st.markdown("""
-            1. Drag the RT Helper to your bookmarks
-            2. Use the batch search to open RT pages
-            3. On each RT page:
+            1. First, make sure the RT Score Proxy is running (check status below)
+            2. Drag the RT Helper to your bookmarks
+            3. Use the batch search to open RT pages
+            4. On each RT page:
                - Click the RT Helper bookmark
-               - Verify the scores
-               - The page will auto-close
-            4. Review and save the collected scores
+               - Verify the scores in the popup
+               - Scores will be automatically saved
+               - Page will auto-close when done
+            5. Review and save all collected scores
+            
+            Note: If the proxy server isn't running, start it with:
+            ```bash
+            python3 src/data_processing/external/rt/proxy_server.py
+            ```
             """)
+            
+            # Show proxy status
+            st.markdown("### Proxy Server Status")
+            try:
+                proxy_status = requests.get('http://localhost:3000/health', timeout=1).json()
+                st.success("✓ RT Score Proxy is running")
+            except:
+                st.error("✗ RT Score Proxy is not running")
+                st.markdown("Please start the proxy server first using the command above.")
+                return
             
             # Bookmarklet
             st.markdown(f'<a href="javascript:{quote(self.bookmarklet_code)}">RT Helper</a>', unsafe_allow_html=True)
@@ -120,45 +207,25 @@ class RTMatches:
             bookmarklet_url = f'javascript:{quote(formatted_code)}'
             st.markdown(f'<a href="{bookmarklet_url}">🎭 RT Score Collector</a>', unsafe_allow_html=True)
             
-            # Add score checker
-            score_checker = """
-            <script>
-            console.log('RT Score checker installed');
+                # Check for new scores from proxy
+            st.markdown("##### 3. Score Collection Status")
             
-            // Function to check for scores
-            function checkForScores() {
-                const scores = localStorage.getItem('rt_scores');
-                if (scores) {
-                    console.log('Found scores:', scores);
-                    try {
-                        const data = JSON.parse(scores);
-                        // Send to Streamlit
-                        window.Streamlit.setComponentValue(data);
-                        localStorage.removeItem('rt_scores');
-                        console.log('Sent scores to Streamlit');
-                    } catch (e) {
-                        console.error('Error parsing scores:', e);
-                    }
-                }
-            }
-            
-            // Check periodically
-            setInterval(checkForScores, 1000);
-            </script>
-            """
-            # Create a component to receive scores
-            score_component = st.components.v1.html(score_checker, height=0)
-            
-            # Handle incoming scores from component
-            if 'score_receiver' in st.session_state:
-                score_data = st.session_state.score_receiver
-                if score_data:
-                    st.write("Debug - Score data received:", score_data)
-                    self.handle_score_message(score_data)
-                    st.session_state.score_receiver = None
+            # Add status indicator for proxy server
+            try:
+                import requests
+                proxy_status = requests.get('http://localhost:3000/health').json()
+                st.success("✓ Proxy server is running")
+            except:
+                st.error("✗ Proxy server is not running. Please start it first.")
+                st.markdown("Run this command in a terminal:")
+                st.code("python src/data_processing/external/rt/proxy_server.py")
+                return
+                
+            # Check for new scores
+            self.check_new_scores()
             
             # Show search batches
-            st.markdown("##### 3. Batch Search")
+            st.markdown("##### 4. Batch Search")
             
             if not self.shows:
                 st.info("No shows to search for")
