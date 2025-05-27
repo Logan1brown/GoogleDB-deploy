@@ -10,18 +10,29 @@ from pathlib import Path
 
 app = FastAPI()
 
+# Configure logging
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Configure CORS to accept requests from RT domain
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://www.rottentomatoes.com",
         "http://localhost:8501",  # Streamlit default port
-        "http://127.0.0.1:8501"
+        "http://127.0.0.1:8501",
+        "*"  # Allow all origins for testing
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting RT Score Proxy server...")
+    logger.info("CORS enabled for: localhost:8501, rottentomatoes.com")
 
 class RTScores(BaseModel):
     """RT scores with capture time"""
@@ -36,7 +47,10 @@ SCORES_DIR.mkdir(exist_ok=True)
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    logger.info("Health check request received")
+    response = {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    logger.info(f"Health check response: {response}")
+    return response
 
 @app.post("/submit-scores")
 async def submit_scores(data: RTScores):
