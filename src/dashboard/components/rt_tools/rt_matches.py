@@ -173,39 +173,40 @@ class RTMatches:
                 st.write(f"Debug - Import error: {str(e)}")
                 return
             
-            try:
-                # Use Session to handle connection pooling
-                st.write("Debug - Creating session...")
-                session = requests.Session()
-                session.trust_env = False  # Disable proxy settings
-                
-                st.write("Debug - Making request...")
-                response = session.get(
-                    'http://localhost:3000/health',
-                    timeout=1,
-                    verify=False
-                )
-                st.write(f"Debug - Got response: {response.status_code}")
-                st.write(f"Debug - Response content: {response.text}")
-                
-                proxy_status = response.json()
-                st.write(f"Debug - Parsed JSON: {proxy_status}")
-                
-                if proxy_status.get('status') == 'healthy':
-                    st.success("✓ RT Score Proxy is running")
-                else:
-                    st.error("✗ RT Score Proxy returned unhealthy status")
-                    st.markdown("Please restart the proxy server using the command above.")
-                    return
-            except requests.exceptions.ConnectionError as e:
+            # Try different host addresses
+            hosts = ['localhost', '127.0.0.1', '0.0.0.0']
+            connected = False
+            
+            for host in hosts:
+                try:
+                    st.write(f"Debug - Trying {host}...")
+                    session = requests.Session()
+                    session.trust_env = False
+                    
+                    response = session.get(
+                        f'http://{host}:3000/health',
+                        timeout=1,
+                        verify=False
+                    )
+                    
+                    st.write(f"Debug - Got response from {host}: {response.status_code}")
+                    proxy_status = response.json()
+                    st.write(f"Debug - Response from {host}: {proxy_status}")
+                    
+                    if proxy_status.get('status') == 'healthy':
+                        st.success("✓ RT Score Proxy is running")
+                        connected = True
+                        break
+                except requests.exceptions.ConnectionError as e:
+                    st.write(f"Debug - Failed to connect to {host}: {str(e)}")
+                    continue
+                except Exception as e:
+                    st.write(f"Debug - Error with {host}: {type(e).__name__}: {str(e)}")
+                    continue
+            
+            if not connected:
                 st.error("✗ RT Score Proxy is not running")
                 st.markdown("Please start the proxy server first using the command above.")
-                st.write(f"Debug - Connection error: {str(e)}")
-                return
-            except Exception as e:
-                st.error("✗ Error checking proxy status")
-                st.markdown(f"Error: {str(e)}")
-                st.write(f"Debug - Unexpected error: {type(e).__name__}: {str(e)}")
                 return
             
             # Bookmarklet
