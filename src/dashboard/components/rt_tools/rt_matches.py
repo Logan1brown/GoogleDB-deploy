@@ -163,26 +163,36 @@ class RTMatches:
             
             # Show proxy status
             st.markdown("### Proxy Server Status")
+            st.write("Debug - Checking proxy status...")
             try:
                 # Use Session to handle connection pooling
                 with requests.Session() as session:
+                    st.write("Debug - Created session")
                     session.trust_env = False  # Disable proxy settings
-                    proxy_status = session.get('http://localhost:3000/health', 
-                                              timeout=1,
-                                              verify=False).json()
+                    response = session.get('http://localhost:3000/health', 
+                                         timeout=1,
+                                         verify=False)
+                    st.write(f"Debug - Got response: {response.status_code}")
+                    st.write(f"Debug - Response content: {response.text}")
+                    
+                    proxy_status = response.json()
+                    st.write(f"Debug - Parsed JSON: {proxy_status}")
+                    
                     if proxy_status.get('status') == 'healthy':
                         st.success("✓ RT Score Proxy is running")
                     else:
                         st.error("✗ RT Score Proxy returned unhealthy status")
                         st.markdown("Please restart the proxy server using the command above.")
                         return
-            except requests.exceptions.ConnectionError:
+            except requests.exceptions.ConnectionError as e:
                 st.error("✗ RT Score Proxy is not running")
                 st.markdown("Please start the proxy server first using the command above.")
+                st.write(f"Debug - Connection error: {str(e)}")
                 return
             except Exception as e:
                 st.error("✗ Error checking proxy status")
                 st.markdown(f"Error: {str(e)}")
+                st.write(f"Debug - Unexpected error: {str(e)}")
                 return
             
             # Bookmarklet
