@@ -164,11 +164,25 @@ class RTMatches:
             # Show proxy status
             st.markdown("### Proxy Server Status")
             try:
-                proxy_status = requests.get('http://localhost:3000/health', timeout=1).json()
-                st.success("✓ RT Score Proxy is running")
-            except:
+                # Use Session to handle connection pooling
+                with requests.Session() as session:
+                    session.trust_env = False  # Disable proxy settings
+                    proxy_status = session.get('http://localhost:3000/health', 
+                                              timeout=1,
+                                              verify=False).json()
+                    if proxy_status.get('status') == 'healthy':
+                        st.success("✓ RT Score Proxy is running")
+                    else:
+                        st.error("✗ RT Score Proxy returned unhealthy status")
+                        st.markdown("Please restart the proxy server using the command above.")
+                        return
+            except requests.exceptions.ConnectionError:
                 st.error("✗ RT Score Proxy is not running")
                 st.markdown("Please start the proxy server first using the command above.")
+                return
+            except Exception as e:
+                st.error("✗ Error checking proxy status")
+                st.markdown(f"Error: {str(e)}")
                 return
             
             # Bookmarklet
