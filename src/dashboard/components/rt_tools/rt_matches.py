@@ -8,7 +8,15 @@ from urllib.parse import quote, unquote
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
-import requests
+
+# Import requests with error handling
+try:
+    import requests
+except ImportError:
+    st.error("The 'requests' package is not installed. Installing now...")
+    import subprocess
+    subprocess.check_call(["pip3", "install", "requests"])
+    import requests
 
 class RTMatches:
     """Component for RT show matching and score collection."""
