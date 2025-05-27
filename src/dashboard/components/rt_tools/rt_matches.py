@@ -9,15 +9,6 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
-# Import requests with error handling
-try:
-    import requests
-except ImportError:
-    st.error("The 'requests' package is not installed. Installing now...")
-    import subprocess
-    subprocess.check_call(["pip3", "install", "requests"])
-    import requests
-
 class RTMatches:
     """Component for RT show matching and score collection."""
     
@@ -172,26 +163,40 @@ class RTMatches:
             # Show proxy status
             st.markdown("### Proxy Server Status")
             st.write("Debug - Checking proxy status...")
+            
+            # Import requests here to ensure it's available
+            try:
+                import requests
+                st.write("Debug - Successfully imported requests")
+            except ImportError as e:
+                st.error("Failed to import requests package")
+                st.write(f"Debug - Import error: {str(e)}")
+                return
+            
             try:
                 # Use Session to handle connection pooling
-                with requests.Session() as session:
-                    st.write("Debug - Created session")
-                    session.trust_env = False  # Disable proxy settings
-                    response = session.get('http://localhost:3000/health', 
-                                         timeout=1,
-                                         verify=False)
-                    st.write(f"Debug - Got response: {response.status_code}")
-                    st.write(f"Debug - Response content: {response.text}")
-                    
-                    proxy_status = response.json()
-                    st.write(f"Debug - Parsed JSON: {proxy_status}")
-                    
-                    if proxy_status.get('status') == 'healthy':
-                        st.success("✓ RT Score Proxy is running")
-                    else:
-                        st.error("✗ RT Score Proxy returned unhealthy status")
-                        st.markdown("Please restart the proxy server using the command above.")
-                        return
+                st.write("Debug - Creating session...")
+                session = requests.Session()
+                session.trust_env = False  # Disable proxy settings
+                
+                st.write("Debug - Making request...")
+                response = session.get(
+                    'http://localhost:3000/health',
+                    timeout=1,
+                    verify=False
+                )
+                st.write(f"Debug - Got response: {response.status_code}")
+                st.write(f"Debug - Response content: {response.text}")
+                
+                proxy_status = response.json()
+                st.write(f"Debug - Parsed JSON: {proxy_status}")
+                
+                if proxy_status.get('status') == 'healthy':
+                    st.success("✓ RT Score Proxy is running")
+                else:
+                    st.error("✗ RT Score Proxy returned unhealthy status")
+                    st.markdown("Please restart the proxy server using the command above.")
+                    return
             except requests.exceptions.ConnectionError as e:
                 st.error("✗ RT Score Proxy is not running")
                 st.markdown("Please start the proxy server first using the command above.")
@@ -200,7 +205,7 @@ class RTMatches:
             except Exception as e:
                 st.error("✗ Error checking proxy status")
                 st.markdown(f"Error: {str(e)}")
-                st.write(f"Debug - Unexpected error: {str(e)}")
+                st.write(f"Debug - Unexpected error: {type(e).__name__}: {str(e)}")
                 return
             
             # Bookmarklet
