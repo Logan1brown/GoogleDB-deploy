@@ -23,3 +23,10 @@ statsmodels>=0.14.0  # For time series analysis
 # Text Processing
 thefuzz>=0.20.0  # For fuzzy string matching
 python-Levenshtein>=0.21.0  # For faster fuzzy matching
+
+# Web Scraping
+playwright>=1.35.0  # For browser automation
+
+# Testing
+pytest>=7.3.1
+pytest-asyncio>=0.21.0  # For async test support

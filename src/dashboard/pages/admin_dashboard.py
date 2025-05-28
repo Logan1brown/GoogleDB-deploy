@@ -36,7 +36,7 @@ from ..services.deadline.deadline_client import DeadlineClient
 from ..utils.style_config import COLORS, FONTS
 from ..state.admin_state import TMDBMatchState
 from ..state.session import get_admin_state, update_admin_state, clear_section_state
-from ..components.rt_tools.rt_matches import RTMatches
+
 from supabase import create_client
 from dataclasses import dataclass
 
@@ -388,93 +388,152 @@ def render_announcements():
     render_announcements_list(announcements, on_review=handle_review)
 
 
-def render_rt_matches():
+async def render_rt_matches():
     """Render the RT matches section.
-    
+
     This section allows admins to:
     1. Search for shows on RT
     2. Collect and save RT scores
     """
-    try:
-        st.write("Debug - Starting RT matches render")
-        
-        # Get admin state
-        state = get_admin_state()
-        rt_state = state.rt_matching
-        
-        st.write("Debug - Current state:", {"has_shows": bool(rt_state.unmatched_shows)})
-        
-        # Get unmatched shows if needed
-        if not rt_state.unmatched_shows:
-            st.write("Debug - Fetching shows from database")
-            client = get_admin_client()
-            
-            try:
-                # Start with basic query
-                response = client.table('shows')\
-                    .select('id, title')\
-                    .limit(10)\
-                    .execute()
-                st.write("Debug - Raw response:", response.data)
-                
-                # Then filter for shows without RT metrics
-                shows_without_metrics = []
-                for show in response.data:
-                    metrics = client.table('rt_success_metrics')\
-                        .select('rt_id')\
-                        .eq('show_id', show['id'])\
-                        .execute()
-                    if not metrics.data:
-                        shows_without_metrics.append(show)
-                
-                st.write("Debug - Filtered shows:", shows_without_metrics)
-                response.data = shows_without_metrics
-                st.write("Debug - Raw response:", response.data)
-                
-                if not response.data:
-                    st.warning("No shows found in database query")
-                    return
-            except Exception as e:
-                st.error(f"Database error: {str(e)}")
-                return
-                
-            rt_state.unmatched_shows = response.data if response else []
-            update_admin_state(state)
-        
-        # Handle score collection
-        def handle_scores(data):
-            st.session_state.rt_scores = data
-            rt_state.success_message = f"Collected scores for {data['title']}"
-            update_admin_state(state)
-            # TODO: Save to database
-        
-        # Show messages
-        if rt_state.error_message:
-            st.error(rt_state.error_message)
-            rt_state.error_message = None
-            update_admin_state(state)
-            
-        if rt_state.success_message:
-            st.success(rt_state.success_message)
-            rt_state.success_message = None
-            update_admin_state(state)
-        
-        # Create and render component
-        if not rt_state.unmatched_shows:
-            st.info("No unmatched shows found")
-            return
-            
-        rt_matches = RTMatches(rt_state.unmatched_shows, handle_scores)
-        rt_matches.render()
-        
-    except Exception as e:
-        state = get_admin_state()
-        state.rt_matching.error_message = str(e)
+    st.markdown("### Match Rotten Tomatoes")
+
+    state = get_admin_state()
+    rt_state = state.rt_matching
+
+    # Show any error messages
+    if rt_state.error_message:
+        st.error(rt_state.error_message)
+        rt_state.error_message = None
         update_admin_state(state)
+
+    if rt_state.success_message:
+        st.success(rt_state.success_message)
+        rt_state.success_message = None
+        update_admin_state(state)
+
+    # Get show counts
+    supabase = get_supabase_client()
+
+    # Get total shows
+    total_response = supabase.table('shows') \
+        .select('id', count='exact') \
+        .execute()
+    total_shows = total_response.count if total_response.count is not None else 0
+
+    # Get matched shows
+    matched_response = supabase.table('rt_success_metrics') \
+        .select('show_id', count='exact') \
+        .eq('is_matched', True) \
+        .execute()
+    matched_count = matched_response.count if matched_response.count is not None else 0
+
+    # Display metrics
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        mcol1, mcol2 = st.columns(2)
+        with mcol1:
+            st.metric("Unmatched Shows", total_shows - matched_count)
+        with mcol2:
+            st.metric("Matched Shows", matched_count)
+    st.write("")
+
+    # Add search box
+    st.caption("Search for shows to collect RT scores")
+    selected_title = st_searchbox(
+        search_function=search_shows,
+        label="Search existing shows",
+        placeholder="Start typing show title (3+ characters)...",
+        key="rt_search_bar",
+        clear_on_submit=False
+    )
+
+    if selected_title:
+        # Get show data and collect RT scores
+        with st.spinner(f"Collecting RT scores for {selected_title}..."):
+            try:
+                # Get show data
+                show_data = show_service.load_show(selected_title)
+                if show_data:
+                    # Make sure we have an ID
+                    if 'id' not in show_data:
+                        st.error(f"No ID found for show {selected_title}")
+                        return
+
+                    # Try to collect RT data
+                    async with RTCollector() as collector:
+                        result = await collector.collect_show_data(show_data['id'])
+
+                    if result['success']:
+                        if result.get('cached'):
+                            st.info(f"Found cached RT scores for {selected_title}")
+                        else:
+                            st.success(f"Successfully collected RT scores for {selected_title}")
+
+                        # Show scores
+                        scores = result['scores']
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Critics Score", f"{scores['tomatometer']}%")
+                        with col2:
+                            st.metric("Audience Score", f"{scores['popcornmeter']}%")
+                    else:
+                        st.error(f"Error collecting RT data: {result['error']}")
+                else:
+                    st.error(f"Could not load show data for {selected_title}")
+            except Exception as e:
+                st.error(f"Error collecting RT data: {str(e)}")
+
+    # Add tip about search
+    st.info(" Search for shows to collect RT scores")
+
+    # Add divider before unmatched shows
+    st.markdown("---")
+
+    # Get unmatched shows
+    unmatched_response = supabase.table('shows') \
+        .select('id,title') \
+        .not_.in_('id', supabase.table('rt_success_metrics').select('show_id')) \
+        .execute()
+
+    unmatched_shows = unmatched_response.data
+
+    if not unmatched_shows:
+        st.info("No unmatched shows found!")
+        return
+
+    # Show unmatched shows in a table
+    st.write("Click 'Collect Scores' to get RT data:")
+
+    # Create table
+    for show in unmatched_shows:
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.write(show['title'])
+        with col2:
+            if st.button("Collect Scores", key=f"rt_collect_{show['id']}"):
+                with st.spinner(f"Collecting RT scores for {show['title']}..."):
+                    try:
+                        async with RTCollector() as collector:
+                            result = await collector.collect_show_data(show['id'])
+
+                        if result['success']:
+                            st.success(f"Successfully collected RT scores for {show['title']}")
+                            # Show scores
+                            scores = result['scores']
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.metric("Critics Score", f"{scores['tomatometer']}%")
+                            with col2:
+                                st.metric("Audience Score", f"{scores['popcornmeter']}%")
+                        else:
+                            st.error(f"Error collecting RT data: {result['error']}")
+                    except Exception as e:
+                        st.error(f"Error collecting RT data: {str(e)}")
+
 
 def render_tmdb_matches():
     """Render the TMDB matches section.
-    
+
     This section allows admins to:
     1. Search for shows in TMDB
     2. Review and approve/reject matches

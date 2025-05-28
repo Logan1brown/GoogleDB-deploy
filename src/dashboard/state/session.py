@@ -109,7 +109,7 @@ def get_admin_state() -> AdminState:
         state = {}
     if "admin" not in state:
         admin_state = AdminState()
-        admin_state.rt_matching = RTMatchingState()
+
         state["admin"] = asdict(admin_state)
     
     # Convert nested dicts to proper state objects
@@ -123,8 +123,7 @@ def get_admin_state() -> AdminState:
         if isinstance(matching_dict.get("matches", []), list):
             matching_dict["matches"] = [TMDBMatchState(**m) if isinstance(m, dict) else m for m in matching_dict["matches"]]
         admin_dict["tmdb_matching"] = TMDBMatchingState(**matching_dict)
-    if isinstance(admin_dict["rt_matching"], dict):
-        admin_dict["rt_matching"] = RTMatchingState(**admin_dict["rt_matching"])
+
     
     return AdminState(**admin_dict)
 
@@ -173,9 +172,6 @@ def clear_section_state(state: AdminState, section: str) -> None:
     elif section == "TMDB Matches":
         state.tmdb_matching = TMDBMatchingState()
         prefix = "tmdb_"
-    elif section == "RT Matches":
-        state.rt_matching = RTMatchingState()
-        prefix = "rt_"
     
     # Clear section-specific session state
     for key in list(st.session_state.keys()):
