@@ -388,7 +388,7 @@ def render_announcements():
     render_announcements_list(announcements, on_review=handle_review)
 
 
-async def render_rt_matches():
+def render_rt_matches():
     """Render the RT matches section.
 
     This section allows admins to:
@@ -460,8 +460,8 @@ async def render_rt_matches():
                         return
 
                     # Try to collect RT data
-                    async with RTCollector() as collector:
-                        result = await collector.collect_show_data(show_data['id'])
+                    collector = RTCollector()
+                    result = collector.collect_show_data(show_data['id'])
 
                     if result['success']:
                         if result.get('cached'):
@@ -513,8 +513,8 @@ async def render_rt_matches():
             if st.button("Collect Scores", key=f"rt_collect_{show['id']}"):
                 with st.spinner(f"Collecting RT scores for {show['title']}..."):
                     try:
-                        async with RTCollector() as collector:
-                            result = await collector.collect_show_data(show['id'])
+                        collector = RTCollector()
+                        result = collector.collect_show_data(show['id'])
 
                         if result['success']:
                             st.success(f"Successfully collected RT scores for {show['title']}")
