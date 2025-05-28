@@ -75,7 +75,7 @@ class RTCollector:
 
             if not show_response.data:
                 error = f"Show {show_id} not found"
-                self.update_status(show_id, 'error', error)
+                await self.update_status(show_id, 'error', error)
                 return {'success': False, 'error': error}
 
             title = show_response.data[0]['title']
@@ -97,7 +97,7 @@ class RTCollector:
                 }
 
             # Check last status
-            last_status = self.get_last_status(show_id)
+            last_status = await self.get_last_status(show_id)
             if last_status and last_status['status'] == 'error' and last_status['attempts'] >= 3:
                 return {
                     'success': False,
@@ -105,17 +105,17 @@ class RTCollector:
                 }
 
             # Try to find RT page
-            url = self.find_rt_page(title)
+            url = await self.find_rt_page(title)
             if not url:
                 error = f"Could not find RT page for {title}"
-                self.update_status(show_id, 'not_found', error)
+                await self.update_status(show_id, 'not_found', error)
                 return {'success': False, 'error': error}
 
             # Get scores
-            scores = self.get_rt_scores(url)
+            scores = await self.get_rt_scores(url)
             if not scores:
                 error = f"Could not extract scores from {url}"
-                self.update_status(show_id, 'error', error)
+                await self.update_status(show_id, 'error', error)
                 return {'success': False, 'error': error}
 
             # Save scores
@@ -130,7 +130,7 @@ class RTCollector:
             self.supabase.table('rt_success_metrics').upsert(data).execute()
 
             # Update status
-            self.update_status(show_id, 'success')
+            await self.update_status(show_id, 'success')
 
             return {
                 'success': True,
@@ -179,11 +179,11 @@ class RTCollector:
             if not title_link:
                 continue
 
-            result_title = await title_link.text_content()
+            title_content = await title_link.text_content()
             url = await result.get_attribute('href')
 
             # Check if titles match
-            if self.titles_match(title, result_title):
+            if await self.titles_match(title, title_content):
                 return f"https://www.rottentomatoes.com{url}"
 
         return None
