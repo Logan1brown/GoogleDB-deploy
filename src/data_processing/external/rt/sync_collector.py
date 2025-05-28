@@ -32,9 +32,13 @@ class RTCollector:
         
     def __enter__(self):
         """Set up Playwright browser when used as context manager."""
+        logger.info("Starting playwright...")
         self.playwright = sync_playwright().start()
+        logger.info("Launching browser...")
         self.browser = self.playwright.chromium.launch(headless=False)
+        logger.info("Creating page...")
         self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
+        logger.info("Setup complete")
         return self
         
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -97,6 +101,8 @@ class RTCollector:
             
     def collect_show_data(self, show_id: int) -> Dict:
         """Collect RT data for a show."""
+        logger.info(f"Starting collection for show {show_id}")
+        logger.info(f"Browser: {self.browser}, Page: {self.page}")
         try:
             # Get show title
             response = self.supabase.table('shows')\
