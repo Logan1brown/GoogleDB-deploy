@@ -489,10 +489,14 @@ def render_rt_matches():
     # Add divider before unmatched shows
     st.markdown("---")
 
+    # Get matched show IDs
+    matched_shows = supabase.table('rt_success_metrics').select('show_id').execute()
+    matched_ids = [show['show_id'] for show in matched_shows.data]
+    
     # Get unmatched shows
     unmatched_response = supabase.table('shows') \
         .select('id,title') \
-        .not_.in_('id', supabase.table('rt_success_metrics').select('show_id').execute()) \
+        .not_.in_('id', matched_ids) \
         .execute()
 
     unmatched_shows = unmatched_response.data
