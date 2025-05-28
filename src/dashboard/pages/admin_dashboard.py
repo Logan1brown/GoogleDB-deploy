@@ -470,9 +470,13 @@ def render_rt_matches():
                 st.write(f"Show data: {show_data}")
                 try:
                     st.write("Creating collector...")
-                    with RTCollector() as collector:
-                        st.write("Inside context, collecting data...")
-                        result = collector.collect_show_data(show_data['id'])
+                    collector = RTCollector()
+                    st.write("Created collector, entering context...")
+                    st.write(f"Collector state: {collector.__dict__}")
+                    with collector as c:
+                        st.write("Inside context...")
+                        st.write(f"Collector state in context: {c.__dict__}")
+                        result = c.collect_show_data(show_data['id'])
                         st.write("Collection done")
                         
                         if not result['success']:
