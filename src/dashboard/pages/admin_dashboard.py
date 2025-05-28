@@ -469,8 +469,11 @@ def render_rt_matches():
                 st.info(f"Starting collection for {selected_title}...")
                 st.write(f"Show data: {show_data}")
                 try:
+                    st.write("Creating collector...")
                     with RTCollector() as collector:
+                        st.write("Inside context, collecting data...")
                         result = collector.collect_show_data(show_data['id'])
+                        st.write("Collection done")
                         
                         if not result['success']:
                             if 'error' in result:
