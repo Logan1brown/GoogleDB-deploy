@@ -453,8 +453,8 @@ def render_rt_matches():
 
     async def collect_rt_scores(show_id: int, title: str):
         """Collect RT scores for a show."""
-        collector = RTCollector()
-        return await collector.collect_show_data(show_id)
+        async with RTCollector() as collector:
+            return await collector.collect_show_data(show_id)
 
     if selected_title:
         # Get show data and collect RT scores
