@@ -61,23 +61,39 @@ class RTCollector:
     def __enter__(self):
         """Set up Playwright browser when used as context manager."""
         try:
+            self.st.write("Starting browser setup...")
             # First make sure browsers are installed
             try:
+                self.st.write("Checking for playwright...")
+                which_result = subprocess.run(['which', 'playwright'], 
+                                            capture_output=True, text=True)
+                self.st.write(f"Which result: {which_result.stdout}")
+                self.st.write(f"PATH: {os.environ.get('PATH')}")
+                
                 self.install_browsers()
             except Exception as e:
                 self.st.error(f"Error installing browsers: {e}")
-                # Continue anyway - browsers might already be installed
+                self.st.write("Continuing anyway - browsers might be installed")
             
             self.st.write("Starting playwright...")
             try:
                 self.playwright = sync_playwright().start()
+                self.st.write("Playwright started successfully")
             except Exception as e:
                 self.st.error(f"Error starting Playwright: {e}")
-                raise
+                self.st.write("Trying to import directly...")
+                try:
+                    from playwright.sync_api import sync_playwright
+                    self.playwright = sync_playwright().start()
+                    self.st.write("Direct import worked")
+                except Exception as e2:
+                    self.st.error(f"Direct import failed: {e2}")
+                    raise
                 
             self.st.write("Launching browser...")
             try:
                 self.browser = self.playwright.chromium.launch(headless=True)
+                self.st.write("Browser launched successfully")
             except Exception as e:
                 self.st.error(f"Error launching browser: {e}")
                 if self.playwright:
@@ -87,6 +103,7 @@ class RTCollector:
             self.st.write("Creating page...")
             try:
                 self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
+                self.st.write("Page created successfully")
             except Exception as e:
                 self.st.error(f"Error creating page: {e}")
                 if self.browser:
@@ -259,9 +276,9 @@ class RTCollector:
         
         status_data = {
             'show_id': show_id,
-            'status': status_map[status],
-            'error': error,
-            'last_attempt': datetime.now().isoformat()
+            'status': status,
+            'error_message': error,
+            'last_attempt': datetime.now().isoformat(),
         }
         
         try:
