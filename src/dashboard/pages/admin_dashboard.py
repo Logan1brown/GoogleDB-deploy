@@ -3,6 +3,7 @@
 This page is only visible to admin users and provides access to administrative functions.
 """
 
+import asyncio
 import streamlit as st
 import json
 import logging
@@ -464,7 +465,7 @@ def render_rt_matches():
 
                     # Try to collect RT data
                     collector = RTCollector()
-                    result = collector.collect_show_data(show_data['id'])
+                    result = asyncio.run(collector.collect_show_data(show_data['id']))
 
                     if result['success']:
                         if result.get('cached'):

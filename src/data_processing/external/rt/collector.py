@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from urllib.parse import quote
 
-from playwright.sync_api import sync_playwright, Browser, Page, TimeoutError
+from playwright.async_api import async_playwright, Browser, Page, TimeoutError
 from src.dashboard.services.supabase import get_supabase_client
 
 # Configure logging
@@ -37,23 +37,25 @@ class RTCollector:
         self.requests_per_minute = 10
         self.last_request_time = None
         
-    def setup(self):
+    async def setup(self):
         """Set up Playwright browser and page."""
-        playwright = sync_playwright().start()
-        self.browser = playwright.chromium.launch(headless=False)
-        self.context = self.browser.new_context(viewport={'width': 1280, 'height': 800})
-        self.page = self.context.new_page()
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch(headless=False)
+        self.context = await self.browser.new_context(viewport={'width': 1280, 'height': 800})
+        self.page = await self.context.new_page()
 
-    def cleanup(self):
+    async def cleanup(self):
         """Clean up browser resources."""
         if self.page:
-            self.page.close()
+            await self.page.close()
         if self.context:
-            self.context.close()
+            await self.context.close()
         if self.browser:
-            self.browser.close()
+            await self.browser.close()
+        if hasattr(self, 'playwright'):
+            await self.playwright.stop()
 
-    def collect_show_data(self, show_id: int) -> Dict:
+    async def collect_show_data(self, show_id: int) -> Dict:
         """Collect RT data for a show.
 
         Args:
@@ -63,7 +65,7 @@ class RTCollector:
             Dict with success flag and either scores or error message
         """
         # Set up browser
-        self.setup()
+        await self.setup()
         try:
             # Get show data
             show_response = self.supabase.table('shows')\
@@ -141,9 +143,9 @@ class RTCollector:
             return {'success': False, 'error': error}
         finally:
             # Clean up browser
-            self.cleanup()
+            await self.cleanup()
 
-    def find_rt_page(self, title: str) -> Optional[str]:
+    async def find_rt_page(self, title: str) -> Optional[str]:
         """Find the RT page for a show.
 
         Args:
@@ -154,39 +156,39 @@ class RTCollector:
         """
         # Navigate to RT search
         search_url = f"https://www.rottentomatoes.com/search?search={quote(title)}"
-        self.page.goto(search_url)
+        await self.page.goto(search_url)
 
         # Wait for search results
-        self.page.wait_for_selector('.search-page-media-row')
+        await self.page.wait_for_selector('.search-page-media-row')
 
         # Get TV show results
-        results = self.page.query_selector_all('.search-page-media-row')
+        results = await self.page.query_selector_all('.search-page-media-row')
 
         for result in results:
             # Check if it's a TV show
-            type_text = result.query_selector('.media-type')
+            type_text = await result.query_selector('.media-type')
             if not type_text:
                 continue
 
-            type_str = type_text.text_content()
+            type_str = await type_text.text_content()
             if 'TV Series' not in type_str:
                 continue
 
             # Get title and URL
-            title_link = result.query_selector('a[slot="title"]')
+            title_link = await result.query_selector('.p--small')
             if not title_link:
                 continue
 
-            result_title = title_link.text_content()
-            result_url = title_link.get_attribute('href')
+            result_title = await title_link.text_content()
+            url = await result.get_attribute('href')
 
             # Check if titles match
             if self.titles_match(title, result_title):
-                return f"https://www.rottentomatoes.com{result_url}"
+                return f"https://www.rottentomatoes.com{url}"
 
         return None
 
-    def get_rt_scores(self, url: str) -> Optional[Dict]:
+    async def get_rt_scores(self, url: str) -> Optional[Dict[str, int]]:
         """Get RT scores from a show page.
 
         Args:
@@ -195,31 +197,39 @@ class RTCollector:
         Returns:
             Dict with tomatometer and popcornmeter scores or None if not found
         """
-        self.page.goto(url)
+        await self.page.goto(url)
 
         # Wait for score elements
-        self.page.wait_for_selector('score-board')
+        await self.page.wait_for_selector('score-board')
 
-        # Get scores
-        score_board = self.page.query_selector('score-board')
-        if not score_board:
+        # Get critics score
+        critics = await self.page.query_selector('rt-text[slot="criticsScore"]')
+        if critics:
+            critics_score = await critics.text_content()
+            try:
+                tomatometer = int(critics_score.strip('%'))
+            except ValueError:
+                return None
+        else:
             return None
 
-        tomatometer = score_board.get_attribute('tomatometerscore')
-        popcornmeter = score_board.get_attribute('audiencescore')
-
-        if not tomatometer or not popcornmeter:
+        # Get audience score
+        audience = await self.page.query_selector('rt-text[slot="audienceScore"]')
+        if audience:
+            audience_score = await audience.text_content()
+            try:
+                popcornmeter = int(audience_score.strip('%'))
+            except ValueError:
+                return None
+        else:
             return None
 
-        try:
-            return {
-                'tomatometer': int(tomatometer),
-                'popcornmeter': int(popcornmeter)
-            }
-        except ValueError:
-            return None
+        return {
+            'tomatometer': tomatometer,
+            'popcornmeter': popcornmeter
+        }
 
-    def update_status(self, show_id: int, status: str, error: Optional[str] = None):
+    async def update_status(self, show_id: int, status: str, error: Optional[str] = None):
         """Update the status of a show in the database.
 
         Args:
@@ -250,7 +260,7 @@ class RTCollector:
         # Insert or update
         self.supabase.table('rt_match_status').upsert(data).execute()
 
-    def get_last_status(self, show_id: int) -> Optional[Dict]:
+    async def get_last_status(self, show_id: int) -> Optional[Dict]:
         """Get the last status for a show.
 
         Args:
@@ -270,7 +280,7 @@ class RTCollector:
         else:
             return None
 
-    def titles_match(self, title1: str, title2: str) -> bool:
+    async def titles_match(self, title1: str, title2: str) -> bool:
         """Check if two titles match.
 
         Args:
@@ -288,7 +298,7 @@ class RTCollector:
         # Check if titles match
         return title1_words == title2_words
 
-    def update_status(self, show_id: int, status: str, error: Optional[str] = None):
+    async def update_status(self, show_id: int, status: str, error: Optional[str] = None):
         try:
             status_data = {
                 'show_id': show_id,
