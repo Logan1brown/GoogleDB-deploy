@@ -3,7 +3,6 @@
 This page is only visible to admin users and provides access to administrative functions.
 """
 
-import asyncio
 import streamlit as st
 import json
 import logging
@@ -12,7 +11,6 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from src.shared.auth import auth_required
-from src.shared.command import run_command
 
 # Configure logging
 logging.basicConfig(
@@ -393,7 +391,7 @@ def render_announcements():
     render_announcements_list(announcements, on_review=handle_review)
 
 
-async def render_rt_matches():
+def render_rt_matches():
     """Render the RT matches section.
 
     This section allows admins to:
