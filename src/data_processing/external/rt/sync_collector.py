@@ -99,6 +99,36 @@ class RTCollector:
             self.update_status(show_id, 'error', str(e))
             return {'success': False, 'error': str(e)}
 
+    def clean_title(self, title: str) -> str:
+        """Clean a title for comparison by removing year ranges and common suffixes."""
+        # Remove year ranges like (2019 - 2023)
+        import re
+        title = re.sub(r'\s*\([0-9]{4}\s*-\s*[0-9]{4}\)\s*$', '', title)
+        title = re.sub(r'\s*\([0-9]{4}\)\s*$', '', title)
+        
+        # Remove common suffixes
+        suffixes = [': The Series', ': The Show']
+        for suffix in suffixes:
+            if title.endswith(suffix):
+                title = title[:-len(suffix)]
+        
+        return title.strip().lower()
+    
+    def titles_match(self, title1: str, title2: str) -> bool:
+        """Check if two titles match after cleaning."""
+        clean1 = self.clean_title(title1)
+        clean2 = self.clean_title(title2)
+        
+        # Try exact match first
+        if clean1 == clean2:
+            return True
+            
+        # Try substring match
+        if clean1 in clean2 or clean2 in clean1:
+            return True
+            
+        return False
+
     def find_rt_page(self, title: str) -> Optional[str]:
         """Find the RT page for a show."""
         try:
@@ -119,8 +149,13 @@ class RTCollector:
                     
                 logger.info(f"Found: {text.strip()} -> {href}")
                 
-                # Click first matching link that's not a season
-                if title.lower() in text.lower():
+                # Debug logging
+                clean_title = self.clean_title(title)
+                clean_text = self.clean_title(text)
+                logger.info(f"Comparing: '{clean_title}' with '{clean_text}'")
+                
+                # Use flexible title matching
+                if clean_title in clean_text or clean_text in clean_title:
                     logger.info(f"Clicking main show link: {href}")
                     link.click()
                     # Wait for both score elements to appear
