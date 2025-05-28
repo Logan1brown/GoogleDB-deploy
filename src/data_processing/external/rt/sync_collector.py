@@ -3,13 +3,12 @@
 This module handles automated collection of show data from Rotten Tomatoes using sync Playwright.
 """
 
-import logging
 import os
 import sys
 import subprocess
 from urllib.parse import quote
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from playwright.sync_api import sync_playwright, TimeoutError
 
 # Add project root to path
@@ -18,47 +17,45 @@ sys.path.insert(0, project_root)
 
 from src.dashboard.services.supabase import get_supabase_client
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 class RTCollector:
     """Handles automated collection of show data from Rotten Tomatoes."""
     
-    def __init__(self):
+    def __init__(self, st: Any):
         """Initialize the collector."""
         self.supabase = get_supabase_client()
         self.playwright = None
         self.browser = None
         self.page = None
+        self.st = st
         
     def install_browsers(self):
         """Install Playwright browsers if not already installed."""
         try:
-            logger.info("Installing browsers...")
+            self.st.write("Installing browsers...")
             # First check if playwright is in PATH
             which_result = subprocess.run(['which', 'playwright'], 
                                         capture_output=True, text=True)
-            logger.info(f"Which playwright: {which_result.stdout}")
+            self.st.write(f"Which playwright: {which_result.stdout}")
             if which_result.returncode != 0:
-                logger.error("playwright not found in PATH")
+                self.st.error("playwright not found in PATH")
                 # Try installing browsers using python -m
-                logger.info("Trying python -m playwright install...")
+                self.st.write("Trying python -m playwright install...")
                 result = subprocess.run(['python', '-m', 'playwright', 'install', 'chromium'],
                                       capture_output=True, text=True)
             else:
                 # Use playwright directly
-                logger.info("Using playwright from PATH...")
+                self.st.write("Using playwright from PATH...")
                 result = subprocess.run(['playwright', 'install', 'chromium'],
                                       capture_output=True, text=True)
             
-            logger.info(f"Install stdout: {result.stdout}")
-            logger.info(f"Install stderr: {result.stderr}")
+            self.st.write(f"Install stdout: {result.stdout}")
+            self.st.write(f"Install stderr: {result.stderr}")
             if result.returncode != 0:
-                logger.error(f"Error installing browsers: {result.stderr}")
+                self.st.error(f"Error installing browsers: {result.stderr}")
                 raise Exception(f"Failed to install browsers: {result.stderr}")
-            logger.info("Browsers installed successfully")
+            self.st.success("Browsers installed successfully")
         except Exception as e:
-            logger.error(f"Error running playwright install: {e}")
+            self.st.error(f"Error running playwright install: {e}")
             raise
 
     def __enter__(self):
@@ -68,40 +65,40 @@ class RTCollector:
             try:
                 self.install_browsers()
             except Exception as e:
-                logger.error(f"Error installing browsers: {e}")
+                self.st.error(f"Error installing browsers: {e}")
                 # Continue anyway - browsers might already be installed
             
-            logger.info("Starting playwright...")
+            self.st.write("Starting playwright...")
             try:
                 self.playwright = sync_playwright().start()
             except Exception as e:
-                logger.error(f"Error starting Playwright: {e}")
+                self.st.error(f"Error starting Playwright: {e}")
                 raise
                 
-            logger.info("Launching browser...")
+            self.st.write("Launching browser...")
             try:
                 self.browser = self.playwright.chromium.launch(headless=True)
             except Exception as e:
-                logger.error(f"Error launching browser: {e}")
+                self.st.error(f"Error launching browser: {e}")
                 if self.playwright:
                     self.playwright.stop()
                 raise
                 
-            logger.info("Creating page...")
+            self.st.write("Creating page...")
             try:
                 self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
             except Exception as e:
-                logger.error(f"Error creating page: {e}")
+                self.st.error(f"Error creating page: {e}")
                 if self.browser:
                     self.browser.close()
                 if self.playwright:
                     self.playwright.stop()
                 raise
                 
-            logger.info("Setup complete")
+            self.st.success("Setup complete")
             return self
         except Exception as e:
-            logger.error(f"Error in __enter__: {e}")
+            self.st.error(f"Error in __enter__: {e}")
             # Make sure to clean up if we fail
             if self.browser:
                 self.browser.close()

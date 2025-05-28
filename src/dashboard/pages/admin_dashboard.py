@@ -470,7 +470,7 @@ def render_rt_matches():
                 st.write(f"Show data: {show_data}")
                 try:
                     st.write("Creating collector...")
-                    collector = RTCollector()
+                    collector = RTCollector(st)
                     st.write("Created collector, entering context...")
                     st.write(f"Collector state: {collector.__dict__}")
                     try:
