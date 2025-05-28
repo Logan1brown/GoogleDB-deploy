@@ -471,45 +471,56 @@ def render_rt_matches():
                 try:
                     st.write("Creating collector...")
                     collector = RTCollector(st)
-                    st.write("Created collector, entering context...")
-                    st.write(f"Collector state: {collector.__dict__}")
-                    try:
-                        st.write("Starting browser setup...")
-                        with collector as c:
-                            st.write("Inside context...")
-                            st.write(f"Collector state in context: {c.__dict__}")
-                            st.write("Starting data collection...")
-                            result = c.collect_show_data(show_data['id'])
-                            st.write("Collection done")
-                    except Exception as e:
-                        st.error("Detailed error info:")
-                        st.error(f"Type: {type(e).__name__}")
-                        st.error(f"Message: {str(e)}")
-                        import traceback
-                        st.error(f"Traceback:\n{traceback.format_exc()}")
-                        raise
-                        
-                        if not result['success']:
-                            if 'error' in result:
-                                st.error(f"Error collecting data: {result['error']}")
-                            else:
-                                st.warning(f"Could not find {selected_title} on Rotten Tomatoes")
-                            return
-                            
-                        # Success! Show the scores
-                        st.success(f"Successfully collected RT scores for {selected_title}")
-                        scores = result['scores']
-                        
-                        # Show scores
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.metric("Critics Score", scores['critics'])
-                        with col2:
-                            st.metric("Audience Score", scores['audience'])
-                            
+                    st.write("Created collector")
+                    st.write(f"Collector state before context: {collector.__dict__}")
+                    
+                    # Try to collect without context first
+                    st.write("Trying direct collection...")
+                    result = collector.collect_show_data(show_data['id'])
+                    st.write("Direct collection done")
                 except Exception as e:
-                    st.error(f"Error running collector: {str(e)}")
+                    st.error("Error in direct collection:")
+                    st.error(f"Type: {type(e).__name__}")
+                    st.error(f"Message: {str(e)}")
+                    import traceback
+                    st.error(f"Traceback:\n{traceback.format_exc()}")
+                    raise
+                    
+                try:
+                    # Now try with context
+                    st.write("Now trying with context...")
+                    with collector as c:
+                        st.write("Inside context manager")
+                        st.write(f"Collector state in context: {c.__dict__}")
+                        st.write("Starting data collection...")
+                        result = c.collect_show_data(show_data['id'])
+                        st.write("Collection in context done")
+                except Exception as e:
+                    st.error("Error in context:")
+                    st.error(f"Type: {type(e).__name__}")
+                    st.error(f"Message: {str(e)}")
+                    import traceback
+                    st.error(f"Traceback:\n{traceback.format_exc()}")
+                    raise
+                
+                if not result['success']:
+                    if 'error' in result:
+                        st.error(f"Error collecting data: {result['error']}")
+                    else:
+                        st.warning(f"Could not find {selected_title} on Rotten Tomatoes")
                     return
+                    
+                # Success! Show the scores
+                st.success(f"Successfully collected RT scores for {selected_title}")
+                scores = result['scores']
+                
+                # Show scores
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Tomatometer", f"{scores['tomatometer']}%")
+                with col2:
+                    st.metric("Audience Score", f"{scores['audience_score']}%")
+                
             except Exception as e:
                 st.error(f"Error collecting RT data: {str(e)}")
 
