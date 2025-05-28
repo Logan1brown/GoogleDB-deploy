@@ -470,8 +470,11 @@ def render_rt_matches():
                 script_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data_processing', 'external', 'rt', 'collector.py')
                 cmd = f"python {script_path} {show_data['id']}"
                 st.info(f"Launching collector for {selected_title}...")
-                run_command(cmd, cwd=os.path.dirname(script_path), blocking=False)
-                # Ignore the return value since we'll poll the database
+                try:
+                    run_command(cmd, cwd=os.path.dirname(script_path), blocking=False)
+                except Exception as e:
+                    st.error(f"Error launching collector: {str(e)}")
+                    return
 
                 # Wait and check status twice
                 for attempt in range(2):
