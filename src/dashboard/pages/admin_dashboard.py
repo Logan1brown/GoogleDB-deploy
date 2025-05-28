@@ -451,11 +451,6 @@ def render_rt_matches():
         clear_on_submit=False
     )
 
-    async def collect_rt_scores(show_id: int, title: str):
-        """Collect RT scores for a show."""
-        async with RTCollector() as collector:
-            return await collector.collect_show_data(show_id)
-
     if selected_title:
         # Get show data and collect RT scores
         with st.spinner(f"Collecting RT scores for {selected_title}..."):
@@ -468,26 +463,63 @@ def render_rt_matches():
                         st.error(f"No ID found for show {selected_title}")
                         return
 
-                    # Try to collect RT data
-                    result = asyncio.run(collect_rt_scores(show_data['id'], selected_title))
+                    # Launch collector script
+                    script_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data_processing', 'external', 'rt', 'collector.py')
+                    cmd = f"python {script_path} {show_data['id']}"
+                    st.info(f"Launching collector for {selected_title}...")
+                    run_command(cmd, cwd=os.path.dirname(script_path), blocking=False)
 
-                    if result['success']:
-                        if result.get('cached'):
-                            st.info(f"Found cached RT scores for {selected_title}")
+                    # Poll for results
+                    max_attempts = 30  # 30 seconds max wait
+                    for attempt in range(max_attempts):
+                        # Check match status first
+                        status_response = supabase.table('rt_match_status')\
+                            .select('*')\
+                            .eq('show_id', show_data['id'])\
+                            .order('last_attempt', desc=True)\
+                            .limit(1)\
+                            .execute()
+                        
+                        if status_response.data:
+                            status = status_response.data[0]
+                            
+                            if status['status'] == 'matched':
+                                # Found a match, get the scores
+                                metrics_response = supabase.table('rt_success_metrics')\
+                                    .select('*')\
+                                    .eq('show_id', show_data['id'])\
+                                    .execute()
+                                
+                                if metrics_response.data:
+                                    scores = metrics_response.data[0]
+                                    st.success(f"Successfully collected RT scores for {selected_title}")
+                                    
+                                    # Show scores
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.metric("Critics Score", f"{scores['tomatometer']}%")
+                                    with col2:
+                                        st.metric("Audience Score", f"{scores['popcornmeter']}%")
+                                    break
+                            elif status['status'] == 'error':
+                                st.error(f"Error collecting RT data: {status['error']}")
+                                break
+                            elif status['status'] == 'not_found':
+                                st.warning(f"Could not find {selected_title} on Rotten Tomatoes")
+                                break
+                            elif status['status'] == 'pending':
+                                st.info(f"Collection in progress for {selected_title}...")
+                            
+                        time.sleep(1)  # Wait 1 second between checks
+                        
+                        if attempt == max_attempts - 1:
+                            st.error("Timed out waiting for RT data collection")
                         else:
-                            st.success(f"Successfully collected RT scores for {selected_title}")
-
-                        # Show scores
-                        scores = result['scores']
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.metric("Critics Score", f"{scores['tomatometer']}%")
-                        with col2:
-                            st.metric("Audience Score", f"{scores['popcornmeter']}%")
+                            st.info("Collection in progress...check back in a moment")
                     else:
-                        st.error(f"Error collecting RT data: {result['error']}")
+                        st.warning("Collection started but no status found yet...")
                 else:
-                    st.error(f"Could not load show data for {selected_title}")
+                    st.error(f"No show data found for {selected_title}")
             except Exception as e:
                 st.error(f"Error collecting RT data: {str(e)}")
 

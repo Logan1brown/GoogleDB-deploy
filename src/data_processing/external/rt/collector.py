@@ -4,24 +4,28 @@ This module handles automated collection of show data from Rotten Tomatoes using
 It includes:
 1. Show search functionality
 2. Score extraction
-3. Rate limiting and error handling
-4. Status tracking in database
+3. Database updates
 """
 
 import asyncio
 import logging
+import os
+import sys
+import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from urllib.parse import quote
 
 from playwright.async_api import async_playwright, Browser, Page, TimeoutError
-from src.dashboard.services.supabase import get_supabase_client
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Add project root to path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+sys.path.insert(0, project_root)
+
+from src.dashboard.services.supabase import get_supabase_client
+from dotenv import load_dotenv
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class RTCollector:
@@ -39,18 +43,11 @@ class RTCollector:
         
     async def __aenter__(self):
         """Set up Playwright browser when used as context manager."""
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=False)
-        self.context = await self.browser.new_context(viewport={'width': 1280, 'height': 800})
-        self.page = await self.context.new_page()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Clean up browser resources."""
-        if self.page:
-            await self.page.close()
-        if self.context:
-            await self.context.close()
+        pass
         if self.browser:
             await self.browser.close()
         if hasattr(self, 'playwright'):
@@ -60,49 +57,24 @@ class RTCollector:
         """Collect RT data for a show.
 
         Args:
-            show_id: ID of the show
+            show_id: ID of the show to collect data for
 
         Returns:
-            Dict with success flag and either scores or error message
+            Dict with success status and scores or error message
         """
-        # Get show data
-        show_response = self.supabase.table('shows')\
-            .select('title')\
-            .eq('id', show_id)\
-            .execute()
-
-        if not show_response.data:
+        logger.info(f"Starting collection for show {show_id}")
+        
+        # Get show title
+        response = self.supabase.table('shows').select('title').eq('id', show_id).execute()
+        if not response.data:
             error = f"Show {show_id} not found"
-            await self.update_status(show_id, 'error', error)
+            await self.update_status(show_id, 'not_found', error)
             return {'success': False, 'error': error}
 
-        title = show_response.data[0]['title']
+        title = response.data[0]['title']
+        logger.info(f"Found show title: {title}")
 
-        # Check if we already have scores
-        metrics_response = self.supabase.table('rt_success_metrics')\
-            .select('*')\
-            .eq('show_id', show_id)\
-            .execute()
-
-        if metrics_response.data:
-            return {
-                'success': True,
-                'cached': True,
-                'scores': {
-                    'tomatometer': metrics_response.data[0]['tomatometer'],
-                    'popcornmeter': metrics_response.data[0]['popcornmeter']
-                }
-            }
-
-        # Check last status
-        last_status = await self.get_last_status(show_id)
-        if last_status and last_status['status'] == 'error' and last_status['attempts'] >= 3:
-            return {
-                'success': False,
-                'error': f"Already failed {last_status['attempts']} times..."
-            }
-
-        # Try to find RT page
+        # Find RT page
         url = await self.find_rt_page(title)
         if not url:
             error = f"Could not find RT page for {title}"
@@ -112,27 +84,31 @@ class RTCollector:
         # Get scores
         scores = await self.get_rt_scores(url)
         if not scores:
-            error = f"Could not extract scores from {url}"
+            error = f"Could not get scores for {title}"
             await self.update_status(show_id, 'error', error)
             return {'success': False, 'error': error}
 
         # Save scores
-        data = {
-            'show_id': show_id,
-            'rt_id': url.split('/')[-1],  # This will be converted to UUID by Supabase
-            'tomatometer': min(100, max(0, scores['tomatometer'])),  # Ensure in range 0-100
-            'popcornmeter': min(100, max(0, scores['popcornmeter'])),  # Ensure in range 0-100
-            'is_matched': True,
-            'last_updated': datetime.now().isoformat()
-        }
-        self.supabase.table('rt_success_metrics').upsert(data).execute()
+        try:
+            data = {
+                'show_id': show_id,
+                'rt_id': str(uuid.uuid5(uuid.NAMESPACE_URL, url)),  # Generate UUID from URL
+                'tomatometer': int(scores['critics'].strip('%')),  # Convert to int
+                'popcornmeter': int(scores['audience'].strip('%')),  # Convert to int
+                'is_matched': True,
+                'last_updated': datetime.now().isoformat()
+            }
+            self.supabase.table('rt_success_metrics').upsert(data).execute()
+        except Exception as e:
+            logger.error(f"Error saving scores: {e}")
+            await self.update_status(show_id, 'error', str(e))
+            return {'success': False, 'error': str(e)}
 
         # Update status
-        await self.update_status(show_id, 'success')
+        await self.update_status(show_id, 'matched')
 
         return {
             'success': True,
-            'cached': False,
             'scores': scores
         }
 
@@ -145,80 +121,72 @@ class RTCollector:
         Returns:
             RT page URL or None if not found
         """
-        # Navigate to RT search
-        search_url = f"https://www.rottentomatoes.com/search?search={quote(title)}"
-        await self.page.goto(search_url)
+        try:
+            # Go to search with TV filter
+            url = f'https://www.rottentomatoes.com/search?search={quote(title)}&type=tv'
+            logger.info(f"Searching for: {title}")
+            await self.page.goto(url)
+            
+            # Look for show link (exclude season links)
+            links = await self.page.query_selector_all('a[href*="/tv/"]')
+            for link in links:
+                href = await link.get_attribute('href')
+                text = await link.text_content()
+                
+                # Skip season links (ending in /s01, /s02, etc)
+                if href and '/s0' in href:
+                    continue
+                    
+                logger.info(f"Found: {text.strip()} -> {href}")
+                
+                # Click first matching link that's not a season
+                if title.lower() in text.lower():
+                    logger.info(f"Clicking main show link: {href}")
+                    await link.click()
+                    # Wait for both score elements to appear
+                    try:
+                        await self.page.wait_for_selector('rt-text[slot="criticsScore"]', timeout=5000)
+                        await self.page.wait_for_selector('rt-text[slot="audienceScore"]', timeout=5000)
+                        return href
+                    except TimeoutError:
+                        logger.error("Timeout waiting for score elements")
+                        return None
+            
+            logger.error(f"Could not find {title}")
+            return None
+        except Exception as e:
+            logger.error(f"Error finding RT page: {e}")
+            return None
 
-        # Wait for search results
-        await self.page.wait_for_selector('.search-page-media-row')
-
-        # Get TV show results
-        results = await self.page.query_selector_all('.search-page-media-row')
-
-        for result in results:
-            # Check if it's a TV show
-            type_text = await result.query_selector('.media-type')
-            if not type_text:
-                continue
-
-            type_str = await type_text.text_content()
-            if 'TV Series' not in type_str:
-                continue
-
-            # Get title and URL
-            title_link = await result.query_selector('.p--small')
-            if not title_link:
-                continue
-
-            title_content = await title_link.text_content()
-            url = await result.get_attribute('href')
-
-            # Check if titles match
-            if await self.titles_match(title, title_content):
-                return f"https://www.rottentomatoes.com{url}"
-
-        return None
-
-    async def get_rt_scores(self, url: str) -> Optional[Dict[str, int]]:
+    async def get_rt_scores(self, url: str) -> Optional[Dict[str, str]]:
         """Get RT scores from a show page.
 
         Args:
             url: RT page URL
 
         Returns:
-            Dict with tomatometer and popcornmeter scores or None if not found
+            Dict with critics and audience scores or None if not found
         """
-        await self.page.goto(url)
-
-        # Wait for score elements
-        await self.page.wait_for_selector('score-board')
-
-        # Get critics score
-        critics = await self.page.query_selector('rt-text[slot="criticsScore"]')
-        if critics:
-            critics_score = await critics.text_content()
-            try:
-                tomatometer = int(critics_score.strip('%'))
-            except ValueError:
-                return None
-        else:
+        try:
+            scores = {}
+            
+            # Get critics score
+            critics = await self.page.query_selector('rt-text[slot="criticsScore"]')
+            if critics:
+                scores['critics'] = await critics.text_content()
+            
+            # Get audience score
+            audience = await self.page.query_selector('rt-text[slot="audienceScore"]')
+            if audience:
+                scores['audience'] = await audience.text_content()
+            
+            logger.info(f"Scores for show:")
+            logger.info(f"Critics: {scores.get('critics', 'Not found')}")
+            logger.info(f"Audience: {scores.get('audience', 'Not found')}")
+            return scores if scores else None
+        except Exception as e:
+            logger.error(f"Error getting RT scores: {e}")
             return None
-
-        # Get audience score
-        audience = await self.page.query_selector('rt-text[slot="audienceScore"]')
-        if audience:
-            audience_score = await audience.text_content()
-            try:
-                popcornmeter = int(audience_score.strip('%'))
-            except ValueError:
-                return None
-        else:
-            return None
-
-        return {
-            'tomatometer': tomatometer,
-            'popcornmeter': popcornmeter
-        }
 
     async def update_status(self, show_id: int, status: str, error: Optional[str] = None):
         """Update the status of a show in the database.
@@ -291,21 +259,56 @@ class RTCollector:
 
     async def update_status(self, show_id: int, status: str, error: Optional[str] = None):
         try:
+            now = datetime.now()
             status_data = {
                 'show_id': show_id,
                 'status': status,
-                'last_attempt': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
+                'last_attempt': now.isoformat(),
+                'updated_at': now.isoformat()
             }
             
             # Add error details if present
             if error:
-                status_data['error_details'] = error
-            
-            # Upsert status
-            self.supabase.table('rt_match_status')\
-                .upsert(status_data, on_conflict='show_id')\
-                .execute()
-                
+                status_data['error'] = error
+
+            self.supabase.table('rt_match_status').upsert(status_data, on_conflict='show_id').execute()
         except Exception as e:
-            logger.error(f"Error updating status for show {show_id}: {str(e)}")
+            logger.error(f"Error updating status: {e}")
+
+async def main():
+    """Run collector from command line."""
+    # Load environment variables from source directory
+    source_dir = os.path.abspath(os.path.join(project_root, '..', 'GoogleDB'))
+    env_path = os.path.join(source_dir, '.env')
+    load_dotenv(env_path)
+
+    if len(sys.argv) != 2:
+        logger.error("Usage: python collector.py <show_id>")
+        sys.exit(1)
+
+    try:
+        show_id = int(sys.argv[1])
+    except ValueError:
+        logger.error("Error: show_id must be an integer")
+        sys.exit(1)
+
+    collector = RTCollector()
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        page = await browser.new_page(viewport={'width': 1280, 'height': 800})
+        collector.page = page
+        
+        try:
+            result = await collector.collect_show_data(show_id)
+            if result['success']:
+                logger.info(f"Success! Scores: {result['scores']}")
+                sys.exit(0)
+            else:
+                logger.error(f"Error: {result['error']}")
+                sys.exit(1)
+        finally:
+            await browser.close()
+
+if __name__ == '__main__':
+    print("Starting collector...")
+    asyncio.run(main())

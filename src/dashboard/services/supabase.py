@@ -1,7 +1,7 @@
 """Supabase client utilities."""
 
 import os
-from supabase import create_client
+from supabase.client import create_client
 
 def get_supabase_client():
     """Get Supabase client with service role for admin operations."""

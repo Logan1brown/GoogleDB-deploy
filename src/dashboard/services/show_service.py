@@ -140,22 +140,43 @@ def get_unmatched_shows() -> List[Dict]:
     # Process each show's data
     return [process_show_data(show) for show in response.data]
 
+def get_rt_unmatched_shows() -> List[Dict]:
+    """Get all shows that need RT scores collected."""
+    # Get shows that have matched RT scores
+    matched_response = supabase.table('rt_success_metrics')\
+        .select('show_id')\
+        .execute()
+    matched_ids = [row.get('show_id') for row in matched_response.data] if matched_response.data else []
+    
+    # Get shows without RT matches
+    response = supabase.table('shows')\
+        .select(
+            'id, title, network_id, network_list(*), show_team(name, role_type_id)'
+        )\
+        .not_.in_('id', matched_ids)\
+        .eq('active', True)\
+        .order('title')\
+        .execute()
+    
+    # Process each show's data
+    return [process_show_data(show) for show in response.data]
+
 @st.cache_data(ttl=60)
 def search_shows(title: str) -> List[str]:
     """Search for shows by title using fuzzy matching"""
     if not title or len(title.strip()) < 3:
         return []
 
-    # Get all existing shows from shows table
-    response = supabase.table('shows').select('title').eq('active', True).execute()
-    existing_shows = [show['title'] for show in response.data]
+    # Get unmatched shows
+    unmatched_shows = get_rt_unmatched_shows()
+    show_titles = [show['title'] for show in unmatched_shows]
 
     # Find fuzzy matches
-    matches = difflib.get_close_matches(title.lower(), [s.lower() for s in existing_shows], n=5, cutoff=0.6)
+    matches = difflib.get_close_matches(title.lower(), [s.lower() for s in show_titles], n=5, cutoff=0.6)
     
     # Return original case versions of matches
     # Ensure we return a new list each time to avoid caching issues
-    return list(next(s for s in existing_shows if s.lower() == m) for m in matches)
+    return list(next(s for s in show_titles if s.lower() == m) for m in matches)
 
 def load_show(title: str, lookups: Dict[str, List[Dict]] = None) -> dict:
     """Load show data for editing"""

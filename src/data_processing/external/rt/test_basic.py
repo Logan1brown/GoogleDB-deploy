@@ -61,7 +61,7 @@ async def get_scores(page):
 
 async def main():
     """Test RT scraping."""
-    show_name = "The Last of Us"
+    show_name = "Castlevania: Nocturne"
     
     async with async_playwright() as p:
         # Launch browser with ad blocking
