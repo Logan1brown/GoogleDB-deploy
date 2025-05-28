@@ -35,8 +35,11 @@ from ..services.show_service import search_shows
 from ..services.deadline.deadline_client import DeadlineClient
 from ..utils.style_config import COLORS, FONTS
 from ..state.admin_state import TMDBMatchState
-from ..state.session import get_admin_state, update_admin_state, clear_section_state
-
+from src.dashboard.state.session import (
+    get_admin_state, update_admin_state, clear_section_state,
+    clear_matching_state
+)
+from src.data_processing.external.rt.collector import RTCollector
 from supabase import create_client
 from dataclasses import dataclass
 
