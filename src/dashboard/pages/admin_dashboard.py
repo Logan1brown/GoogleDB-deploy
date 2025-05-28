@@ -459,70 +459,14 @@ def render_rt_matches():
                 if not show_data:
                     st.error(f"No show data found for {selected_title}")
                     return
+            except Exception as e:
+                st.error(f"Error loading show data: {str(e)}")
+                return
                     
                 # Make sure we have an ID
                 if 'id' not in show_data:
                     st.error(f"No ID found for show {selected_title}")
                     return
-
-                # Run collector directly
-                st.info(f"Starting collection for {selected_title}...")
-                st.write(f"Show data: {show_data}")
-                try:
-                    st.write("Creating collector...")
-                    collector = RTCollector(st)
-                    st.write("Created collector")
-                    st.write(f"Collector state before context: {collector.__dict__}")
-                    
-                    # Try to collect without context first
-                    st.write("Trying direct collection...")
-                    result = collector.collect_show_data(show_data['id'])
-                    st.write("Direct collection done")
-                except Exception as e:
-                    st.error("Error in direct collection:")
-                    st.error(f"Type: {type(e).__name__}")
-                    st.error(f"Message: {str(e)}")
-                    import traceback
-                    st.error(f"Traceback:\n{traceback.format_exc()}")
-                    raise
-                    
-                try:
-                    # Now try with context
-                    st.write("Now trying with context...")
-                    with collector as c:
-                        st.write("Inside context manager")
-                        st.write(f"Collector state in context: {c.__dict__}")
-                        st.write("Starting data collection...")
-                        result = c.collect_show_data(show_data['id'])
-                        st.write("Collection in context done")
-                except Exception as e:
-                    st.error("Error in context:")
-                    st.error(f"Type: {type(e).__name__}")
-                    st.error(f"Message: {str(e)}")
-                    import traceback
-                    st.error(f"Traceback:\n{traceback.format_exc()}")
-                    raise
-                
-                if not result['success']:
-                    if 'error' in result:
-                        st.error(f"Error collecting data: {result['error']}")
-                    else:
-                        st.warning(f"Could not find {selected_title} on Rotten Tomatoes")
-                    return
-                    
-                # Success! Show the scores
-                st.success(f"Successfully collected RT scores for {selected_title}")
-                scores = result['scores']
-                
-                # Show scores
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Tomatometer", f"{scores['tomatometer']}%")
-                with col2:
-                    st.metric("Audience Score", f"{scores['audience_score']}%")
-                
-            except Exception as e:
-                st.error(f"Error collecting RT data: {str(e)}")
 
     # Add tip about search
     st.info(" Search for shows to collect RT scores")
@@ -631,42 +575,41 @@ def render_tmdb_matches():
         with st.spinner(f"Searching TMDB for {selected_title}..."):
             try:
                 # Get our show data
-                show_data = show_service.load_show(selected_title)
-                if show_data:
-                    # Make sure we have an ID
-                    if 'id' not in show_data:
-                        st.error(f"No ID found for show {selected_title}")
-                        return
+                response = show_service.load_show(selected_title)
+                show_data = next((show for show in response.data if show['title'] == selected_title), None)
+                if not show_data or 'id' not in show_data:
+                    st.error(f"No ID found for show {selected_title}")
+                    return
                         
-                    # Store show ID for matching
-                    show_data['show_id'] = show_data['id']  # Add show_id for match service
-                    matching.our_show_id = show_data['id']
-                    matching.our_show_title = show_data['title']
+                # Store show ID for matching
+                show_data['show_id'] = show_data['id']  # Add show_id for match service
+                matching.our_show_id = show_data['id']
+                matching.our_show_title = show_data['title']
                     
-                    # Get TMDB matches
-                    matches = match_service.search_and_match(show_data)
-                    
-                    if not matches:
-                        st.warning("No matches found")
-                    else:
-                        # Store matches in state
-                        matching.matches = matches
-                        matching.search_query = show_data['title']
-                        matching.our_eps = []  # We'll get EPs from TMDB match
-                        matching.last_validation = None  # Clear any previous validation
-                        update_admin_state(state)
-                        
-                        # Only clear search box after successful match
-                        if 'tmdb_search_bar' in st.session_state:
-                            del st.session_state['tmdb_search_bar']
+                # Get TMDB matches
+                matches = match_service.search_and_match(show_data)
+                
+                if not matches:
+                    st.warning("No matches found")
                 else:
-                    st.error(f"Could not load show data for {selected_title}")
+                    # Store matches in state
+                    matching.matches = matches
+                    matching.search_query = show_data['title']
+                    matching.our_eps = []  # We'll get EPs from TMDB match
+                    matching.last_validation = None  # Clear any previous validation
+                    update_admin_state(state)
+                    
+                    # Only clear search box after successful match
+                    if 'tmdb_search_bar' in st.session_state:
+                        del st.session_state['tmdb_search_bar']
+            except Exception as e:
+                st.error(f"Error loading show: {str(e)}")
             except Exception as e:
                 st.error(f"Error loading show: {str(e)}")
     
     # Add tip about search
     if not matching.matches or matching.validated_show_id:
-        st.info("💡 Search for shows to see potential matches")
+        st.info(" Search for shows to see potential matches")
     
     # Add divider before unmatched shows
     st.markdown("---")

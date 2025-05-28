@@ -28,6 +28,35 @@ class RTCollector:
         self.page = None
         self.st = st
         
+        # Try to install browsers during init
+        try:
+            self.install_browsers()
+        except Exception as e:
+            self.st.error("Error during browser installation:")
+            self.st.error(str(e))
+            if "missing dependencies" in str(e).lower():
+                self.st.error("\nThis is likely because the server is missing required system packages.")
+                self.st.error("Please contact the system administrator to install the required packages:")
+                self.st.code("""
+                sudo apt-get install -y \
+                    libnss3 \
+                    libnspr4 \
+                    libatk1.0-0 \
+                    libatk-bridge2.0-0 \
+                    libcups2 \
+                    libdrm2 \
+                    libxkbcommon0 \
+                    libatspi2.0-0 \
+                    libxcomposite1 \
+                    libxdamage1 \
+                    libxfixes3 \
+                    libxrandr2 \
+                    libgbm1 \
+                    libpango-1.0-0 \
+                    libcairo2 \
+                    libasound2
+                """)
+        
     def install_browsers(self):
         """Install Playwright browsers if not already installed."""
         try:
@@ -62,19 +91,6 @@ class RTCollector:
         """Set up Playwright browser when used as context manager."""
         try:
             self.st.write("Starting browser setup...")
-            # First make sure browsers are installed
-            try:
-                self.st.write("Checking for playwright...")
-                which_result = subprocess.run(['which', 'playwright'], 
-                                            capture_output=True, text=True)
-                self.st.write(f"Which result: {which_result.stdout}")
-                self.st.write(f"PATH: {os.environ.get('PATH')}")
-                
-                self.install_browsers()
-            except Exception as e:
-                self.st.error(f"Error installing browsers: {e}")
-                self.st.write("Continuing anyway - browsers might be installed")
-            
             self.st.write("Starting playwright...")
             try:
                 self.playwright = sync_playwright().start()
@@ -82,41 +98,25 @@ class RTCollector:
             except Exception as e:
                 self.st.error(f"Error starting Playwright: {e}")
                 self.st.write("Trying to import directly...")
-                try:
-                    from playwright.sync_api import sync_playwright
-                    self.playwright = sync_playwright().start()
-                    self.st.write("Direct import worked")
-                except Exception as e2:
-                    self.st.error(f"Direct import failed: {e2}")
-                    raise
-                
+                from playwright.sync_api import sync_playwright
+                self.playwright = sync_playwright().start()
+                self.st.write("Direct import worked")
+            
             self.st.write("Launching browser...")
             try:
                 self.browser = self.playwright.chromium.launch(headless=True)
-                self.st.write("Browser launched successfully")
             except Exception as e:
                 self.st.error(f"Error launching browser: {e}")
-                if self.playwright:
-                    self.playwright.stop()
+                if "missing dependencies" in str(e).lower():
+                    self.st.error("\nThis is likely because the server is missing required system packages.")
+                    self.st.error("Please contact the system administrator to install the required packages.")
                 raise
-                
-            self.st.write("Creating page...")
-            try:
-                self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
-                self.st.write("Page created successfully")
-            except Exception as e:
-                self.st.error(f"Error creating page: {e}")
-                if self.browser:
-                    self.browser.close()
-                if self.playwright:
-                    self.playwright.stop()
-                raise
-                
-            self.st.success("Setup complete")
+            
+            self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
             return self
+            
         except Exception as e:
-            self.st.error(f"Error in __enter__: {e}")
-            # Make sure to clean up if we fail
+            self.st.error(f"Error in enter: {e}")
             if self.browser:
                 self.browser.close()
             if self.playwright:
