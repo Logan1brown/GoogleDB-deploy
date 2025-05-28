@@ -35,7 +35,7 @@ class RTCollector:
         logger.info("Starting playwright...")
         self.playwright = sync_playwright().start()
         logger.info("Launching browser...")
-        self.browser = self.playwright.chromium.launch(headless=False)
+        self.browser = self.playwright.chromium.launch(headless=True)
         logger.info("Creating page...")
         self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
         logger.info("Setup complete")
