@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from urllib.parse import quote
 
-from playwright.async_api import async_playwright, Browser, Page, TimeoutError
+from playwright.sync_api import sync_playwright, Browser, Page, TimeoutError
 from src.dashboard.services.supabase import get_supabase_client
 
 # Configure logging
@@ -37,16 +37,21 @@ class RTCollector:
         self.requests_per_minute = 10
         self.last_request_time = None
         
-    async def __aenter__(self):
-        """Set up Playwright browser when used as context manager."""
-        await self.setup()
-        return self
+    def setup(self):
+        """Set up Playwright browser and page."""
+        playwright = sync_playwright().start()
+        self.browser = playwright.chromium.launch()
+        self.context = self.browser.new_context()
+        self.page = self.context.new_page()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def cleanup(self):
         """Clean up browser resources."""
-        self.page.close()
-        self.context.close()
-        self.browser.close()
+        if self.page:
+            self.page.close()
+        if self.context:
+            self.context.close()
+        if self.browser:
+            self.browser.close()
 
     def collect_show_data(self, show_id: int) -> Dict:
         """Collect RT data for a show.
@@ -57,76 +62,86 @@ class RTCollector:
         Returns:
             Dict with success flag and either scores or error message
         """
-        # Get show data
-        show_response = self.supabase.table('shows')\
-            .select('title')\
-            .eq('id', show_id)\
-            .execute()
+        # Set up browser
+        self.setup()
+        try:
+            # Get show data
+            show_response = self.supabase.table('shows')\
+                .select('title')\
+                .eq('id', show_id)\
+                .execute()
 
-        if not show_response.data:
-            error = f"Show {show_id} not found"
-            self.update_status(show_id, 'error', error)
-            return {'success': False, 'error': error}
+            if not show_response.data:
+                error = f"Show {show_id} not found"
+                self.update_status(show_id, 'error', error)
+                return {'success': False, 'error': error}
 
-        title = show_response.data[0]['title']
+            title = show_response.data[0]['title']
 
-        # Check if we already have scores
-        metrics_response = self.supabase.table('rt_success_metrics')\
-            .select('*')\
-            .eq('show_id', show_id)\
-            .execute()
+            # Check if we already have scores
+            metrics_response = self.supabase.table('rt_success_metrics')\
+                .select('*')\
+                .eq('show_id', show_id)\
+                .execute()
 
-        if metrics_response.data:
+            if metrics_response.data:
+                return {
+                    'success': True,
+                    'cached': True,
+                    'scores': {
+                        'tomatometer': metrics_response.data[0]['tomatometer'],
+                        'popcornmeter': metrics_response.data[0]['popcornmeter']
+                    }
+                }
+
+            # Check last status
+            last_status = self.get_last_status(show_id)
+            if last_status and last_status['status'] == 'error' and last_status['attempts'] >= 3:
+                return {
+                    'success': False,
+                    'error': f"Already failed {last_status['attempts']} times..."
+                }
+
+            # Try to find RT page
+            url = self.find_rt_page(title)
+            if not url:
+                error = f"Could not find RT page for {title}"
+                self.update_status(show_id, 'not_found', error)
+                return {'success': False, 'error': error}
+
+            # Get scores
+            scores = self.get_rt_scores(url)
+            if not scores:
+                error = f"Could not extract scores from {url}"
+                self.update_status(show_id, 'error', error)
+                return {'success': False, 'error': error}
+
+            # Save scores
+            data = {
+                'show_id': show_id,
+                'rt_id': url.split('/')[-1],  # This will be converted to UUID by Supabase
+                'tomatometer': min(100, max(0, scores['tomatometer'])),  # Ensure in range 0-100
+                'popcornmeter': min(100, max(0, scores['popcornmeter'])),  # Ensure in range 0-100
+                'is_matched': True,
+                'last_updated': datetime.now().isoformat()
+            }
+            self.supabase.table('rt_success_metrics').upsert(data).execute()
+
+            # Update status
+            self.update_status(show_id, 'success')
+
             return {
                 'success': True,
-                'cached': True,
-                'scores': {
-                    'tomatometer': metrics_response.data[0]['tomatometer'],
-                    'popcornmeter': metrics_response.data[0]['popcornmeter']
-                }
+                'cached': False,
+                'scores': scores
             }
-
-        # Check last status
-        last_status = self.get_last_status(show_id)
-        if last_status and last_status['status'] == 'error' and last_status['attempts'] >= 3:
-            return {
-                'success': False,
-                'error': f"Already failed {last_status['attempts']} times..."
-            }
-
-        # Try to find RT page
-        url = self.find_rt_page(title)
-        if not url:
-            error = f"Could not find RT page for {title}"
-            self.update_status(show_id, 'not_found', error)
-            return {'success': False, 'error': error}
-
-        # Get scores
-        scores = self.get_rt_scores(url)
-        if not scores:
-            error = f"Could not extract scores from {url}"
+        except Exception as e:
+            error = str(e)
             self.update_status(show_id, 'error', error)
             return {'success': False, 'error': error}
-
-        # Save scores
-        data = {
-            'show_id': show_id,
-            'rt_id': url.split('/')[-1],  # This will be converted to UUID by Supabase
-            'tomatometer': min(100, max(0, scores['tomatometer'])),  # Ensure in range 0-100
-            'popcornmeter': min(100, max(0, scores['popcornmeter'])),  # Ensure in range 0-100
-            'is_matched': True,
-            'last_updated': datetime.now().isoformat()
-        }
-        self.supabase.table('rt_success_metrics').upsert(data).execute()
-
-        # Update status
-        self.update_status(show_id, 'success')
-
-        return {
-            'success': True,
-            'cached': False,
-            'scores': scores
-        }
+        finally:
+            # Clean up browser
+            self.cleanup()
 
     def find_rt_page(self, title: str) -> Optional[str]:
         """Find the RT page for a show.
