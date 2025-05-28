@@ -111,12 +111,13 @@ class RTCollector:
         # Save scores
         data = {
             'show_id': show_id,
-            'rt_id': url.split('/')[-1],
-            'tomatometer': scores['tomatometer'],
-            'popcornmeter': scores['popcornmeter'],
-            'is_matched': True
+            'rt_id': url.split('/')[-1],  # This will be converted to UUID by Supabase
+            'tomatometer': min(100, max(0, scores['tomatometer'])),  # Ensure in range 0-100
+            'popcornmeter': min(100, max(0, scores['popcornmeter'])),  # Ensure in range 0-100
+            'is_matched': True,
+            'last_updated': datetime.now().isoformat()
         }
-        self.supabase.table('rt_success_metrics').insert(data).execute()
+        self.supabase.table('rt_success_metrics').upsert(data).execute()
 
         # Update status
         self.update_status(show_id, 'success')
@@ -211,23 +212,28 @@ class RTCollector:
             status: Status to set (not_found, error, success)
             error: Optional error message
         """
+        # Map our status to DB enum
+        status_map = {
+            'not_found': 'not_found',
+            'error': 'error',
+            'success': 'matched',
+            'pending': 'pending'
+        }
+        db_status = status_map.get(status, 'error')
+        
         # Get existing status
         last_status = self.get_last_status(show_id)
-        
-        # Get current timestamp
-        now = datetime.now()
         
         # Create new status entry
         data = {
             'show_id': show_id,
-            'status': status,
-            'error': error,
-            'timestamp': now.isoformat(),
+            'status': db_status,
+            'error_details': error,
             'attempts': last_status['attempts'] + 1 if last_status else 1
         }
         
-        # Insert into database
-        self.supabase.table('rt_match_status').insert(data).execute()
+        # Insert or update
+        self.supabase.table('rt_match_status').upsert(data).execute()
 
     def get_last_status(self, show_id: int) -> Optional[Dict]:
         """Get the last status for a show.
@@ -242,8 +248,6 @@ class RTCollector:
         last_status_response = self.supabase.table('rt_match_status')\
             .select('*')\
             .eq('show_id', show_id)\
-            .order('timestamp', desc=True)\
-            .limit(1)\
             .execute()
 
         if last_status_response.data:
