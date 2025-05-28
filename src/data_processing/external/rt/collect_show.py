@@ -11,7 +11,13 @@ def main():
         
     show_id = int(sys.argv[1])
     
-    with RTCollector() as collector:
+    # Create a mock st for script usage
+    class MockSt:
+        def write(self, msg): print(msg)
+        def error(self, msg): print(f"ERROR: {msg}")
+        def success(self, msg): print(f"SUCCESS: {msg}")
+    
+    with RTCollector(MockSt()) as collector:
         result = collector.collect_show_data(show_id)
         print(result)
 

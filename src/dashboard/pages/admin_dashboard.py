@@ -547,7 +547,7 @@ def render_rt_matches():
             if st.button("Collect Scores", key=f"rt_collect_{show['id']}"):
                 with st.spinner(f"Collecting RT scores for {show['title']}..."):
                     try:
-                        collector = RTCollector()
+                        collector = RTCollector(st)
                         result = collector.collect_show_data(show['id'])
 
                         if result['success']:
