@@ -492,7 +492,7 @@ def render_rt_matches():
     # Get unmatched shows
     unmatched_response = supabase.table('shows') \
         .select('id,title') \
-        .not_.in_('id', supabase.table('rt_success_metrics').select('show_id')) \
+        .not_.in_('id', supabase.table('rt_success_metrics').select('show_id').execute()) \
         .execute()
 
     unmatched_shows = unmatched_response.data
