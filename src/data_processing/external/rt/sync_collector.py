@@ -35,8 +35,24 @@ class RTCollector:
         """Install Playwright browsers if not already installed."""
         try:
             logger.info("Installing browsers...")
-            result = subprocess.run(['playwright', 'install', 'chromium'], 
-                                  capture_output=True, text=True)
+            # First check if playwright is in PATH
+            which_result = subprocess.run(['which', 'playwright'], 
+                                        capture_output=True, text=True)
+            logger.info(f"Which playwright: {which_result.stdout}")
+            if which_result.returncode != 0:
+                logger.error("playwright not found in PATH")
+                # Try installing browsers using python -m
+                logger.info("Trying python -m playwright install...")
+                result = subprocess.run(['python', '-m', 'playwright', 'install', 'chromium'],
+                                      capture_output=True, text=True)
+            else:
+                # Use playwright directly
+                logger.info("Using playwright from PATH...")
+                result = subprocess.run(['playwright', 'install', 'chromium'],
+                                      capture_output=True, text=True)
+            
+            logger.info(f"Install stdout: {result.stdout}")
+            logger.info(f"Install stderr: {result.stderr}")
             if result.returncode != 0:
                 logger.error(f"Error installing browsers: {result.stderr}")
                 raise Exception(f"Failed to install browsers: {result.stderr}")
