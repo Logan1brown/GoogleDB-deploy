@@ -32,14 +32,23 @@ class RTCollector:
         
     def __enter__(self):
         """Set up Playwright browser when used as context manager."""
-        logger.info("Starting playwright...")
-        self.playwright = sync_playwright().start()
-        logger.info("Launching browser...")
-        self.browser = self.playwright.chromium.launch(headless=True)
-        logger.info("Creating page...")
-        self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
-        logger.info("Setup complete")
-        return self
+        try:
+            logger.info("Starting playwright...")
+            self.playwright = sync_playwright().start()
+            logger.info("Launching browser...")
+            self.browser = self.playwright.chromium.launch(headless=True)
+            logger.info("Creating page...")
+            self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
+            logger.info("Setup complete")
+            return self
+        except Exception as e:
+            logger.error(f"Error setting up Playwright: {e}")
+            # Make sure to clean up if we fail
+            if self.browser:
+                self.browser.close()
+            if self.playwright:
+                self.playwright.stop()
+            raise
         
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Clean up browser resources."""
