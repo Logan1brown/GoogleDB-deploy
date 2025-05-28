@@ -26,6 +26,8 @@ class RTCollector:
     def __init__(self):
         """Initialize the collector."""
         self.supabase = get_supabase_client()
+        self.browser = None
+        self.page = None
         
     def __enter__(self):
         """Set up Playwright browser when used as context manager."""
