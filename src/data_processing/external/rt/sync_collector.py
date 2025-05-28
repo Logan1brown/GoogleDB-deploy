@@ -137,14 +137,22 @@ class RTCollector:
             logger.info(f"Searching for: {title}")
             self.page.goto(url)
             
+            # Wait for search results to load
+            import time
+            time.sleep(2)  # Give it 2 seconds to load
+            logger.info("Page loaded, looking for results...")
+            
             # Look for show link (exclude season links)
+            logger.info("Searching for TV links...")
             links = self.page.query_selector_all('a[href*="/tv/"]')
+            logger.info(f"Found {len(links)} TV links")
             for link in links:
                 href = link.get_attribute('href')
                 text = link.text_content()
                 
                 # Skip season links (ending in /s01, /s02, etc)
                 if href and '/s0' in href:
+                    logger.info(f"Skipping season link: {href}")
                     continue
                     
                 logger.info(f"Found: {text.strip()} -> {href}")

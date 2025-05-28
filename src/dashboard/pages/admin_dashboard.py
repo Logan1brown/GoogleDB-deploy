@@ -467,6 +467,7 @@ def render_rt_matches():
 
                 # Run collector directly
                 st.info(f"Starting collection for {selected_title}...")
+                st.write(f"Show data: {show_data}")
                 try:
                     with RTCollector() as collector:
                         result = collector.collect_show_data(show_data['id'])
