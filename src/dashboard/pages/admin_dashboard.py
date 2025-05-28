@@ -473,11 +473,15 @@ def render_rt_matches():
                     collector = RTCollector()
                     st.write("Created collector, entering context...")
                     st.write(f"Collector state: {collector.__dict__}")
-                    with collector as c:
-                        st.write("Inside context...")
-                        st.write(f"Collector state in context: {c.__dict__}")
-                        result = c.collect_show_data(show_data['id'])
-                        st.write("Collection done")
+                    try:
+                        with collector as c:
+                            st.write("Inside context...")
+                            st.write(f"Collector state in context: {c.__dict__}")
+                            result = c.collect_show_data(show_data['id'])
+                            st.write("Collection done")
+                    except Exception as e:
+                        st.error(f"Error in browser context: {str(e)}")
+                        raise
                         
                         if not result['success']:
                             if 'error' in result:

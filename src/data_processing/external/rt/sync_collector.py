@@ -131,6 +131,12 @@ class RTCollector:
         logger.info(f"Starting collection for show {show_id}")
         logger.info(f"Browser: {self.browser}, Page: {self.page}")
         try:
+            if not self.page:
+                error = "Browser not initialized"
+                logger.error(error)
+                self.update_status(show_id, 'error', error)
+                return {'success': False, 'error': error}
+                
             # Get show title
             response = self.supabase.table('shows')\
                 .select('title')\
