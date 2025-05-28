@@ -49,18 +49,43 @@ class RTCollector:
         """Set up Playwright browser when used as context manager."""
         try:
             # First make sure browsers are installed
-            self.install_browsers()
+            try:
+                self.install_browsers()
+            except Exception as e:
+                logger.error(f"Error installing browsers: {e}")
+                # Continue anyway - browsers might already be installed
             
             logger.info("Starting playwright...")
-            self.playwright = sync_playwright().start()
+            try:
+                self.playwright = sync_playwright().start()
+            except Exception as e:
+                logger.error(f"Error starting Playwright: {e}")
+                raise
+                
             logger.info("Launching browser...")
-            self.browser = self.playwright.chromium.launch(headless=True)
+            try:
+                self.browser = self.playwright.chromium.launch(headless=True)
+            except Exception as e:
+                logger.error(f"Error launching browser: {e}")
+                if self.playwright:
+                    self.playwright.stop()
+                raise
+                
             logger.info("Creating page...")
-            self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
+            try:
+                self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
+            except Exception as e:
+                logger.error(f"Error creating page: {e}")
+                if self.browser:
+                    self.browser.close()
+                if self.playwright:
+                    self.playwright.stop()
+                raise
+                
             logger.info("Setup complete")
             return self
         except Exception as e:
-            logger.error(f"Error setting up Playwright: {e}")
+            logger.error(f"Error in __enter__: {e}")
             # Make sure to clean up if we fail
             if self.browser:
                 self.browser.close()
