@@ -117,7 +117,7 @@ class RTCollector:
         """Search for a show and get its scores."""
         # Go to search with TV filter
         url = f'https://www.rottentomatoes.com/search?search={quote(title)}&type=tv'
-        logger.info(f"Searching for: {title}")
+        self.st.write(f"Searching for: {title}")
         self.page.goto(url)
         
         # Look for show link (exclude season links)
@@ -130,11 +130,11 @@ class RTCollector:
             if href and '/s0' in href:
                 continue
                 
-            logger.info(f"Found: {text.strip()} -> {href}")
+            self.st.write(f"Found: {text.strip()} -> {href}")
             
             # Click first matching link that's not a season
             if title.lower() in text.lower():
-                logger.info(f"Clicking main show link: {href}")
+                self.st.write(f"Clicking main show link: {href}")
                 link.click()
                 # Wait for both score elements to appear
                 try:
@@ -142,10 +142,10 @@ class RTCollector:
                     self.page.wait_for_selector('rt-text[slot="audienceScore"]', timeout=5000)
                     return True
                 except TimeoutError:
-                    logger.error("Timeout waiting for score elements")
+                    self.st.error("Timeout waiting for score elements")
                     return False
         
-        logger.error(f"Could not find {title}")
+        self.st.error(f"Could not find {title}")
         return False
             
     def get_scores(self) -> Optional[Dict[str, str]]:
@@ -166,12 +166,12 @@ class RTCollector:
             
     def collect_show_data(self, show_id: int) -> Dict:
         """Collect RT data for a show."""
-        logger.info(f"Starting collection for show {show_id}")
-        logger.info(f"Browser: {self.browser}, Page: {self.page}")
+        self.st.write(f"Starting collection for show {show_id}")
+        self.st.write(f"Browser: {self.browser}, Page: {self.page}")
         try:
             if not self.page:
                 error = "Browser not initialized"
-                logger.error(error)
+                self.st.error(error)
                 self.update_status(show_id, 'error', error)
                 return {'success': False, 'error': error}
                 
@@ -187,7 +187,7 @@ class RTCollector:
                 return {'success': False, 'error': error}
                 
             title = response.data[0]['title']
-            logger.info(f"Collecting RT data for: {title}")
+            self.st.write(f"Collecting RT data for: {title}")
             
             # Search and get scores
             if not self.search_show(title):
@@ -213,7 +213,7 @@ class RTCollector:
             return {'success': True, 'scores': scores}
             
         except Exception as e:
-            logger.error(f"Error collecting RT data: {e}")
+            self.st.error(f"Error collecting RT data: {e}")
             self.update_status(show_id, 'error', str(e))
             return {'success': False, 'error': str(e)}
 
@@ -267,7 +267,7 @@ class RTCollector:
         try:
             self.supabase.table('rt_match_status').upsert(status_data, on_conflict='show_id').execute()
         except Exception as e:
-            logger.error(f"Error updating status: {e}")
+            self.st.error(f"Error updating status: {e}")
 
     def get_last_status(self, show_id: int) -> Optional[Dict]:
         """Get the last status for a show."""
@@ -280,5 +280,5 @@ class RTCollector:
                 .execute()
             return response.data[0] if response.data else None
         except Exception as e:
-            logger.error(f"Error getting last status: {e}")
+            self.st.error(f"Error getting last status: {e}")
             return None
