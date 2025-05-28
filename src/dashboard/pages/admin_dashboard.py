@@ -474,13 +474,19 @@ def render_rt_matches():
                     st.write("Created collector, entering context...")
                     st.write(f"Collector state: {collector.__dict__}")
                     try:
+                        st.write("Starting browser setup...")
                         with collector as c:
                             st.write("Inside context...")
                             st.write(f"Collector state in context: {c.__dict__}")
+                            st.write("Starting data collection...")
                             result = c.collect_show_data(show_data['id'])
                             st.write("Collection done")
                     except Exception as e:
-                        st.error(f"Error in browser context: {str(e)}")
+                        st.error("Detailed error info:")
+                        st.error(f"Type: {type(e).__name__}")
+                        st.error(f"Message: {str(e)}")
+                        import traceback
+                        st.error(f"Traceback:\n{traceback.format_exc()}")
                         raise
                         
                         if not result['success']:
