@@ -40,8 +40,8 @@ class RTCollector:
     def setup(self):
         """Set up Playwright browser and page."""
         playwright = sync_playwright().start()
-        self.browser = playwright.chromium.launch()
-        self.context = self.browser.new_context()
+        self.browser = playwright.chromium.launch(headless=False)
+        self.context = self.browser.new_context(viewport={'width': 1280, 'height': 800})
         self.page = self.context.new_page()
 
     def cleanup(self):
