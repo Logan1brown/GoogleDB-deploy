@@ -6,6 +6,7 @@ This module handles automated collection of show data from Rotten Tomatoes using
 import logging
 import os
 import sys
+import subprocess
 from urllib.parse import quote
 from datetime import datetime
 from typing import Dict, Optional
@@ -30,9 +31,26 @@ class RTCollector:
         self.browser = None
         self.page = None
         
+    def install_browsers(self):
+        """Install Playwright browsers if not already installed."""
+        try:
+            logger.info("Installing browsers...")
+            result = subprocess.run(['playwright', 'install', 'chromium'], 
+                                  capture_output=True, text=True)
+            if result.returncode != 0:
+                logger.error(f"Error installing browsers: {result.stderr}")
+                raise Exception(f"Failed to install browsers: {result.stderr}")
+            logger.info("Browsers installed successfully")
+        except Exception as e:
+            logger.error(f"Error running playwright install: {e}")
+            raise
+
     def __enter__(self):
         """Set up Playwright browser when used as context manager."""
         try:
+            # First make sure browsers are installed
+            self.install_browsers()
+            
             logger.info("Starting playwright...")
             self.playwright = sync_playwright().start()
             logger.info("Launching browser...")
