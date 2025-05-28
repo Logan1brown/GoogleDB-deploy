@@ -26,13 +26,14 @@ class RTCollector:
     def __init__(self):
         """Initialize the collector."""
         self.supabase = get_supabase_client()
+        self.playwright = None
         self.browser = None
         self.page = None
         
     def __enter__(self):
         """Set up Playwright browser when used as context manager."""
-        playwright = sync_playwright().start()
-        self.browser = playwright.chromium.launch(headless=False)
+        self.playwright = sync_playwright().start()
+        self.browser = self.playwright.chromium.launch(headless=False)
         self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
         return self
         
@@ -40,6 +41,8 @@ class RTCollector:
         """Clean up browser resources."""
         if self.browser:
             self.browser.close()
+        if self.playwright:
+            self.playwright.stop()
             
     def search_show(self, title: str) -> bool:
         """Search for a show and get its scores."""
