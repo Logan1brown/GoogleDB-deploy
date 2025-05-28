@@ -182,22 +182,17 @@ class RTCollector:
         return scores if scores else None
             
     def collect_show_data(self, show_id: int) -> Dict:
-        """Collect RT data for a show."""
-        self.st.write(f"Starting collection for show {show_id}")
-        self.st.write(f"Browser: {self.browser}, Page: {self.page}")
+        """Collect RT data for a show.
+
+        Args:
+            show_id: ID of the show to collect data for
+
+        Returns:
+            Dictionary with success status and scores if successful
+        """
         try:
-            if not self.page:
-                error = "Browser not initialized"
-                self.st.error(error)
-                self.update_status(show_id, 'error', error)
-                return {'success': False, 'error': error}
-                
-            # Get show title
-            response = self.supabase.table('shows')\
-                .select('title')\
-                .eq('id', show_id)\
-                .execute()
-                
+            # Get show info
+            response = self.supabase.table('shows').select('title').eq('id', show_id).execute()
             if not response.data:
                 error = f"Show with id {show_id} not found"
                 self.update_status(show_id, 'error', error)
@@ -206,6 +201,24 @@ class RTCollector:
             title = response.data[0]['title']
             self.st.write(f"Collecting RT data for: {title}")
             
+            # Make sure browser is initialized
+            if not self.page:
+                self.st.write("Browser not initialized, entering context...")
+                with self as _:
+                    self.st.write("Browser initialized, proceeding with search")
+                    return self._collect_show_data_with_browser(show_id, title)
+            else:
+                self.st.write("Browser already initialized, proceeding with search")
+                return self._collect_show_data_with_browser(show_id, title)
+            
+        except Exception as e:
+            self.st.error(f"Error collecting RT data: {e}")
+            self.update_status(show_id, 'error', str(e))
+            return {'success': False, 'error': str(e)}
+            
+    def _collect_show_data_with_browser(self, show_id: int, title: str) -> Dict:
+        """Helper method to collect data once browser is initialized."""
+        try:
             # Search and get scores
             if not self.search_show(title):
                 self.update_status(show_id, 'not_found')
@@ -230,7 +243,7 @@ class RTCollector:
             return {'success': True, 'scores': scores}
             
         except Exception as e:
-            self.st.error(f"Error collecting RT data: {e}")
+            self.st.error(f"Error in browser operations: {e}")
             self.update_status(show_id, 'error', str(e))
             return {'success': False, 'error': str(e)}
 
