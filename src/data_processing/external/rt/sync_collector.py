@@ -277,7 +277,7 @@ class RTCollector:
         status_data = {
             'show_id': show_id,
             'status': status,
-            'error_message': error,
+            'error_details': error,
             'last_attempt': datetime.now().isoformat(),
         }
         
