@@ -65,31 +65,31 @@ class RTCollector:
         logger.info(f"Starting collection for show {show_id}")
         
         # Get show title
-        response = self.supabase.table('shows').select('title').eq('id', show_id).execute()
-        if not response.data:
-            error = f"Show {show_id} not found"
-            await self.update_status(show_id, 'not_found', error)
-            return {'success': False, 'error': error}
-
-        title = response.data[0]['title']
-        logger.info(f"Found show title: {title}")
-
-        # Find RT page
-        url = await self.find_rt_page(title)
-        if not url:
-            error = f"Could not find RT page for {title}"
-            await self.update_status(show_id, 'not_found', error)
-            return {'success': False, 'error': error}
-
-        # Get scores
-        scores = await self.get_rt_scores(url)
-        if not scores:
-            error = f"Could not get scores for {title}"
-            await self.update_status(show_id, 'error', error)
-            return {'success': False, 'error': error}
-
-        # Save scores
         try:
+            response = await self.supabase.table('shows').select('title').eq('id', show_id).execute()
+            if not response.data:
+                error = f"Show {show_id} not found"
+                await self.update_status(show_id, 'not_found', error)
+                return {'success': False, 'error': error}
+
+            title = response.data[0]['title']
+            logger.info(f"Found show title: {title}")
+
+            # Find RT page
+            url = await self.find_rt_page(title)
+            if not url:
+                error = f"Could not find RT page for {title}"
+                await self.update_status(show_id, 'not_found', error)
+                return {'success': False, 'error': error}
+
+            # Get scores
+            scores = await self.get_rt_scores(url)
+            if not scores:
+                error = f"Could not get scores for {title}"
+                await self.update_status(show_id, 'error', error)
+                return {'success': False, 'error': error}
+
+            # Save scores
             data = {
                 'show_id': show_id,
                 'rt_id': str(uuid.uuid5(uuid.NAMESPACE_URL, url)),  # Generate UUID from URL
@@ -98,14 +98,13 @@ class RTCollector:
                 'is_matched': True,
                 'last_updated': datetime.now().isoformat()
             }
-            self.supabase.table('rt_success_metrics').upsert(data).execute()
+            await self.update_status(show_id, 'pending')
+            await self.supabase.table('rt_success_metrics').upsert(data).execute()
+            await self.update_status(show_id, 'matched')
         except Exception as e:
             logger.error(f"Error saving scores: {e}")
             await self.update_status(show_id, 'error', str(e))
             return {'success': False, 'error': str(e)}
-
-        # Update status
-        await self.update_status(show_id, 'matched')
 
         return {
             'success': True,
@@ -201,12 +200,13 @@ class RTCollector:
             'not_found': 'not_found',
             'error': 'error',
             'success': 'matched',
-            'pending': 'pending'
+            'pending': 'pending',
+            'matched': 'matched'
         }
         db_status = status_map.get(status, 'error')
         
         # Get existing status
-        last_status = self.get_last_status(show_id)
+        last_status = await self.get_last_status(show_id)
         
         # Create new status entry
         data = {
@@ -228,15 +228,19 @@ class RTCollector:
         Returns:
             Last status or None if not found
         """
-        # Get last status
-        last_status_response = self.supabase.table('rt_match_status')\
-            .select('*')\
-            .eq('show_id', show_id)\
-            .execute()
+        try:
+            # Get last status
+            last_status_response = await self.supabase.table('rt_match_status')\
+                .select('*')\
+                .eq('show_id', show_id)\
+                .execute()
 
-        if last_status_response.data:
-            return last_status_response.data[0]
-        else:
+            if last_status_response.data:
+                return last_status_response.data[0]
+            else:
+                return None
+        except Exception as e:
+            logger.error(f"Error getting last status: {e}")
             return None
 
     async def titles_match(self, title1: str, title2: str) -> bool:
@@ -259,12 +263,26 @@ class RTCollector:
 
     async def update_status(self, show_id: int, status: str, error: Optional[str] = None):
         try:
+            # Map status to database status
+            status_map = {
+                'not_found': 'not_found',
+                'error': 'error',
+                'success': 'matched',
+                'pending': 'pending',
+                'matched': 'matched'
+            }
+            db_status = status_map.get(status, 'error')
+            
+            # Get existing status for attempt count
+            last_status = await self.get_last_status(show_id)
+            
             now = datetime.now()
             status_data = {
                 'show_id': show_id,
-                'status': status,
+                'status': db_status,
                 'last_attempt': now.isoformat(),
-                'updated_at': now.isoformat()
+                'updated_at': now.isoformat(),
+                'attempts': last_status['attempts'] + 1 if last_status else 1
             }
             
             # Add error details if present

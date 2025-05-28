@@ -471,6 +471,7 @@ def render_rt_matches():
                 cmd = f"python {script_path} {show_data['id']}"
                 st.info(f"Launching collector for {selected_title}...")
                 run_command(cmd, cwd=os.path.dirname(script_path), blocking=False)
+                # Ignore the return value since we'll poll the database
 
                 # Wait and check status twice
                 for attempt in range(2):
