@@ -451,6 +451,11 @@ def render_rt_matches():
         clear_on_submit=False
     )
 
+    async def collect_rt_scores(show_id: int, title: str):
+        """Collect RT scores for a show."""
+        collector = RTCollector()
+        return await collector.collect_show_data(show_id)
+
     if selected_title:
         # Get show data and collect RT scores
         with st.spinner(f"Collecting RT scores for {selected_title}..."):
@@ -464,8 +469,7 @@ def render_rt_matches():
                         return
 
                     # Try to collect RT data
-                    collector = RTCollector()
-                    result = asyncio.run(collector.collect_show_data(show_data['id']))
+                    result = asyncio.run(collect_rt_scores(show_data['id'], selected_title))
 
                     if result['success']:
                         if result.get('cached'):
