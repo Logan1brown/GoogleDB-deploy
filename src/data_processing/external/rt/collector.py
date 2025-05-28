@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 from urllib.parse import quote
 
 from playwright.async_api import async_playwright, Browser, Page, TimeoutError
-from ...services.supabase import get_supabase_client
+from src.dashboard.services.supabase import get_supabase_client
 
 # Configure logging
 logging.basicConfig(
