@@ -6,18 +6,16 @@ This module handles automated collection of show data from Rotten Tomatoes using
 import logging
 import os
 import sys
+from urllib.parse import quote
 from datetime import datetime
 from typing import Dict, Optional
-from urllib.parse import quote
-
-from playwright.sync_api import sync_playwright, Browser, Page, TimeoutError
+from playwright.sync_api import sync_playwright, TimeoutError
 
 # Add project root to path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 sys.path.insert(0, project_root)
 
 from src.dashboard.services.supabase import get_supabase_client
-from dotenv import load_dotenv
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -26,76 +24,114 @@ class RTCollector:
     """Handles automated collection of show data from Rotten Tomatoes."""
     
     def __init__(self):
-        """Initialize the collector with default configuration."""
+        """Initialize the collector."""
         self.supabase = get_supabase_client()
-        self.browser: Optional[Browser] = None
-        self.page: Optional[Page] = None
         
     def __enter__(self):
         """Set up Playwright browser when used as context manager."""
         playwright = sync_playwright().start()
-        self.browser = playwright.chromium.launch(headless=True)
-        self.page = self.browser.new_page()
+        self.browser = playwright.chromium.launch(headless=False)
+        self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
         return self
-
+        
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Clean up browser resources."""
         if self.browser:
             self.browser.close()
-
+            
+    def search_show(self, title: str) -> bool:
+        """Search for a show and get its scores."""
+        # Go to search with TV filter
+        url = f'https://www.rottentomatoes.com/search?search={quote(title)}&type=tv'
+        logger.info(f"Searching for: {title}")
+        self.page.goto(url)
+        
+        # Look for show link (exclude season links)
+        links = self.page.query_selector_all('a[href*="/tv/"]')
+        for link in links:
+            href = link.get_attribute('href')
+            text = link.text_content()
+            
+            # Skip season links (ending in /s01, /s02, etc)
+            if href and '/s0' in href:
+                continue
+                
+            logger.info(f"Found: {text.strip()} -> {href}")
+            
+            # Click first matching link that's not a season
+            if title.lower() in text.lower():
+                logger.info(f"Clicking main show link: {href}")
+                link.click()
+                # Wait for both score elements to appear
+                try:
+                    self.page.wait_for_selector('rt-text[slot="criticsScore"]', timeout=5000)
+                    self.page.wait_for_selector('rt-text[slot="audienceScore"]', timeout=5000)
+                    return True
+                except TimeoutError:
+                    logger.error("Timeout waiting for score elements")
+                    return False
+        
+        logger.error(f"Could not find {title}")
+        return False
+            
+    def get_scores(self) -> Optional[Dict[str, str]]:
+        """Get critic and audience scores."""
+        scores = {}
+        
+        # Get critics score
+        critics = self.page.query_selector('rt-text[slot="criticsScore"]')
+        if critics:
+            scores['critics'] = critics.text_content()
+        
+        # Get audience score
+        audience = self.page.query_selector('rt-text[slot="audienceScore"]')
+        if audience:
+            scores['audience'] = audience.text_content()
+            
+        return scores if scores else None
+            
     def collect_show_data(self, show_id: int) -> Dict:
-        """Collect RT data for a show.
-
-        Args:
-            show_id: ID of the show to collect data for
-
-        Returns:
-            Dict with success status and scores or error message
-        """
+        """Collect RT data for a show."""
         try:
-            # Update status to pending
-            self.update_status(show_id, 'pending')
-            
             # Get show title
-            response = self.supabase.table('shows').select('title').eq('id', show_id).execute()
+            response = self.supabase.table('shows')\
+                .select('title')\
+                .eq('id', show_id)\
+                .execute()
+                
             if not response.data:
-                raise ValueError(f"Show {show_id} not found")
-            
+                error = f"Show with id {show_id} not found"
+                self.update_status(show_id, 'error', error)
+                return {'success': False, 'error': error}
+                
             title = response.data[0]['title']
-            logger.info(f"Getting scores for {title}")
+            logger.info(f"Collecting RT data for: {title}")
             
-            # Find RT page
-            url = self.find_rt_page(title)
-            if not url:
+            # Search and get scores
+            if not self.search_show(title):
                 self.update_status(show_id, 'not_found')
-                return {'success': False, 'error': 'Show not found on RT'}
-            
-            # Get scores
-            scores = self.get_rt_scores(url)
+                return {'success': False}
+                
+            scores = self.get_scores()
             if not scores:
-                self.update_status(show_id, 'error', 'Could not get scores')
-                return {'success': False, 'error': 'Could not get scores'}
-            
+                self.update_status(show_id, 'error', 'Could not find scores')
+                return {'success': False, 'error': 'Could not find scores'}
+                
             # Save scores
-            data = {
+            metrics_data = {
                 'show_id': show_id,
-                'tomatometer': int(scores['critics'].rstrip('%')),
-                'popcornmeter': int(scores['audience'].rstrip('%')),
-                'is_matched': True,
-                'last_update': datetime.now().isoformat()
+                'tomatometer': scores['critics'].rstrip('%'),
+                'popcornmeter': scores['audience'].rstrip('%'),
+                'last_updated': datetime.now().isoformat()
             }
             
-            self.update_status(show_id, 'pending')
-            self.supabase.table('rt_success_metrics').upsert(data).execute()
+            self.supabase.table('rt_success_metrics').upsert(metrics_data, on_conflict='show_id').execute()
             self.update_status(show_id, 'matched')
             
-            return {
-                'success': True,
-                'scores': scores
-            }
+            return {'success': True, 'scores': scores}
             
         except Exception as e:
-            logger.error(f"Error collecting data: {e}")
+            logger.error(f"Error collecting RT data: {e}")
             self.update_status(show_id, 'error', str(e))
             return {'success': False, 'error': str(e)}
 
@@ -128,81 +164,6 @@ class RTCollector:
             return True
             
         return False
-
-    def find_rt_page(self, title: str) -> Optional[str]:
-        """Find the RT page for a show."""
-        try:
-            # Go to search with TV filter
-            url = f'https://www.rottentomatoes.com/search?search={quote(title)}&type=tv'
-            logger.info(f"Searching for: {title}")
-            self.page.goto(url)
-            
-            # Wait for search results to load
-            import time
-            time.sleep(2)  # Give it 2 seconds to load
-            logger.info("Page loaded, looking for results...")
-            
-            # Look for show link (exclude season links)
-            logger.info("Searching for TV links...")
-            links = self.page.query_selector_all('a[href*="/tv/"]')
-            logger.info(f"Found {len(links)} TV links")
-            for link in links:
-                href = link.get_attribute('href')
-                text = link.text_content()
-                
-                # Skip season links (ending in /s01, /s02, etc)
-                if href and '/s0' in href:
-                    logger.info(f"Skipping season link: {href}")
-                    continue
-                    
-                logger.info(f"Found: {text.strip()} -> {href}")
-                
-                # Debug logging
-                clean_title = self.clean_title(title)
-                clean_text = self.clean_title(text)
-                logger.info(f"Comparing: '{clean_title}' with '{clean_text}'")
-                
-                # Use flexible title matching
-                if clean_title in clean_text or clean_text in clean_title:
-                    logger.info(f"Clicking main show link: {href}")
-                    link.click()
-                    # Wait for both score elements to appear
-                    try:
-                        self.page.wait_for_selector('rt-text[slot="criticsScore"]', timeout=5000)
-                        self.page.wait_for_selector('rt-text[slot="audienceScore"]', timeout=5000)
-                        return href
-                    except TimeoutError:
-                        logger.error("Timeout waiting for score elements")
-                        return None
-            
-            logger.error(f"Could not find {title}")
-            return None
-        except Exception as e:
-            logger.error(f"Error finding RT page: {e}")
-            return None
-
-    def get_rt_scores(self, url: str) -> Optional[Dict[str, str]]:
-        """Get RT scores from a show page."""
-        try:
-            scores = {}
-            
-            # Get critics score
-            critics = self.page.query_selector('rt-text[slot="criticsScore"]')
-            if critics:
-                scores['critics'] = critics.text_content()
-            
-            # Get audience score
-            audience = self.page.query_selector('rt-text[slot="audienceScore"]')
-            if audience:
-                scores['audience'] = audience.text_content()
-            
-            logger.info(f"Scores for show:")
-            logger.info(f"Critics: {scores.get('critics', 'Not found')}")
-            logger.info(f"Audience: {scores.get('audience', 'Not found')}")
-            return scores if scores else None
-        except Exception as e:
-            logger.error(f"Error getting RT scores: {e}")
-            return None
 
     def update_status(self, show_id: int, status: str, error: Optional[str] = None):
         """Update the status of a show in the database."""
