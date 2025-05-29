@@ -5,6 +5,9 @@ import sys
 import os
 import re
 from urllib.parse import quote
+import os
+import sys
+import streamlit as st
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 
@@ -16,8 +19,15 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from sync_collector import RTCollector
+from data_processing.external.rt.sync_collector import RTCollector
 from supabase import create_client
+
+# Initialize session state
+if 'collector' not in st.session_state:
+    st.session_state.collector = None
+
+if 'current_show' not in st.session_state:
+    st.session_state.current_show = None
 
 def get_client():
     """Get Supabase client with service role."""
@@ -27,22 +37,60 @@ def get_client():
     )
 
 def search_for_matches(collector: RTCollector, show: Dict) -> List[Dict]:
-    """Search for show matches on Rotten Tomatoes."""
+    """Search for a show and get potential matches."""
+    if not collector:
+        st.error("No collector initialized")
+        return []
+        
     st.session_state.current_show = show  # Store entire show object
-    st.write("Debug: Starting search for", show['title'])
+    st.info(f"Starting search for {show['title']}...")
+    
+    # Initialize browser only when needed
+    try:
+        with st.spinner("Initializing browser..."):
+            collector.ensure_browser()
+            st.success("Browser initialized")
+    except Exception as e:
+        st.error(f"Error initializing browser: {str(e)}")
+        return []
     
     # Search for show
-    from urllib.parse import quote_plus
-    search_url = 'https://www.rottentomatoes.com/search?search=' + quote_plus(show['title'])
-    st.write(f"Debug: Searching URL: {search_url}")
-    collector.page.goto(search_url)
-    time.sleep(3)
-
-    # Get all search results
-    st.write("Debug: Looking for TV shows...")
+    try:
+        from urllib.parse import quote_plus
+        search_url = 'https://www.rottentomatoes.com/search?search=' + quote_plus(show['title'])
+        st.info(f"Searching: {search_url}")
+        
+        with st.spinner("Loading search page..."):
+            collector.page.goto(search_url)
+            st.success("Page loaded")
+    except Exception as e:
+        st.error(f"Search failed: {str(e)}")
+        return []
+        
+        # Wait for either TV section or no results message with a shorter timeout
+        with st.spinner('Searching...'):
+            try:
+                collector.page.wait_for_selector('search-page-result[type="tvSeries"], .noresults', timeout=5000)
+            except Exception as e:
+                st.error("Search timed out. Resetting browser...")
+                st.session_state.collector = RTCollector()  # Reset browser
+                return []
     
-    # Find the TV section
-    tv_section = collector.page.query_selector('search-page-result[type="tvSeries"]')
+        # Get all search results
+        st.write("Debug: Looking for TV shows...")
+        
+        # Find the TV section with a final timeout
+        try:
+            tv_section = collector.page.query_selector('search-page-result[type="tvSeries"]')
+        except Exception as e:
+            st.error("Error finding TV section. Please try again.")
+            return []
+            
+    except Exception as e:
+        st.error(f"Error during search: {str(e)}")
+        # Reset browser on any error
+        st.session_state.collector = RTCollector()
+        return []
     if not tv_section:
         st.warning("No TV section found")
         return []
@@ -96,18 +144,35 @@ def get_unmatched_shows() -> List[Dict]:
         .execute()
     return response.data
 
+# Configure Streamlit page
+st.set_page_config(page_title="RT Data Collector", layout="wide")
+
 def main():
-    """Main function to run the app."""
+    """Main function."""
+    st.title(" Rotten Tomatoes Data Collector")
+    
+    # Initialize browser if needed
+    try:
+        if 'collector' not in st.session_state:
+            with st.spinner('Initializing browser...'):
+                try:
+                    # Set a timeout for browser initialization
+                    with st.empty():
+                        st.session_state.collector = RTCollector()
+                        st.session_state.collector.page.set_default_timeout(5000)
+                        # Test browser by loading a simple page
+                        st.session_state.collector.page.goto('about:blank', timeout=5000)
+                except Exception as e:
+                    st.error("Browser initialization timed out. Please refresh the page.")
+                    return
+    except Exception as e:
+        st.error(f"Error initializing browser: {str(e)}")
+        return
+    
     # Initialize session state variables
     if 'current_show' not in st.session_state:
         st.session_state.current_show = None
-        
-    st.set_page_config(page_title="RT Data Collector", layout="wide")
-    st.title("Rotten Tomatoes Data Collection")
     
-    # Initialize session state
-    if 'collector' not in st.session_state:
-        st.session_state.collector = RTCollector()
     if 'current_matches' not in st.session_state:
         st.session_state.current_matches = []
         st.session_state.selected_match = None

@@ -47,37 +47,22 @@ class RTCollector:
         self.playwright = None
         self.browser = None
         self.page = None
-
-        # Try to install browsers during init
-        try:
-            self.install_browsers()
-        except Exception as e:
-            logger.error("Error during browser installation:")
-            logger.error(str(e))
-            if "missing dependencies" in str(e).lower():
-                logger.error("\nThis is likely because your system is missing required packages.")
-                logger.error("Please install the required packages:")
-                logger.error("""
-                    sudo apt-get install -y \
-                        libnss3 \
-                        libnspr4 \
-                        libatk1.0-0 \
-                        libatk-bridge2.0-0 \
-                        libcups2 \
-                        libdrm2 \
-                        libxkbcommon0 \
-                        libatspi2.0-0 \
-                        libxcomposite1 \
-                        libxdamage1 \
-                        libxfixes3 \
-                        libxrandr2 \
-                        libgbm1 \
-                        libpango-1.0-0 \
-                        libcairo2 \
-                        libasound2
-                    """)
-                raise
         
+    def ensure_browser(self):
+        """Initialize browser if not already initialized."""
+        if not self.page:
+            try:
+                self.playwright = sync_playwright().start()
+                self.browser = self.playwright.chromium.launch(
+                    headless=False,  # Make browser visible
+                    timeout=30000  # 30 second timeout
+                )
+                self.page = self.browser.new_page()
+                self.page.set_default_timeout(30000)  # 30 second timeout
+            except Exception as e:
+                print(f"Error initializing browser: {str(e)}")
+                raise
+
     def install_browsers(self):
         """Install Playwright browsers if not already installed."""
         try:
