@@ -167,9 +167,9 @@ def search_shows(title: str) -> List[str]:
     if not title or len(title.strip()) < 3:
         return []
 
-    # Get unmatched shows
-    unmatched_shows = get_rt_unmatched_shows()
-    show_titles = [show['title'] for show in unmatched_shows]
+    # Get all existing shows from shows table
+    response = supabase.table('shows').select('title').eq('active', True).execute()
+    show_titles = [show['title'] for show in response.data]
 
     # Find fuzzy matches
     matches = difflib.get_close_matches(title.lower(), [s.lower() for s in show_titles], n=5, cutoff=0.6)
