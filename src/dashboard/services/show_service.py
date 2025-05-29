@@ -229,7 +229,7 @@ def load_show(title: str, lookups: Dict[str, List[Dict]] = None) -> dict:
         'date': show_date,
         'episode_count': response.data.get('episode_count', 0),
         'description': response.data.get('description', ''),
-        'studios': response.data.get('studios', []) if response.data.get('studios') else [],
+        'studio_ids': response.data.get('studios', []) if response.data.get('studios') else [],
         'new_studios': [],
         'team_members': team_members
     }

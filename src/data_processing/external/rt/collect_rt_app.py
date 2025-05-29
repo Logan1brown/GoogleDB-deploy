@@ -43,86 +43,59 @@ def search_for_matches(collector: RTCollector, show: Dict) -> List[Dict]:
         return []
         
     st.session_state.current_show = show  # Store entire show object
-    st.info(f"Starting search for {show['title']}...")
     
     # Initialize browser only when needed
     try:
-        with st.spinner("Initializing browser..."):
+        with st.spinner("Searching..."):
             collector.ensure_browser()
-            st.success("Browser initialized")
-    except Exception as e:
-        st.error(f"Error initializing browser: {str(e)}")
-        return []
-    
-    # Search for show
-    try:
-        from urllib.parse import quote_plus
-        search_url = 'https://www.rottentomatoes.com/search?search=' + quote_plus(show['title'])
-        st.info(f"Searching: {search_url}")
-        
-        with st.spinner("Loading search page..."):
+            
+            # Load search page
+            from urllib.parse import quote_plus
+            search_url = 'https://www.rottentomatoes.com/search?search=' + quote_plus(show['title'])
             collector.page.goto(search_url)
-            st.success("Page loaded")
-    except Exception as e:
-        st.error(f"Search failed: {str(e)}")
-        return []
-        
-        # Wait for either TV section or no results message with a shorter timeout
-        with st.spinner('Searching...'):
-            try:
-                collector.page.wait_for_selector('search-page-result[type="tvSeries"], .noresults', timeout=5000)
-            except Exception as e:
-                st.error("Search timed out. Resetting browser...")
-                st.session_state.collector = RTCollector()  # Reset browser
-                return []
-    
-        # Get all search results
-        st.write("Debug: Looking for TV shows...")
-        
-        # Find the TV section with a final timeout
-        try:
+            
+            # Wait for TV shows to load
+            collector.page.wait_for_selector('search-page-result[type="tvSeries"]', timeout=5000)
+            
+            # Get TV shows section
             tv_section = collector.page.query_selector('search-page-result[type="tvSeries"]')
-        except Exception as e:
-            st.error("Error finding TV section. Please try again.")
-            return []
+            if not tv_section:
+                return []
+                
+            # Get all TV show rows
+            results = tv_section.query_selector_all('search-page-media-row')
+            if not results:
+                return []
             
     except Exception as e:
         st.error(f"Error during search: {str(e)}")
         # Reset browser on any error
         st.session_state.collector = RTCollector()
         return []
-    if not tv_section:
-        st.warning("No TV section found")
-        return []
-        
-    # Get all TV shows
-    results = tv_section.query_selector_all('search-page-media-row')
-    st.write(f"Debug: Found {len(results)} TV shows")
     
     # Get potential matches
     matches = []
     for result in results:
+        # Get title and URL from the result
         title_elem = result.query_selector('a[data-qa="info-name"]')
-        if not title_elem:
-            continue
+        if title_elem:
+            title = title_elem.text_content().strip()
+            url = title_elem.get_attribute('href')
+        else:
+            title = None
+            url = None
             
-        title = title_elem.text_content().strip()
-        url = title_elem.get_attribute('href')
         if title and url:
             # Extract year from URL if it ends with _YYYY
             url_parts = url.split('_')
             if len(url_parts) > 1 and url_parts[-1].isdigit() and len(url_parts[-1]) == 4:
                 title = f"{title} ({url_parts[-1]})"
-            
-            st.write(f"Debug: Found TV show - Title: {title}, URL: {url}")
+                
             matches.append({
                 'title': title,
                 'url': url,
-                'element': title_elem
+                'element': result
             })
-    
-    if not matches:
-        st.warning("No TV shows found in search results")
     return matches
 
 def get_unmatched_shows() -> List[Dict]:
@@ -178,16 +151,6 @@ def main():
         st.session_state.selected_match = None
         st.session_state.scores = None
 
-    # Instructions
-    st.markdown("""
-    ### Instructions
-    1. Select a show from the dropdown below
-    2. Click 'Search for matches' to find it on Rotten Tomatoes
-    3. Select the correct match from the results
-    4. Click 'Get scores' to fetch the ratings
-    5. Save the scores if they look correct
-    """)
-    
     # Get shows that need scores
     shows = get_unmatched_shows()
     st.info(f"📺 Found {len(shows)} shows that need RT scores")
@@ -226,11 +189,14 @@ def main():
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("🔍 Search for matches"):
-                with st.spinner("Searching..."):
+            search_col1, search_col2 = st.columns([1, 1])
+            with search_col1:
+                if st.button("🔍 Search for matches"):
                     try:
                         ensure_browser()
                         matches = search_for_matches(st.session_state.collector, selected_show)
+                        # Clean up browser after search
+                        st.session_state.collector.cleanup()
                         st.session_state.current_matches = matches
                         st.session_state.selected_match = None
                         st.session_state.scores = None
@@ -238,9 +204,25 @@ def main():
                     except Exception as e:
                         st.error(f"Error searching: {str(e)}")
                         st.session_state.collector = None
+            
+            with search_col2:
+                if st.button("⛔️ Not Found"):
+                    with st.spinner("Marking as not found..."):
+                        # Update rt_match_status to not_found
+                        supabase = get_client()
+                        supabase.table('rt_match_status').upsert({
+                            'show_id': selected_show['id'],
+                            'status': 'not_found',
+                            'attempts': 1,
+                            'error_details': None,
+                            'manual_url': None
+                        }).execute()
+                        st.success("✅ Show marked as not found")
+                        time.sleep(2)  # Show success message
+                        st.session_state.current_matches = None  # Clear any existing matches
+                        st.rerun()
 
             if st.session_state.current_matches:
-                st.success(f"🌐 Found {len(st.session_state.current_matches)} potential matches")
                 st.markdown("### Available Matches:")
                 
                 # Match selection
@@ -248,88 +230,94 @@ def main():
                     with st.container():
                         st.markdown(f"**Match #{i+1}:** {match['title']}")
                         if st.button("Select this match", key=f"match_{i}"):
-                            with st.spinner("Getting scores..."):
-                                # Navigate to the URL
-                                st.session_state.collector.page.goto(match['url'])
-                                time.sleep(5)  # Wait for score board to load
-                                
-                                # Wait and retry if scores not loaded
-                                retries = 3
-                                while retries > 0:
-                                    # Get critic and audience scores
+                            try:
+                                with st.spinner("Loading scores..."):
+                                    st.session_state.collector.page.goto(match['url'])
+                                    # Wait for media scorecard to load
+                                    scorecard = st.session_state.collector.page.wait_for_selector('media-scorecard', timeout=8000)
+                                    if not scorecard:
+                                        st.error("Could not find scores section on the page")
+                                        return
+
+                                    # Look for score text first
                                     critic_score = st.session_state.collector.page.query_selector('rt-text[slot="criticsScore"]')
                                     audience_score = st.session_state.collector.page.query_selector('rt-text[slot="audienceScore"]')
                                     
-                                    if critic_score and audience_score:
-                                        try:
-                                            # Get and clean scores
-                                            critic_text = critic_score.text_content().strip()
-                                            audience_text = audience_score.text_content().strip()
-                                            
-                                            # Extract numbers, handle empty, '-', or 'N/A' values
-                                            def parse_score(text):
-                                                if not text or text.strip() in ['-', 'N/A']:
-                                                    return None
-                                                return int(re.sub(r'[^0-9]', '', text))
-                                                
-                                            tomatometer = parse_score(critic_text)
-                                            popcornmeter = parse_score(audience_text)
-                                            
-                                            st.success(f"Found scores! Tomatometer: {tomatometer if tomatometer else 'N/A'}%, Popcornmeter: {popcornmeter if popcornmeter else 'N/A'}%")
-                                            
-                                            print("DEBUG - Selected show:", selected_show)
-                                            print("DEBUG - Current show in state:", st.session_state.current_show)
-                                            
-                                            # Save scores
-                                            supabase = get_client()
-                                            
-                                            # Update rt_success_metrics
-                                            supabase.table('rt_success_metrics').insert({
-                                                'show_id': selected_show['id'],
-                                                'tomatometer': tomatometer,
-                                                'popcornmeter': popcornmeter,
-                                                'is_matched': True
-                                            }).execute()
-                                            
-                                            # Update rt_match_status
-                                            supabase.table('rt_match_status').upsert({
-                                                'show_id': selected_show['id'],
-                                                'status': 'matched',
-                                                'attempts': 1,
-                                                'error_details': None,
-                                                'manual_url': match['url']
-                                            }).execute()
-                                            
-                                            st.success("✅ Scores saved successfully!")
-                                            with st.spinner('Moving to next show in 3 seconds...'):
-                                                time.sleep(3)  # Show success message for 3 seconds
-                                            st.session_state.current_matches = None  # Clear matches to move to next show
-                                            st.rerun()
-                                            break
-                                        except Exception as e:
-                                            st.error(f"Error saving scores: {e}")
+                                    # Get text content if available
+                                    critic_text = critic_score.text_content().strip() if critic_score else None
+                                    audience_text = audience_score.text_content().strip() if audience_score else None
                                     
-                                    time.sleep(2)
-                                    retries -= 1
-                                    
-                                if retries == 0:
-                                    st.error("Could not find scores after retries")
+                                    # If no text content, check for empty score icons
+                                    if not critic_text:
+                                        critic_empty = st.session_state.collector.page.query_selector('score-icon-critics[sentiment="empty"]')
+                                        if critic_empty:
+                                            critic_text = "--"
+                                            
+                                    if not audience_text:
+                                        audience_empty = st.session_state.collector.page.query_selector('score-icon-audience[sentiment="empty"]')
+                                        if audience_empty:
+                                            audience_text = "--"
+                                            
+                                    # If we still don't have any scores, error out
+                                    if not critic_text and not audience_text:
+                                        st.error("Could not find score elements on the page")
+                                        return
+
+                                    # Extract numbers, handle empty, '-', '--', or 'N/A' values
+                                    def parse_score(text):
+                                        if not text or text.strip() in ['-', '--', 'N/A']:
+                                            return None
+                                        # Remove any non-numeric characters and try to parse
+                                        clean_text = re.sub(r'[^0-9]', '', text)
+                                        return int(clean_text) if clean_text else None
+
+                                    tomatometer = parse_score(critic_text)
+                                    popcornmeter = parse_score(audience_text)
+
+                                    # Show the scores prominently (even if they're null)
+                                    st.markdown("### 🎯 Scores Found!")
+                                    score_col1, score_col2 = st.columns(2)
+                                    with score_col1:
+                                        st.metric("Tomatometer", "No Score Yet" if tomatometer is None else f"{tomatometer}%")
+                                    with score_col2:
+                                        st.metric("Popcornmeter", "No Score Yet" if popcornmeter is None else f"{popcornmeter}%")
+
+                                with st.spinner("Saving to database..."):
+                                    # Save scores
                                     supabase = get_client()
-                                    supabase.table('rt_match_status')\
-                                        .upsert({
-                                            'show_id': selected_show['id'],
-                                            'status': 'matched',
-                                            'attempts': 1,
-                                            'error_details': None,
-                                            'manual_url': match['url']
-                                        })\
-                                        .execute()
+                                    # Update rt_success_metrics
+                                    supabase.table('rt_success_metrics').upsert({
+                                        'show_id': selected_show['id'],
+                                        'tomatometer': tomatometer,
+                                        'popcornmeter': popcornmeter,
+                                        'is_matched': True
+                                    }).execute()
+
+                                    # Update rt_match_status
+                                    supabase.table('rt_match_status').upsert({
+                                        'show_id': selected_show['id'],
+                                        'status': 'matched',
+                                        'attempts': 1,
+                                        'error_details': None,
+                                        'manual_url': match['url']
+                                    }).execute()
+
+                                    # Show success and wait
+                                    st.success("✅ Successfully saved scores to database!")
+                                    time.sleep(3)  # Give time to see the results
+                                    st.session_state.current_matches = None  # Clear matches to move to next show
+                                    st.rerun()
+                                    break
+                            except Exception as e:
+                                st.error(f"Error loading page or saving scores: {str(e)}")
+                                return
 
         with col2:
             if st.session_state.selected_match:
                 st.write("Selected match:")
                 st.markdown(f"**{st.session_state.selected_match['title']}**")
 
+# ... (rest of the code remains the same)
             if st.session_state.scores:
                 st.write("Scores found:")
                 st.write(f"- Tomatometer: {st.session_state.scores['tomatometer']}%")
@@ -348,18 +336,15 @@ def main():
                                     'tomatometer': st.session_state.scores['tomatometer'],
                                     'popcornmeter': st.session_state.scores['audience_score'],
                                     'is_matched': True
-                                })\
-                                .execute()
+                                }).execute()
 
                             # Update match status
-                            supabase.table('rt_match_status')\
-                                .upsert({
-                                    'show_id': selected_show['id'],
-                                    'status': 'matched',
-                                    'manual_url': st.session_state.selected_match['url'],
-                                    'last_attempt': 'now()'
-                                })\
-                                .execute()
+                            supabase.table('rt_match_status').upsert({
+                                'show_id': selected_show['id'],
+                                'status': 'matched',
+                                'manual_url': st.session_state.selected_match['url'],
+                                'last_attempt': 'now()'
+                            }).execute()
 
                             st.success("Scores saved!")
                             time.sleep(1)

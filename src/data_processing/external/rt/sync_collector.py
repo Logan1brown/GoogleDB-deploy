@@ -48,18 +48,34 @@ class RTCollector:
         self.browser = None
         self.page = None
         
+    def cleanup(self):
+        """Clean up browser resources."""
+        if self.page:
+            self.page.close()
+            self.page = None
+        if self.browser:
+            self.browser.close()
+            self.browser = None
+        if self.playwright:
+            self.playwright.stop()
+            self.playwright = None
+
     def ensure_browser(self):
         """Initialize browser if not already initialized."""
         if not self.page:
             try:
+                # Clean up any existing resources first
+                self.cleanup()
+                
                 self.playwright = sync_playwright().start()
                 self.browser = self.playwright.chromium.launch(
-                    headless=False,  # Make browser visible
+                    headless=True,  # Run headless for better memory usage
                     timeout=30000  # 30 second timeout
                 )
                 self.page = self.browser.new_page()
                 self.page.set_default_timeout(30000)  # 30 second timeout
             except Exception as e:
+                self.cleanup()  # Clean up on error
                 print(f"Error initializing browser: {str(e)}")
                 raise
 
