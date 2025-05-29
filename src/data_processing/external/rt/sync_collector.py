@@ -1,186 +1,232 @@
-"""Rotten Tomatoes Data Collector (Sync Version)
+"""Rotten Tomatoes Data Collector (Local Version)
 
 This module handles automated collection of show data from Rotten Tomatoes using sync Playwright.
+Designed to run locally where system dependencies can be properly installed.
 """
 
+import logging
 import os
-import sys
 import subprocess
-from urllib.parse import quote
+import sys
 from datetime import datetime
-from typing import Dict, Optional, Any
-from playwright.sync_api import sync_playwright, TimeoutError
+from typing import Dict, Optional, List, Tuple
+from urllib.parse import quote
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+from playwright.sync_api import sync_playwright
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+if src_path not in sys.path:
+    sys.path.append(src_path)
+
+from supabase import create_client
+
+def get_client():
+    """Get Supabase client with service role."""
+    return create_client(
+        os.environ.get("SUPABASE_URL"),
+        os.environ.get("SUPABASE_SERVICE_KEY")
+    )
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Add project root to path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 sys.path.insert(0, project_root)
 
-from src.dashboard.services.supabase import get_supabase_client
-
 class RTCollector:
     """Handles automated collection of show data from Rotten Tomatoes."""
-    
-    def __init__(self, st: Any):
+
+    def __init__(self):
         """Initialize the collector."""
-        self.supabase = get_supabase_client()
+        self.supabase = get_client()
         self.playwright = None
         self.browser = None
         self.page = None
-        self.st = st
-        
+
         # Try to install browsers during init
         try:
             self.install_browsers()
         except Exception as e:
-            self.st.error("Error during browser installation:")
-            self.st.error(str(e))
+            logger.error("Error during browser installation:")
+            logger.error(str(e))
             if "missing dependencies" in str(e).lower():
-                self.st.error("\nThis is likely because the server is missing required system packages.")
-                self.st.error("Please contact the system administrator to install the required packages:")
-                self.st.code("""
-                sudo apt-get install -y \
-                    libnss3 \
-                    libnspr4 \
-                    libatk1.0-0 \
-                    libatk-bridge2.0-0 \
-                    libcups2 \
-                    libdrm2 \
-                    libxkbcommon0 \
-                    libatspi2.0-0 \
-                    libxcomposite1 \
-                    libxdamage1 \
-                    libxfixes3 \
-                    libxrandr2 \
-                    libgbm1 \
-                    libpango-1.0-0 \
-                    libcairo2 \
-                    libasound2
-                """)
+                logger.error("\nThis is likely because your system is missing required packages.")
+                logger.error("Please install the required packages:")
+                logger.error("""
+                    sudo apt-get install -y \
+                        libnss3 \
+                        libnspr4 \
+                        libatk1.0-0 \
+                        libatk-bridge2.0-0 \
+                        libcups2 \
+                        libdrm2 \
+                        libxkbcommon0 \
+                        libatspi2.0-0 \
+                        libxcomposite1 \
+                        libxdamage1 \
+                        libxfixes3 \
+                        libxrandr2 \
+                        libgbm1 \
+                        libpango-1.0-0 \
+                        libcairo2 \
+                        libasound2
+                    """)
+                raise
         
     def install_browsers(self):
         """Install Playwright browsers if not already installed."""
         try:
-            self.st.write("Installing browsers...")
-            # First check if playwright is in PATH
-            which_result = subprocess.run(['which', 'playwright'], 
-                                        capture_output=True, text=True)
-            self.st.write(f"Which playwright: {which_result.stdout}")
-            if which_result.returncode != 0:
-                self.st.error("playwright not found in PATH")
-                # Try installing browsers using python -m
-                self.st.write("Trying python -m playwright install...")
-                result = subprocess.run(['python', '-m', 'playwright', 'install', 'chromium'],
-                                      capture_output=True, text=True)
-            else:
-                # Use playwright directly
-                self.st.write("Using playwright from PATH...")
-                result = subprocess.run(['playwright', 'install', 'chromium'],
-                                      capture_output=True, text=True)
-            
-            self.st.write(f"Install stdout: {result.stdout}")
-            self.st.write(f"Install stderr: {result.stderr}")
-            if result.returncode != 0:
-                self.st.error(f"Error installing browsers: {result.stderr}")
-                raise Exception(f"Failed to install browsers: {result.stderr}")
-            self.st.success("Browsers installed successfully")
+            # Try installing browsers using python -m playwright
+            logger.info("Installing Playwright browsers...")
+            result = subprocess.run(
+                ['python', '-m', 'playwright', 'install', 'chromium'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            logger.info("Browsers installed successfully")
         except Exception as e:
-            self.st.error(f"Error running playwright install: {e}")
+            logger.error(f"Error installing browsers: {e}")
             raise
 
     def __enter__(self):
         """Set up Playwright browser when used as context manager."""
         try:
-            self.st.write("Starting browser setup...")
-            self.st.write("Starting playwright...")
+            logger.info("Starting browser setup...")
+            logger.info("Starting playwright...")
             try:
                 self.playwright = sync_playwright().start()
-                self.st.write("Playwright started successfully")
+                logger.info("Playwright started successfully")
             except Exception as e:
-                self.st.error(f"Error starting Playwright: {e}")
-                self.st.write("Trying to import directly...")
+                logger.error(f"Error starting Playwright: {e}")
+                logger.info("Trying to import directly...")
                 from playwright.sync_api import sync_playwright
                 self.playwright = sync_playwright().start()
-                self.st.write("Direct import worked")
-            
-            self.st.write("Launching browser...")
+                logger.info("Direct import worked")
+
+            logger.info("Launching browser...")
             try:
                 self.browser = self.playwright.chromium.launch(headless=True)
             except Exception as e:
-                self.st.error(f"Error launching browser: {e}")
+                logger.error(f"Error launching browser: {e}")
                 if "missing dependencies" in str(e).lower():
-                    self.st.error("\nThis is likely because the server is missing required system packages.")
-                    self.st.error("Please contact the system administrator to install the required packages.")
+                    logger.error("\nThis is likely because the server is missing required system packages.")
+                    logger.error("Please contact the system administrator to install the required packages.")
                 raise
-            
+
             self.page = self.browser.new_page(viewport={'width': 1280, 'height': 800})
             return self
-            
+
         except Exception as e:
-            self.st.error(f"Error in enter: {e}")
+            logger.error(f"Error in enter: {e}")
             if self.browser:
                 self.browser.close()
             if self.playwright:
                 self.playwright.stop()
             raise
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Clean up browser resources."""
         if self.browser:
             self.browser.close()
         if self.playwright:
             self.playwright.stop()
-            
+
     def search_show(self, title: str) -> bool:
         """Search for a show and get its scores."""
-        # Go to search with TV filter
-        url = f'https://www.rottentomatoes.com/search?search={quote(title)}&type=tv'
-        self.st.write(f"Searching for: {title}")
-        self.page.goto(url)
+        # Clean the title
+        cleaned_title = self.clean_title(title)
         
-        # Look for show link (exclude season links)
-        links = self.page.query_selector_all('a[href*="/tv/"]')
-        for link in links:
-            href = link.get_attribute('href')
-            text = link.text_content()
+        try:
+            # Go to search page
+            self.page.goto('https://www.rottentomatoes.com/search?search=' + title)
+            time.sleep(3)  # Wait longer for page load
             
-            # Skip season links (ending in /s01, /s02, etc)
-            if href and '/s0' in href:
-                continue
+            # Click TV tab
+            self.page.click('button[data-qa="curation-filter-item-tv"]')
+            time.sleep(2)
+            
+            # Get all search results
+            results = self.page.query_selector_all('search-page-result[type="tvSeries"]')
+            if not results:
+                logger.info(f"No results found for '{title}'")
+                return False
                 
-            self.st.write(f"Found: {text.strip()} -> {href}")
+            # Get potential matches
+            matches = []
+            for result in results:
+                result_title = result.get_attribute('name')
+                cleaned_result = self.clean_title(result_title)
+                if self.titles_match(cleaned_title, cleaned_result):
+                    matches.append((result, result_title))
+                elif cleaned_title in cleaned_result or cleaned_result in cleaned_title:
+                    matches.append((result, result_title))
             
-            # Click first matching link that's not a season
-            if title.lower() in text.lower():
-                self.st.write(f"Clicking main show link: {href}")
-                link.click()
-                # Wait for both score elements to appear
-                try:
-                    self.page.wait_for_selector('rt-text[slot="criticsScore"]', timeout=5000)
-                    self.page.wait_for_selector('rt-text[slot="audienceScore"]', timeout=5000)
-                    return True
-                except TimeoutError:
-                    self.st.error("Timeout waiting for score elements")
-                    return False
-        
-        self.st.error(f"Could not find {title}")
-        return False
+            if not matches:
+                logger.info(f"No matches found for '{title}' among {len(results)} results")
+                return False
+                
+            # If single exact match, use it
+            if len(matches) == 1 and self.titles_match(cleaned_title, self.clean_title(matches[0][1])):
+                logger.info(f"Found exact match: '{matches[0][1]}'")
+                matches[0][0].click()
+                time.sleep(3)  # Wait longer for page load
+                return True
+                
+            # Multiple matches or fuzzy match - need manual confirmation
+            logger.info(f"Found {len(matches)} potential matches for '{title}':")
+            for i, (_, result_title) in enumerate(matches):
+                logger.info(f"{i+1}. {result_title}")
+            logger.info("Please review matches and update manually if needed")
             
-    def get_scores(self) -> Optional[Dict[str, str]]:
+            # For now, don't auto-select any match
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error during search: {e}")
+            return False
+
+    def get_scores(self) -> Dict:
         """Get critic and audience scores."""
-        scores = {}
-        
-        # Get critics score
-        critics = self.page.query_selector('rt-text[slot="criticsScore"]')
-        if critics:
-            scores['critics'] = critics.text_content()
-        
-        # Get audience score
-        audience = self.page.query_selector('rt-text[slot="audienceScore"]')
-        if audience:
-            scores['audience'] = audience.text_content()
+        try:
+            # Wait longer for score board to load
+            time.sleep(5)
             
-        return scores if scores else None
+            # Wait and retry if scores not loaded
+            retries = 3
+            while retries > 0:
+                # Get critic and audience scores
+                critic_score = self.page.query_selector('rt-text[slot="criticsScore"]')
+                audience_score = self.page.query_selector('rt-text[slot="audienceScore"]')
+                
+                if critic_score and audience_score:
+                    try:
+                        tomatometer = int(re.sub(r'[^0-9]', '', critic_score.text_content()))
+                        audience = int(re.sub(r'[^0-9]', '', audience_score.text_content()))
+                        
+                        logger.info(f"Found scores: Tomatometer={tomatometer}, Popcornmeter={audience}")
+                        return {
+                            'tomatometer': tomatometer,
+                            'popcornmeter': audience
+                        }
+                    except Exception as e:
+                        logger.error(f"Error parsing scores: {e}")
+                
+                time.sleep(2)
+                retries -= 1
             
+            logger.error("Could not find scores after retries")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting scores: {e}")
+            return None
+
     def collect_show_data(self, show_id: int) -> Dict:
         """Collect RT data for a show.
 
@@ -190,125 +236,177 @@ class RTCollector:
         Returns:
             Dictionary with success status and scores if successful
         """
+        # Get show title
+        response = self.supabase.table('shows')\
+            .select('title')\
+            .eq('id', show_id)\
+            .execute()
+
+        if not response.data:
+            error = f"No show found with ID {show_id}"
+            logger.error(error)
+            self.update_status(show_id, 'error', error)
+            return {'success': False, 'error': error}
+
+        title = response.data[0]['title']
+        logger.info(f"Processing show: {title} (ID: {show_id})")
+
+        # Search for show on RT
+        if not self.search_show(title):
+            self.update_status(show_id, 'not_found')
+            return {'success': False, 'error': 'Show not found on Rotten Tomatoes'}
+
+        # Get scores
+        scores = self.get_scores()
+        if not scores:
+            error = 'Could not get scores'
+            self.update_status(show_id, 'error', error)
+            return {'success': False, 'error': error}
+
+        # Update database
         try:
-            # Get show info
-            response = self.supabase.table('shows').select('title').eq('id', show_id).execute()
-            if not response.data:
-                error = f"Show with id {show_id} not found"
-                self.update_status(show_id, 'error', error)
-                return {'success': False, 'error': error}
-                
-            title = response.data[0]['title']
-            self.st.write(f"Collecting RT data for: {title}")
-            
-            # Make sure browser is initialized
-            if not self.page:
-                self.st.write("Browser not initialized, entering context...")
-                with self as _:
-                    self.st.write("Browser initialized, proceeding with search")
-                    return self._collect_show_data_with_browser(show_id, title)
-            else:
-                self.st.write("Browser already initialized, proceeding with search")
-                return self._collect_show_data_with_browser(show_id, title)
-            
-        except Exception as e:
-            self.st.error(f"Error collecting RT data: {e}")
-            self.update_status(show_id, 'error', str(e))
-            return {'success': False, 'error': str(e)}
-            
-    def _collect_show_data_with_browser(self, show_id: int, title: str) -> Dict:
-        """Helper method to collect data once browser is initialized."""
-        try:
-            # Search and get scores
-            if not self.search_show(title):
-                self.update_status(show_id, 'not_found')
-                return {'success': False}
-                
-            scores = self.get_scores()
-            if not scores:
-                self.update_status(show_id, 'error', 'Could not find scores')
-                return {'success': False, 'error': 'Could not find scores'}
-                
-            # Save scores
-            metrics_data = {
-                'show_id': show_id,
-                'tomatometer': scores['critics'].rstrip('%'),
-                'popcornmeter': scores['audience'].rstrip('%'),
-                'last_updated': datetime.now().isoformat()
-            }
-            
-            self.supabase.table('rt_success_metrics').upsert(metrics_data, on_conflict='show_id').execute()
-            self.update_status(show_id, 'matched')
-            
+            self.supabase.table('rt_success_metrics')\
+                .upsert({
+                    'show_id': show_id,
+                    'tomatometer': scores['tomatometer'],
+                    'audience_score': scores['audience_score'],
+                    'updated_at': datetime.utcnow().isoformat()
+                })\
+                .execute()
+            self.update_status(show_id, 'success')
             return {'success': True, 'scores': scores}
-            
         except Exception as e:
-            self.st.error(f"Error in browser operations: {e}")
-            self.update_status(show_id, 'error', str(e))
-            return {'success': False, 'error': str(e)}
+            error = f"Error updating scores in database: {e}"
+            self.update_status(show_id, 'error', error)
+            return {'success': False, 'error': error}
 
     def clean_title(self, title: str) -> str:
         """Clean a title for comparison by removing year ranges and common suffixes."""
-        # Remove year ranges like (2019 - 2023)
         import re
+
+        # Remove year ranges like (2019 - 2023)
         title = re.sub(r'\s*\([0-9]{4}\s*-\s*[0-9]{4}\)\s*$', '', title)
         title = re.sub(r'\s*\([0-9]{4}\)\s*$', '', title)
-        
+
         # Remove common suffixes
         suffixes = [': The Series', ': The Show']
         for suffix in suffixes:
             if title.endswith(suffix):
                 title = title[:-len(suffix)]
-        
+
         return title.strip().lower()
     
     def titles_match(self, title1: str, title2: str) -> bool:
-        """Check if two titles match after cleaning."""
-        clean1 = self.clean_title(title1)
-        clean2 = self.clean_title(title2)
-        
-        # Try exact match first
-        if clean1 == clean2:
-            return True
-            
-        # Try substring match
-        if clean1 in clean2 or clean2 in clean1:
-            return True
-            
-        return False
+        """Compare two titles, ignoring case and punctuation."""
+        # Normalize titles for comparison
+        t1 = title1.lower().replace(':', '').replace('-', '').replace('&', 'and')
+        t2 = title2.lower().replace(':', '').replace('-', '').replace('&', 'and')
+
+        # Remove articles from start
+        articles = ['the ', 'a ', 'an ']
+        for article in articles:
+            if t1.startswith(article):
+                t1 = t1[len(article):]
+            if t2.startswith(article):
+                t2 = t2[len(article):]
+
+        return t1 == t2
 
     def update_status(self, show_id: int, status: str, error: Optional[str] = None):
         """Update the status of a show in the database."""
         # Map our status to DB enum
         status_map = {
             'not_found': 'not_found',
-            'error': 'error',
-            'pending': 'pending',
-            'matched': 'matched'
+            'success': 'success',
+            'error': 'error'
         }
-        
-        status_data = {
+
+        # Create metrics record
+        data = {
             'show_id': show_id,
-            'status': status,
-            'error_details': error,
-            'last_attempt': datetime.now().isoformat(),
+            'status': status_map[status],
+            'error': error,
+            'created_at': datetime.utcnow().isoformat()
         }
-        
+
         try:
-            self.supabase.table('rt_match_status').upsert(status_data, on_conflict='show_id').execute()
+            self.supabase.table('rt_success_metrics')\
+                .insert(data)\
+                .execute()
         except Exception as e:
-            self.st.error(f"Error updating status: {e}")
+            logger.error(f"Error updating status: {e}")
 
     def get_last_status(self, show_id: int) -> Optional[Dict]:
         """Get the last status for a show."""
         try:
-            response = self.supabase.table('rt_match_status')\
+            response = self.supabase.table('rt_success_metrics')\
                 .select('*')\
                 .eq('show_id', show_id)\
-                .order('last_attempt', desc=True)\
+                .order('created_at', desc=True)\
                 .limit(1)\
                 .execute()
             return response.data[0] if response.data else None
         except Exception as e:
-            self.st.error(f"Error getting last status: {e}")
+            logger.error(f"Error getting last status: {e}")
             return None
+
+
+def main():
+    """Main entry point for the script."""
+    import argparse
+    parser = argparse.ArgumentParser(description='Collect Rotten Tomatoes data for shows')
+    parser.add_argument('--show-id', type=int, help='ID of show to collect data for')
+    parser.add_argument('--batch-size', type=int, default=10, help='Number of shows to process in a batch')
+    args = parser.parse_args()
+
+    with RTCollector() as collector:
+        if args.show_id:
+            # Collect data for specific show
+            result = collector.collect_show_data(args.show_id)
+            if result['success']:
+                logger.info(f"Successfully collected data: {result['scores']}")
+            else:
+                logger.error(f"Failed to collect data: {result['error']}")
+        else:
+            # Get all shows that need RT scores
+            response = collector.supabase.table('shows')\
+                .select('id, title')\
+                .not_.in_('id', 
+                    collector.supabase.table('rt_success_metrics')\
+                        .select('show_id')\
+                        .execute()\
+                        .data
+                )\
+                .order('title')\
+                .execute()
+
+            if not response.data:
+                logger.info("No shows need RT scores")
+                return
+
+            total_shows = len(response.data)
+            logger.info(f"Found {total_shows} shows that need RT scores")
+            
+            # Process shows in batches
+            for i in range(0, total_shows, args.batch_size):
+                batch = response.data[i:i + args.batch_size]
+                logger.info(f"\nProcessing batch {i//args.batch_size + 1} of {(total_shows-1)//args.batch_size + 1}")
+                
+                for show in batch:
+                    logger.info(f"\nProcessing show: {show['title']} (ID: {show['id']})")
+                    result = collector.collect_show_data(show['id'])
+                    
+                    if result['success']:
+                        logger.info(f"Successfully collected data: {result['scores']}")
+                    else:
+                        logger.error(f"Failed to collect data: {result['error']}")
+                    
+                    # Wait between shows to avoid rate limiting
+                    time.sleep(2)
+                
+                if i + args.batch_size < total_shows:
+                    input("\nPress Enter to continue with next batch...")
+
+
+if __name__ == '__main__':
+    main()
