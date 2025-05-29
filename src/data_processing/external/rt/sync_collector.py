@@ -128,13 +128,11 @@ class RTCollector:
         cleaned_title = self.clean_title(title)
         
         try:
-            # Go to search page
-            self.page.goto('https://www.rottentomatoes.com/search?search=' + title)
+            # Go to search page with TV filter
+            search_url = f'https://www.rottentomatoes.com/search?search={quote(title)}&type=tv'
+            logger.info(f"Searching: {search_url}")
+            self.page.goto(search_url)
             time.sleep(3)  # Wait longer for page load
-            
-            # Click TV tab
-            self.page.click('button[data-qa="curation-filter-item-tv"]')
-            time.sleep(2)
             
             # Get all search results
             results = self.page.query_selector_all('search-page-result[type="tvSeries"]')
