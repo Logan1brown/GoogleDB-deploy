@@ -265,7 +265,7 @@ def handle_studio_select(selected):
     show_form = state.show_form
     
     # Replace studios list with selected IDs
-    show_form.studios = [s[0] for s in selected]
+    show_form.studio_ids = [s[0] for s in selected]
     update_data_entry_state(state)
 
 def handle_studio_save():
@@ -302,8 +302,8 @@ def handle_existing_studio_remove(studio_id: int):
     show_form = state.show_form
     
     # Remove the studio from studios list
-    if studio_id in show_form.studios:
-        show_form.studios.remove(studio_id)
+    if studio_id in show_form.studio_ids:
+        show_form.studio_ids.remove(studio_id)
     
     # Update state
     update_data_entry_state(state)
@@ -473,7 +473,7 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
     # Select existing studios
     studio_options = [(s['id'], s['name']) for s in lookups.get('studios', [])]
     # Convert studio IDs to tuples for the multiselect
-    default_studios = [(s['id'], s['name']) for s in lookups.get('studios', []) if s['id'] in show_form.studios]
+    default_studios = [(s['id'], s['name']) for s in lookups.get('studios', []) if s['id'] in show_form.studio_ids]
     
     selected = st.multiselect(
         "Select Existing Studios",
@@ -506,11 +506,11 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
                 )
     
     # Show all selected studios
-    if show_form.studios or show_form.new_studios:
+    if show_form.studio_ids or show_form.new_studios:
         st.markdown("### Selected Studios")
         
         # Show existing studios
-        for studio_id in show_form.studios:
+        for studio_id in show_form.studio_ids:
             studio = next((s for s in lookups.get('studios', []) if s['id'] == studio_id), None)
             if studio:
                 st.write(studio['name'])
@@ -731,7 +731,7 @@ def handle_submit(show_form: ShowFormState):
         'status_id': show_form.status_id,
         'date': show_form.date.isoformat() if show_form.date else None,
         'episode_count': show_form.episode_count,
-        'studios': show_form.studios,
+        'studio_ids': show_form.studio_ids,
         'new_studios': show_form.new_studios,
         'team_members': show_form.team_members
     }
@@ -803,14 +803,14 @@ def render_review(show_form: ShowFormState, lookups: Dict, readonly: bool = Fals
     st.write(f"**Description**")
     st.write(show_form.description or 'None')
     
-    if show_form.studios or show_form.new_studios:
+    if show_form.studio_ids or show_form.new_studios:
         st.write("")
         st.write("### Studios")
         
         # Show selected existing studios
-        if show_form.studios:
+        if show_form.studio_ids:
             studio_names = [next((s['name'] for s in lookups.get('studios', []) if s['id'] == studio_id), 'Unknown') 
-                          for studio_id in show_form.studios]
+                          for studio_id in show_form.studio_ids]
             for studio in studio_names:
                 st.write(f"- {studio}")
         
