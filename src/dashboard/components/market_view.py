@@ -199,17 +199,14 @@ def render_market_snapshot(market_analyzer):
     if success_filter != "All":
         # Filter based on success tier
         if success_filter == "High (>80)":
-            filtered_df = filtered_df[filtered_df['id'].astype(str).isin(
-                [id for id, data in success_metrics['titles'].items() if data['score'] > 80]
-            )]
+            high_ids = [int(id) for id, data in success_metrics['titles'].items() if data['score'] > 80]
+            filtered_df = filtered_df[filtered_df['id'].isin(high_ids)]
         elif success_filter == "Medium (50-80)":
-            filtered_df = filtered_df[filtered_df['id'].astype(str).isin(
-                [id for id, data in success_metrics['titles'].items() if 50 <= data['score'] <= 80]
-            )]
+            medium_ids = [int(id) for id, data in success_metrics['titles'].items() if 50 <= data['score'] <= 80]
+            filtered_df = filtered_df[filtered_df['id'].isin(medium_ids)]
         elif success_filter == "Low (<50)":
-            filtered_df = filtered_df[filtered_df['id'].astype(str).isin(
-                [id for id, data in success_metrics['titles'].items() if data['score'] < 50]
-            )]
+            low_ids = [int(id) for id, data in success_metrics['titles'].items() if data['score'] < 50]
+            filtered_df = filtered_df[filtered_df['id'].isin(low_ids)]
     
     # First apply creative filters if selected
     if selected_creatives:
@@ -255,13 +252,17 @@ def render_market_snapshot(market_analyzer):
     # Get success scores by network first
     network_scores = {}
     for title_id, title_data in success_metrics['titles'].items():
-        # Find title by show_id
-        title = filtered_df[filtered_df['id'] == title_id].iloc[0] if len(filtered_df[filtered_df['id'] == title_id]) > 0 else None
-        if title is not None:
-            network = title['network_name']
-            if network not in network_scores:
-                network_scores[network] = []
-            network_scores[network].append(title_data['score'])
+        # Find title by show_id (convert title_id to int since filtered_df['id'] is int)
+        try:
+            title_id_int = int(title_id)
+            title = filtered_df[filtered_df['id'] == title_id_int]
+            if not title.empty:
+                network = title.iloc[0]['network_name']
+                if network not in network_scores:
+                    network_scores[network] = []
+                network_scores[network].append(title_data['score'])
+        except (ValueError, KeyError):
+            st.error(f"Error processing title_id: {title_id}")
     
     # If filtering by success tier, only include networks that have scores
     if success_filter != "All":
