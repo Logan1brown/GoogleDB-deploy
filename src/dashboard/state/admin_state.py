@@ -95,14 +95,7 @@ class TMDBMatchingState:
     success_message: Optional[str] = None
     validated_show_id: Optional[int] = None  # Track which show was just validated
 
-@dataclass
-class RTMatchingState:
-    """State for RT matching section.
-    
-    Tracks state for collecting RT scores for shows.
-    """
-    error_message: Optional[str] = None
-    success_message: Optional[str] = None
+
 
 @dataclass
 class AdminState:
@@ -115,4 +108,3 @@ class AdminState:
     user_management: UserManagementState = field(default_factory=UserManagementState)
     announcements: AnnouncementState = field(default_factory=AnnouncementState)
     tmdb_matching: TMDBMatchingState = field(default_factory=TMDBMatchingState)
-

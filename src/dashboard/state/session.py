@@ -9,7 +9,7 @@ import streamlit as st
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field, asdict
 from src.dashboard.state.show_state import DataEntryState
-from src.dashboard.state.admin_state import AdminState, TMDBMatchState, UserManagementState, AnnouncementState, TMDBMatchingState, RTMatchingState
+from src.dashboard.state.admin_state import AdminState, TMDBMatchState, UserManagementState, AnnouncementState, TMDBMatchingState
 
 @dataclass
 class FilterState:
@@ -114,10 +114,6 @@ def get_admin_state() -> AdminState:
     
     # Convert nested dicts to proper state objects
     admin_dict = state["admin"]
-    if isinstance(admin_dict["user_management"], dict):
-        admin_dict["user_management"] = UserManagementState(**admin_dict["user_management"])
-    if isinstance(admin_dict["announcements"], dict):
-        admin_dict["announcements"] = AnnouncementState(**admin_dict["announcements"])
     if isinstance(admin_dict["tmdb_matching"], dict):
         matching_dict = admin_dict["tmdb_matching"]
         if isinstance(matching_dict.get("matches", []), list):
@@ -161,7 +157,7 @@ def clear_section_state(state: AdminState, section: str) -> None:
     
     Args:
         state: Current admin state to update
-        section: Name of section to clear ('User Management', 'Announcements', 'TMDB Matches', 'RT Matches')
+        section: Name of section to clear ('User Management', 'Announcements', 'TMDB Matches')
     """
     # Reset section state
     if section == "User Management":
@@ -173,9 +169,7 @@ def clear_section_state(state: AdminState, section: str) -> None:
     elif section == "TMDB Matches":
         state.tmdb_matching = TMDBMatchingState()
         prefix = "tmdb_"
-    elif section == "RT Matches":
 
-        prefix = "rt_"
     
     # Clear section-specific session state
     for key in list(st.session_state.keys()):

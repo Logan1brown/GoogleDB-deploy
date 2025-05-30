@@ -39,7 +39,7 @@ from src.dashboard.state.session import (
     get_admin_state, update_admin_state, clear_section_state,
     clear_matching_state
 )
-from src.data_processing.external.rt.sync_collector import RTCollector
+
 from supabase import create_client
 from dataclasses import dataclass
 
@@ -391,6 +391,7 @@ def render_announcements():
     render_announcements_list(announcements, on_review=handle_review)
 
 
+
 def render_rt_matches():
     """Render the RT matches section."""
     from ..components.rt_status_view import render_rt_status
@@ -617,8 +618,7 @@ def admin_show():
         
         if state.current_view == "User Management":
             state.user_management.error_message = error_msg
-        elif state.current_view == "RT Matches":
-            state.rt_matching.error_message = error_msg
+
         elif state.current_view == "Announcements":
             state.announcements.error_message = error_msg
         elif state.current_view == "TMDB Matches":
