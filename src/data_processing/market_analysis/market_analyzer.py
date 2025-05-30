@@ -134,15 +134,15 @@ class MarketAnalyzer:
         """
         try:
             # Get success metrics from SuccessAnalyzer
-            success_metrics = self.success_analyzer.analyze_market(self.titles_df)
+            success_metrics = self.success_analyzer.analyze_market()
+            success_df = self.success_analyzer.success_data
             
             # Create network -> scores mapping
             network_scores = {}
             for show_id, show_data in success_metrics['titles'].items():
                 show_id = str(show_id)  # Convert to string for comparison
-                show_idx = self.titles_df['tmdb_id'].astype(str) == show_id
-                if show_idx.any():
-                    network = self.titles_df.loc[show_idx.idxmax(), 'network_name']
+                if show_id in success_df.index:
+                    network = success_df.loc[show_id, 'network_name']
                     if network not in network_scores:
                         network_scores[network] = []
                     network_scores[network].append(show_data['score'])

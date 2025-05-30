@@ -142,7 +142,7 @@ def render_market_snapshot(market_analyzer):
         )
     with col4:
         # Get success metrics directly
-        success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
+        success_metrics = market_analyzer.success_analyzer.analyze_market()
         if success_metrics and 'titles' in success_metrics:
             total_score = sum(data['score'] for data in success_metrics['titles'].values())
             num_titles = len(success_metrics['titles'])
@@ -189,7 +189,7 @@ def render_market_snapshot(market_analyzer):
     filtered_df = market_analyzer.titles_df[needed_cols].copy()
     
     # Get success metrics for all shows
-    success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
+    success_metrics = market_analyzer.success_analyzer.analyze_market()
     if not success_metrics or 'titles' not in success_metrics:
         return
         
