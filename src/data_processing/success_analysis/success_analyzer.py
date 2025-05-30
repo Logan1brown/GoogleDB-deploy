@@ -415,30 +415,41 @@ class SuccessAnalyzer:
         """
         display_items = []
         
-        # Season points
+        # Calculate base points (70% total)
+        season_points = 0
         if 'season2_renewal' in breakdown:
-            display_items.append(f"**Season 2 renewal** _(+{breakdown['season2_renewal']} points)_")
+            season_points += breakdown['season2_renewal']
         if 'additional_seasons' in breakdown:
-            display_items.append(f"**Additional seasons bonus** _(+{breakdown['additional_seasons']} points)_")
+            season_points += breakdown['additional_seasons']
+        season_contribution = season_points * self.config.SEASON_WEIGHT
+        display_items.append(f"**Seasons:** {season_points:.0f} points → **{season_contribution:.1f} pts** _(30% weight)_")
         
-        # Episode points
+        episode_points = 0
         if 'episode_base' in breakdown:
-            display_items.append(f"**Base episode count** _(+{breakdown['episode_base']} points)_")
+            episode_points += breakdown['episode_base']
         if 'episode_bonus' in breakdown:
-            display_items.append(f"**Episode count bonus** _(+{breakdown['episode_bonus']} points)_")
+            episode_points += breakdown['episode_bonus']
+        episode_contribution = episode_points * self.config.EPISODE_WEIGHT
+        display_items.append(f"**Episodes:** {episode_points:.0f} points → **{episode_contribution:.1f} pts** _(30% weight)_")
         
         # Status modifier
         if 'status_modifier' in breakdown:
             modifier = breakdown['status_modifier']
+            status_contribution = (season_contribution + episode_contribution) * (modifier - 1.0)
             if modifier > 1.0:
-                display_items.append(f"**Active series bonus** _(+{(modifier - 1.0) * 100:.0f}%)_")
-            else:
-                display_items.append(f"**Canceled series penalty** _({(modifier - 1.0) * 100:.0f}%)_")
+                display_items.append(f"**Active Series Bonus:** +20% → **+{status_contribution:.1f} pts**")
+            elif modifier < 1.0:
+                display_items.append(f"**Canceled Series Penalty:** -20% → **{status_contribution:.1f} pts**")
         
-        # RT scores
+        # RT scores (30% total)
         if 'tomatometer' in breakdown:
-            display_items.append(f"**Tomatometer Score** _({breakdown['tomatometer']:.0f}/100)_")
+            tomatometer = breakdown['tomatometer']
+            tomatometer_contribution = tomatometer * self.config.TOMATOMETER_WEIGHT
+            display_items.append(f"**Tomatometer:** {tomatometer:.0f}/100 → **{tomatometer_contribution:.1f} pts** _(15% weight)_")
+            
         if 'popcornmeter' in breakdown:
-            display_items.append(f"**Audience Score** _({breakdown['popcornmeter']:.0f}/100)_")
+            popcornmeter = breakdown['popcornmeter']
+            popcornmeter_contribution = popcornmeter * self.config.POPCORNMETER_WEIGHT
+            display_items.append(f"**Popcornmeter:** {popcornmeter:.0f}/100 → **{popcornmeter_contribution:.1f} pts** _(15% weight)_")
             
         return display_items
