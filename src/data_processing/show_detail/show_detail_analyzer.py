@@ -136,8 +136,8 @@ class ShowDetailAnalyzer:
             'title': show['title'],
             'network_name': show['network_name'],
             'genre_name': show['genre_name'],
-            'subgenres': show.get('subgenres', []),
-            'source_name': show['source_name'],
+            'subgenre_names': show.get('subgenre_names', []),
+            'source_type_name': show['source_type_name'],
             'team_members': show.get('team_members', []),
             'success_score': show.get('success_score'),
             'tmdb_status': show.get('tmdb_status'),
@@ -207,8 +207,8 @@ class ShowDetailAnalyzer:
                     'subgenre_points': 0
                 },
                 'source': {
-                    'type1': show1['source_name'],
-                    'type2': show2['source_name'],
+                    'type1': show1['source_type_name'],
+                    'type2': show2['source_type_name'],
                     'match': False
                 },
                 'team': {
@@ -217,8 +217,8 @@ class ShowDetailAnalyzer:
                 'format': {
                     'eps_per_season1': None,
                     'eps_per_season2': None,
-                    'order_type1': show1['order_name'],
-                    'order_type2': show2['order_name']
+                    'order_type1': show1['order_type_name'],
+                    'order_type2': show2['order_type_name']
                 },
                 'network': {
                     'name1': show1['network_name'],
@@ -244,15 +244,15 @@ class ShowDetailAnalyzer:
         scores['details']['genre']['primary'] = show1['genre_name']
         
         # Subgenre matches (13 points)
-        subgenres1 = set(show1.get('subgenres', []) or [])
-        subgenres2 = set(show2.get('subgenres', []) or [])
-        shared_subgenres = subgenres1 & subgenres2
-        scores['details']['genre']['shared_subgenres'] = list(shared_subgenres)
+        subgenre_names1 = set(show1.get('subgenre_names', []) or [])
+        subgenre_names2 = set(show2.get('subgenre_names', []) or [])
+        shared_subgenre_names = subgenre_names1 & subgenre_names2
+        scores['details']['genre']['shared_subgenre_names'] = list(shared_subgenre_names)
         
-        if len(shared_subgenres) >= 1:
+        if len(shared_subgenre_names) >= 1:
             scores['genre_score'] += 8  # First subgenre match
             scores['details']['genre']['subgenre_points'] += 8
-        if len(shared_subgenres) >= 2:
+        if len(shared_subgenre_names) >= 2:
             scores['genre_score'] += 5   # Second subgenre match
             scores['details']['genre']['subgenre_points'] += 5
         
@@ -274,10 +274,10 @@ class ShowDetailAnalyzer:
         scores['studio_score'] = 3 if studio_match else 0
         
         # Source match (15 points)
-        source_match = show1['source_name'] == show2['source_name']
+        source_match = show1['source_type_name'] == show2['source_type_name']
         scores['source_score'] = 15 if source_match else 0
-        scores['details']['source']['type1'] = show1['source_name']
-        scores['details']['source']['type2'] = show2['source_name']
+        scores['details']['source']['type1'] = show1['source_type_name']
+        scores['details']['source']['type2'] = show2['source_type_name']
         scores['details']['source']['match'] = source_match
         
         # Episode format match (8 points)
@@ -296,10 +296,10 @@ class ShowDetailAnalyzer:
                 scores['episode_score'] = 2
         
         # Order type match (4 points)
-        order_match = show1['order_name'] == show2['order_name']
+        order_match = show1['order_type_name'] == show2['order_type_name']
         scores['order_score'] = 4 if order_match else 0
-        scores['details']['format']['order_type1'] = show1['order_name']
-        scores['details']['format']['order_type2'] = show2['order_name']
+        scores['details']['format']['order_type1'] = show1['order_type_name']
+        scores['details']['format']['order_type2'] = show2['order_type_name']
         
         # Date proximity (3 points)
         date1 = pd.to_datetime(show1['announced_date']).year if pd.notna(show1.get('announced_date')) else None
@@ -311,7 +311,7 @@ class ShowDetailAnalyzer:
         # Calculate totals
         scores['content_total'] = (
             scores['genre_score'] + scores['team_score'] + 
-            scores['source_score'] + scores['network_score'] + scores['studio_score']
+            scores['source_score'] + scores['network_score'] + scores['studio_names_score']
         )
         scores['format_total'] = scores['episode_score'] + scores['order_score'] + scores['date_score']
         scores['total'] = scores['content_total'] + scores['format_total']

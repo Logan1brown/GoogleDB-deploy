@@ -431,10 +431,10 @@ class ShowsAnalyzer:
             if not supabase:
                 raise ValueError("Supabase client not initialized")
                 
-            # Fetch from api_show_summary view
-            result = supabase.table(_self.VIEWS['summary']).select('*').execute()
+            # Fetch from api_show_details view
+            result = supabase.table(_self.VIEWS['details']).select('*').execute()
             if not hasattr(result, 'data') or not result.data:
-                raise ValueError("No data returned from api_show_summary")
+                raise ValueError("No data returned from api_show_details")
                 
             shows_df = pd.DataFrame(result.data)
             return shows_df
