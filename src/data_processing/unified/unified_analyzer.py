@@ -117,9 +117,8 @@ class UnifiedAnalyzer:
 
             
             # Initialize success analyzer if not provided
-            self.success_analyzer = success_analyzer or SuccessAnalyzer()
-            # Initialize analyzer with title data
-            self.success_analyzer.initialize_data(self.details_df)
+            self.success_analyzer = success_analyzer or SuccessAnalyzer(self.shows_analyzer)
+            # Success data will be fetched when needed through success_data property
             
 
             # Verify required columns exist after data cleaning
