@@ -341,12 +341,16 @@ class ShowDetailAnalyzer:
         for _, show in self._shows_df[self._shows_df['id'] != show_id].iterrows():
             scores = self.compute_similarity(target_show, show)
             if scores['total'] >= min_score:
+                # Get success metrics from SuccessAnalyzer
+                success_metrics = self.success_analyzer.get_success_metrics(show['id'])
+                success_score = success_metrics['score'] if success_metrics else None
+                
                 similar_shows.append(SimilarShow(
                     show_id=show['id'],  # Use id from api_show_details
                     title=show['title'],
                     network_name=show['network_name'],
                     description=show.get('description'),
-                    success_score=show.get('success_score'),
+                    success_score=success_score,
                     match_score=scores
                 ))
         
@@ -408,12 +412,17 @@ class ShowDetailAnalyzer:
         HIGH_SUCCESS_THRESHOLD = 70  # Shows with 70+ points considered highly successful
         
         for network, scores in network_success_shows.items():
-            # Average score
-            success_scores[network] = sum(scores) / len(scores) if scores else 0
-            
-            # Success rate (% of shows above threshold)
-            high_success_count = sum(1 for score in scores if score >= HIGH_SUCCESS_THRESHOLD)
-            success_rates[network] = (high_success_count / len(scores)) if scores else 0
+            if scores:  # Only calculate if we have scores
+                # Average score
+                success_scores[network] = sum(scores) / len(scores)
+                
+                # Success rate (% of shows above threshold)
+                high_success_count = sum(1 for score in scores if score >= HIGH_SUCCESS_THRESHOLD)
+                success_rates[network] = high_success_count / len(scores)
+            else:
+                # Default values if no scores
+                success_scores[network] = 0
+                success_rates[network] = 0
         
         return NetworkAnalysis(
             similar_show_counts=network_counts,
