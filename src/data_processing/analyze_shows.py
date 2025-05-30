@@ -272,7 +272,7 @@ class ShowsAnalyzer:
             titles_df = pd.DataFrame(titles_data.data)
             # Verify required columns for market analysis
             required_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
-                            'tmdb_status', 'status_name', 'studio_names']
+                            'tmdb_status', 'status_name', 'studio_names', 'id']
             missing_cols = [col for col in required_cols if col not in titles_df.columns]
             if missing_cols:
                 raise ValueError(f"Missing required columns for market analysis: {missing_cols}")
@@ -282,18 +282,17 @@ class ShowsAnalyzer:
                 logger.warning("Some rows have missing titles")
                 logger.warning(f"Rows with missing titles: {titles_df[titles_df['title'].isna()]}")
             
-            # Get active status and IDs directly from shows table
-            shows_data = supabase.table('shows').select('id,title,active').execute()
+            # Get active status directly from shows table
+            shows_data = supabase.table('shows').select('id,active').execute()
             if not hasattr(shows_data, 'data') or not shows_data.data:
                 raise ValueError("No data returned from shows table")
             shows_df = pd.DataFrame(shows_data.data)
 
-            
             # Verify shows_df has required columns
-            if 'id' not in shows_df.columns or 'title' not in shows_df.columns:
+            if 'id' not in shows_df.columns:
                 raise ValueError(f"Missing required columns in shows table. Available: {shows_df.columns.tolist()}")
             
-            titles_df = titles_df.merge(shows_df[['id', 'title', 'active']], on='title', how='left')
+            titles_df = titles_df.merge(shows_df[['id', 'active']], on='id', how='left')
             titles_df['active'] = titles_df['active'].fillna(False)  # Default to inactive for any shows not in shows table
             
 
