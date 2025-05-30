@@ -142,12 +142,13 @@ def render_market_snapshot(market_analyzer):
         )
     with col4:
         # Get success metrics directly
-        success_metrics = market_analyzer.success_analyzer.analyze_market()
+        success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
         if success_metrics and 'titles' in success_metrics:
             total_score = sum(data['score'] for data in success_metrics['titles'].values())
             num_titles = len(success_metrics['titles'])
             avg_success = total_score / num_titles if num_titles > 0 else 0
         else:
+            st.error("No success metrics available in get_market_insights")
             avg_success = 0
         st.metric(
             "Success Score", 
@@ -189,8 +190,9 @@ def render_market_snapshot(market_analyzer):
     filtered_df = market_analyzer.titles_df[needed_cols].copy()
     
     # Get success metrics for all shows
-    success_metrics = market_analyzer.success_analyzer.analyze_market()
+    success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
     if not success_metrics or 'titles' not in success_metrics:
+        st.error("No success metrics available")
         return
         
     # Filter data based on success level
