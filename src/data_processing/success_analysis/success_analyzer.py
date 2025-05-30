@@ -389,11 +389,11 @@ class SuccessAnalyzer:
             except (ValueError, TypeError):
                 pass
                 
-        # Status modifier
+        # Status points
         status = show.get('tmdb_status')
-        modifier = self.config.STATUS_MODIFIERS.get(status, 1.0)
-        if modifier != 1.0:
-            breakdown['status_modifier'] = modifier
+        status_points = self.config.STATUS_POINTS.get(status, 0)
+        if status_points > 0:
+            breakdown['status_points'] = status_points
             
         # RT scores
         if has_rt:
@@ -436,15 +436,14 @@ class SuccessAnalyzer:
         episode_contribution = episode_points * self.config.EPISODE_WEIGHT
         display_items.append(f"**Episodes:** {episode_points:.0f} points → **{episode_contribution:.1f} pts** _(30% weight)_")
         
-        # Status modifier
-        if 'status_modifier' in breakdown:
-            modifier = breakdown['status_modifier']
-            base_contribution = season_contribution + episode_contribution
-            status_contribution = base_contribution * (modifier - 1.0)
-            if modifier > 1.0:
-                display_items.append(f"**Active Series Bonus:** +20% → **+{status_contribution:.1f} pts**")
-            elif modifier < 1.0:
-                display_items.append(f"**Canceled Series Penalty:** -20% → **{status_contribution:.1f} pts**")
+        # Status points
+        if 'status_points' in breakdown:
+            status_points = breakdown['status_points']
+            status_contribution = status_points * self.config.STATUS_WEIGHT
+            if status_points == 100:
+                display_items.append(f"**Active Series Bonus:** {status_points:.0f} points → **{status_contribution:.1f} pts** _(10% weight)_")
+            elif status_points == 50:
+                display_items.append(f"**Completed Series:** {status_points:.0f} points → **{status_contribution:.1f} pts** _(10% weight)_")
         
         # RT scores (30% total)
         if 'tomatometer' in breakdown:
