@@ -110,7 +110,10 @@ def show():
         st.write("")
         # Success metrics
         st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Success Metrics</p>', unsafe_allow_html=True)
-        success_score = show_data['success_score']
+        success_score = analyzer.get_success_metrics(show_id)
+        if success_score is None:
+            st.write("No success metrics available")
+            return
         st.metric("Success Score", f"{success_score:.1f}/100")
         
         # Score breakdown

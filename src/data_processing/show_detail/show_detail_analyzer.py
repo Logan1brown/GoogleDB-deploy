@@ -353,6 +353,20 @@ class ShowDetailAnalyzer:
         similar_shows.sort(key=lambda x: (-x.match_score['total'], x.title))
         return similar_shows[:max_shows]
     
+    def get_success_metrics(self, show_id: int) -> Optional[float]:
+        """Get success metrics for a specific show.
+        
+        Args:
+            show_id: ID of the show to get metrics for
+            
+        Returns:
+            Success score if available, None if not
+        """
+        success_df = self.success_analyzer.fetch_success_data()
+        if show_id in success_df.index:
+            return success_df.loc[show_id]['success_score']
+        return None
+
     def analyze_network_patterns(self, similar_shows: List[SimilarShow]) -> NetworkAnalysis:
         """Analyze network patterns in similar shows.
         
