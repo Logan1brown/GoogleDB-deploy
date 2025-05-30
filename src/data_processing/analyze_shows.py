@@ -437,7 +437,6 @@ class ShowsAnalyzer:
                 raise ValueError("No data returned from api_show_summary")
                 
             shows_df = pd.DataFrame(result.data)
-            st.write(f"Fetched {len(shows_df)} shows with details")
             return shows_df
             
         except Exception as e:
