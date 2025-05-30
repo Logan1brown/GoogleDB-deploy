@@ -125,46 +125,10 @@ def show():
         # Show scoring factors from breakdown
         breakdown = success_metrics['breakdown']
         
-        # Season points
-        if 'season2_renewal' in breakdown:
-            st.write(f"**Renewed for Season 2** _(+{breakdown['season2_renewal']} points)_")
-        if 'additional_seasons' in breakdown:
-            st.write(f"**Additional seasons bonus** _(+{breakdown['additional_seasons']} points)_")
-            
-        # Episode points
-        if 'episode_base' in breakdown:
-            st.write(f"**Base episode count** _(+{breakdown['episode_base']} points)_")
-        if 'episode_bonus' in breakdown:
-            st.write(f"**Episode count bonus** _(+{breakdown['episode_bonus']} points)_")
-            
-        # Status modifier
-        if 'status_modifier' in breakdown:
-            modifier = breakdown['status_modifier']
-            if modifier > 1.0:
-                st.write(f"**Active series bonus** _(+{(modifier - 1.0) * 100:.0f}%)_")
-            else:
-                st.write(f"**Canceled series penalty** _({(modifier - 1.0) * 100:.0f}%)_")
-                
-        # RT scores if available
-        if 'tomatometer' in breakdown:
-            st.write(f"**Tomatometer Score** _({breakdown['tomatometer']:.0f}/100)_")
-        if 'popcornmeter' in breakdown:
-            st.write(f"**Audience Score** _({breakdown['popcornmeter']:.0f}/100)_"
-        )
-        
-        if pd.notna(show_data['tmdb_avg_eps']):
-            avg_eps = float(show_data['tmdb_avg_eps'])
-            if avg_eps >= 10:
-                st.write("**High episode volume** _(+40 points)_")
-            elif avg_eps >= 8:
-                st.write("**Standard episode volume** _(+20 points)_")
-        
-        # Status modifier (only show if it affects score)
-        status = show_data['tmdb_status']
-        if status == 'Returning Series':
-            st.write("**Active show bonus:** _Score multiplied by 1.2_")
-        elif status == 'Canceled':
-            st.write("**Canceled show penalty:** _Score multiplied by 0.8_")    
+        # Get formatted breakdown items from SuccessAnalyzer
+        breakdown_items = success_analyzer.format_breakdown_for_display(breakdown)
+        for item in breakdown_items:
+            st.write(item)    
     with tab2:
         # Get similar shows
         similar_content = show_analyzer.find_similar_shows(show_data['id'])

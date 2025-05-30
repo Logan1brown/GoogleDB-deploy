@@ -403,3 +403,42 @@ class SuccessAnalyzer:
                 breakdown['popcornmeter'] = popcornmeter
                 
         return breakdown
+
+    def format_breakdown_for_display(self, breakdown: Dict[str, float]) -> List[str]:
+        """Format success score breakdown for display.
+        
+        Args:
+            breakdown: Score breakdown from get_score_breakdown
+            
+        Returns:
+            List of formatted strings ready for display
+        """
+        display_items = []
+        
+        # Season points
+        if 'season2_renewal' in breakdown:
+            display_items.append(f"**Season 2 renewal** _(+{breakdown['season2_renewal']} points)_")
+        if 'additional_seasons' in breakdown:
+            display_items.append(f"**Additional seasons bonus** _(+{breakdown['additional_seasons']} points)_")
+        
+        # Episode points
+        if 'episode_base' in breakdown:
+            display_items.append(f"**Base episode count** _(+{breakdown['episode_base']} points)_")
+        if 'episode_bonus' in breakdown:
+            display_items.append(f"**Episode count bonus** _(+{breakdown['episode_bonus']} points)_")
+        
+        # Status modifier
+        if 'status_modifier' in breakdown:
+            modifier = breakdown['status_modifier']
+            if modifier > 1.0:
+                display_items.append(f"**Active series bonus** _(+{(modifier - 1.0) * 100:.0f}%)_")
+            else:
+                display_items.append(f"**Canceled series penalty** _({(modifier - 1.0) * 100:.0f}%)_")
+        
+        # RT scores
+        if 'tomatometer' in breakdown:
+            display_items.append(f"**Tomatometer Score** _({breakdown['tomatometer']:.0f}/100)_")
+        if 'popcornmeter' in breakdown:
+            display_items.append(f"**Audience Score** _({breakdown['popcornmeter']:.0f}/100)_")
+            
+        return display_items
