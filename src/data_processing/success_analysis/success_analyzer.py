@@ -292,14 +292,10 @@ class SuccessAnalyzer:
         Max total: 200 points (scales to 60 with 30% weight)
         """
         seasons = show.get('tmdb_seasons')
-        import streamlit as st
-        st.write(f"DEBUG: tmdb_seasons = {seasons}, type = {type(seasons)}")
         if not pd.notna(seasons):
-            st.write("DEBUG: seasons is not valid")
             return 0
             
         score = self.config.SEASON1_VALUE  # Base points for first season
-        st.write(f"DEBUG: base score = {score} from SEASON1_VALUE = {self.config.SEASON1_VALUE}")
         
         if seasons >= 2:
             score += self.config.SEASON2_VALUE  # Renewal bonus
@@ -307,8 +303,6 @@ class SuccessAnalyzer:
             if extra_seasons > 0:
                 extra_points = min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 100)  # Max 100 bonus points
                 score += extra_points
-                
-        st.write(f"DEBUG: final season score = {score}")
         return score
         
     def _calculate_episode_score(self, show: pd.Series) -> float:
@@ -431,7 +425,7 @@ class SuccessAnalyzer:
         display_items = []
         
         # Calculate base points (70% total)
-        season_points = 0
+        season_points = self.config.SEASON1_VALUE  # Base points for first season
         if 'season2_renewal' in breakdown:
             season_points += breakdown['season2_renewal']
         if 'additional_seasons' in breakdown:
