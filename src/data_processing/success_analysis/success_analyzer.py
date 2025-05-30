@@ -281,17 +281,26 @@ class SuccessAnalyzer:
         return min(100, max(0, final_score))  # Cap at 100, don't allow negative
         
     def _calculate_season_score(self, show: pd.Series) -> float:
-        """Calculate score component from season count."""
+        """Calculate score component from season count.
+        
+        Points breakdown:
+        - First season: 50 points (base)
+        - Second season: +50 points (renewal bonus)
+        - Additional seasons: +25 points each (max 100)
+        
+        Max total: 200 points (scales to 60 with 30% weight)
+        """
         seasons = show.get('tmdb_seasons')
         if not pd.notna(seasons):
             return 0
             
-        score = 0
+        score = 50  # Base points for first season
+        
         if seasons >= 2:
-            score += self.config.SEASON2_VALUE
+            score += 50  # Renewal bonus
             extra_seasons = seasons - 2
             if extra_seasons > 0:
-                extra_points = min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 100)
+                extra_points = min(extra_seasons * 25, 100)  # Max 100 bonus points
                 score += extra_points
                 
         return score
