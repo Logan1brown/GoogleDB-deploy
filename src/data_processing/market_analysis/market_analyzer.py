@@ -81,8 +81,9 @@ class MarketAnalyzer:
         if 'active' in available_cols:
             self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
         
-        # Reset index to ensure clean data
-        self.titles_df = self.titles_df.reset_index(drop=True)
+        # Reset index to ensure clean data but keep id column
+        if 'id' in self.titles_df.columns:
+            self.titles_df = self.titles_df.set_index('id').reset_index()
         
         self.titles_df['tmdb_avg_eps'] = self.titles_df.apply(
             lambda x: x['tmdb_total_episodes'] / x['tmdb_seasons'] 
@@ -114,7 +115,7 @@ class MarketAnalyzer:
         st.write("Sample data before copy:", self.titles_df[['network_name', 'title']].head().to_dict())
         
         # Create a DataFrame with only scalar columns needed for this operation
-        df = self.titles_df[['id', 'network_name', 'title']].copy()
+        df = self.titles_df[['network_name', 'title']].copy()
         st.write("DataFrame after copy shape:", df.shape)
         st.write("Sample after copy:", df.head().to_dict())
         
