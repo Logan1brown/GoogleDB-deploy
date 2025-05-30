@@ -71,18 +71,18 @@ class ShowDetailAnalyzer:
             DataFrame with show details
         """
         try:
-            # Get show data from instance's ShowsAnalyzer
+            # Get base show data from instance's ShowsAnalyzer
             shows_df = _self.shows_analyzer.fetch_show_data(force=force)
             
-            # Calculate success scores using instance's SuccessAnalyzer
+            # Get success metrics using instance's SuccessAnalyzer
             success_data = _self.success_analyzer.fetch_success_data()
             
             # Add success metrics to DataFrame
             shows_df = pd.merge(
                 shows_df,
                 success_data[[
-                    'show_id', 'success_score', 'tmdb_avg_eps',
-                    'tmdb_seasons', 'tmdb_episodes', 'tmdb_status'
+                    'show_id', 'success_score', 'tmdb_status',
+                    'tmdb_seasons', 'tmdb_episodes', 'tmdb_avg_eps'
                 ]],
                 on='show_id',
                 how='left'
