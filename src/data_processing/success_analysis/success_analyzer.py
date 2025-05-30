@@ -19,16 +19,37 @@ from ..external.tmdb.tmdb_models import ShowStatus
 
 @dataclass
 class SuccessConfig:
-    """Configuration for success calculations."""
-    # Season achievements (40%)
-    SEASON2_VALUE: int = 40  # Show renewed for S2
-    ADDITIONAL_SEASON_VALUE: int = 20  # Each season after S2
+    """Configuration for success calculations.
     
-    # Episode volume scoring (40% of total)
-    EPISODE_BASE_POINTS: int = 20     # Points awarded for reaching min threshold
-    EPISODE_BONUS_POINTS: int = 20    # Additional points for reaching high threshold
-    EPISODE_MIN_THRESHOLD: int = 8    # Minimum episodes needed for base points
-    EPISODE_BONUS_THRESHOLD: int = 10  # Episodes needed for bonus points
+    Base metrics (70% total):
+    - Seasons (30%)
+    - Episodes (30%)
+    - Status (10%)
+    
+    RT metrics (30% total):
+    - Tomatometer (15%)
+    - Popcornmeter (15%)
+    
+    When RT data is missing, base metrics are scaled up proportionally.
+    """
+    # Base metric weights
+    SEASON_WEIGHT: float = 0.30
+    EPISODE_WEIGHT: float = 0.30
+    STATUS_WEIGHT: float = 0.10
+    
+    # RT metric weights
+    TOMATOMETER_WEIGHT: float = 0.15
+    POPCORNMETER_WEIGHT: float = 0.15
+    
+    # Season scoring
+    SEASON2_VALUE: int = 100  # Show renewed for S2
+    ADDITIONAL_SEASON_VALUE: int = 50  # Each season after S2 (max 100)
+    
+    # Episode scoring
+    EPISODE_BASE_POINTS: int = 50     # Points for reaching min threshold
+    EPISODE_BONUS_POINTS: int = 50    # Additional points for high threshold
+    EPISODE_MIN_THRESHOLD: int = 8    # Minimum episodes needed
+    EPISODE_BONUS_THRESHOLD: int = 10  # Episodes for bonus
     
     # Status modifiers
     STATUS_MODIFIERS: Dict[str, float] = None
@@ -48,15 +69,42 @@ class SuccessAnalyzer:
     """
     Analyzes show success based on reliable metrics.
     Only calculates scores for shows with reliable data (Returning, Ended, Canceled).
+    
+    Data is fetched from ShowsAnalyzer.
     """
-    def __init__(self, config: Optional[SuccessConfig] = None):
-        self.config = config or SuccessConfig()
-        self.titles_df = None
+    def __init__(self, shows_analyzer):
+        """Initialize the analyzer.
         
-    def initialize_data(self, titles_df: pd.DataFrame):
-        """Initialize analyzer with show data."""
-        self.titles_df = titles_df.copy()
+        Args:
+            shows_analyzer: ShowsAnalyzer instance for fetching data
+        """
+        self.shows_analyzer = shows_analyzer
+        self.config = SuccessConfig()
+        self._success_data = None
+    
+    @property
+    def success_data(self) -> pd.DataFrame:
+        """Cached success metrics data."""
+        if self._success_data is None:
+            self._success_data = self.fetch_success_data()
+        return self._success_data
+
+    def fetch_success_data(self) -> pd.DataFrame:
+        """Fetch success metrics from ShowsAnalyzer.
         
+        Returns:
+            DataFrame with success metrics
+        """
+        if self._success_data is None:
+            try:
+                # Use ShowsAnalyzer to fetch success metrics
+                self._success_data = self.shows_analyzer.fetch_success_metrics()
+            except Exception as e:
+                print(f"Error fetching success data: {str(e)}")
+                raise
+                
+        return self._success_data
+
     def calculate_network_success(self, network: str) -> float:
         """Calculate success score for a specific network.
         
@@ -66,10 +114,10 @@ class SuccessAnalyzer:
         Returns:
             Success score as percentage (0-100)
         """
-        if self.titles_df is None:
-            return 0  # No data available
-            
-        network_titles = self.titles_df[self.titles_df['network_name'].str.lower() == network.lower()]
+        # Get network shows from cached success data
+        network_titles = self.success_data[
+            self.success_data['network_name'].str.lower() == network.lower()
+        ]
         if len(network_titles) == 0:
             return 0  # Network not found
             
@@ -92,7 +140,7 @@ class SuccessAnalyzer:
             Average success score (0-100)
         """
         if df is None:
-            df = self.titles_df
+            df = self.success_data
             
         # Calculate success for each show
         success_metrics = self.analyze_market(df)
@@ -117,25 +165,29 @@ class SuccessAnalyzer:
         Returns:
             Renewal rate as percentage (0-100)
         """
-        if self.titles_df is None:
+        # Get network shows from cached success data
+        network_titles = self.success_data[
+            self.success_data['network_name'] == network
+        ]
+        if len(network_titles) == 0:
             return 90.0  # Default if no data
             
-        network_titles = self.titles_df[self.titles_df['network_name'] == network]
-        if len(network_titles) == 0:
-            return 90.0
-            
         # Count shows that got renewed (2+ seasons)
-        network_titles['seasons'] = pd.to_numeric(network_titles['tmdb_seasons'], errors='coerce')
-        renewed = network_titles[network_titles['seasons'] >= 2]
+        renewed = network_titles[network_titles['tmdb_seasons'] >= 2]
         return (len(renewed) / len(network_titles)) * 100
         
-    def analyze_market(self, titles_df: pd.DataFrame) -> Dict:
+    def analyze_market(self, titles_df: Optional[pd.DataFrame] = None) -> Dict:
         """
         Calculate success metrics for all reliable shows in the market.
         Returns thresholds and tiers based on the highest scores.
+        
+        Args:
+            titles_df: Optional DataFrame to analyze. If None, uses cached success data.
         """
+        df = titles_df if titles_df is not None else self.success_data
+        
         # Filter to reliable shows only
-        reliable_titles = titles_df[titles_df['tmdb_status'].isin(ShowStatus.RELIABLE)]
+        reliable_titles = df[df['tmdb_status'].isin(ShowStatus.RELIABLE)]
         if reliable_titles.empty:
             return {
                 'max_score': 0,
@@ -148,13 +200,9 @@ class SuccessAnalyzer:
         scores = []
         for _, title in reliable_titles.iterrows():
             score = self.calculate_success(title)
-            # === CRITICAL: Column Name Difference ===
-            # We're working with the titles sheet here, which uses 'title' column
-            # Do NOT use 'show_name' which is only for the show_team sheet
-            # Convert tmdb_id to string for dictionary keys
             scores.append({
-                'title_id': str(title['tmdb_id']),
-                'name': title['title'],  # Title column from standardized views
+                'title_id': str(title['show_id']),
+                'name': title['title'],
                 'score': score
             })
             
@@ -175,46 +223,102 @@ class SuccessAnalyzer:
         }
         
     def calculate_success(self, show: pd.Series) -> float:
-        """Calculate success score for a single show."""
+        """Calculate success score for a single show.
+        
+        Combines base metrics (seasons, episodes, status) with RT metrics.
+        When RT data is missing, base metrics are scaled up proportionally.
+        
+        Args:
+            show: Show data from api_success_metrics view
+            
+        Returns:
+            Success score (0-100)
+        """
         if show.get('tmdb_status') not in ShowStatus.RELIABLE:
             return 0
             
-        # Base score from seasons
-        score = 0
+        # Calculate base components
+        season_score = self._calculate_season_score(show)
+        episode_score = self._calculate_episode_score(show)
+        status_score = self._calculate_status_score(show)
         
-        # Check seasons
+        # Calculate RT components if available
+        has_rt = show.get('has_rt', False)
+        if has_rt:
+            rt_score = self._calculate_rt_score(show)
+            
+            # Combine all components with their weights
+            final_score = (
+                season_score * self.config.SEASON_WEIGHT +
+                episode_score * self.config.EPISODE_WEIGHT +
+                status_score * self.config.STATUS_WEIGHT +
+                rt_score * (self.config.TOMATOMETER_WEIGHT + self.config.POPCORNMETER_WEIGHT)
+            )
+        else:
+            # Scale up base components proportionally when RT is missing
+            scale = 1 / (self.config.SEASON_WEIGHT + self.config.EPISODE_WEIGHT + self.config.STATUS_WEIGHT)
+            final_score = (
+                season_score * (self.config.SEASON_WEIGHT * scale) +
+                episode_score * (self.config.EPISODE_WEIGHT * scale) +
+                status_score * (self.config.STATUS_WEIGHT * scale)
+            )
+            
+        return min(100, max(0, final_score))  # Cap at 100, don't allow negative
+        
+    def _calculate_season_score(self, show: pd.Series) -> float:
+        """Calculate score component from season count."""
         seasons = show.get('tmdb_seasons')
-        if pd.notna(seasons):
-            # Add points for S2 renewal
-            if seasons >= 2:
-                score += self.config.SEASON2_VALUE
+        if not pd.notna(seasons):
+            return 0
+            
+        score = 0
+        if seasons >= 2:
+            score += self.config.SEASON2_VALUE
+            extra_seasons = seasons - 2
+            if extra_seasons > 0:
+                extra_points = min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 100)
+                score += extra_points
                 
-                # Add points for additional seasons
-                extra_seasons = seasons - 2
-                if extra_seasons > 0:
-                    extra_points = min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 40)
-                    score += extra_points
+        return score
         
-        # Check episodes
+    def _calculate_episode_score(self, show: pd.Series) -> float:
+        """Calculate score component from episode count."""
         avg_eps = show.get('tmdb_avg_eps')
-        if pd.notna(avg_eps):
-            try:
-                avg_eps = float(avg_eps)
-                
-                # Add points for high episode counts
-                if avg_eps >= self.config.EPISODE_BONUS_THRESHOLD:
-                    points = self.config.EPISODE_BASE_POINTS + self.config.EPISODE_BONUS_POINTS
-                    score += points
-                # Add base points for standard episode counts
-                elif avg_eps >= self.config.EPISODE_MIN_THRESHOLD:
-                    score += self.config.EPISODE_BASE_POINTS
-            except (ValueError, TypeError):
-                pass
-                
-        # Apply status modifier
-        modifier = self.config.STATUS_MODIFIERS.get(show.get('tmdb_status'), 1.0)
-        final_score = min(100, max(0, score * modifier))  # Cap at 100, don't allow negative
-        return final_score
+        if not pd.notna(avg_eps):
+            return 0
+            
+        try:
+            avg_eps = float(avg_eps)
+            if avg_eps >= self.config.EPISODE_BONUS_THRESHOLD:
+                return self.config.EPISODE_BASE_POINTS + self.config.EPISODE_BONUS_POINTS
+            elif avg_eps >= self.config.EPISODE_MIN_THRESHOLD:
+                return self.config.EPISODE_BASE_POINTS
+        except (ValueError, TypeError):
+            pass
+            
+        return 0
+        
+    def _calculate_status_score(self, show: pd.Series) -> float:
+        """Calculate score component from show status."""
+        status = show.get('tmdb_status')
+        modifier = self.config.STATUS_MODIFIERS.get(status, 1.0)
+        return 100 * modifier  # Apply modifier to base 100
+        
+    def _calculate_rt_score(self, show: pd.Series) -> float:
+        """Calculate score component from RT metrics."""
+        tomatometer = show.get('tomatometer')
+        popcornmeter = show.get('popcornmeter')
+        
+        # Both metrics contribute equally to the RT component
+        rt_score = 0
+        if pd.notna(tomatometer):
+            rt_score += tomatometer
+        if pd.notna(popcornmeter):
+            rt_score += popcornmeter
+            
+        # Average the available scores
+        num_scores = (pd.notna(tomatometer) + pd.notna(popcornmeter))
+        return rt_score / num_scores if num_scores > 0 else 0
         
     def _get_tier(self, score: float, max_score: float) -> str:
         """Get success tier based on score relative to max."""

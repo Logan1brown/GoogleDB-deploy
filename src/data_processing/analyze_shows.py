@@ -56,7 +56,8 @@ class ShowsAnalyzer:
         'team': 'show_team',  # Use raw team table to get all team members
         'details': 'api_show_details',  # Additional show details for content analysis
         'summary': 'api_show_summary',  # Summary view for show detail page
-        'comp': 'api_show_comp_data'  # Comparison data for show similarity scoring
+        'comp': 'api_show_comp_data',  # Comparison data for show similarity scoring
+        'success': 'api_success_metrics'  # Success metrics including RT data
     }
     
     # Reference tables for lookups
@@ -413,56 +414,6 @@ class ShowsAnalyzer:
         except Exception as e:
             logger.error(f"Error fetching content data: {str(e)}")
             raise  # Re-raise the error so UnifiedAnalyzer can handle it properly
-    
-
-            # Get success metrics
-            logger.info(f"Fetching data from {self.VIEWS['titles']}...")
-            success_data = supabase.table(self.VIEWS['titles']).select(
-                'tmdb_id',
-                'tmdb_status',
-                'tmdb_seasons',
-                'tmdb_total_episodes',
-                'tmdb_last_air_date'
-            ).execute()
-            
-            if not hasattr(success_data, 'data') or not success_data.data:
-                raise ValueError(f"No data returned from {self.VIEWS['titles']}")
-                
-            success_df = pd.DataFrame(success_data.data)
-            logger.info(f"Fetched {len(success_df)} rows from {self.VIEWS['titles']}")
-            logger.info(f"Success columns: {success_df.columns.tolist()}")
-            
-            # Merge everything and deduplicate
-            deduped_details = details_df.drop_duplicates(subset=['title'])
-            logger.info(f"After deduplication: {len(deduped_details)} unique shows")
-            
-            # Merge with success metrics
-            result_df = pd.merge(
-                deduped_details,
-                success_df[['tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes']],
-                on='tmdb_id',
-                how='left'
-            )
-            
-            # Merge with active status
-            result_df = pd.merge(
-                result_df,
-                shows_df[['title', 'active']],
-                on='title',
-                how='left'
-            )
-            
-            # Default to False for shows not in shows table
-            result_df['active'] = result_df['active'].fillna(False)
-            
-            # Create alias mapping
-            alias_to_studio = {}
-            for _, row in studio_list_df.iterrows():
-                studio = row['studio']
-                aliases = self.convert_to_list(row.get('aliases', []))
-                for alias in aliases:
-                    if alias:  # Skip empty aliases
-                        alias_to_studio[alias] = studio
                         
     @st.cache_data(ttl=3600)
     def fetch_show_data(_self, force: bool = False) -> pd.DataFrame:
@@ -764,5 +715,47 @@ class ShowsAnalyzer:
         except Exception as e:
             logger.error(f'Error generating profile reports: {str(e)}')
             raise
-
+            
+    @st.cache_data(ttl=3600)
+    def fetch_success_metrics(self, force: bool = False) -> pd.DataFrame:
+        """Fetch success metrics data including RT scores.
+        
+        Args:
+            force (bool): If True, bypass cache and fetch fresh data
+            
+        Returns:
+            DataFrame with success metrics from api_success_metrics view
+        """
+        try:
+            # Get Supabase client with service key for full access
+            supabase = get_client(use_service_key=True)
+            
+            if supabase is None:
+                raise ValueError("Supabase client not initialized")
+                
+            # Fetch from success metrics view
+            logger.info(f"Fetching data from {self.VIEWS['success']}...")
+            result = supabase.table(self.VIEWS['success']).select('*').execute()
+            
+            if not hasattr(result, 'data') or not result.data:
+                raise ValueError(f"No data returned from {self.VIEWS['success']}")
+                
+            success_df = pd.DataFrame(result.data)
+            
+            # Validate required columns
+            required_cols = [
+                'show_id', 'title', 'network_name', 'tmdb_status',
+                'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_avg_eps',
+                'has_rt', 'tomatometer', 'popcornmeter'
+            ]
+            missing_cols = [col for col in required_cols if col not in success_df.columns]
+            if missing_cols:
+                raise ValueError(f"Missing required columns in success_df: {missing_cols}")
+                
+            logger.info(f"Fetched {len(success_df)} shows with success metrics")
+            return success_df
+            
+        except Exception as e:
+            logger.error(f"Error fetching success metrics: {str(e)}")
+            raise
 
