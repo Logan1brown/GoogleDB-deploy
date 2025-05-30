@@ -67,7 +67,8 @@ def show():
         with col1:
             st.write(f"**Network:** {show_data['network_name']}")
             st.write(f"**Genre:** {show_data['genre_name']}")
-            st.write(f"**Subgenres:** {', '.join(show_data['subgenre_names']) if show_data.get('subgenre_names') else 'None'}")
+            subgenres = [s for s in show_data.get('subgenre_names', []) if s is not None]
+            st.write(f"**Subgenres:** {', '.join(subgenres) if subgenres else 'None'}")
             st.write(f"**Source Type:** {show_data['source_type_name']}")
         
         with col2:

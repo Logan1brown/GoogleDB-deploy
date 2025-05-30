@@ -103,6 +103,9 @@ class SuccessAnalyzer:
                 # Calculate success score for each show
                 success_df['success_score'] = success_df.apply(self.calculate_success, axis=1)
                 
+                # Set show_id as index for easier lookups
+                success_df.set_index('show_id', inplace=True)
+                
                 self._success_data = success_df
             except Exception as e:
                 print(f"Error fetching success data: {str(e)}")
