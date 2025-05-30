@@ -670,7 +670,7 @@ class CompAnalyzer:
 
     def __init__(self, shows_analyzer: Optional[ShowsAnalyzer] = None):
         self.shows_analyzer = shows_analyzer or ShowsAnalyzer()
-        self.success_analyzer = SuccessAnalyzer()
+        self.success_analyzer = SuccessAnalyzer(self.shows_analyzer)
         self.comp_data = None
         self.reference_data = None
         self.field_manager = None
@@ -695,9 +695,6 @@ class CompAnalyzer:
                     self.comp_data[field] = pd.to_numeric(self.comp_data[field], errors='coerce')
                 except KeyError:
                     pass
-            
-            # Initialize success analyzer with the comp data
-            self.success_analyzer.initialize_data(self.comp_data)
             
         # Only recreate field manager if data changes
         if self.field_manager is None or force:
