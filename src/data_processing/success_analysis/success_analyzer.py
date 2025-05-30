@@ -332,3 +332,64 @@ class SuccessAnalyzer:
         elif score >= max_score * 0.5:
             return 'medium'
         return 'low'
+        
+    def get_score_breakdown(self, show: pd.Series) -> Dict[str, float]:
+        """Get detailed breakdown of success score components.
+        
+        Args:
+            show: Show data from api_success_metrics view
+            
+        Returns:
+            Dict with score components and their values
+        """
+        if show.get('tmdb_status') not in ShowStatus.RELIABLE:
+            return {}
+            
+        # Calculate each component
+        season_score = self._calculate_season_score(show)
+        episode_score = self._calculate_episode_score(show)
+        status_score = self._calculate_status_score(show)
+        
+        # Get RT score if available
+        has_rt = show.get('has_rt', False)
+        rt_score = self._calculate_rt_score(show) if has_rt else None
+        
+        # Build breakdown
+        breakdown = {}
+        
+        # Season breakdown
+        seasons = show.get('tmdb_seasons')
+        if pd.notna(seasons) and seasons >= 2:
+            breakdown['season2_renewal'] = self.config.SEASON2_VALUE
+            extra_seasons = seasons - 2
+            if extra_seasons > 0:
+                breakdown['additional_seasons'] = min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 100)
+                
+        # Episode breakdown
+        avg_eps = show.get('tmdb_avg_eps')
+        if pd.notna(avg_eps):
+            try:
+                avg_eps = float(avg_eps)
+                if avg_eps >= self.config.EPISODE_MIN_THRESHOLD:
+                    breakdown['episode_base'] = self.config.EPISODE_BASE_POINTS
+                if avg_eps >= self.config.EPISODE_BONUS_THRESHOLD:
+                    breakdown['episode_bonus'] = self.config.EPISODE_BONUS_POINTS
+            except (ValueError, TypeError):
+                pass
+                
+        # Status modifier
+        status = show.get('tmdb_status')
+        modifier = self.config.STATUS_MODIFIERS.get(status, 1.0)
+        if modifier != 1.0:
+            breakdown['status_modifier'] = modifier
+            
+        # RT scores
+        if has_rt:
+            tomatometer = show.get('tomatometer')
+            if pd.notna(tomatometer):
+                breakdown['tomatometer'] = tomatometer
+            popcornmeter = show.get('popcornmeter')
+            if pd.notna(popcornmeter):
+                breakdown['popcornmeter'] = popcornmeter
+                
+        return breakdown

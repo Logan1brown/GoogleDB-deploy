@@ -110,24 +110,44 @@ def show():
         st.write("")
         # Success metrics
         st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Success Metrics</p>', unsafe_allow_html=True)
-        success_score = show_analyzer.get_success_metrics(show_data['id'])
-        if success_score is None:
+        success_metrics = show_analyzer.get_success_metrics(show_data['id'])
+        if success_metrics is None:
             st.write("No success metrics available")
             return
-        st.metric("Success Score", f"{success_score:.1f}/100")
+        st.metric("Success Score", f"{success_metrics['score']:.1f}/100")
         
         # Score breakdown
         st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Score Breakdown</p>', unsafe_allow_html=True)
         
-        # Only show scoring factors that contribute points
-        if pd.notna(show_data['tmdb_seasons']):
-            seasons = int(show_data['tmdb_seasons'])
-            if seasons >= 2:
-                st.write("**Renewed for Season 2** _(+40 points)_")
-                extra_seasons = seasons - 2
-                if extra_seasons > 0:
-                    bonus = min(extra_seasons * 20, 40)
-                    st.write(f"**Additional seasons bonus** _(+{bonus} points)_")
+        # Show scoring factors from breakdown
+        breakdown = success_metrics['breakdown']
+        
+        # Season points
+        if 'season2_renewal' in breakdown:
+            st.write(f"**Renewed for Season 2** _(+{breakdown['season2_renewal']} points)_")
+        if 'additional_seasons' in breakdown:
+            st.write(f"**Additional seasons bonus** _(+{breakdown['additional_seasons']} points)_")
+            
+        # Episode points
+        if 'episode_base' in breakdown:
+            st.write(f"**Base episode count** _(+{breakdown['episode_base']} points)_")
+        if 'episode_bonus' in breakdown:
+            st.write(f"**Episode count bonus** _(+{breakdown['episode_bonus']} points)_")
+            
+        # Status modifier
+        if 'status_modifier' in breakdown:
+            modifier = breakdown['status_modifier']
+            if modifier > 1.0:
+                st.write(f"**Active series bonus** _(+{(modifier - 1.0) * 100:.0f}%)_")
+            else:
+                st.write(f"**Canceled series penalty** _({(modifier - 1.0) * 100:.0f}%)_")
+                
+        # RT scores if available
+        if 'tomatometer' in breakdown:
+            st.write(f"**Tomatometer Score** _({breakdown['tomatometer']:.0f}/100)_")
+        if 'popcornmeter' in breakdown:
+            st.write(f"**Audience Score** _({breakdown['popcornmeter']:.0f}/100)_"
+        )
         
         if pd.notna(show_data['tmdb_avg_eps']):
             avg_eps = float(show_data['tmdb_avg_eps'])
