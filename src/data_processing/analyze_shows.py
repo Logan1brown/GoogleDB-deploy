@@ -717,7 +717,7 @@ class ShowsAnalyzer:
             raise
             
     @st.cache_data(ttl=3600)
-    def fetch_success_metrics(self, force: bool = False) -> pd.DataFrame:
+    def fetch_success_metrics(_self, force: bool = False) -> pd.DataFrame:
         """Fetch success metrics data including RT scores.
         
         Args:
@@ -734,11 +734,11 @@ class ShowsAnalyzer:
                 raise ValueError("Supabase client not initialized")
                 
             # Fetch from success metrics view
-            logger.info(f"Fetching data from {self.VIEWS['success']}...")
-            result = supabase.table(self.VIEWS['success']).select('*').execute()
+            logger.info(f"Fetching data from {_self.VIEWS['success']}...")
+            result = supabase.table(_self.VIEWS['success']).select('*').execute()
             
             if not hasattr(result, 'data') or not result.data:
-                raise ValueError(f"No data returned from {self.VIEWS['success']}")
+                raise ValueError(f"No data returned from {_self.VIEWS['success']}")
                 
             success_df = pd.DataFrame(result.data)
             
