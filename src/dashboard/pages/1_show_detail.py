@@ -32,8 +32,8 @@ def show():
     
     # Create analyzers in correct order
     shows_analyzer = ShowsAnalyzer()
-    show_analyzer = ShowDetailAnalyzer(shows_analyzer=shows_analyzer)
     success_analyzer = SuccessAnalyzer(shows_analyzer=shows_analyzer)
+    show_analyzer = ShowDetailAnalyzer(success_analyzer=success_analyzer)
     
     # Get all shows for selection
     shows_df = show_analyzer.fetch_show_data()
