@@ -446,6 +446,12 @@ class ShowsAnalyzer:
                 
             shows_df = pd.DataFrame(result.data)
             
+            # Calculate average episodes per season
+            shows_df['tmdb_avg_eps'] = shows_df.apply(
+                lambda x: round(x['tmdb_episodes'] / x['tmdb_seasons'], 1) if pd.notna(x['tmdb_seasons']) and x['tmdb_seasons'] > 0 else None,
+                axis=1
+            )
+            
             # Validate required columns
             required_cols = [
                 'show_id', 'title', 'network_name', 'tmdb_status',
