@@ -431,15 +431,8 @@ class ShowsAnalyzer:
             if not supabase:
                 raise ValueError("Supabase client not initialized")
                 
-            # Fetch from api_show_details view which has TMDB fields
-            result = supabase.table(_self.VIEWS['details']).select(
-                'id:show_id',
-                'title',
-                'network_name',
-                'status:tmdb_status',  # Field is called 'status' in the view
-                'tmdb_seasons',
-                'tmdb_total_episodes:tmdb_episodes'
-            ).execute()
+            # Fetch from api_show_summary view
+            result = supabase.table(_self.VIEWS['summary']).select('*').execute()
             if not hasattr(result, 'data') or not result.data:
                 raise ValueError("No data returned from api_show_summary")
                 
