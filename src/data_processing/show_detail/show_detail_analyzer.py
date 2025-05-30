@@ -418,9 +418,9 @@ class ShowDetailAnalyzer:
             # Get overall network score from SuccessAnalyzer
             success_scores[network] = self.success_analyzer.calculate_network_success(network)
             
-            # Calculate success rate based on individual show scores
+            # Calculate success rate based on stored success scores
             high_success = sum(1 for show in shows 
-                             if self.success_analyzer.calculate_success(show) >= HIGH_SUCCESS_THRESHOLD)
+                             if show.success_score and show.success_score >= HIGH_SUCCESS_THRESHOLD)
             success_rates[network] = (high_success * 100.0) / len(shows)
         
         return NetworkAnalysis(
