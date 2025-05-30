@@ -26,6 +26,7 @@ class SimilarShow:
         'genre_score': 0,      # 45 points
         'team_score': 0,       # 25 points
         'source_score': 0,     # 15 points
+        'studio_score': 0,     # 3 points
         
         # Format Match (15 points)
         'episode_score': 0,    # 8 points
@@ -312,7 +313,7 @@ class ShowDetailAnalyzer:
         # Calculate totals
         scores['content_total'] = (
             scores['genre_score'] + scores['team_score'] + 
-            scores['source_score'] + scores['network_score'] + scores['studio_names_score']
+            scores['source_score'] + scores['network_score'] + scores['studio_score']
         )
         scores['format_total'] = scores['episode_score'] + scores['order_score'] + scores['date_score']
         scores['total'] = scores['content_total'] + scores['format_total']
