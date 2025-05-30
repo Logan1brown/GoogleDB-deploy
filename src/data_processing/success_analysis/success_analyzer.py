@@ -292,10 +292,13 @@ class SuccessAnalyzer:
         Max total: 200 points (scales to 60 with 30% weight)
         """
         seasons = show.get('tmdb_seasons')
+        print(f"DEBUG: tmdb_seasons = {seasons}, type = {type(seasons)}")
         if not pd.notna(seasons):
+            print("DEBUG: seasons is not valid")
             return 0
             
         score = self.config.SEASON1_VALUE  # Base points for first season
+        print(f"DEBUG: base score = {score} from SEASON1_VALUE = {self.config.SEASON1_VALUE}")
         
         if seasons >= 2:
             score += self.config.SEASON2_VALUE  # Renewal bonus
@@ -304,6 +307,7 @@ class SuccessAnalyzer:
                 extra_points = min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 100)  # Max 100 bonus points
                 score += extra_points
                 
+        print(f"DEBUG: final season score = {score}")
         return score
         
     def _calculate_episode_score(self, show: pd.Series) -> float:
