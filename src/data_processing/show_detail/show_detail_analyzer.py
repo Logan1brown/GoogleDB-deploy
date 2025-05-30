@@ -55,7 +55,9 @@ class ShowDetailAnalyzer:
         Args:
             success_analyzer: Optional SuccessAnalyzer instance
         """
-        self.success_analyzer = success_analyzer or SuccessAnalyzer()
+        # Create ShowsAnalyzer first if we need to create a SuccessAnalyzer
+        self.shows_analyzer = ShowsAnalyzer()
+        self.success_analyzer = success_analyzer or SuccessAnalyzer(self.shows_analyzer)
         self._shows_df = None
         
     @st.cache_data(ttl=3600)
