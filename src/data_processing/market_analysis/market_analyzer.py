@@ -245,7 +245,10 @@ class MarketAnalyzer:
         
         # Get success metrics for all shows
         try:
-            success_metrics = self.success_analyzer.analyze_market(self.titles_df)
+            # Create a copy with id as index for SuccessAnalyzer
+            analyzer_df = self.titles_df.copy()
+            analyzer_df.set_index('id', inplace=True)
+            success_metrics = self.success_analyzer.analyze_market(analyzer_df)
         except Exception as e:
             import traceback
             success_metrics = None
@@ -263,14 +266,13 @@ class MarketAnalyzer:
         
         # Calculate network-level metrics
         # Create a DataFrame with only scalar columns needed for this operation
-        df_scalar = df[['network_name']].copy()
+        df_scalar = df[['id', 'network_name']].copy()
         network_metrics = df_scalar.groupby('network_name').size().reset_index()
         network_metrics.columns = ['network_name', 'show_count']
 
         # Minimal debug output for DataFrame shape and head
         import streamlit as st
 
-        
         # Filter to networks with enough shows
         min_shows = 3
         significant_networks = network_metrics[network_metrics['show_count'] >= min_shows]
@@ -284,15 +286,16 @@ class MarketAnalyzer:
             network_shows = []
             network_scores = []
             
-            # Robust: always compare as string for ID matching
-            df_tmdb_id_str = df['tmdb_id'].astype(str)
+            # Match shows by id
             for show_id, show_data in success_metrics['titles'].items():
-                show_id_str = str(show_id)
-                show_idx = df_tmdb_id_str[df_tmdb_id_str == show_id_str].index
-                show = df.loc[show_idx[0]] if len(show_idx) > 0 else None
-                if show is not None and show['network_name'] == network:
-                    network_shows.append(show)
-                    network_scores.append(show_data['score'])
+                try:
+                    show_id_int = int(show_id)
+                    show = df[df['id'] == show_id_int]
+                    if not show.empty and show.iloc[0]['network_name'] == network:
+                        network_shows.append(show.iloc[0])
+                        network_scores.append(show_data['score'])
+                except (ValueError, KeyError):
+                    continue
             
             if network_scores:  # Only process networks with valid scores
                 avg_score = sum(network_scores) / len(network_scores)
