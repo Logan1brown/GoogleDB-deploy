@@ -46,30 +46,29 @@ def search_for_matches(collector: RTCollector, show: Dict) -> List[Dict]:
     
     # Initialize browser only when needed
     try:
-        with st.spinner("Searching..."):
-            collector.ensure_browser()
+        # Load search page
+        from urllib.parse import quote_plus
+        search_url = 'https://www.rottentomatoes.com/search?search=' + quote_plus(show['title'])
+        collector.page.goto(search_url)
+        
+        # Wait for TV shows to load
+        collector.page.wait_for_selector('search-page-result[type="tvSeries"]', timeout=5000)
+        
+        # Get TV shows section
+        tv_section = collector.page.query_selector('search-page-result[type="tvSeries"]')
+        if not tv_section:
+            return []
             
-            # Load search page
-            from urllib.parse import quote_plus
-            search_url = 'https://www.rottentomatoes.com/search?search=' + quote_plus(show['title'])
-            collector.page.goto(search_url)
-            
-            # Wait for TV shows to load
-            collector.page.wait_for_selector('search-page-result[type="tvSeries"]', timeout=5000)
-            
-            # Get TV shows section
-            tv_section = collector.page.query_selector('search-page-result[type="tvSeries"]')
-            if not tv_section:
-                return []
-                
-            # Get all TV show rows
-            results = tv_section.query_selector_all('search-page-media-row')
-            if not results:
-                return []
+        # Get all TV show rows
+        results = tv_section.query_selector_all('search-page-media-row')
+        if not results:
+            return []
             
     except Exception as e:
         st.error(f"Error during search: {str(e)}")
-        # Reset browser on any error
+        # Clean up and reset browser on any error
+        if st.session_state.collector:
+            st.session_state.collector.cleanup()
         st.session_state.collector = RTCollector()
         return []
     
@@ -173,18 +172,18 @@ def main():
                     raise Exception("Browser not initialized")
                 # Test if browser is responsive
                 st.session_state.collector.page.evaluate('1')
-            except:
+            except Exception as e:
+                print(f"Browser check failed: {e}")
+                # Clean up old collector if it exists
                 if st.session_state.collector:
                     try:
-                        st.session_state.collector.__exit__(None, None, None)
-                    except:
-                        pass
+                        st.session_state.collector.cleanup()
+                    except Exception as cleanup_e:
+                        print(f"Cleanup failed: {cleanup_e}")
+                # Create new collector
                 st.session_state.collector = RTCollector()
-                st.session_state.collector.__enter__()
-
-        # Initialize browser
-        with st.spinner("Checking browser..."):
-            ensure_browser()
+                # Initialize browser
+                st.session_state.collector.ensure_browser()
 
         col1, col2 = st.columns(2)
 
@@ -192,19 +191,14 @@ def main():
             search_col1, search_col2 = st.columns([1, 1])
             with search_col1:
                 if st.button("🔍 Search for matches"):
-                    try:
+                    with st.spinner("Searching..."):
                         ensure_browser()
                         matches = search_for_matches(st.session_state.collector, selected_show)
-                        # Clean up browser after search
-                        st.session_state.collector.cleanup()
                         st.session_state.current_matches = matches
                         st.session_state.selected_match = None
                         st.session_state.scores = None
+                        # Keep browser alive for match selection
 
-                    except Exception as e:
-                        st.error(f"Error searching: {str(e)}")
-                        st.session_state.collector = None
-            
             with search_col2:
                 if st.button("⛔️ Not Found"):
                     with st.spinner("Marking as not found..."):
@@ -232,6 +226,7 @@ def main():
                         if st.button("Select this match", key=f"match_{i}"):
                             try:
                                 with st.spinner("Loading scores..."):
+                                    ensure_browser()
                                     st.session_state.collector.page.goto(match['url'])
                                     # Wait for media scorecard to load
                                     scorecard = st.session_state.collector.page.wait_for_selector('media-scorecard', timeout=8000)
@@ -302,10 +297,17 @@ def main():
                                         'manual_url': match['url']
                                     }).execute()
 
-                                    # Show success and wait
+                                    # Show success and clean up
                                     st.success("✅ Successfully saved scores to database!")
-                                    time.sleep(3)  # Give time to see the results
-                                    st.session_state.current_matches = None  # Clear matches to move to next show
+                                    time.sleep(1)  # Brief pause to show success
+                                    
+                                    # Clean up browser before moving to next show
+                                    if st.session_state.collector:
+                                        st.session_state.collector.cleanup()
+                                        st.session_state.collector = None
+                                    
+                                    # Clear state and move to next show
+                                    st.session_state.current_matches = None
                                     st.rerun()
                                     break
                             except Exception as e:
@@ -353,10 +355,10 @@ def main():
                         except Exception as e:
                             st.error(f"Error saving scores: {e}")
 
-    # Cleanup when the app is closed
-    if st.session_state.collector:
-        import atexit
-        atexit.register(lambda: st.session_state.collector.__exit__(None, None, None))
+    # No cleanup here - we'll handle it in cleanup_on_exit
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        st.error(f"Unexpected error: {str(e)}")

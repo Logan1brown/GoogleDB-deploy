@@ -115,4 +115,4 @@ class AdminState:
     user_management: UserManagementState = field(default_factory=UserManagementState)
     announcements: AnnouncementState = field(default_factory=AnnouncementState)
     tmdb_matching: TMDBMatchingState = field(default_factory=TMDBMatchingState)
-    rt_matching: RTMatchingState = field(default_factory=RTMatchingState)
+

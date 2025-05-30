@@ -49,15 +49,43 @@ class RTCollector:
         self.page = None
         
     def cleanup(self):
-        """Clean up browser resources."""
-        if self.page:
-            self.page.close()
+        """Clean up browser resources and Node processes."""
+        try:
+            # Clean up Playwright resources
+            if self.page:
+                try:
+                    self.page.close()
+                except:
+                    pass
+                self.page = None
+            if self.browser:
+                try:
+                    self.browser.close()
+                except:
+                    pass
+                self.browser = None
+            if self.playwright:
+                try:
+                    self.playwright.stop()
+                except:
+                    pass
+                self.playwright = None
+
+            # Clean up any lingering Node processes
+            try:
+                if sys.platform == 'darwin':  # macOS
+                    subprocess.run(['pkill', '-f', 'node.*playwright'], capture_output=True)
+                elif sys.platform == 'linux':
+                    subprocess.run(['pkill', '-f', 'node.*playwright'], capture_output=True)
+                elif sys.platform == 'win32':
+                    subprocess.run(['taskkill', '/F', '/IM', 'node.exe'], capture_output=True)
+            except:
+                pass  # Ignore errors from process cleanup
+
+        except:
+            # If any cleanup fails, just null out the references
             self.page = None
-        if self.browser:
-            self.browser.close()
             self.browser = None
-        if self.playwright:
-            self.playwright.stop()
             self.playwright = None
 
     def ensure_browser(self):

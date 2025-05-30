@@ -140,23 +140,6 @@ def get_unmatched_shows() -> List[Dict]:
     # Process each show's data
     return [process_show_data(show) for show in response.data]
 
-def get_rt_unmatched_shows() -> List[Dict]:
-    """Get all shows that need RT scores collected."""
-    # Get shows that have matched RT scores
-    matched_response = supabase.table('rt_success_metrics')\
-        .select('show_id')\
-        .execute()
-    matched_ids = [row.get('show_id') for row in matched_response.data] if matched_response.data else []
-    
-    # Get shows without RT matches
-    response = supabase.table('shows')\
-        .select(
-            'id, title, network_id, network_list(*), show_team(name, role_type_id)'
-        )\
-        .not_.in_('id', matched_ids)\
-        .eq('active', True)\
-        .order('title')\
-        .execute()
     
     # Process each show's data
     return [process_show_data(show) for show in response.data]

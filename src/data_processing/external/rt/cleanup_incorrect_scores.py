@@ -1,4 +1,4 @@
-"""Clean up incorrectly marked scores between Avalon and Bosch: Legacy."""
+"""Clean up incorrectly marked RT scores for Rebel."""
 import os
 from dotenv import load_dotenv
 from supabase import create_client
@@ -14,35 +14,33 @@ def get_client():
     )
 
 def cleanup_incorrect_scores():
-    """Remove incorrect scores between Avalon and Bosch: Legacy."""
+    """Remove incorrect RT scores for Rebel."""
     supabase = get_client()
     
-    # Get affected show IDs from rt_success_metrics
-    response = supabase.table('rt_success_metrics')\
-        .select('show_id')\
-        .gte('created_at', '2025-05-29 18:12:51.423593+00')\
-        .lte('created_at', '2025-05-29 18:24:03.956192+00')\
+    # Get show ID for Rebel
+    response = supabase.table('shows')\
+        .select('id')\
+        .eq('title', 'Rebel')\
         .execute()
     
-    affected_ids = [row['show_id'] for row in response.data]
-    print(f"Found {len(affected_ids)} shows to clean up")
-    
-    if not affected_ids:
-        print("No shows found in the time range")
+    if not response.data:
+        print("Show 'Rebel' not found")
         return
+        
+    show_id = response.data[0]['id']
+    print(f"Found show ID {show_id} for 'Rebel'")
         
     # Delete from rt_success_metrics
     response = supabase.table('rt_success_metrics')\
         .delete()\
-        .gte('created_at', '2025-05-29 18:12:51.423593+00')\
-        .lte('created_at', '2025-05-29 18:24:03.956192+00')\
+        .eq('show_id', show_id)\
         .execute()
     print(f"Deleted entries from rt_success_metrics")
     
     # Delete from rt_match_status
     response = supabase.table('rt_match_status')\
         .delete()\
-        .in_('show_id', affected_ids)\
+        .eq('show_id', show_id)\
         .execute()
     print(f"Deleted entries from rt_match_status")
     
