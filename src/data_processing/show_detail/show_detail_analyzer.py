@@ -341,9 +341,9 @@ class ShowDetailAnalyzer:
         for _, show in self._shows_df[self._shows_df['id'] != show_id].iterrows():
             scores = self.compute_similarity(target_show, show)
             if scores['total'] >= min_score:
-                # Get success metrics from SuccessAnalyzer
-                success_metrics = self.success_analyzer.get_success_metrics(show['id'])
-                success_score = success_metrics['score'] if success_metrics else None
+                # Get success score from SuccessAnalyzer
+                success_data = self.success_analyzer.get_success_score(show['id'])
+                success_score = success_data['score'] if success_data else None
                 
                 similar_shows.append(SimilarShow(
                     show_id=show['id'],  # Use id from api_show_details
