@@ -39,8 +39,7 @@ class SuccessConfig:
     
     # RT metric weights
     TOMATOMETER_WEIGHT: float = 0.15
-    POPCORNMETER_WEIGHT: float = 0.15
-    
+    POPCORNMETER_WEIGHT: float = 0.15    
     # Season scoring
     SEASON1_VALUE: int = 50   # Base points for first season
     SEASON2_VALUE: int = 50   # Bonus for renewal (S2)
@@ -52,17 +51,17 @@ class SuccessConfig:
     EPISODE_MIN_THRESHOLD: int = 8    # Minimum episodes needed
     EPISODE_BONUS_THRESHOLD: int = 10  # Episodes for bonus
     
-    # Status modifiers
-    STATUS_MODIFIERS: Dict[str, float] = None
+    # Status points
+    STATUS_POINTS: Dict[str, int] = None
     
     def __post_init__(self):
-        self.STATUS_MODIFIERS = {
-            'Returning Series': 1.2,  # 20% bonus for active shows
-            'Ended': 1.0,            # Base multiplier for completed shows
-            'Canceled': 0.8,         # 20% penalty for canceled shows
-            'In Production': 0.0,    # No score for shows in production
-            'Pilot': 0.0,           # No score for pilots
-            'In Development': 0.0,   # No score for shows in development
+        self.STATUS_POINTS = {
+            'Returning Series': 100,  # Full points for active shows
+            'Ended': 50,            # Half points for completed shows
+            'Canceled': 0,          # No points for canceled shows
+            'In Production': 0,     # No score for shows in production
+            'Pilot': 0,            # No score for pilots
+            'In Development': 0,    # No score for shows in development
         }
 
 
@@ -317,8 +316,7 @@ class SuccessAnalyzer:
     def _calculate_status_score(self, show: pd.Series) -> float:
         """Calculate score component from show status."""
         status = show.get('tmdb_status')
-        modifier = self.config.STATUS_MODIFIERS.get(status, 1.0)
-        return 100 * modifier  # Apply modifier to base 100
+        return self.STATUS_POINTS.get(status, 0)  # Get points based on status
         
     def _calculate_rt_score(self, show: pd.Series) -> float:
         """Calculate score component from RT metrics."""
@@ -420,7 +418,9 @@ class SuccessAnalyzer:
         display_items = []
         
         # Calculate base points (70% total)
-        season_points = self.config.SEASON1_VALUE  # Base points for first season
+        season_points = 0
+        if 'season1_base' in breakdown:
+            season_points += breakdown['season1_base']
         if 'season2_renewal' in breakdown:
             season_points += breakdown['season2_renewal']
         if 'additional_seasons' in breakdown:
@@ -439,7 +439,8 @@ class SuccessAnalyzer:
         # Status modifier
         if 'status_modifier' in breakdown:
             modifier = breakdown['status_modifier']
-            status_contribution = (season_contribution + episode_contribution) * (modifier - 1.0)
+            base_contribution = season_contribution + episode_contribution
+            status_contribution = base_contribution * (modifier - 1.0)
             if modifier > 1.0:
                 display_items.append(f"**Active Series Bonus:** +20% → **+{status_contribution:.1f} pts**")
             elif modifier < 1.0:
