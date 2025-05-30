@@ -316,7 +316,7 @@ class SuccessAnalyzer:
     def _calculate_status_score(self, show: pd.Series) -> float:
         """Calculate score component from show status."""
         status = show.get('tmdb_status')
-        return self.STATUS_POINTS.get(status, 0)  # Get points based on status
+        return self.config.STATUS_POINTS.get(status, 0)  # Get points based on status
         
     def _calculate_rt_score(self, show: pd.Series) -> float:
         """Calculate score component from RT metrics."""
