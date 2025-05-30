@@ -432,11 +432,29 @@ class ShowsAnalyzer:
                 raise ValueError("Supabase client not initialized")
                 
             # Fetch from api_show_summary view
-            result = supabase.table(_self.VIEWS['summary']).select('*').execute()
+            result = supabase.table(_self.VIEWS['summary']).select(
+                'id:show_id',
+                'title',
+                'network_name',
+                'tmdb_status',
+                'tmdb_seasons',
+                'tmdb_episodes',
+                'tmdb_avg_eps'
+            ).execute()
             if not hasattr(result, 'data') or not result.data:
                 raise ValueError("No data returned from api_show_summary")
                 
             shows_df = pd.DataFrame(result.data)
+            
+            # Validate required columns
+            required_cols = [
+                'show_id', 'title', 'network_name', 'tmdb_status',
+                'tmdb_seasons', 'tmdb_episodes', 'tmdb_avg_eps'
+            ]
+            missing_cols = [col for col in required_cols if col not in shows_df.columns]
+            if missing_cols:
+                raise ValueError(f"Missing required columns in shows_df: {missing_cols}")
+                
             st.write(f"Fetched {len(shows_df)} shows with details")
             return shows_df
             
