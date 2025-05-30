@@ -333,15 +333,15 @@ class ShowDetailAnalyzer:
         self._ensure_data_loaded()
         
         # Get target show
-        target_show = self._shows_df[self._shows_df['show_id'] == show_id].iloc[0]
+        target_show = self._shows_df[self._shows_df['id'] == show_id].iloc[0]
         
         # Calculate similarity scores for all other shows
         similar_shows = []
-        for _, show in self._shows_df[self._shows_df['show_id'] != show_id].iterrows():
+        for _, show in self._shows_df[self._shows_df['id'] != show_id].iterrows():
             scores = self.compute_similarity(target_show, show)
             if scores['total'] >= min_score:
                 similar_shows.append(SimilarShow(
-                    show_id=show['show_id'],
+                    show_id=show['id'],  # Use id from api_show_details
                     title=show['title'],
                     network_name=show['network_name'],
                     description=show.get('description'),
