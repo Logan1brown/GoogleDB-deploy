@@ -112,7 +112,8 @@ class MarketAnalyzer:
         """
         st.write("=== Network Distribution Debug ===")
         st.write("Available columns:", list(self.titles_df.columns))
-        st.write("Sample data before copy:", self.titles_df[['network_name', 'title']].head().to_dict())
+        st.write("Sample data before copy:", self.titles_df.head().to_dict())
+        st.write("titles_df shape:", self.titles_df.shape)
         
         # Create a DataFrame with only scalar columns needed for this operation
         df = self.titles_df[['network_name', 'title']].copy()
