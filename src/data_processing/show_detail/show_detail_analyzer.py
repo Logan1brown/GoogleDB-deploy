@@ -423,7 +423,7 @@ class ShowDetailAnalyzer:
                 
                 # Success rate (% of shows scoring 70+)
                 high_success = sum(1 for score in scores if score >= HIGH_SUCCESS_THRESHOLD)
-                success_rates[network] = (high_success / len(scores)) * 100
+                success_rates[network] = (high_success * 100.0) / network_counts[network]  # Use total shows for network
         
         return NetworkAnalysis(
             similar_show_counts=network_counts,
