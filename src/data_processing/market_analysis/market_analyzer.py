@@ -138,18 +138,23 @@ class MarketAnalyzer:
         """
         try:
             # Get success metrics from SuccessAnalyzer
-            success_metrics = self.success_analyzer.analyze_market(self.titles_df.set_index('id'))
+            # Create a copy with show_id as index for SuccessAnalyzer
+            analyzer_df = self.titles_df.copy()
+            analyzer_df.set_index('id', inplace=True)
+            success_metrics = self.success_analyzer.analyze_market(analyzer_df)
             
             # Create network -> scores mapping
             network_scores = {}
             for show_id, show_data in success_metrics['titles'].items():
-                # Since we set index to 'id', we can use loc directly
                 try:
-                    network = self.titles_df.set_index('id').loc[int(show_id), 'network_name']
-                    if network not in network_scores:
-                        network_scores[network] = []
-                    network_scores[network].append(show_data['score'])
-                except KeyError:
+                    # Find the network from the original DataFrame to maintain consistency
+                    title = self.titles_df[self.titles_df['id'] == int(show_id)]
+                    if not title.empty:
+                        network = title.iloc[0]['network_name']
+                        if network not in network_scores:
+                            network_scores[network] = []
+                        network_scores[network].append(show_data['score'])
+                except (ValueError, KeyError):
                     continue  # Skip if show_id not found
             
             # Calculate averages
