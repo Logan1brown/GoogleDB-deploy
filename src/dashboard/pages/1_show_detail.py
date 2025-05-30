@@ -110,7 +110,7 @@ def show():
         st.write("")
         # Success metrics
         st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Success Metrics</p>', unsafe_allow_html=True)
-        success_score = show_analyzer.get_success_metrics(show_data['show_id'])
+        success_score = show_analyzer.get_success_metrics(show_data['id'])
         if success_score is None:
             st.write("No success metrics available")
             return
