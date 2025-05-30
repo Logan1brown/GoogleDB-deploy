@@ -197,15 +197,15 @@ def render_market_snapshot(market_analyzer):
     if success_filter != "All":
         # Filter based on success tier
         if success_filter == "High (>80)":
-            filtered_df = filtered_df[filtered_df['show_id'].astype(str).isin(
+            filtered_df = filtered_df[filtered_df['id'].astype(str).isin(
                 [id for id, data in success_metrics['titles'].items() if data['score'] > 80]
             )]
         elif success_filter == "Medium (50-80)":
-            filtered_df = filtered_df[filtered_df['show_id'].astype(str).isin(
+            filtered_df = filtered_df[filtered_df['id'].astype(str).isin(
                 [id for id, data in success_metrics['titles'].items() if 50 <= data['score'] <= 80]
             )]
         elif success_filter == "Low (<50)":
-            filtered_df = filtered_df[filtered_df['show_id'].astype(str).isin(
+            filtered_df = filtered_df[filtered_df['id'].astype(str).isin(
                 [id for id, data in success_metrics['titles'].items() if data['score'] < 50]
             )]
     
@@ -215,13 +215,13 @@ def render_market_snapshot(market_analyzer):
         if creative_filter.sum() > 0:
             matched_rows = market_analyzer.team_df[creative_filter]
             # Join with shows table to get titles
-            shows_df = market_analyzer.titles_df[['id', 'title']]
-            matched_with_titles = pd.merge(matched_rows, shows_df, left_on='show_id', right_on='id', how='inner')
+            shows_df = market_analyzer.titles_df[['show_id', 'title']]
+            matched_with_titles = pd.merge(matched_rows, shows_df, on='show_id', how='inner')
         
         # Get show IDs for selected creatives
         creative_show_ids = market_analyzer.team_df[creative_filter]['show_id'].unique()
         # Get titles for those show IDs
-        creative_titles = market_analyzer.titles_df[market_analyzer.titles_df['id'].isin(creative_show_ids)]['title'].unique()
+        creative_titles = market_analyzer.titles_df[market_analyzer.titles_df['show_id'].isin(creative_show_ids)]['title'].unique()
 
         
         # Filter to only titles with selected creatives
@@ -254,7 +254,7 @@ def render_market_snapshot(market_analyzer):
     network_scores = {}
     for title_id, title_data in success_metrics['titles'].items():
         # Find title by show_id
-        title = filtered_df[filtered_df['show_id'] == title_id].iloc[0] if len(filtered_df[filtered_df['show_id'] == title_id]) > 0 else None
+        title = filtered_df[filtered_df['id'] == title_id].iloc[0] if len(filtered_df[filtered_df['id'] == title_id]) > 0 else None
         if title is not None:
             network = title['network_name']
             if network not in network_scores:
