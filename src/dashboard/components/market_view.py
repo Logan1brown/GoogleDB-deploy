@@ -197,15 +197,15 @@ def render_market_snapshot(market_analyzer):
     if success_filter != "All":
         # Filter based on success tier
         if success_filter == "High (>80)":
-            filtered_df = filtered_df[filtered_df['tmdb_id'].astype(str).isin(
+            filtered_df = filtered_df[filtered_df['show_id'].astype(str).isin(
                 [id for id, data in success_metrics['titles'].items() if data['score'] > 80]
             )]
         elif success_filter == "Medium (50-80)":
-            filtered_df = filtered_df[filtered_df['tmdb_id'].astype(str).isin(
+            filtered_df = filtered_df[filtered_df['show_id'].astype(str).isin(
                 [id for id, data in success_metrics['titles'].items() if 50 <= data['score'] <= 80]
             )]
         elif success_filter == "Low (<50)":
-            filtered_df = filtered_df[filtered_df['tmdb_id'].astype(str).isin(
+            filtered_df = filtered_df[filtered_df['show_id'].astype(str).isin(
                 [id for id, data in success_metrics['titles'].items() if data['score'] < 50]
             )]
     
@@ -253,13 +253,8 @@ def render_market_snapshot(market_analyzer):
     # Get success scores by network first
     network_scores = {}
     for title_id, title_data in success_metrics['titles'].items():
-        # Convert title_id to int since tmdb_id is numeric
-        try:
-            title_id = int(float(title_id))
-        except (ValueError, TypeError):
-            st.warning(f"Invalid tmdb_id: {title_id}")
-            continue
-        title = filtered_df[filtered_df['tmdb_id'] == title_id].iloc[0] if len(filtered_df[filtered_df['tmdb_id'] == title_id]) > 0 else None
+        # Find title by show_id
+        title = filtered_df[filtered_df['show_id'] == title_id].iloc[0] if len(filtered_df[filtered_df['show_id'] == title_id]) > 0 else None
         if title is not None:
             network = title['network_name']
             if network not in network_scores:
