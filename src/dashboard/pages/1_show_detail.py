@@ -28,8 +28,12 @@ def show():
     # Initialize analyzers
     from src.data_processing.show_detail.show_detail_analyzer import ShowDetailAnalyzer
     from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
-    show_analyzer = ShowDetailAnalyzer()
-    success_analyzer = SuccessAnalyzer()
+    from src.data_processing.analyze_shows import ShowsAnalyzer
+    
+    # Create analyzers in correct order
+    shows_analyzer = ShowsAnalyzer()
+    show_analyzer = ShowDetailAnalyzer(shows_analyzer=shows_analyzer)
+    success_analyzer = SuccessAnalyzer(shows_analyzer=shows_analyzer)
     
     # Get all shows for selection
     shows_df = show_analyzer.fetch_show_data()
