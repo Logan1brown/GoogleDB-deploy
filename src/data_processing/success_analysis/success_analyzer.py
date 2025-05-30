@@ -93,12 +93,17 @@ class SuccessAnalyzer:
         """Fetch success metrics from ShowsAnalyzer.
         
         Returns:
-            DataFrame with success metrics
+            DataFrame with success metrics and calculated success scores
         """
         if self._success_data is None:
             try:
                 # Use ShowsAnalyzer to fetch success metrics
-                self._success_data = self.shows_analyzer.fetch_success_metrics()
+                success_df = self.shows_analyzer.fetch_success_metrics()
+                
+                # Calculate success score for each show
+                success_df['success_score'] = success_df.apply(self.calculate_success, axis=1)
+                
+                self._success_data = success_df
             except Exception as e:
                 print(f"Error fetching success data: {str(e)}")
                 raise

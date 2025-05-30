@@ -80,8 +80,8 @@ class ShowDetailAnalyzer:
             # Add success scores to DataFrame
             shows_df = pd.merge(
                 shows_df,
-                success_data[['title', 'success_score']],
-                on='title',
+                success_data[['show_id', 'success_score']],
+                on='show_id',
                 how='left'
             )
             shows_df['success_score'] = shows_df['success_score'].fillna(0)
