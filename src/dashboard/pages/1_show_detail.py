@@ -67,14 +67,14 @@ def show():
         with col1:
             st.write(f"**Network:** {show_data['network_name']}")
             st.write(f"**Genre:** {show_data['genre_name']}")
-            st.write(f"**Subgenres:** {', '.join(show_data['subgenres']) if show_data.get('subgenres') else 'None'}")
-            st.write(f"**Source Type:** {show_data['source_name']}")
+            st.write(f"**Subgenres:** {', '.join(show_data['subgenre_names']) if show_data.get('subgenre_names') else 'None'}")
+            st.write(f"**Source Type:** {show_data['source_type_name']}")
         
         with col2:
             st.write(f"**Order Type:** {show_data['order_type_name']}")
             st.write(f"**Status:** {show_data['tmdb_status']}")
             st.write(f"**Seasons:** {show_data['tmdb_seasons']}")
-            st.write(f"**Episodes:** {show_data['tmdb_episodes']}")
+            st.write(f"**Episodes:** {show_data['tmdb_total_episodes']}")
             st.write(f"**Announcement Date:** {show_data['date'] if pd.notna(show_data['date']) else 'None'}")
 
         

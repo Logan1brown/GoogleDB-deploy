@@ -71,9 +71,10 @@ class ShowDetailAnalyzer:
             DataFrame with show details
         """
         try:
-            # Get show data from instance's ShowsAnalyzer
-            # This includes all fields from api_show_summary including TMDB fields
-            shows_df = _self.shows_analyzer.fetch_show_data(force=force)
+            # Get show data from api_show_details view
+            supabase = get_client(use_service_key=True)
+            result = supabase.table(_self.shows_analyzer.VIEWS['details']).select('*').execute()
+            shows_df = pd.DataFrame(result.data)
             return shows_df
         except Exception as e:
             st.write(f"Error fetching show data: {str(e)}")
