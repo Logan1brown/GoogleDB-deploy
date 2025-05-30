@@ -208,7 +208,7 @@ class SuccessAnalyzer:
         for _, title in reliable_titles.iterrows():
             score = self.calculate_success(title)
             scores.append({
-                'title_id': str(title['id']),
+                'title_id': str(title.name),  # show_id is the index
                 'name': title['title'],
                 'score': score
             })
