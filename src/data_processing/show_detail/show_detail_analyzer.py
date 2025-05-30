@@ -418,19 +418,10 @@ class ShowDetailAnalyzer:
             # Get overall network score from SuccessAnalyzer
             success_scores[network] = self.success_analyzer.calculate_network_success(network)
             
-            # Debug success rate calculation
-            st.write(f"\n{network} shows:")
-            for show in shows:
-                st.write(f"- {show.title}: score = {show.success_score}")
-            
             # Calculate success rate based on stored success scores
             high_success = sum(1 for show in shows 
                              if show.success_score and show.success_score >= HIGH_SUCCESS_THRESHOLD)
-            total_shows = len(shows)
-            success_rates[network] = (high_success * 100.0) / total_shows
-            
-            st.write(f"High success shows: {high_success}, Total shows: {total_shows}")
-            st.write(f"Success rate: {success_rates[network]}%\n")
+            success_rates[network] = (high_success * 100.0) / len(shows)
         
         return NetworkAnalysis(
             similar_show_counts=network_counts,
