@@ -126,21 +126,34 @@ class MarketAnalyzer:
             raise
     
     def get_network_success_scores(self) -> pd.Series:
-        """Get average success scores by network.
+        """Get average success scores by network using SuccessAnalyzer.
         
         Returns:
             Series of success scores indexed by network
         """
         try:
-            st.write("=== Network Success Scores ===")
-            st.write(f"Available columns: {list(self.titles_df.columns)}")
-            df = self.titles_df[['network_name', 'success_score']].copy()
-            st.write(f"Success scores df shape: {df.shape}")
-            st.write(f"Sample data:\n{df.head().to_dict()}")
-            return df.groupby('network_name')['success_score'].mean().sort_values(ascending=False)
+            # Get success metrics from SuccessAnalyzer
+            success_metrics = self.success_analyzer.analyze_market(self.titles_df)
+            
+            # Create network -> scores mapping
+            network_scores = {}
+            for show_id, show_data in success_metrics['titles'].items():
+                show_id = str(show_id)  # Convert to string for comparison
+                show_idx = self.titles_df['tmdb_id'].astype(str) == show_id
+                if show_idx.any():
+                    network = self.titles_df.loc[show_idx.idxmax(), 'network_name']
+                    if network not in network_scores:
+                        network_scores[network] = []
+                    network_scores[network].append(show_data['score'])
+            
+            # Calculate averages
+            network_averages = {}
+            for network, scores in network_scores.items():
+                network_averages[network] = sum(scores) / len(scores)
+                
+            return pd.Series(network_averages).sort_values(ascending=False)
         except Exception as e:
             error_msg = f"Error getting network success scores: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-            st.error(error_msg)
             st.error(error_msg)
             raise
     
