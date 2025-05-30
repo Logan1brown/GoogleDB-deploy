@@ -95,7 +95,7 @@ class MarketAnalyzer:
         self.success_analyzer = SuccessAnalyzer(self.shows_analyzer)
         
         # Validate titles_df required columns
-        required_shows_cols = ['id', 'network_name', 'tmdb_id', 'title', 'studio_names']
+        required_shows_cols = ['network_name', 'tmdb_id', 'title', 'studio_names']
         missing_shows_cols = [col for col in required_shows_cols if col not in self.titles_df.columns]
         if missing_shows_cols:
             raise ValueError(f"Missing required columns in titles_df: {missing_shows_cols}")
