@@ -114,7 +114,7 @@ class MarketAnalyzer:
         st.write("Sample data before copy:", self.titles_df[['network_name', 'title']].head().to_dict())
         
         # Create a DataFrame with only scalar columns needed for this operation
-        df = self.titles_df[['network_name', 'title']].copy()
+        df = self.titles_df[['id', 'network_name', 'title']].copy()
         st.write("DataFrame after copy shape:", df.shape)
         st.write("Sample after copy:", df.head().to_dict())
         
