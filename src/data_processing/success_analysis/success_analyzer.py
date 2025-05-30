@@ -42,8 +42,9 @@ class SuccessConfig:
     POPCORNMETER_WEIGHT: float = 0.15
     
     # Season scoring
-    SEASON2_VALUE: int = 100  # Show renewed for S2
-    ADDITIONAL_SEASON_VALUE: int = 50  # Each season after S2 (max 100)
+    SEASON1_VALUE: int = 50   # Base points for first season
+    SEASON2_VALUE: int = 50   # Bonus for renewal (S2)
+    ADDITIONAL_SEASON_VALUE: int = 25  # Each season after S2 (max 100)
     
     # Episode scoring
     EPISODE_BASE_POINTS: int = 50     # Points for reaching min threshold
@@ -294,13 +295,13 @@ class SuccessAnalyzer:
         if not pd.notna(seasons):
             return 0
             
-        score = 50  # Base points for first season
+        score = self.config.SEASON1_VALUE  # Base points for first season
         
         if seasons >= 2:
-            score += 50  # Renewal bonus
+            score += self.config.SEASON2_VALUE  # Renewal bonus
             extra_seasons = seasons - 2
             if extra_seasons > 0:
-                extra_points = min(extra_seasons * 25, 100)  # Max 100 bonus points
+                extra_points = min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 100)  # Max 100 bonus points
                 score += extra_points
                 
         return score
