@@ -71,18 +71,22 @@ class ShowDetailAnalyzer:
             DataFrame with show details
         """
         try:
-            # Get show data from ShowsAnalyzer
-            shows_df = ShowsAnalyzer().fetch_show_data(force=force)
+            # Get show data from instance's ShowsAnalyzer
+            shows_df = _self.shows_analyzer.fetch_show_data(force=force)
             
             # Calculate average episodes per season
             shows_df['tmdb_avg_eps'] = pd.to_numeric(shows_df['tmdb_total_episodes'], errors='coerce') / pd.to_numeric(shows_df['tmdb_seasons'], errors='coerce')
             
-            # Calculate success scores
-            success_analyzer = SuccessAnalyzer()
-            success_analyzer.initialize_data(shows_df)
+            # Calculate success scores using instance's SuccessAnalyzer
+            success_data = _self.success_analyzer.fetch_success_data()
             
             # Add success scores to DataFrame
-            shows_df['success_score'] = shows_df.apply(success_analyzer.calculate_success, axis=1)
+            shows_df = pd.merge(
+                shows_df,
+                success_data[['title', 'success_score']],
+                on='title',
+                how='left'
+            )
             shows_df['success_score'] = shows_df['success_score'].fillna(0)
             
             return shows_df
