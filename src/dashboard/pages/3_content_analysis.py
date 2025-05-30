@@ -47,7 +47,8 @@ def show():
             state["unified"] = asdict(UnifiedState())
         
         # Initialize data and analyzers
-        success_analyzer = SuccessAnalyzer()
+        shows_analyzer = ShowsAnalyzer()
+        success_analyzer = SuccessAnalyzer(shows_analyzer)
         
         # Update state with filter values
         unified_state = state["unified"]
