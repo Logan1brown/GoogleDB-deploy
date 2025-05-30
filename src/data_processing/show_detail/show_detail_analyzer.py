@@ -71,24 +71,9 @@ class ShowDetailAnalyzer:
             DataFrame with show details
         """
         try:
-            # Get base show data from instance's ShowsAnalyzer
+            # Get show data from instance's ShowsAnalyzer
+            # This includes all fields from api_show_summary including TMDB fields
             shows_df = _self.shows_analyzer.fetch_show_data(force=force)
-            
-            # Get success metrics using instance's SuccessAnalyzer
-            success_data = _self.success_analyzer.fetch_success_data()
-            
-            # Add success metrics to DataFrame
-            shows_df = pd.merge(
-                shows_df,
-                success_data[[
-                    'show_id', 'success_score', 'tmdb_status',
-                    'tmdb_seasons', 'tmdb_episodes', 'tmdb_avg_eps'
-                ]],
-                on='show_id',
-                how='left'
-            )
-            shows_df['success_score'] = shows_df['success_score'].fillna(0)
-            
             return shows_df
         except Exception as e:
             st.write(f"Error fetching show data: {str(e)}")

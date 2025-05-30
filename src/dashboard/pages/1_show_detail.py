@@ -71,11 +71,12 @@ def show():
             st.write(f"**Source Type:** {show_data['source_name']}")
         
         with col2:
-            st.write(f"**Order Type:** {show_data['order_name']}")
+            st.write(f"**Order Type:** {show_data['order_type_name']}")
             st.write(f"**Status:** {show_data['tmdb_status']}")
             st.write(f"**Seasons:** {show_data['tmdb_seasons']}")
             st.write(f"**Episodes:** {show_data['tmdb_total_episodes']}")
-            st.write(f"**Announcement Date:** {show_data['announced_date'] if pd.notna(show_data['announced_date']) else 'None'}")
+            st.write(f"**Announcement Date:** {show_data['date'] if pd.notna(show_data['date']) else 'None'}")
+
         
         st.write("")
         st.write("**Description**")
