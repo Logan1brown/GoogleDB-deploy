@@ -81,9 +81,11 @@ class MarketAnalyzer:
         if 'active' in available_cols:
             self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
         
-        # Reset index to ensure clean data but keep id column
-        if 'id' in self.titles_df.columns:
-            self.titles_df = self.titles_df.set_index('id').reset_index()
+        # Reset index to ensure clean data
+        if 'id' not in self.titles_df.columns:
+            st.error("Missing 'id' column in titles_df. Available columns: " + str(list(self.titles_df.columns)))
+            raise ValueError("Missing 'id' column in titles_df")
+        self.titles_df = self.titles_df.set_index('id').reset_index()
         
         self.titles_df['tmdb_avg_eps'] = self.titles_df.apply(
             lambda x: x['tmdb_total_episodes'] / x['tmdb_seasons'] 

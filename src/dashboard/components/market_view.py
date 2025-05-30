@@ -184,7 +184,7 @@ def render_market_snapshot(market_analyzer):
     
     # Filter data based on success level
     # Include all needed columns including studio_names for vertical integration
-    needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'tmdb_avg_eps', 'studio_names', 'status_name']
+    needed_cols = ['id', 'title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'tmdb_avg_eps', 'studio_names', 'status_name']
     
     filtered_df = market_analyzer.titles_df[needed_cols].copy()
     
