@@ -35,20 +35,11 @@ def show():
     success_analyzer = SuccessAnalyzer(shows_analyzer=shows_analyzer)
     show_analyzer = ShowDetailAnalyzer(success_analyzer=success_analyzer)
     
-    # Get all shows for selection
-    shows_df = show_analyzer.fetch_show_data()
-    
-    # Get success metrics
+    # Get success metrics first since ShowDetailAnalyzer needs them
     success_df = success_analyzer.fetch_success_data()
     
-    # Merge success metrics with show data
-    shows_df = pd.merge(
-        shows_df,
-        success_df[['show_id', 'success_score', 'tmdb_avg_eps', 'tmdb_seasons', 'tmdb_status']],
-        on='show_id',
-        how='left'
-    )
-    shows_df['success_score'] = shows_df['success_score'].fillna(0)
+    # Get all shows for selection - this will automatically merge with success data
+    shows_df = show_analyzer.fetch_show_data()
     
     # Show selector
     selected_show = st.selectbox(
