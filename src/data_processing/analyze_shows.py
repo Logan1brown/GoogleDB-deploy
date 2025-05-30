@@ -437,22 +437,6 @@ class ShowsAnalyzer:
                 raise ValueError("No data returned from api_show_summary")
                 
             shows_df = pd.DataFrame(result.data)
-            
-            # Calculate average episodes per season
-            shows_df['tmdb_avg_eps'] = shows_df.apply(
-                lambda x: round(x['tmdb_episodes'] / x['tmdb_seasons'], 1) if pd.notna(x['tmdb_seasons']) and x['tmdb_seasons'] > 0 else None,
-                axis=1
-            )
-            
-            # Validate required columns
-            required_cols = [
-                'show_id', 'title', 'network_name', 'tmdb_status',
-                'tmdb_seasons', 'tmdb_episodes', 'tmdb_avg_eps'
-            ]
-            missing_cols = [col for col in required_cols if col not in shows_df.columns]
-            if missing_cols:
-                raise ValueError(f"Missing required columns in shows_df: {missing_cols}")
-                
             st.write(f"Fetched {len(shows_df)} shows with details")
             return shows_df
             
