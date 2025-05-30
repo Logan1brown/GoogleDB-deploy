@@ -400,28 +400,17 @@ class ShowDetailAnalyzer:
             network_counts[network] = network_counts.get(network, 0) + 1
             
             # Track success scores for rate calculation
-            if show.success_score is not None:
-                if network not in network_success_shows:
-                    network_success_shows[network] = []
-                network_success_shows[network].append(show.success_score)
         
-        # Initialize scores and rates for all networks
-        success_scores = {network: 0 for network in network_counts}
-        success_rates = {network: 0 for network in network_counts}
-        HIGH_SUCCESS_THRESHOLD = 70  # Shows with 70+ points considered highly successful
+        # Calculate success scores and rates using SuccessAnalyzer
+        success_scores = {}
+        success_rates = {}
         
-        for network, scores in network_success_shows.items():
-            if scores:  # Only calculate if we have scores
-                # Average score
-                success_scores[network] = sum(scores) / len(scores)
-                
-                # Success rate (% of shows above threshold)
-                high_success_count = sum(1 for score in scores if score >= HIGH_SUCCESS_THRESHOLD)
-                success_rates[network] = high_success_count / len(scores)
-            else:
-                # Default values if no scores
-                success_scores[network] = 0
-                success_rates[network] = 0
+        for network in network_counts:
+            # Get network success score
+            success_scores[network] = self.success_analyzer.calculate_network_success(network)
+            
+            # Get network success rate
+            success_rates[network] = self.success_analyzer.calculate_renewal_rate(network)
         
         return NetworkAnalysis(
             similar_show_counts=network_counts,
