@@ -31,7 +31,9 @@ def show_match_breakdown(show, expanded=False):
     success = show.success_score if show.success_score is not None else 'N/A'
     
     # Build expander title - this appears in the collapsed view
-    title = f"{show.title} (Match: {int(scores['total'])}, Success: {int(success) if success is not None else 'N/A'})"
+    # Format success score - only convert to int if it's a number
+    success_display = str(int(success)) if isinstance(success, (int, float)) else 'N/A'
+    title = f"{show.title} (Match: {int(scores['total'])}, Success: {success_display})"
     
     with st.expander(title, expanded=expanded):
         
