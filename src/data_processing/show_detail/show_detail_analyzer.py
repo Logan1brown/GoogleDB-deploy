@@ -338,11 +338,16 @@ class ShowDetailAnalyzer:
         
         # Calculate similarity scores for all other shows
         similar_shows = []
+        # Get success data once
+        success_df = self.success_analyzer.fetch_success_data()
+        
         for _, show in self._shows_df[self._shows_df['id'] != show_id].iterrows():
             scores = self.compute_similarity(target_show, show)
             if scores['total'] >= min_score:
-                # Get success score from SuccessAnalyzer
-                success_score = self.success_analyzer.calculate_success(show)
+                # Get success score from success metrics data
+                success_score = None
+                if show['id'] in success_df.index:
+                    success_score = success_df.loc[show['id']]['success_score']
                 
                 similar_shows.append(SimilarShow(
                     show_id=show['id'],  # Use id from api_show_details
@@ -419,9 +424,13 @@ class ShowDetailAnalyzer:
             success_scores[network] = self.success_analyzer.calculate_network_success(network)
             
             # Calculate success rate based on stored success scores
-            high_success = sum(1 for show in shows 
-                             if show.success_score and show.success_score >= HIGH_SUCCESS_THRESHOLD)
-            success_rates[network] = (high_success * 100.0) / len(shows)
+            shows_with_scores = [show for show in shows if show.success_score is not None]
+            if shows_with_scores:
+                high_success = sum(1 for show in shows_with_scores 
+                                if show.success_score >= HIGH_SUCCESS_THRESHOLD)
+                success_rates[network] = (high_success * 100.0) / len(shows_with_scores)
+            else:
+                success_rates[network] = 0
         
         return NetworkAnalysis(
             similar_show_counts=network_counts,
