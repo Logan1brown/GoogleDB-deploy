@@ -406,9 +406,9 @@ class ShowDetailAnalyzer:
                     network_success_shows[network] = []
                 network_success_shows[network].append(show.success_score)
         
-        # Calculate average success scores and rates
-        success_scores = {}
-        success_rates = {}
+        # Initialize scores and rates for all networks
+        success_scores = {network: 0 for network in network_counts}
+        success_rates = {network: 0 for network in network_counts}
         HIGH_SUCCESS_THRESHOLD = 70  # Shows with 70+ points considered highly successful
         
         for network, scores in network_success_shows.items():
