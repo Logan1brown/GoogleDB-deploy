@@ -37,14 +37,19 @@ class MarketAnalyzer:
             ValueError: If required columns are missing from titles_df
         """
         try:
+            # Initialize ShowsAnalyzer once
+            from ..analyze_shows import ShowsAnalyzer
+            self.shows_analyzer = ShowsAnalyzer()
+            
             if titles_df is not None and team_df is not None and network_df is not None:
                 self.titles_df = titles_df.copy(deep=True)
                 self.team_df = team_df.copy(deep=True)
                 self.network_df = network_df.copy(deep=True)
+                # Update shows_analyzer with provided data
+                self.shows_analyzer.titles_df = titles_df
             else:
-                from ..analyze_shows import ShowsAnalyzer
-                shows_analyzer = ShowsAnalyzer()
-                self.titles_df, self.team_df, self.network_df = shows_analyzer.fetch_market_data(force=True)
+                # Fetch data through shows_analyzer
+                self.titles_df, self.team_df, self.network_df = self.shows_analyzer.fetch_market_data(force=True)
             
             if len(self.titles_df) == 0:
                 raise ValueError("No shows data available from Supabase")
@@ -86,18 +91,14 @@ class MarketAnalyzer:
             axis=1
         )
         
-        # Initialize success analyzer
-        self.success_analyzer = SuccessAnalyzer(success_config)
-        self.success_analyzer.initialize_data(self.titles_df)
+        # Initialize success analyzer with our shows_analyzer instance
+        self.success_analyzer = SuccessAnalyzer(self.shows_analyzer)
         
         # Validate titles_df required columns
         required_shows_cols = ['network_name', 'tmdb_id', 'title', 'studio_names']
         missing_shows_cols = [col for col in required_shows_cols if col not in self.titles_df.columns]
         if missing_shows_cols:
             raise ValueError(f"Missing required columns in titles_df: {missing_shows_cols}")
-        
-        # Calculate success scores for all shows
-        self.titles_df['success_score'] = self.titles_df.apply(self.success_analyzer.calculate_success, axis=1)
         
 
         
