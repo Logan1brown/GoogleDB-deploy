@@ -143,7 +143,7 @@ class ShowDetailAnalyzer:
             'tmdb_status': show.get('tmdb_status'),
             'episode_count': show.get('episode_count'),
             'tmdb_seasons': show.get('tmdb_seasons'),
-            'tmdb_total_episodes': show.get('tmdb_total_episodes')
+            'tmdb_episodes': show.get('tmdb_episodes')
         }
     
     def compute_similarity(self, show1: pd.Series, show2: pd.Series) -> Dict:
@@ -281,8 +281,8 @@ class ShowDetailAnalyzer:
         scores['details']['source']['match'] = source_match
         
         # Episode format match (8 points)
-        eps1 = pd.to_numeric(show1['tmdb_total_episodes'], errors='coerce') / pd.to_numeric(show1['tmdb_seasons'], errors='coerce')
-        eps2 = pd.to_numeric(show2['tmdb_total_episodes'], errors='coerce') / pd.to_numeric(show2['tmdb_seasons'], errors='coerce')
+        eps1 = pd.to_numeric(show1['tmdb_episodes'], errors='coerce') / pd.to_numeric(show1['tmdb_seasons'], errors='coerce')
+        eps2 = pd.to_numeric(show2['tmdb_episodes'], errors='coerce') / pd.to_numeric(show2['tmdb_seasons'], errors='coerce')
         scores['details']['format']['eps_per_season1'] = eps1 if pd.notna(eps1) else None
         scores['details']['format']['eps_per_season2'] = eps2 if pd.notna(eps2) else None
         
