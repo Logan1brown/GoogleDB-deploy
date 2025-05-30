@@ -745,7 +745,7 @@ class ShowsAnalyzer:
             # Validate required columns
             required_cols = [
                 'show_id', 'title', 'network_name', 'tmdb_status',
-                'tmdb_seasons', 'tmdb_total_episodes',
+                'tmdb_seasons', 'tmdb_avg_eps',
                 'has_rt', 'tomatometer', 'popcornmeter'
             ]
             missing_cols = [col for col in required_cols if col not in success_df.columns]
