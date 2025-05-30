@@ -156,11 +156,15 @@ def render_market_snapshot(market_analyzer):
         st.metric(
             "Success Score", 
             f"{avg_success:.0f}/100",
-            help="Average title success score (0-100) based on:\n" +
-                 "- Number of Seasons (40pts for S2, +20pts each for S3/S4/S5+)\n" +
-                 "- Show Status (bonus for planned ending, penalty for cancellation)\n" +
-                 "- Episode Volume (penalty for <11 eps)\n\n" +
-                 "Note: Limited series typically score low since the metric focuses on multi-season success."
+            help="Average title success score (0-100) based on:\n\n" +
+                 "Base metrics (70%):\n" +
+                 "- Seasons (30%): Multi-season success with renewal bonuses\n" +
+                 "- Episodes (30%): Volume of episodes per season\n" +
+                 "- Status (10%): Active/Ended/Canceled status\n\n" +
+                 "Rotten Tomatoes (30%):\n" +
+                 "- Tomatometer (15%)\n" +
+                 "- Audience Score (15%)\n\n" +
+                 "Note: When RT data is missing, base metrics are scaled up proportionally."
         )
         success_filter = st.selectbox(
             "Success Tier", 
