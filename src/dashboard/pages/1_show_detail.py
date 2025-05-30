@@ -55,6 +55,7 @@ def show():
         
     # Get show details
     show_data = shows_df[shows_df['title'] == selected_show].iloc[0]
+    print(f"Show data columns: {show_data.index.tolist()}")
     
     # Create tabs
     tab1, tab2, tab3 = st.tabs(["Show Information", "Comp List", "Network Analysis"])

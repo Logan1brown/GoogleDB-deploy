@@ -75,10 +75,6 @@ class ShowDetailAnalyzer:
             supabase = get_client(use_service_key=True)
             result = supabase.table(_self.shows_analyzer.VIEWS['details']).select('*').execute()
             shows_df = pd.DataFrame(result.data)
-            
-            # Rename id to show_id for consistency
-            if 'id' in shows_df.columns:
-                shows_df = shows_df.rename(columns={'id': 'show_id'})
             return shows_df
         except Exception as e:
             st.write(f"Error fetching show data: {str(e)}")
