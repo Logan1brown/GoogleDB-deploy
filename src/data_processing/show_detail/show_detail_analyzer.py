@@ -77,10 +77,13 @@ class ShowDetailAnalyzer:
             # Calculate success scores using instance's SuccessAnalyzer
             success_data = _self.success_analyzer.fetch_success_data()
             
-            # Add success scores to DataFrame
+            # Add success metrics to DataFrame
             shows_df = pd.merge(
                 shows_df,
-                success_data[['show_id', 'success_score']],
+                success_data[[
+                    'show_id', 'success_score', 'tmdb_avg_eps',
+                    'tmdb_seasons', 'tmdb_episodes', 'tmdb_status'
+                ]],
                 on='show_id',
                 how='left'
             )
