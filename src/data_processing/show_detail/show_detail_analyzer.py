@@ -75,6 +75,10 @@ class ShowDetailAnalyzer:
             supabase = get_client(use_service_key=True)
             result = supabase.table(_self.shows_analyzer.VIEWS['details']).select('*').execute()
             shows_df = pd.DataFrame(result.data)
+            
+            # Rename id to show_id for consistency
+            if 'id' in shows_df.columns:
+                shows_df = shows_df.rename(columns={'id': 'show_id'})
             return shows_df
         except Exception as e:
             st.write(f"Error fetching show data: {str(e)}")
@@ -362,13 +366,20 @@ class ShowDetailAnalyzer:
         Returns:
             Dict with success score and breakdown if available, None if not
         """
+        print(f"Fetching success metrics for show {show_id}")
         success_df = self.success_analyzer.fetch_success_data()
+        print(f"Success data shape: {success_df.shape}")
+        print(f"Success data index: {success_df.index[:5]}")
+        print(f"Success data columns: {success_df.columns.tolist()}")
+        
         if show_id in success_df.index:
+            print(f"Found show {show_id} in success data")
             show = success_df.loc[show_id]
             return {
                 'score': show['success_score'],
                 'breakdown': self.success_analyzer.get_score_breakdown(show)
             }
+        print(f"Show {show_id} not found in success data")
         return None
 
     def analyze_network_patterns(self, similar_shows: List[SimilarShow]) -> NetworkAnalysis:

@@ -98,13 +98,20 @@ class SuccessAnalyzer:
         if self._success_data is None:
             try:
                 # Use ShowsAnalyzer to fetch success metrics
+                print("Fetching raw success metrics...")
                 success_df = self.shows_analyzer.fetch_success_metrics()
+                print(f"Raw success data shape: {success_df.shape}")
+                print(f"Raw success data columns: {success_df.columns.tolist()}")
                 
                 # Calculate success score for each show
+                print("Calculating success scores...")
                 success_df['success_score'] = success_df.apply(self.calculate_success, axis=1)
                 
                 # Set show_id as index for easier lookups
+                print("Setting show_id as index...")
                 success_df.set_index('show_id', inplace=True)
+                print(f"Final success data shape: {success_df.shape}")
+                print(f"Final success data index: {success_df.index[:5]}")
                 
                 self._success_data = success_df
             except Exception as e:

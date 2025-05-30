@@ -111,6 +111,7 @@ def show():
         st.write("")
         # Success metrics
         st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["title"]}px; font-weight: 600; color: {COLORS["text"]["primary"]}; margin: 20px 0;">Success Metrics</p>', unsafe_allow_html=True)
+        # api_show_details uses 'id', api_success_metrics uses 'show_id' - they're the same value
         success_metrics = show_analyzer.get_success_metrics(show_data['id'])
         if success_metrics is None:
             st.write("No success metrics available")
@@ -165,7 +166,7 @@ def show():
             st.write("**Canceled show penalty:** _Score multiplied by 0.8_")    
     with tab2:
         # Get similar shows
-        similar_content = show_analyzer.find_similar_shows(show_data['show_id'])
+        similar_content = show_analyzer.find_similar_shows(show_data['id'])
         if similar_content:
             # Create dataframe
             comp_df = pd.DataFrame([
@@ -255,12 +256,9 @@ def show():
             # Render each match breakdown
             for i, show in enumerate(top_matches):
                 render_match_breakdown(show, expanded=(i == 0))  # Auto-expand first match
-        else:
-            st.info("No similar shows found")
-    
     with tab3:
         # Network pattern analysis
-        network_patterns = show_analyzer.analyze_network_patterns(similar_content)
+        network_patterns = show_analyzer.analyze_network_patterns(show_analyzer.find_similar_shows(show_data['id']))
         if network_patterns:
             # Sort networks by number of shows (descending)
             sorted_networks = sorted(network_patterns.similar_show_counts.keys(),
