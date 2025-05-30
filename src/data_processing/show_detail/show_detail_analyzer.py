@@ -342,8 +342,7 @@ class ShowDetailAnalyzer:
             scores = self.compute_similarity(target_show, show)
             if scores['total'] >= min_score:
                 # Get success score from SuccessAnalyzer
-                success_data = self.success_analyzer.get_success_score(show['id'])
-                success_score = success_data['score'] if success_data else None
+                success_score = self.success_analyzer.calculate_success(show)
                 
                 similar_shows.append(SimilarShow(
                     show_id=show['id'],  # Use id from api_show_details
