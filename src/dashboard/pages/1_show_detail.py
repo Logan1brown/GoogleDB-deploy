@@ -27,10 +27,24 @@ def show():
     
     # Initialize analyzers
     from src.data_processing.show_detail.show_detail_analyzer import ShowDetailAnalyzer
+    from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
     show_analyzer = ShowDetailAnalyzer()
+    success_analyzer = SuccessAnalyzer()
     
     # Get all shows for selection
     shows_df = show_analyzer.fetch_show_data()
+    
+    # Get success metrics
+    success_df = success_analyzer.fetch_success_data()
+    
+    # Merge success metrics with show data
+    shows_df = pd.merge(
+        shows_df,
+        success_df[['show_id', 'success_score', 'tmdb_avg_eps', 'tmdb_seasons', 'tmdb_status']],
+        on='show_id',
+        how='left'
+    )
+    shows_df['success_score'] = shows_df['success_score'].fillna(0)
     
     # Show selector
     selected_show = st.selectbox(
