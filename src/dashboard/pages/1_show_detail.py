@@ -240,7 +240,7 @@ def show():
                 <div style="margin-top: 5px;">
                 • {count} similar shows<br>
                 • Average Score: {score:.0f} pts<br>
-                • Success Rate: {rate:.0%} of shows score 70+ pts
+                • Success Rate: {rate:.0f}% of shows score 70+ pts
                 </div>
                 """.format(count=count, score=score, rate=rate), unsafe_allow_html=True)
         else:
