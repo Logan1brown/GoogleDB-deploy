@@ -133,8 +133,8 @@ def show():
                 # Tab 1: Success Metrics
                 with tab1:
                     # Display success metrics using available attributes
-                    # Create columns for metrics
-                    metric_col1, metric_col2, metric_col3 = st.columns(3)
+                    # Create columns for metrics - now 4 columns for all scores
+                    metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
                     
                     with metric_col1:
                         if hasattr(summary, 'overall_success_probability'):
@@ -152,6 +152,14 @@ def show():
                                 st.metric("Audience Appeal", f"{audience_score.score:.0%}")
                     
                     with metric_col3:
+                        if hasattr(summary, 'component_scores') and summary.component_scores:
+                            critics_score = summary.component_scores.get("critics", 0)
+                            if isinstance(critics_score, (int, float)):
+                                st.metric("Critics Score", f"{critics_score:.0%}")
+                            elif hasattr(critics_score, 'score'):
+                                st.metric("Critics Score", f"{critics_score.score:.0%}")
+                    
+                    with metric_col4:
                         if hasattr(summary, 'component_scores') and summary.component_scores:
                             longevity_score = summary.component_scores.get("longevity", 0)
                             if isinstance(longevity_score, (int, float)):
