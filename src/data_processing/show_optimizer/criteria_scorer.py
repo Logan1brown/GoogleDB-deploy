@@ -118,11 +118,20 @@ class CriteriaScorer:
             self.criteria_data = comp_df.copy()
             
             # Fetch success data from SuccessAnalyzer
+            st.write("DEBUG: Fetching success data from SuccessAnalyzer")
             success_data = self.success_analyzer.fetch_success_data()
             
             if success_data.empty:
                 st.error("DEBUG ERROR: Empty success data returned from SuccessAnalyzer")
                 raise ValueError("No success data available from SuccessAnalyzer")
+            
+            st.write(f"DEBUG: SuccessAnalyzer returned data with {len(success_data)} rows")
+            st.write(f"DEBUG: SuccessAnalyzer data columns: {list(success_data.columns)}")
+            if len(success_data) > 0:
+                st.write(f"DEBUG: Sample success score: {success_data['success_score'].iloc[0] if 'success_score' in success_data.columns else 'No success_score column'}")
+                st.write(f"DEBUG: Success score range: {success_data['success_score'].min() if 'success_score' in success_data.columns else 'N/A'} to {success_data['success_score'].max() if 'success_score' in success_data.columns else 'N/A'}")
+                st.write(f"DEBUG: Success score distribution: {success_data['success_score'].value_counts().head(3) if 'success_score' in success_data.columns else 'N/A'}")
+            
             
             # Create a mapping of show_id to success_score
             success_scores = {}
@@ -163,13 +172,22 @@ class CriteriaScorer:
         Returns:
             DataFrame of matching shows with success metrics
         """
+        import streamlit as st
+        
         # Fetch the latest criteria data
         data = self.fetch_criteria_data()
         if data.empty:
-            return pd.DataFrame()
+            st.error("DEBUG ERROR: Empty criteria data from fetch_criteria_data")
+            raise ValueError("No criteria data available")
         
         # Use FieldManager to match shows against criteria
-        matched_shows, _ = self.field_manager.match_shows(criteria, data)
+        matched_shows, match_count = self.field_manager.match_shows(criteria, data)
+        
+        if matched_shows.empty:
+            st.error(f"DEBUG ERROR: No shows matched the criteria {criteria}")
+            raise ValueError("No shows matched the specified criteria")
+            
+        st.write(f"DEBUG: Found {match_count} shows matching the criteria")
         return matched_shows
     
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: float = 0.6) -> float:
@@ -182,11 +200,19 @@ class CriteriaScorer:
         Returns:
             Success rate (0-1)
         """
+        import streamlit as st
+        
         if shows.empty:
-            return 0.0
+            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_success_rate")
+            raise ValueError("Cannot calculate success rate with empty shows DataFrame")
+        
+        if 'success_score' not in shows.columns:
+            st.error("DEBUG ERROR: success_score column missing from shows data")
+            raise ValueError("success_score column required for success rate calculation")
         
         # Count shows with success score above threshold
         successful = shows[shows['success_score'] >= threshold]
+        st.write(f"DEBUG: Success rate calculation - {len(successful)} successful shows out of {len(shows)} total (threshold: {threshold})")
         return len(successful) / len(shows)
     
     @lru_cache(maxsize=32)
@@ -292,38 +318,56 @@ class CriteriaScorer:
         return network_matches
     
     def calculate_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, ComponentScore]:
-        """Calculate success scores for different components.
+        """Calculate component scores for a set of criteria.
         
         Args:
             criteria: Dictionary of criteria
             
         Returns:
-            Dictionary mapping components to ComponentScore objects
+            Dictionary mapping component names to ComponentScore objects
         """
         import streamlit as st
         
-        # Get matching shows for the criteria
+        st.write("DEBUG: Starting calculate_component_scores")
+        
+        # Get matching shows
+        st.write("DEBUG: Getting matching shows for component scores")
         matching_shows = self._get_matching_shows(criteria)
+        
         if matching_shows.empty:
-            logger.error("No matching shows found for criteria")
-            st.error("No matching shows found for the selected criteria")
-            raise ValueError("No matching shows found for criteria")
+            st.error("DEBUG ERROR: No matching shows found for the given criteria")
+            raise ValueError("No matching shows found for the given criteria")
         
-        component_scores = {}
+        st.write(f"DEBUG: Found {len(matching_shows)} matching shows for component scores")
+        st.write(f"DEBUG: Matching shows columns: {list(matching_shows.columns)}")
         
-        # Calculate audience score
-        audience_score = self._calculate_audience_score(matching_shows)
-        component_scores['audience'] = audience_score
-        
-        # Calculate critics score
-        critics_score = self._calculate_critics_score(matching_shows)
-        component_scores['critics'] = critics_score
-        
-        # Calculate longevity score
-        longevity_score = self._calculate_longevity_score(matching_shows)
-        component_scores['longevity'] = longevity_score
-        
-        return component_scores
+        # Calculate component scores
+        try:
+            st.write("DEBUG: Calculating audience score")
+            audience_score = self._calculate_audience_score(matching_shows)
+            st.write(f"DEBUG: Audience score result: {audience_score}")
+            
+            st.write("DEBUG: Calculating critics score")
+            critics_score = self._calculate_critics_score(matching_shows)
+            st.write(f"DEBUG: Critics score result: {critics_score}")
+            
+            st.write("DEBUG: Calculating longevity score")
+            longevity_score = self._calculate_longevity_score(matching_shows)
+            st.write(f"DEBUG: Longevity score result: {longevity_score}")
+            
+            component_scores = {
+                'audience': audience_score,
+                'critics': critics_score,
+                'longevity': longevity_score
+            }
+            
+            st.write(f"DEBUG: Final component scores: {component_scores}")
+            return component_scores
+        except Exception as e:
+            st.error(f"DEBUG ERROR: Error calculating component scores: {str(e)}")
+            import traceback
+            st.error(f"DEBUG ERROR: Traceback: {traceback.format_exc()}")
+            raise ValueError(f"Error calculating component scores: {str(e)}")
     
     def _calculate_audience_score(self, shows: pd.DataFrame) -> ComponentScore:
         """Calculate audience score for a set of shows.

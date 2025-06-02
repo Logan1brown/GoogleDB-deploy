@@ -132,6 +132,14 @@ def show():
                 
                 # Tab 1: Success Metrics
                 with tab1:
+                    # Debug output for component scores
+                    if hasattr(summary, 'component_scores'):
+                        st.write(f"DEBUG UI: Available component scores: {list(summary.component_scores.keys())}")
+                        for comp_name, comp_score in summary.component_scores.items():
+                            st.write(f"DEBUG UI: {comp_name} score: {comp_score}")
+                    else:
+                        st.write("DEBUG UI: No component_scores attribute found in summary")
+                        
                     # Display success metrics using available attributes
                     # Create columns for metrics - now 4 columns for all scores
                     metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
@@ -144,28 +152,28 @@ def show():
                             st.info("Overall success probability not available.")
                     
                     with metric_col2:
-                        if hasattr(summary, 'component_scores') and summary.component_scores:
-                            audience_score = summary.component_scores.get("audience", 0)
-                            if isinstance(audience_score, (int, float)):
-                                st.metric("Audience Appeal", f"{audience_score:.0%}")
-                            elif hasattr(audience_score, 'score'):
+                        if hasattr(summary, 'component_scores') and summary.component_scores and "audience" in summary.component_scores:
+                            audience_score = summary.component_scores["audience"]
+                            if hasattr(audience_score, 'score'):
                                 st.metric("Audience Appeal", f"{audience_score.score:.0%}")
+                            else:
+                                st.error("Audience score object missing 'score' attribute")
                     
                     with metric_col3:
-                        if hasattr(summary, 'component_scores') and summary.component_scores:
-                            critics_score = summary.component_scores.get("critics", 0)
-                            if isinstance(critics_score, (int, float)):
-                                st.metric("Critics Score", f"{critics_score:.0%}")
-                            elif hasattr(critics_score, 'score'):
+                        if hasattr(summary, 'component_scores') and summary.component_scores and "critics" in summary.component_scores:
+                            critics_score = summary.component_scores["critics"]
+                            if hasattr(critics_score, 'score'):
                                 st.metric("Critics Score", f"{critics_score.score:.0%}")
+                            else:
+                                st.error("Critics score object missing 'score' attribute")
                     
                     with metric_col4:
-                        if hasattr(summary, 'component_scores') and summary.component_scores:
-                            longevity_score = summary.component_scores.get("longevity", 0)
-                            if isinstance(longevity_score, (int, float)):
-                                st.metric("Longevity Score", f"{longevity_score:.0%}")
-                            elif hasattr(longevity_score, 'score'):
+                        if hasattr(summary, 'component_scores') and summary.component_scores and "longevity" in summary.component_scores:
+                            longevity_score = summary.component_scores["longevity"]
+                            if hasattr(longevity_score, 'score'):
                                 st.metric("Longevity Score", f"{longevity_score.score:.0%}")
+                            else:
+                                st.error("Longevity score object missing 'score' attribute")
                 
                 # Tab 2: Network Analysis
                 with tab2:
