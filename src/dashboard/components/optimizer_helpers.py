@@ -242,7 +242,7 @@ def render_results(state: Dict):
         st.info("No analysis results available. Try adjusting your criteria.")
         return False
     
-    # Create tabs for different sections (similar to original implementation)
+    # Create tabs for different sections
     tab1, tab2, tab3 = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
     
     # Tab 1: Success Metrics
@@ -360,10 +360,6 @@ def render_success_metrics(summary: Any):
     Args:
         summary: Optimization summary
     """
-    # Debug output to help diagnose issues
-    st.write("Debug: Rendering success metrics")
-    st.write(f"Summary attributes: {dir(summary)}")
-    
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -396,12 +392,6 @@ def render_success_metrics(summary: Any):
                         f"{score:.0%}", 
                         f"Confidence: {confidence.capitalize()}"
                     )
-                else:
-                    st.info("Audience score details not available.")
-            else:
-                st.info("Audience score not available.")
-        else:
-            st.info("Component scores not available.")
         
     with col3:
         # Check if component_scores exists
@@ -418,12 +408,6 @@ def render_success_metrics(summary: Any):
                         f"{score:.0%}", 
                         f"Confidence: {confidence.capitalize()}"
                     )
-                else:
-                    st.info("Critic score details not available.")
-            else:
-                st.info("Critic score not available.")
-        else:
-            st.info("Component scores not available.")
 
 
 def render_success_factors(success_factors: List):
