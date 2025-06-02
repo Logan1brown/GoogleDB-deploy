@@ -259,8 +259,13 @@ def render_results(state: Dict):
             render_network_compatibility(summary.network_compatibility)
         elif hasattr(summary, 'top_networks') and summary.top_networks:
             # Create a simple table of top networks
-            networks_df = pd.DataFrame([(n.network_name, n.score) for n in summary.top_networks], 
-                                       columns=["Network", "Compatibility Score"])
+            # Check if networks have compatibility_score or score attribute
+            if hasattr(summary.top_networks[0], 'compatibility_score'):
+                networks_df = pd.DataFrame([(n.network_name, n.compatibility_score) for n in summary.top_networks], 
+                                          columns=["Network", "Compatibility Score"])
+            else:
+                networks_df = pd.DataFrame([(n.network_name, n.score) for n in summary.top_networks], 
+                                          columns=["Network", "Compatibility Score"])
             st.dataframe(networks_df.sort_values("Compatibility Score", ascending=False))
         else:
             st.info("No network analysis available for the selected criteria.")
@@ -276,8 +281,15 @@ def render_results(state: Dict):
                 st.subheader(f"{group_name.capitalize()} Recommendations")
                 for i, rec in enumerate(recs):
                     with st.expander(f"{rec.criteria_type.replace('_', ' ').title()}", expanded=i==0):
-                        st.markdown(f"**Score:** {rec.score:.2f}")
-                        st.markdown(f"**Description:** {rec.description}")
+                        # Check if recommendation has impact_score or score attribute
+                        if hasattr(rec, 'impact_score'):
+                            st.markdown(f"**Impact Score:** {rec.impact_score:.2f}")
+                        elif hasattr(rec, 'score'):
+                            st.markdown(f"**Score:** {rec.score:.2f}")
+                        
+                        # Check for description or explanation
+                        if hasattr(rec, 'description') and rec.description:
+                            st.markdown(f"**Description:** {rec.description}")
                         if hasattr(rec, 'explanation') and rec.explanation:
                             st.markdown(f"**Explanation:** {rec.explanation}")
                         
@@ -348,33 +360,70 @@ def render_success_metrics(summary: Any):
     Args:
         summary: Optimization summary
     """
+    # Debug output to help diagnose issues
+    st.write("Debug: Rendering success metrics")
+    st.write(f"Summary attributes: {dir(summary)}")
+    
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        render_metric_card(
-            "Success Probability", 
-            f"{summary.overall_success_probability:.0%}", 
-            f"Confidence: {summary.confidence.capitalize()}"
-        )
+        # Check for overall_success_probability attribute
+        if hasattr(summary, 'overall_success_probability'):
+            probability = summary.overall_success_probability
+            confidence = summary.confidence if hasattr(summary, 'confidence') else 'medium'
+            
+            render_metric_card(
+                "Success Probability", 
+                f"{probability:.0%}", 
+                f"Confidence: {confidence.capitalize()}"
+            )
+        else:
+            st.info("Overall success probability not available.")
     
     # Component scores
     with col2:
-        audience_score = summary.component_scores.get("audience", None)
-        if audience_score:
-            render_metric_card(
-                "Audience Appeal", 
-                f"{audience_score.score:.0%}", 
-                f"Confidence: {audience_score.confidence.capitalize()}"
-            )
+        # Check if component_scores exists
+        if hasattr(summary, 'component_scores') and summary.component_scores:
+            audience_score = summary.component_scores.get("audience", None)
+            if audience_score:
+                # Check if audience_score has score attribute
+                if hasattr(audience_score, 'score'):
+                    score = audience_score.score
+                    confidence = audience_score.confidence if hasattr(audience_score, 'confidence') else 'medium'
+                    
+                    render_metric_card(
+                        "Audience Appeal", 
+                        f"{score:.0%}", 
+                        f"Confidence: {confidence.capitalize()}"
+                    )
+                else:
+                    st.info("Audience score details not available.")
+            else:
+                st.info("Audience score not available.")
+        else:
+            st.info("Component scores not available.")
         
     with col3:
-        critic_score = summary.component_scores.get("critics", None)
-        if critic_score:
-            render_metric_card(
-                "Critical Reception", 
-                f"{critic_score.score:.0%}", 
-                f"Confidence: {critic_score.confidence.capitalize()}"
-            )
+        # Check if component_scores exists
+        if hasattr(summary, 'component_scores') and summary.component_scores:
+            critic_score = summary.component_scores.get("critics", None)
+            if critic_score:
+                # Check if critic_score has score attribute
+                if hasattr(critic_score, 'score'):
+                    score = critic_score.score
+                    confidence = critic_score.confidence if hasattr(critic_score, 'confidence') else 'medium'
+                    
+                    render_metric_card(
+                        "Critical Reception", 
+                        f"{score:.0%}", 
+                        f"Confidence: {confidence.capitalize()}"
+                    )
+                else:
+                    st.info("Critic score details not available.")
+            else:
+                st.info("Critic score not available.")
+        else:
+            st.info("Component scores not available.")
 
 
 def render_success_factors(success_factors: List):

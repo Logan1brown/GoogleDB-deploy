@@ -212,7 +212,11 @@ class OptimizerView:
             # Log the criteria for debugging
             import logging
             logger = logging.getLogger(__name__)
-            logger.info(f"Analyzing criteria: {criteria}")
+            
+            # Debug output to help diagnose issues
+            st.write("Debug: Processing criteria")
+            for key, value in criteria.items():
+                st.write(f"- {key}: {value} (type: {type(value).__name__})")
             
             # Run the analysis
             with st.spinner("Analyzing concept..."):
@@ -226,8 +230,30 @@ class OptimizerView:
                     else:
                         normalized_criteria[key] = value
                 
+                # Debug output for normalized criteria
+                st.write("Debug: Normalized criteria")
+                for key, value in normalized_criteria.items():
+                    st.write(f"- {key}: {value} (type: {type(value).__name__})")
+                
+                # Ensure genre is an integer
+                if 'genre' in normalized_criteria and not isinstance(normalized_criteria['genre'], int):
+                    try:
+                        normalized_criteria['genre'] = int(normalized_criteria['genre'])
+                        st.write(f"Debug: Converted genre to int: {normalized_criteria['genre']}")
+                    except (ValueError, TypeError):
+                        st.write(f"Debug: Failed to convert genre to int: {normalized_criteria['genre']}")
+                
                 # Run the analysis with normalized criteria
+                st.write("Debug: Calling analyze_concept...")
                 summary = self.optimizer.analyze_concept(normalized_criteria)
+                st.write(f"Debug: analyze_concept returned: {summary is not None}")
+                
+                if summary is not None:
+                    # Debug summary attributes
+                    st.write("Debug: Summary attributes:")
+                    st.write(f"- has top_networks: {hasattr(summary, 'top_networks')}")
+                    st.write(f"- has recommendations: {hasattr(summary, 'recommendations')}")
+                    st.write(f"- has success_factors: {hasattr(summary, 'success_factors')}")
             
             # Store results in state
             if summary:
