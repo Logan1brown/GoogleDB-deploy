@@ -69,6 +69,10 @@ class OptimizerView:
                     # Cache field options in state
                     field_names = ["genre", "character_types", "source_type", "thematic_elements", "plot_elements", 
                                    "tone", "time_setting", "location_setting", "network", "studios", "team_members", "order_type"]
+                    
+                    # Debug field manager
+                    st.write("DEBUG - Field manager available:", hasattr(self.optimizer, 'field_manager') and self.optimizer.field_manager is not None)
+                    
                     for field_name in field_names:
                         try:
                             options = self.optimizer.get_field_options(field_name)
@@ -77,8 +81,11 @@ class OptimizerView:
                                 state["display_options"][field_name] = [
                                     (option.id, option.name) for option in options
                                 ]
-                        except Exception:
-                            pass    # Skip warning for deployed app
+                                st.write(f"DEBUG - Cached options for {field_name}: {len(options)} options")
+                            else:
+                                st.write(f"DEBUG - No options found for {field_name}")
+                        except Exception as e:
+                            st.write(f"DEBUG - Error getting options for {field_name}: {str(e)}")
                     
                     self.initialized = True
             except Exception as e:
