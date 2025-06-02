@@ -99,15 +99,7 @@ class OptimizerView:
         """
         # Initialize optimizer components if needed
         if not self.initialized:
-            try:
-                self.criteria_scorer = CriteriaScorer()
-                self.criteria_analyzer = CriteriaAnalyzer()
-                self.suggestion_analyzer = SuggestionAnalyzer()
-                self.shows_analyzer = ShowsAnalyzer()
-                self.success_analyzer = SuccessAnalyzer()
-                self.initialized = True
-            except Exception as e:
-                st.error(f"Failed to initialize optimizer components: {str(e)}")
+            if not self.initialize(state):
                 st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
                 return
         
@@ -163,15 +155,7 @@ class OptimizerView:
         # This method is kept for backward compatibility
         # Initialize optimizer components if needed
         if not self.initialized:
-            try:
-                self.criteria_scorer = CriteriaScorer()
-                self.criteria_analyzer = CriteriaAnalyzer()
-                self.suggestion_analyzer = SuggestionAnalyzer()
-                self.shows_analyzer = ShowsAnalyzer()
-                self.success_analyzer = SuccessAnalyzer()
-                self.initialized = True
-            except Exception as e:
-                st.error(f"Failed to initialize optimizer components: {str(e)}")
+            if not self.initialize(state):
                 st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
                 return
         
