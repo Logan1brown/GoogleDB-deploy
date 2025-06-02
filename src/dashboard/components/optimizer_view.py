@@ -209,18 +209,28 @@ class OptimizerView:
             return
             
         try:
-            # Display criteria for debugging
-            st.write(f"Debug - Processing criteria: {criteria}")
+            # Log the criteria for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Analyzing criteria: {criteria}")
             
             # Run the analysis
             with st.spinner("Analyzing concept..."):
-                summary = self.optimizer.analyze_concept(criteria)
+                # Ensure criteria is properly formatted
+                # Convert any list values with single items to scalar values
+                # This is a common issue with form submissions
+                normalized_criteria = {}
+                for key, value in criteria.items():
+                    if isinstance(value, list) and len(value) == 1:
+                        normalized_criteria[key] = value[0]
+                    else:
+                        normalized_criteria[key] = value
+                
+                # Run the analysis with normalized criteria
+                summary = self.optimizer.analyze_concept(normalized_criteria)
             
             # Store results in state
             if summary:
-                # Debug output
-                st.write(f"Debug - Analysis successful. Summary has recommendations: {hasattr(summary, 'recommendations')}")
-                
                 # Update state with results
                 state['summary'] = summary
                 state['results'] = True
@@ -233,7 +243,7 @@ class OptimizerView:
                 st.rerun()
             else:
                 st.error("Analysis failed to produce results. Please try different criteria.")
-                st.write("Debug - The analyzer returned None instead of a summary object.")
+                logger.error(f"analyze_concept returned None for criteria: {normalized_criteria}")
                 state['results'] = False
                 if 'summary' in state:
                     del state['summary']
