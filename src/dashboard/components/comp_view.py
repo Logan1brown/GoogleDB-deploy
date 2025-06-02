@@ -13,8 +13,6 @@ from . import get_match_details_manager, get_render_match_details_section
 
 def render_comp_builder(state: Dict) -> None:
     """Render the comp builder interface."""
-    st.title("Comp Builder")
-    
     # Add intro text and help
     st.write("The Comp Builder helps you find shows similar to your concept by matching specific creative elements. Select criteria across genre, characters, plot, and more to see how your show compares to others in the market.")
     

@@ -46,8 +46,6 @@ class OptimizerView:
     
     def render(self):
         """Render the optimizer view."""
-        st.title("Show Optimizer")
-        
         # Initialize optimizer
         if not self.initialize():
             return

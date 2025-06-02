@@ -23,17 +23,10 @@ from src.dashboard.components.comp_view import render_comp_builder
 from src.dashboard.state.session import get_page_state
 
 @auth_required()
-def main():
+def show():
     """Main page content."""
     # Page title using style from style_config
-    st.markdown(
-        f'<p style="font-family: {FONTS["primary"]["family"]}; '
-        f'font-size: {FONTS["primary"]["sizes"]["header"]}px; '
-        f'text-transform: uppercase; font-weight: 600; '
-        f'letter-spacing: 0.1em; color: {COLORS["accent"]}; '
-        f'margin-bottom: 1em;">Comp Builder</p>',
-        unsafe_allow_html=True
-    )
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Comp Builder</p>', unsafe_allow_html=True)
 
     try:
         # Get page state
@@ -49,5 +42,5 @@ def main():
     except Exception as e:
         st.error(f"Error in comp builder: {str(e)}\n\nTraceback:\n{traceback.format_exc()}")
 
-# Call main directly since this is a Streamlit page
-main()
+if __name__ == "__main__":
+    show()

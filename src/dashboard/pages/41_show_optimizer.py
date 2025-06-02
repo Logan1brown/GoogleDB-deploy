@@ -31,17 +31,11 @@ if "optimizer_initialized" not in st.session_state:
 @auth_required()
 def show():
     """Main page content."""
-    # Page header
-    st.write("# 🎯 Show Optimizer")
+    # Page title using style from style_config
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Optimizer</p>', unsafe_allow_html=True)
     
-    st.markdown("""
-    Optimize your show concept based on historical success patterns and network preferences.
-    
-    This tool analyzes your show concept against our database of successful shows to:
-    - Calculate your concept's success probability
-    - Identify the best-matching networks
-    - Recommend optimizations to improve your chances
-    """)
+    # Add description
+    st.write("Optimize your show concept based on historical success patterns and network preferences. This tool analyzes your concept against our database to calculate success probability, identify best-matching networks, and recommend optimizations.")
     
     # Render the optimizer view
     optimizer_view = OptimizerView()
