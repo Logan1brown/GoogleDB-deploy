@@ -133,9 +133,7 @@ def main():
                 st.Page("src/dashboard/pages/2_market_snapshot.py"),
                 st.Page("src/dashboard/pages/3_content_analysis.py"),
                 st.Page("src/dashboard/pages/31_comp_builder.py"),
-                st.Page("src/dashboard/pages/4_studio_performance.py")
-            ],
-            "Optimization": [
+                st.Page("src/dashboard/pages/4_studio_performance.py"),
                 st.Page("src/dashboard/pages/41_show_optimizer.py")
             ],
             "Data Management": [st.Page("src/dashboard/pages/5_data_entry.py")],
