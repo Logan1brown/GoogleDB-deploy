@@ -310,6 +310,8 @@ class SuggestionAnalyzer:
                 else:
                     # This criteria works worse for this network than overall
                     # Look for alternative values that might work better
+                    from src.data_processing.show_optimizer.field_manager import FieldManager
+                    field_manager = FieldManager()
                     options = field_manager.get_options(criteria_type)
                     if options:
                         # Suggest a different option

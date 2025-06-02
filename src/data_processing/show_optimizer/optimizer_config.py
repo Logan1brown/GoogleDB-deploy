@@ -89,6 +89,42 @@ class OptimizerConfig:
         'strong_compatibility': 0.7     # Strong compatibility threshold
     }
     
+    # Complementary criteria that work well together
+    COMPLEMENTARY_CRITERIA = {
+        'genre': {
+            # Comedy
+            '3': [
+                {'criteria_type': 'tone', 'criteria_value': 1, 'impact_score': 0.1, 'name': 'Light-hearted'},
+                {'criteria_type': 'plot_elements', 'criteria_value': 12, 'impact_score': 0.08, 'name': 'Fish Out of Water'},
+                {'criteria_type': 'character_types', 'criteria_value': 5, 'impact_score': 0.07, 'name': 'Quirky Ensemble'}
+            ],
+            # Crime
+            '4': [
+                {'criteria_type': 'tone', 'criteria_value': 3, 'impact_score': 0.12, 'name': 'Gritty'},
+                {'criteria_type': 'plot_elements', 'criteria_value': 3, 'impact_score': 0.09, 'name': 'Investigation'},
+                {'criteria_type': 'character_types', 'criteria_value': 2, 'impact_score': 0.08, 'name': 'Troubled Detective'}
+            ],
+            # Drama
+            '6': [
+                {'criteria_type': 'tone', 'criteria_value': 5, 'impact_score': 0.11, 'name': 'Emotional'},
+                {'criteria_type': 'thematic_elements', 'criteria_value': 7, 'impact_score': 0.09, 'name': 'Family Dynamics'},
+                {'criteria_type': 'character_types', 'criteria_value': 8, 'impact_score': 0.08, 'name': 'Complex Protagonist'}
+            ]
+        },
+        'tone': {
+            # Light-hearted
+            '1': [
+                {'criteria_type': 'genre', 'criteria_value': 3, 'impact_score': 0.1, 'name': 'Comedy'},
+                {'criteria_type': 'plot_elements', 'criteria_value': 12, 'impact_score': 0.08, 'name': 'Fish Out of Water'}
+            ],
+            # Gritty
+            '3': [
+                {'criteria_type': 'genre', 'criteria_value': 4, 'impact_score': 0.12, 'name': 'Crime'},
+                {'criteria_type': 'plot_elements', 'criteria_value': 3, 'impact_score': 0.09, 'name': 'Investigation'}
+            ]
+        }
+    }
+    
     @classmethod
     def get_criteria_weight(cls, criteria_name: str) -> float:
         """Get the weight for a specific criteria.

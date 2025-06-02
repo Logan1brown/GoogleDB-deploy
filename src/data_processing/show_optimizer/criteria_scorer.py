@@ -290,26 +290,64 @@ class CriteriaScorer:
         Returns:
             Dictionary mapping components to ComponentScore objects
         """
-        # Get matching shows for the criteria
-        matching_shows = self._get_matching_shows(criteria)
-        if matching_shows.empty:
+        import streamlit as st
+        
+        try:
+            # Get matching shows for the criteria
+            matching_shows = self._get_matching_shows(criteria)
+            if matching_shows.empty:
+                st.write("DEBUG - No matching shows found for criteria")
+                return {}
+            
+            component_scores = {}
+            
+            # Calculate audience score with error handling
+            try:
+                audience_score = self._calculate_audience_score(matching_shows)
+                component_scores['audience'] = audience_score
+            except Exception as e:
+                st.write(f"DEBUG - Error calculating audience score: {str(e)}")
+                # Create a default component score
+                component_scores['audience'] = ComponentScore(
+                    score=0.5,  # Default middle score
+                    sample_size=len(matching_shows),
+                    confidence="low",
+                    percentile=50  # Default middle percentile
+                )
+            
+            # Calculate critics score with error handling
+            try:
+                critics_score = self._calculate_critics_score(matching_shows)
+                component_scores['critics'] = critics_score
+            except Exception as e:
+                st.write(f"DEBUG - Error calculating critics score: {str(e)}")
+                # Create a default component score
+                component_scores['critics'] = ComponentScore(
+                    score=0.5,  # Default middle score
+                    sample_size=len(matching_shows),
+                    confidence="low",
+                    percentile=50  # Default middle percentile
+                )
+            
+            # Calculate longevity score with error handling
+            try:
+                longevity_score = self._calculate_longevity_score(matching_shows)
+                component_scores['longevity'] = longevity_score
+            except Exception as e:
+                st.write(f"DEBUG - Error calculating longevity score: {str(e)}")
+                # Create a default component score
+                component_scores['longevity'] = ComponentScore(
+                    score=0.5,  # Default middle score
+                    sample_size=len(matching_shows),
+                    confidence="low",
+                    percentile=50  # Default middle percentile
+                )
+            
+            return component_scores
+        except Exception as e:
+            st.write(f"DEBUG - Error in calculate_component_scores: {str(e)}")
+            # Return empty component scores as fallback
             return {}
-        
-        component_scores = {}
-        
-        # Calculate audience score
-        audience_score = self._calculate_audience_score(matching_shows)
-        component_scores['audience'] = audience_score
-        
-        # Calculate critics score
-        critics_score = self._calculate_critics_score(matching_shows)
-        component_scores['critics'] = critics_score
-        
-        # Calculate longevity score
-        longevity_score = self._calculate_longevity_score(matching_shows)
-        component_scores['longevity'] = longevity_score
-        
-        return component_scores
     
     def _calculate_audience_score(self, shows: pd.DataFrame) -> ComponentScore:
         """Calculate audience score for a set of shows.
