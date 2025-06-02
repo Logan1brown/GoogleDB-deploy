@@ -7,9 +7,7 @@ These functions handle common patterns for field rendering and visualization.
 import streamlit as st
 import pandas as pd
 import altair as alt
-from typing import Dict, List, Tuple, Optional, Any
-
-from data_processing.show_optimizer.models import OptimizationSummary
+from typing import Dict, List, Tuple, Optional, Any, Union
 
 
 def get_id_for_name(name: str, options: List[Tuple[int, str]]) -> Optional[int]:
@@ -211,7 +209,7 @@ def render_info_card(title: str, content: str):
     """, unsafe_allow_html=True)
 
 
-def render_success_metrics(summary: OptimizationSummary):
+def render_success_metrics(summary: Any):
     """Render success probability metrics.
     
     Args:
