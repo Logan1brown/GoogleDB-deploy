@@ -11,9 +11,11 @@ from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime
 
 from data_processing.show_optimizer.show_optimizer import ShowOptimizer
-from data_processing.show_optimizer.suggestion_analyzer import OptimizationSummary, Recommendation
+from data_processing.show_optimizer.suggestion_analyzer import OptimizationSummary, Recommendation, SuggestionAnalyzer
 from data_processing.show_optimizer.criteria_analyzer import CriteriaAnalyzer
 from data_processing.show_optimizer.criteria_scorer import CriteriaScorer
+from data_processing.analyze_shows import ShowsAnalyzer
+from data_processing.success_analysis import SuccessAnalyzer
 
 # Import helper functions
 from dashboard.components.optimizer_helpers import (
@@ -46,20 +48,28 @@ class OptimizerView:
         Returns:
             True if initialization was successful, False otherwise
         """
-        try:
-            # Follow the Comp Builder pattern for initialization
-            if not self.initialized:
+        if not self.initialized:
+            try:
                 with st.spinner("Initializing Show Optimizer..."):
-                    # Direct initialization without using the cached method
-                    # This avoids potential issues with st.cache_data
-                    self.optimizer.shows_analyzer = ShowsAnalyzer()
-                    self.optimizer.success_analyzer = SuccessAnalyzer(self.optimizer.shows_analyzer)
-                    self.optimizer.criteria_scorer = CriteriaScorer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
-                    self.optimizer.field_manager = self.optimizer.criteria_scorer.field_manager
-                    self.optimizer.criteria_analyzer = CriteriaAnalyzer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
-                    self.optimizer.suggestion_analyzer = SuggestionAnalyzer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
-                    self.optimizer.initialized = True
-                    self.optimizer.last_update = datetime.now()
+                    # Bypass the cached initialize method and directly initialize components
+                    # This matches how Comp Builder initializes and avoids st.cache_data issues
+                    try:
+                        # Initialize components directly (similar to ShowOptimizer.initialize but without cache)
+                        self.optimizer.criteria_scorer = CriteriaScorer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
+                        self.optimizer.field_manager = self.optimizer.criteria_scorer.field_manager
+                        self.optimizer.criteria_analyzer = CriteriaAnalyzer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
+                        self.optimizer.suggestion_analyzer = SuggestionAnalyzer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
+                        self.optimizer.initialized = True
+                        self.optimizer.last_update = datetime.now()
+                    except Exception as e:
+                        st.error(f"Failed to initialize optimizer components: {str(e)}")
+                        return False
+                    
+                    # Verify field_manager is available
+                    if not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
+                        st.error("Failed to initialize Show Optimizer. Field manager is not available.")
+                        st.write("⚠️ Please try refreshing the page or contact support if the problem persists.")
+                        return False
                     
                     # Cache field options in session state (similar to Comp Builder)
                     field_names = ["genre", "character_types", "source_type", "theme", "plot_elements", 
@@ -80,15 +90,14 @@ class OptimizerView:
                             pass
                     
                     self.initialized = True
-            
-            return self.initialized
-            
-        except Exception as e:
-            # Display user-friendly error
-            st.error(f"Failed to initialize Show Optimizer: {str(e)}")
-            st.write("⚠️ The application requires database access to function properly.")
-            st.write("Please try again later or contact support if the problem persists.")
-            return False
+            except Exception as e:
+                # Display user-friendly error
+                st.error(f"Failed to initialize Show Optimizer: {str(e)}")
+                st.write("⚠️ The application requires database access to function properly.")
+                st.write("Please try again later or contact support if the problem persists.")
+                return False
+                
+        return self.initialized
     
     def render(self):
         """Render the optimizer view."""
