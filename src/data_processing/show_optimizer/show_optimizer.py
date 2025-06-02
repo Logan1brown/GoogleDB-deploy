@@ -56,7 +56,6 @@ class ShowOptimizer:
         self.last_update = None
         self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
         
-    @st.cache_data(ttl=3600)  # Cache for 1 hour
     def initialize(_self, force_refresh: bool = False) -> bool:
         """Initialize all components.
         
