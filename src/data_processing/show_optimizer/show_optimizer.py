@@ -57,7 +57,7 @@ class ShowOptimizer:
         self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
         
     @st.cache_data(ttl=3600)  # Cache for 1 hour
-    def initialize(self, force_refresh: bool = False) -> bool:
+    def initialize(_self, force_refresh: bool = False) -> bool:
         """Initialize all components.
         
         Args:
@@ -69,23 +69,23 @@ class ShowOptimizer:
         try:
             # Check if we need to refresh
             current_time = datetime.now()
-            if (not self.initialized or 
+            if (not _self.initialized or 
                 force_refresh or 
-                self.last_update is None or 
-                (current_time - self.last_update).total_seconds() > self.cache_duration):
+                _self.last_update is None or 
+                (current_time - _self.last_update).total_seconds() > _self.cache_duration):
                 
                 logger.info("Initializing Show Optimizer components")
                 
                 # Initialize components
-                self.criteria_scorer = CriteriaScorer(self.shows_analyzer, self.success_analyzer)
-                self.field_manager = self.criteria_scorer.field_manager  # Share the same field manager
-                self.criteria_analyzer = CriteriaAnalyzer(self.shows_analyzer, self.success_analyzer)
-                self.suggestion_analyzer = SuggestionAnalyzer(self.shows_analyzer, self.success_analyzer)
+                _self.criteria_scorer = CriteriaScorer(_self.shows_analyzer, _self.success_analyzer)
+                _self.field_manager = _self.criteria_scorer.field_manager  # Share the same field manager
+                _self.criteria_analyzer = CriteriaAnalyzer(_self.shows_analyzer, _self.success_analyzer)
+                _self.suggestion_analyzer = SuggestionAnalyzer(_self.shows_analyzer, _self.success_analyzer)
                 
-                self.initialized = True
-                self.last_update = current_time
+                _self.initialized = True
+                _self.last_update = current_time
                 
-            return self.initialized
+            return _self.initialized
             
         except Exception as e:
             logger.error(f"Error initializing Show Optimizer: {e}", exc_info=True)

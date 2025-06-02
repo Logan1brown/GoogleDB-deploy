@@ -50,3 +50,59 @@ DIMENSIONS = {
         'margin': CHART_DEFAULTS['margin']['section']
     }
 }
+
+# UI Utility Functions
+import streamlit as st
+
+def render_metric_card(title, value, subtitle=None):
+    """Render a metric card with a title, value, and optional subtitle.
+    
+    Args:
+        title: Title of the metric
+        value: Value to display
+        subtitle: Optional subtitle
+    """
+    st.markdown(
+        f"""
+        <div style="padding: 10px; border-radius: 5px; border: 1px solid #eee; background-color: white;">
+            <h4 style="margin: 0; color: {COLORS['text']['secondary']}; font-size: 14px;">{title}</h4>
+            <div style="font-size: 28px; font-weight: bold; color: {COLORS['text']['primary']};">{value}</div>
+            {f'<div style="font-size: 12px; color: {COLORS["text"]["secondary"]};">{subtitle}</div>' if subtitle else ''}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def render_info_card(title, content):
+    """Render an info card with a title and content.
+    
+    Args:
+        title: Title of the card
+        content: Content to display
+    """
+    st.markdown(
+        f"""
+        <div style="padding: 10px; border-radius: 5px; border: 1px solid #eee; background-color: white; margin-bottom: 10px;">
+            <h4 style="margin: 0; color: {COLORS['accent']}; font-size: 16px;">{title}</h4>
+            <div style="font-size: 14px; color: {COLORS['text']['primary']}; margin-top: 5px;">{content}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def render_warning(title, content):
+    """Render a warning card with a title and content.
+    
+    Args:
+        title: Title of the card
+        content: Content to display
+    """
+    st.markdown(
+        f"""
+        <div style="padding: 10px; border-radius: 5px; border: 1px solid #f77; background-color: #fff8f8; margin-bottom: 10px;">
+            <h4 style="margin: 0; color: #d33; font-size: 16px;">{title}</h4>
+            <div style="font-size: 14px; color: {COLORS['text']['primary']}; margin-top: 5px;">{content}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
