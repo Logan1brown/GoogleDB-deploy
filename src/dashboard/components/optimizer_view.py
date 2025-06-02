@@ -119,16 +119,8 @@ class OptimizerView:
         
         # Check if field_manager is available
         if not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
-            try:
-                # Try to reinitialize
-                with st.spinner("Attempting to reinitialize Show Optimizer..."):
-                    self.initialized = self.optimizer.initialize(force_refresh=True)
-                if not self.initialized or not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
-                    st.error("Could not initialize field manager. Please try again later.")
-                    return
-            except Exception as e:
-                st.error(f"Error connecting to database: {str(e)}")
-                return
+            st.error("Field manager is not available. Please refresh the page.")
+            return
         
         # Validate and analyze criteria
         if not criteria:
