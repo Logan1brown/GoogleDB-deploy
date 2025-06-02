@@ -1,15 +1,13 @@
-"""Show Optimizer Page.
+"""Show Optimizer page for the TV Series Database Dashboard.
 
 This page provides an interface for optimizing show concepts based on
 historical success patterns and network preferences.
 """
 
 import streamlit as st
-import logging
 import pandas as pd
 import sys
 import os
-import traceback
 from typing import Dict, Any
 
 # Add src to path
@@ -18,45 +16,57 @@ if src_path not in sys.path:
     sys.path.append(src_path)
 
 from src.shared.auth import auth_required
-from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS
-from src.dashboard.components.optimizer_helpers import (
-    render_success_metrics, 
-    render_network_compatibility, 
-    group_recommendations,
-    render_content_criteria,
-    render_production_criteria,
-    render_format_criteria
-)
-from src.dashboard.components.optimizer_view import OptimizerView
-from src.data_processing.show_optimizer.show_optimizer import ShowOptimizer
 from src.dashboard.state.session import get_page_state, update_page_state
-
-# Configure logging
-logger = logging.getLogger(__name__)
+from src.dashboard.components.optimizer_view import OptimizerView
+from src.dashboard.components.optimizer_helpers import (
+    render_success_metrics, render_network_compatibility, group_recommendations,
+    render_recommendation_group, render_content_criteria, render_production_criteria, render_format_criteria
+)
 
 @auth_required()
 def show():
     """Main page content."""
     # Page title
-    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Optimizer</p>', unsafe_allow_html=True)
+    st.title("Show Optimizer")
     
     # Add description
-    st.write("Build and optimize your show concept based on historical success patterns and network preferences.")
+    st.write("Build and analyze a show concept to optimize its success potential.")
+    st.write("Select criteria to define your concept, then view success metrics, network compatibility, and recommendations.")
     
-    # Initialize state
+    # Get page state
     state = get_page_state("show_optimizer")
     
-    # Initialize default values if not present
-    if "criteria" not in state:
-        state["criteria"] = {}
+    # Initialize state if needed
     if "field_options" not in state:
         state["field_options"] = {}
     if "display_options" not in state:
         state["display_options"] = {}
+    if "criteria" not in state:
+        state["criteria"] = {}
     if "results" not in state:
         state["results"] = False
-    if "summary" not in state:
-        state["summary"] = None
+    
+    # Add reset button
+    if st.button("Reset Criteria"):
+        # Clear criteria and results
+        state["criteria"] = {}
+        state["results"] = False
+        if "summary" in state:
+            del state["summary"]
+        
+        # Update state
+        update_page_state("show_optimizer", state)
+        
+        # Also clear session state for compatibility
+        if "optimizer_criteria" in st.session_state:
+            st.session_state.optimizer_criteria = {}
+        if "optimizer_results" in st.session_state:
+            st.session_state.optimizer_results = False
+        if "optimizer_summary" in st.session_state:
+            del st.session_state.optimizer_summary
+        
+        # Rerun to update UI
+        st.rerun()
     
     # Initialize the optimizer
     optimizer_view = OptimizerView()
@@ -66,7 +76,7 @@ def show():
         if not optimizer_view.initialize(state):
             st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
             return
-            
+    
     # Create columns for criteria and results
     col1, col2 = st.columns([1, 2])
     
@@ -127,91 +137,51 @@ def show():
             optimizer_view._run_analysis(state)
     
     # If we have results, render tabs in the second column
-    if state.get('summary') or st.session_state.get("optimizer_summary"):
-        # Get summary from state or session state
-        summary = state.get('summary') or st.session_state.get("optimizer_summary")
-        
-        if summary:
-            with col2:
+    with col2:
+        if state.get('summary') or st.session_state.get("optimizer_summary"):
+            # Get summary from state or session state
+            summary = state.get('summary') or st.session_state.get("optimizer_summary")
+            
+            if summary:
                 # Create a clear header for the results section
                 st.subheader("Analysis Results")
                 
-                # Create tabs directly in the page - exactly like in Show Detail page
-                success_tab, network_tab, recommendations_tab = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
+                # Create tabs - EXACTLY like in Show Detail page
+                tab1, tab2, tab3 = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
                 
                 # Tab 1: Success Metrics
-                with success_tab:
+                with tab1:
                     if hasattr(summary, 'success_metrics') and summary.success_metrics:
                         render_success_metrics(summary)
                     else:
                         st.info("No success metrics available for the selected criteria.")
                 
                 # Tab 2: Network Analysis
-                with network_tab:
+                with tab2:
                     st.subheader("Network Compatibility")
                     if hasattr(summary, 'network_compatibility') and summary.network_compatibility:
                         render_network_compatibility(summary.network_compatibility)
                     elif hasattr(summary, 'top_networks') and summary.top_networks:
                         # Create a simple table of top networks
-                        import pandas as pd
-                        # Check if networks have compatibility_score or score attribute
-                        if hasattr(summary.top_networks[0], 'compatibility_score'):
-                            networks_df = pd.DataFrame([(n.network_name, n.compatibility_score) for n in summary.top_networks], 
-                                                       columns=["Network", "Compatibility Score"])
-                        else:
-                            networks_df = pd.DataFrame([(n.network_name, n.score) for n in summary.top_networks], 
-                                                       columns=["Network", "Compatibility Score"])
-                        st.dataframe(networks_df.sort_values("Compatibility Score", ascending=False))
+                        network_df = pd.DataFrame(summary.top_networks)
+                        st.dataframe(network_df)
                     else:
-                        st.info("No network analysis available for the selected criteria.")
+                        st.info("No network compatibility data available for the selected criteria.")
                 
                 # Tab 3: Recommendations
-                with recommendations_tab:
+                with tab3:
+                    st.subheader("Recommendations")
                     if hasattr(summary, 'recommendations') and summary.recommendations:
                         # Group recommendations by type
-                        grouped_recs = group_recommendations(summary.recommendations)
+                        recommendation_groups = group_recommendations(summary.recommendations)
                         
-                        # Display each group
-                        for group_name, recs in grouped_recs.items():
-                            st.subheader(f"{group_name.capitalize()} Recommendations")
-                            for i, rec in enumerate(recs):
-                                with st.expander(f"{rec.criteria_type.replace('_', ' ').title()}", expanded=i==0):
-                                    # Check if recommendation has impact_score or score attribute
-                                    if hasattr(rec, 'impact_score'):
-                                        st.markdown(f"**Impact Score:** {rec.impact_score:.2f}")
-                                    elif hasattr(rec, 'score'):
-                                        st.markdown(f"**Score:** {rec.score:.2f}")
-                                    
-                                    # Check for description or explanation
-                                    if hasattr(rec, 'description') and rec.description:
-                                        st.markdown(f"**Description:** {rec.description}")
-                                    if hasattr(rec, 'explanation') and rec.explanation:
-                                        st.markdown(f"**Explanation:** {rec.explanation}")
-                                    
-                                    # Display match details if available
-                                    if hasattr(rec, 'match_details') and rec.match_details:
-                                        st.markdown("**Match Details:**")
-                                        for category, details in rec.match_details.items():
-                                            st.markdown(f"*{category}:* {details}")
+                        # Render each group
+                        for rec_type, recs in recommendation_groups.items():
+                            render_recommendation_group(rec_type, recs)
                     else:
-                        st.info("No recommendations available. Try adjusting your criteria.")
+                        st.info("No recommendations available for the selected criteria.")
                 
-                # Add button to reset criteria
-                if st.button("Reset Criteria", key="reset_criteria_button"):
-                    # Clear criteria in state
-                    if 'criteria' in state:
-                        state['criteria'] = {}
-                    if 'summary' in state:
-                        del state['summary']
-                    state['results'] = False
-                    
-                    # Also clear session state for compatibility
-                    if "optimizer_criteria" in st.session_state:
-                        st.session_state.optimizer_criteria = {}
-                    if "optimizer_summary" in st.session_state:
-                        del st.session_state.optimizer_summary
-                        
-                    st.rerun()
+                # No need for a second reset button since we already have one at the top of the page
         
     # Save state back to session
     update_page_state("show_optimizer", state)
