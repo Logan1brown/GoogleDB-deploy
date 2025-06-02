@@ -81,6 +81,14 @@ class OptimizerConfig:
         'network_specific_ratio': 0.6   # Ratio of network-specific to general suggestions
     }
     
+    # Threshold values for various comparisons
+    THRESHOLDS = {
+        'significant_difference': 0.1,  # 10% difference is considered significant
+        'major_difference': 0.2,        # 20% difference is considered major
+        'minimum_compatibility': 0.3,   # Minimum compatibility score for recommendations
+        'strong_compatibility': 0.7     # Strong compatibility threshold
+    }
+    
     @classmethod
     def get_criteria_weight(cls, criteria_name: str) -> float:
         """Get the weight for a specific criteria.
