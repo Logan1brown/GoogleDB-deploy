@@ -54,7 +54,8 @@ class OptimizerView:
             try:
                 with st.spinner("Initializing Show Optimizer..."):
                     # Initialize the optimizer - this will set up the field_manager
-                    if not self.optimizer.initialize():
+                    # Force refresh to ensure we get fresh data
+                    if not self.optimizer.initialize(force_refresh=True):
                         st.error("Failed to initialize Show Optimizer components")
                         return False
                         
