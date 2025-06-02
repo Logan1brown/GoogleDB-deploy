@@ -12,6 +12,11 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Union, Tuple
 
 from src.data_processing.show_optimizer.show_optimizer import ShowOptimizer
+from src.data_processing.show_optimizer.criteria_scorer import CriteriaScorer
+from src.data_processing.show_optimizer.criteria_analyzer import CriteriaAnalyzer
+from src.data_processing.show_optimizer.suggestion_analyzer import SuggestionAnalyzer, OptimizationSummary, Recommendation
+from src.data_processing.analyze_shows import ShowsAnalyzer
+from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
 
 from src.dashboard.components.optimizer_helpers import (
     get_id_for_name, get_ids_for_names,
