@@ -134,6 +134,8 @@ class ShowOptimizer:
         Returns:
             Tuple of (normalized_criteria, validation_errors)
         """
+        import streamlit as st
+        
         if not self.initialized and not self.initialize():
             logger.warning("ShowOptimizer not initialized when validating criteria")
             return {}, {"error": "Show Optimizer not initialized. Please try refreshing the page."}
@@ -155,8 +157,21 @@ class ShowOptimizer:
         
         # Try to validate with error handling
         try:
-            return self.field_manager.validate_criteria(criteria)
+            # The field_manager.validate_criteria returns a list of error strings, not a tuple
+            st.write("DEBUG - Calling field_manager.validate_criteria")
+            validation_errors = self.field_manager.validate_criteria(criteria)
+            st.write(f"DEBUG - Validation errors: {validation_errors}")
+            
+            # Convert the list of errors to the expected format
+            error_dict = {}
+            if validation_errors:
+                for i, error in enumerate(validation_errors):
+                    error_dict[f"error_{i}"] = error
+            
+            # Return a copy of the criteria and the error dictionary
+            return criteria.copy(), error_dict
         except Exception as e:
+            st.write(f"DEBUG - Error validating criteria: {str(e)}")
             logger.error(f"Error validating criteria: {e}", exc_info=True)
             return {}, {"error": f"Error validating criteria: {str(e)}"}
         
@@ -208,15 +223,9 @@ class ShowOptimizer:
                 logger.error("SuggestionAnalyzer is not initialized")
                 return None
                 
-            # Validate criteria
-            st.write(f"DEBUG - Validating criteria: {criteria}")
-            normalized_criteria, errors = self.validate_criteria(criteria)
-            st.write(f"DEBUG - Normalized criteria: {normalized_criteria}")
-            st.write(f"DEBUG - Validation errors: {errors}")
-            
-            if errors:
-                logger.warning(f"Validation errors in criteria: {errors}")
-                # Continue with normalized criteria
+            # Skip validation for now and just use the criteria as is
+            st.write(f"DEBUG - Using criteria directly: {criteria}")
+            normalized_criteria = criteria.copy()
             
             # Analyze concept
             st.write("DEBUG - Calling suggestion_analyzer.analyze_show_concept")
