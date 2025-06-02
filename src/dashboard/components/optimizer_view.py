@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime
 
 from data_processing.show_optimizer.show_optimizer import ShowOptimizer
-from data_processing.show_optimizer.models import OptimizationSummary, Recommendation
+from data_processing.show_optimizer.suggestion_analyzer import OptimizationSummary, Recommendation
 from data_processing.show_optimizer.criteria_analyzer import CriteriaAnalyzer
 from data_processing.show_optimizer.criteria_scorer import CriteriaScorer
 
