@@ -166,12 +166,35 @@ class OptimizerView:
                     
                     # Run the analysis with normalized criteria
                     st.write("DEBUG - Calling analyze_concept...")
-                    summary = self.optimizer.analyze_concept(normalized_criteria)
                     
-                    # DEBUG: Show summary result
-                    st.write("DEBUG - Analysis summary result:")
-                    st.write("Summary type:", type(summary))
-                    st.write("Summary has attributes:", dir(summary) if summary else "None")
+                    # Try to catch any exceptions during analysis
+                    try:
+                        # Check if criteria_analyzer is initialized
+                        if hasattr(self.optimizer, 'criteria_analyzer') and self.optimizer.criteria_analyzer is not None:
+                            st.write("DEBUG - CriteriaAnalyzer is available")
+                            
+                            # Try to get success rate directly from criteria_analyzer
+                            try:
+                                success_prob, confidence = self.optimizer.criteria_analyzer.get_overall_success_rate(normalized_criteria)
+                                st.write(f"DEBUG - Success probability: {success_prob}, Confidence: {confidence}")
+                            except Exception as e:
+                                st.write(f"DEBUG - Error getting success rate: {str(e)}")
+                        else:
+                            st.write("DEBUG - CriteriaAnalyzer is not available")
+                            
+                        # Run the actual analysis
+                        summary = self.optimizer.analyze_concept(normalized_criteria)
+                        
+                        # DEBUG: Show summary result
+                        st.write("DEBUG - Analysis summary result:")
+                        st.write("Summary type:", type(summary))
+                        st.write("Summary has attributes:", dir(summary) if summary else "None")
+                        
+                    except Exception as e:
+                        st.write(f"DEBUG - Exception in analyze_concept: {str(e)}")
+                        import traceback
+                        st.write("Traceback:", traceback.format_exc())
+                        summary = None
                 except Exception as analysis_error:
                     st.error(f"DEBUG - Error in analyze_concept: {str(analysis_error)}")
                     import traceback
