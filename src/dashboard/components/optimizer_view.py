@@ -17,11 +17,10 @@ from data_processing.show_optimizer.criteria_scorer import CriteriaScorer
 
 # Import helper functions
 from dashboard.components.optimizer_helpers import (
-    get_id_for_name, get_ids_for_names, 
-    render_select_field, render_multiselect_field,
-    render_metric_card, render_info_card,
-    render_success_metrics, render_success_factors, render_network_compatibility,
-    group_recommendations
+    get_id_for_name, get_ids_for_names,
+    render_success_metrics, render_metric_card, render_info_card,
+    render_success_factors, render_network_compatibility, group_recommendations,
+    render_recommendation_group
 )
 
 # No logger needed for deployed app
@@ -108,16 +107,17 @@ class OptimizerView:
     
     def _render_concept_builder(self):
         """Render the concept builder section."""
-        st.header("Build Your Show Concept")
-        
         # Get criteria from session state or initialize
         if "optimizer_criteria" not in st.session_state:
             st.session_state.optimizer_criteria = {}
             
         criteria = st.session_state.optimizer_criteria
         
+        # Get display options from session state
+        display_options = st.session_state.get('optimizer_display_options', {})
+        
         # Check if field options are available in session state
-        if not st.session_state.optimizer_display_options:
+        if not display_options:
             st.error("Unable to load field options from the database.")
             st.info("This may be due to a temporary connection issue or database maintenance.")
             
@@ -128,194 +128,230 @@ class OptimizerView:
             st.write("If the problem persists, please try again later or contact support.")
             return
         
-        # Create form for concept builder
-        with st.form("concept_builder_form"):
-            st.subheader("Build Your Show Concept")
-            
-            # Create a 1:2 column layout (similar to comp builder)
-            col1, col2 = st.columns([1, 2])
-            
-            with col1:
-                # Content criteria section
-                with st.expander("Content Criteria", expanded=True):
-                    st.markdown("### Content")
-                    
-                    # Genre selection
-                    render_select_field('genre', 'Genre', display_options, criteria)
-                    
-                    # Subgenre selection (if available)
-                    if 'subgenres' in display_options:
-                        render_multiselect_field('subgenres', 'Subgenres', display_options, criteria)
-                    
-                    # Source type selection
-                    render_select_field('source_type', 'Source Type', display_options, criteria)
-                    
-                    # Character types selection
-                    render_multiselect_field('character_types', 'Character Types', display_options, criteria)
-                    
-                    # Plot elements selection
-                    render_multiselect_field('plot_elements', 'Plot Elements', display_options, criteria)
-                    
-                    # Theme selection
-                    render_multiselect_field('theme', 'Theme Elements', display_options, criteria)
-                    
-                    # Tone selection
-                    render_select_field('tone', 'Tone', display_options, criteria)
-                    
-                    # Time setting selection
-                    render_select_field('time_setting', 'Time Setting', display_options, criteria)
-                    
-                    # Location setting selection
-                    render_select_field('location_setting', 'Location', display_options, criteria)
-                
-                # Production criteria section
-                with st.expander("Production Criteria", expanded=True):
-                    st.markdown("### Production")
-                    
-                    # Network selection
-                    render_select_field('network', 'Network', display_options, criteria)
-                    
-                    # Studios selection
-                    render_multiselect_field('studios', 'Studios', display_options, criteria)
-                    
-                    # Team members selection - using basic approach for deployment compatibility
-                    if 'team_members' in display_options:
-                        team_names = [name for _, name in display_options['team_members'] if name and name.strip()]
-                        
-                        selected_teams = st.multiselect(
-                            "Team Members", 
-                            options=team_names,
-                            default=criteria.get("team_member_names", []),
-                            placeholder="Select team members..."
-                        )
-                        
-                        # Update criteria with selected team members - preserving special field naming
-                        if selected_teams:
-                            # Use basic ID lookup for deployment compatibility
-                            team_member_ids = []
-                            for name in selected_teams:
-                                id = next((id for id, opt_name in display_options['team_members'] 
-                                         if opt_name == name), None)
-                                if id is not None:
-                                    team_member_ids.append(id)
-                            
-                            # Store IDs in both fields for compatibility
-                            criteria["team_members"] = team_member_ids
-                            criteria["team_member_ids"] = team_member_ids  # For compatibility
-                            criteria["team_member_names"] = selected_teams  # Store names for display
-                        else:
-                            if "team_members" in criteria:
-                                del criteria["team_members"]
-                            if "team_member_ids" in criteria:
-                                del criteria["team_member_ids"]
-                            if "team_member_names" in criteria:
-                                del criteria["team_member_names"]
-                
-                # Format criteria section
-                with st.expander("Format Criteria", expanded=True):
-                    st.markdown("### Format")
-                    
-                    # Episode Count
-                    eps = st.number_input("Episode Count", min_value=1, max_value=100, value=criteria.get("episode_count"),
-                        help="Episode count for the show")
-                    if eps is not None and eps > 0:
-                        criteria["episode_count"] = eps
-                    else:
-                        if "episode_count" in criteria:
-                            del criteria["episode_count"]
-                    
-                    # Order Type
-                    if 'order_type' in display_options:
-                        render_select_field('order_type', 'Order Type', display_options, criteria)
-            
-            # Add a clear indication that the form requires submission
-            st.write("")
-            st.write("👇 Click the button below to analyze your concept")
-            
-            # Make the submit button more prominent
-            submitted = st.form_submit_button("ANALYZE CONCEPT", type="primary")
-            
-            if submitted:
-                # Save criteria to session state
-                st.session_state.optimizer_criteria = criteria
-                
-                # Check if optimizer is initialized
-                if not self.initialized:
-                    st.error("Show Optimizer is not initialized. Please refresh the page and try again.")
-                    return
-                
-                # Check if field_manager is available
-                if not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
-                    try:
-                        # Try to reinitialize
-                        st.warning("Attempting to reinitialize Show Optimizer...")
-                        self.initialized = self.optimizer.initialize(force_refresh=True)
-                        if not self.initialized or not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
-                            st.error("Could not initialize field manager. Please refresh the page and try again.")
-                            st.write("⚠️ The application requires database access to function properly.")
-                            return
-                    except Exception as e:
-                        st.error(f"Error reinitializing: {str(e)}")
-                        st.write("⚠️ Database connection may be unavailable.")
-                        # Skip error logging for deployed app
-                        return
-                
-                # Validate and analyze criteria
-                if criteria:
-                    try:
-                        # First, validate criteria using cached field options
-                        validation_errors = {}
-                        
-                        # Check for required fields
-                        if not criteria.get("genre") and not criteria.get("character_types"):
-                            validation_errors["criteria"] = "Please select at least one genre or character type"
-                        
-                        # If there are validation errors from the UI, show them
-                        if validation_errors:
-                            st.session_state.validation_errors = validation_errors
-                            st.experimental_rerun()
-                            return
-                            
-                        # Now use the backend validation
-                        normalized_criteria, backend_validation_errors = self.optimizer.validate_criteria(criteria)
-                        
-                        # If there are validation errors from the backend, store them and rerun
-                        if backend_validation_errors:
-                            st.session_state.validation_errors = backend_validation_errors
-                            st.experimental_rerun()
-                            return
-                        
-                        # Analyze concept if validation passed
-                        with st.spinner("Analyzing concept..."):
-                            try:
-                                summary = self.optimizer.analyze_concept(normalized_criteria)
-                                
-                                if summary:
-                                    st.session_state.optimizer_summary = summary
-                                    st.experimental_rerun()
-                                else:
-                                    st.error("Failed to analyze concept.")
-                                    st.write("⚠️ The analyzer couldn't process your criteria. This could be due to:")
-                                    st.write("- Missing database connection")
-                                    st.write("- Insufficient data for the selected criteria")
-                                    st.write("- Internal processing error")
-                                    st.write("Try selecting different criteria or check if all components are properly initialized.")
-                            except Exception as e:
-                                st.error(f"Error analyzing concept: {str(e)}")
-                                st.write("⚠️ An unexpected error occurred while analyzing your concept.")
-                                st.write("Try selecting different criteria or fewer options.")
-                                # Log the full error for developers
-                                # Skip error logging for deployed app
-                    except Exception as e:
-                        st.error(f"Error validating criteria: {str(e)}")
-                        st.write("⚠️ There was a problem with your selected criteria.")
-                        st.write("This may be due to database connection issues or invalid selections.")
-                        # Log the full error for developers
-                        # Skip error logging for deployed app
+        st.header("Build Your Show Concept")
         
-        # Display concept analysis if available
-        if "optimizer_summary" in st.session_state:
-            self._render_concept_analysis(st.session_state.optimizer_summary)
+        # Create a 1:2 column layout (similar to comp builder)
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            # Content criteria section
+            with st.expander("Content Criteria (82 pts)", expanded=True):
+                st.markdown("### Content")
+                
+                # Genre selection
+                genre_name = st.selectbox("Genre", 
+                    options=[name for _, name in display_options.get('genre', []) if name and name.strip()],
+                    key="optimizer_genre", index=None, placeholder="Select genre...")
+                criteria["genre"] = get_id_for_name(genre_name, display_options.get('genre', [])) if genre_name else None
+                
+                # Subgenre selection (if available)
+                if 'subgenres' in display_options:
+                    subgenre_names = st.multiselect("Subgenres",
+                        options=[name for _, name in display_options['subgenres'] if name and name.strip()],
+                        key="optimizer_subgenres", placeholder="Select subgenres...")
+                    criteria["subgenres"] = get_ids_for_names(subgenre_names, display_options['subgenres'])
+                
+                # Source type selection
+                source_name = st.selectbox("Source Type",
+                    options=[name for _, name in display_options.get('source_type', []) if name and name.strip()],
+                    key="optimizer_source_type", index=None, placeholder="Select source type...")
+                criteria["source_type"] = get_id_for_name(source_name, display_options.get('source_type', [])) if source_name else None
+                
+                # Character types selection
+                char_names = st.multiselect("Character Types",
+                    options=[name for _, name in display_options.get('character_types', []) if name and name.strip()],
+                    key="optimizer_character_types", placeholder="Select character types...")
+                criteria["character_types"] = get_ids_for_names(char_names, display_options.get('character_types', []))
+                
+                # Plot elements selection
+                plot_names = st.multiselect("Plot Elements",
+                    options=[name for _, name in display_options.get('plot_elements', []) if name and name.strip()],
+                    key="optimizer_plot_elements", placeholder="Select plot elements...")
+                criteria["plot_elements"] = get_ids_for_names(plot_names, display_options.get('plot_elements', []))
+                
+                # Theme selection
+                theme_names = st.multiselect("Theme Elements",
+                    options=[name for _, name in display_options.get('theme', []) if name and name.strip()],
+                    key="optimizer_theme", placeholder="Select theme elements...")
+                criteria["theme"] = get_ids_for_names(theme_names, display_options.get('theme', []))
+                
+                # Tone selection
+                tone_name = st.selectbox("Tone",
+                    options=[name for _, name in display_options.get('tone', []) if name and name.strip()],
+                    key="optimizer_tone", index=None, placeholder="Select tone...")
+                criteria["tone"] = get_id_for_name(tone_name, display_options.get('tone', [])) if tone_name else None
+                
+                # Time setting selection
+                time_name = st.selectbox("Time Setting",
+                    options=[name for _, name in display_options.get('time_setting', []) if name and name.strip()],
+                    key="optimizer_time_setting", index=None, placeholder="Select time setting...")
+                criteria["time_setting"] = get_id_for_name(time_name, display_options.get('time_setting', [])) if time_name else None
+                
+                # Location setting selection
+                loc_name = st.selectbox("Location",
+                    options=[name for _, name in display_options.get('location_setting', []) if name and name.strip()],
+                    key="optimizer_location_setting", index=None, placeholder="Select location...")
+                criteria["location_setting"] = get_id_for_name(loc_name, display_options.get('location_setting', [])) if loc_name else None
+            
+            # Production criteria section
+            with st.expander("Production Criteria (13 pts)", expanded=True):
+                st.markdown("### Production")
+                
+                # Network selection
+                network_name = st.selectbox("Network",
+                    options=[name for _, name in display_options.get('network', []) if name and name.strip()],
+                    key="optimizer_network", index=None, placeholder="Select network...")
+                criteria["network"] = get_id_for_name(network_name, display_options.get('network', [])) if network_name else None
+                
+                # Studios selection
+                studio_names = st.multiselect("Studios",
+                    options=[name for _, name in display_options.get('studios', []) if name and name.strip()],
+                    key="optimizer_studios", placeholder="Select studios...")
+                criteria["studios"] = get_ids_for_names(studio_names, display_options.get('studios', []))
+                
+                # Team members selection (special handling for team members)
+                if 'team_members' in display_options:
+                    team_names = st.multiselect("Team Members", 
+                        options=[name for _, name in display_options['team_members'] if name and name.strip()],
+                        key="optimizer_team_members", placeholder="Select team members...")
+                    
+                    # Get IDs for team member names
+                    team_member_ids = get_ids_for_names(team_names, display_options['team_members'], 'team_members')
+                    
+                    # Store IDs in both fields for compatibility
+                    criteria["team_members"] = team_member_ids
+                    criteria["team_member_ids"] = team_member_ids
+                    # Also store the names for display
+                    criteria["team_member_names"] = team_names
+            
+            # Format criteria section
+            with st.expander("Format Criteria (5 pts)", expanded=True):
+                st.markdown("### Format")
+                
+                # Episode Count
+                eps = st.number_input("Episode Count", min_value=1, max_value=100, value=criteria.get("episode_count"),
+                    help="Episode count for the show")
+                if eps is not None and eps > 0:
+                    criteria["episode_count"] = eps
+                else:
+                    if "episode_count" in criteria:
+                        del criteria["episode_count"]
+                
+                # Order Type
+                if 'order_type' in display_options:
+                    order_name = st.selectbox("Order Type",
+                        options=[name for _, name in display_options['order_type'] if name and name.strip()],
+                        key="optimizer_order_type", index=None, placeholder="Select order type...")
+                    criteria["order_type"] = get_id_for_name(order_name, display_options['order_type']) if order_name else None
+            
+            # Run analysis automatically when criteria changes
+            if criteria:
+                self._run_analysis()
+                
+        with col2:
+            # Results section
+            st.subheader("Analysis Results")
+            
+            # If we have criteria, show results
+            if criteria:
+                # Get results from session state if available
+                if "optimizer_summary" in st.session_state:
+                    self._render_results()
+                else:
+                    st.info("Select or adjust criteria on the left to analyze your show concept.")
+            else:
+                st.info("Select criteria on the left to analyze your show concept.")
+                
+    def _run_analysis(self):
+        """Run the analysis with the current criteria."""
+        # Get criteria from session state
+        criteria = st.session_state.optimizer_criteria
+        
+        # Check if optimizer is initialized
+        if not self.initialized:
+            st.error("Show Optimizer is not initialized. Please refresh the page and try again.")
+            return
+        
+        # Check if field_manager is available
+        if not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
+            try:
+                # Try to reinitialize
+                with st.spinner("Attempting to reinitialize Show Optimizer..."):
+                    self.initialized = self.optimizer.initialize(force_refresh=True)
+                if not self.initialized or not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
+                    st.error("Could not initialize field manager. Please try again later.")
+                    return
+            except Exception as e:
+                st.error(f"Error connecting to database: {str(e)}")
+                return
+        
+        # Validate and analyze criteria
+        if not criteria:
+            st.info("Select criteria to analyze your concept.")
+            return
+            
+        try:
+            # Simple validation
+            if not any([criteria.get("genre"), criteria.get("character_types")]):
+                st.warning("Please select at least one genre or character type.")
+                return
+                
+            # Run the analysis
+            with st.spinner("Analyzing concept..."):
+                summary = self.optimizer.analyze_concept(criteria)
+            
+            # Store results in session state
+            if summary:
+                st.session_state.optimizer_summary = summary
+                st.session_state.optimizer_results = True
+            else:
+                st.info("No recommendations found for the selected criteria.")
+                st.session_state.optimizer_results = False
+                if "optimizer_summary" in st.session_state:
+                    del st.session_state.optimizer_summary
+                    
+        except Exception as e:
+            st.error(f"Error analyzing concept: {str(e)}")
+            st.session_state.optimizer_results = False
+            if "optimizer_summary" in st.session_state:
+                del st.session_state.optimizer_summary
+            
+    def _render_results(self):
+        """Render the analysis results."""
+        if "optimizer_summary" not in st.session_state:
+            return
+            
+        summary = st.session_state.optimizer_summary
+        
+        # Display success metrics
+        if hasattr(summary, 'success_metrics') and summary.success_metrics:
+            st.markdown("### Success Metrics")
+            render_success_metrics(summary)
+            
+        # Display recommendations
+        if hasattr(summary, 'recommendations') and summary.recommendations:
+            st.markdown("### Recommendations")
+            for i, rec in enumerate(summary.recommendations):
+                with st.expander(f"Recommendation {i+1}: {rec.title}", expanded=i==0):
+                    st.markdown(f"**Score:** {rec.score:.2f}")
+                    st.markdown(f"**Description:** {rec.description}")
+                    
+                    # Display match details if available
+                    if hasattr(rec, 'match_details') and rec.match_details:
+                        st.markdown("**Match Details:**")
+                        for category, details in rec.match_details.items():
+                            st.markdown(f"*{category}:* {details}")
+        else:
+            st.info("No recommendations available. Try adjusting your criteria.")
+            
+        # Add button to reset criteria
+        if st.button("Reset Criteria", key="reset_criteria_button"):
+            st.session_state.optimizer_criteria = {}
+            if "optimizer_summary" in st.session_state:
+                del st.session_state.optimizer_summary
+            st.experimental_rerun()
+    
+
     
     def _render_concept_analysis(self, summary: OptimizationSummary):
         """Render the concept analysis section.
