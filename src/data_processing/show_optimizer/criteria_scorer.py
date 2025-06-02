@@ -343,18 +343,43 @@ class CriteriaScorer:
         """
         import streamlit as st
         
+        st.write(f"DEBUG: Calculating success rate for {len(shows)} shows with threshold {threshold}")
+        
         if shows.empty:
             st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_success_rate")
             raise ValueError("Cannot calculate success rate with empty shows DataFrame")
         
         if 'success_score' not in shows.columns:
             st.error("DEBUG ERROR: success_score column missing from shows data")
+            st.error(f"DEBUG ERROR: Available columns: {list(shows.columns)}")
             raise ValueError("success_score column required for success rate calculation")
+        
+        # Check for null values in success_score
+        null_scores = shows['success_score'].isna().sum()
+        if null_scores > 0:
+            st.error(f"DEBUG ERROR: {null_scores} shows have null success_score values")
+            # Filter out null values to avoid calculation errors
+            shows = shows.dropna(subset=['success_score'])
+            st.write(f"DEBUG: Filtered to {len(shows)} shows with non-null success scores")
+            
+            if shows.empty:
+                st.error("DEBUG ERROR: All shows have null success_score values")
+                raise ValueError("Cannot calculate success rate with all null success scores")
+        
+        # Log success score distribution
+        min_score = shows['success_score'].min()
+        max_score = shows['success_score'].max()
+        mean_score = shows['success_score'].mean()
+        st.write(f"DEBUG: Success score range: {min_score} to {max_score}, mean: {mean_score}")
         
         # Count shows with success score above threshold
         successful = shows[shows['success_score'] >= threshold]
+        success_rate = len(successful) / len(shows)
+        
         st.write(f"DEBUG: Success rate calculation - {len(successful)} successful shows out of {len(shows)} total (threshold: {threshold})")
-        return len(successful) / len(shows)
+        st.write(f"DEBUG: Success rate: {success_rate:.4f} ({success_rate*100:.1f}%)")
+        
+        return success_rate
     
     @lru_cache(maxsize=32)
     def calculate_network_scores(self, criteria_key: str) -> List[NetworkMatch]:
