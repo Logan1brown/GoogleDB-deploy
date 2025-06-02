@@ -83,21 +83,23 @@ class OptimizerView:
         Args:
             state: State dictionary for the optimizer
         """
-        # Get criteria from state
         criteria = state.get('criteria', {})
-        
-        # DEBUG: Show criteria being analyzed
         st.write("DEBUG - Criteria being analyzed:")
         st.write(criteria)
         
-        # Check if optimizer is initialized
-        if not self.initialized:
-            st.error("Show Optimizer is not initialized. Please refresh the page and try again.")
+        # Check if criteria is empty
+        if not criteria:
+            st.error("No criteria provided. Please select at least one criteria value.")
+            state['results'] = False
             return
         
-        # DEBUG: Check optimizer initialization
-        st.write("DEBUG - Optimizer initialized:", self.initialized)
-        st.write("DEBUG - Has field_manager:", hasattr(self.optimizer, 'field_manager') and self.optimizer.field_manager is not None)
+        # Ensure optimizer is initialized with force_refresh=True to get fresh data
+        if not self.optimizer.initialized or not self.optimizer.initialize(force_refresh=True):
+            st.error("Failed to initialize Show Optimizer. Please try again.")
+            state['results'] = False
+            return
+            
+        st.write("DEBUG - Optimizer initialized:", self.optimizer.initialized)
         
         # Check if field_manager is available
         if not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
@@ -145,7 +147,23 @@ class OptimizerView:
                 st.write(normalized_criteria)
                 
                 try:
+                    # Add more detailed debugging to trace data flow
+                    st.write("DEBUG - Testing data availability:")
+                    
+                    # Check if criteria_scorer has data
+                    if hasattr(self.optimizer, 'criteria_scorer'):
+                        criteria_data = self.optimizer.criteria_scorer.fetch_criteria_data(force_refresh=True)
+                        st.write(f"DEBUG - Criteria data available: {not criteria_data.empty}")
+                        if not criteria_data.empty:
+                            st.write(f"DEBUG - Criteria data shape: {criteria_data.shape}")
+                            st.write(f"DEBUG - Criteria data columns: {list(criteria_data.columns)}")
+                        else:
+                            st.write("DEBUG - Criteria data is empty!")
+                    else:
+                        st.write("DEBUG - No criteria_scorer available")
+                    
                     # Run the analysis with normalized criteria
+                    st.write("DEBUG - Calling analyze_concept...")
                     summary = self.optimizer.analyze_concept(normalized_criteria)
                     
                     # DEBUG: Show summary result
