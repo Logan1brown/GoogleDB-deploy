@@ -17,6 +17,7 @@ if src_path not in sys.path:
 
 from src.shared.auth import auth_required
 from src.dashboard.state.session import get_page_state, update_page_state
+from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS
 from src.dashboard.components.optimizer_view import OptimizerView
 from src.dashboard.components.optimizer_helpers import (
     render_success_metrics, render_network_compatibility, group_recommendations,
@@ -26,8 +27,8 @@ from src.dashboard.components.optimizer_helpers import (
 @auth_required()
 def show():
     """Main page content."""
-    # Page title
-    st.title("Show Optimizer")
+    # Page title using style from style_config
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Optimizer</p>', unsafe_allow_html=True)
     
     # Add description
     st.write("Build and analyze a show concept to optimize its success potential.")
@@ -46,27 +47,7 @@ def show():
     if "results" not in state:
         state["results"] = False
     
-    # Add reset button
-    if st.button("Reset Criteria"):
-        # Clear criteria and results
-        state["criteria"] = {}
-        state["results"] = False
-        if "summary" in state:
-            del state["summary"]
-        
-        # Update state
-        update_page_state("show_optimizer", state)
-        
-        # Also clear session state for compatibility
-        if "optimizer_criteria" in st.session_state:
-            st.session_state.optimizer_criteria = {}
-        if "optimizer_results" in st.session_state:
-            st.session_state.optimizer_results = False
-        if "optimizer_summary" in st.session_state:
-            del st.session_state.optimizer_summary
-        
-        # Rerun to update UI
-        st.rerun()
+    # Initialize state if needed
     
     # Initialize the optimizer
     optimizer_view = OptimizerView()
@@ -147,18 +128,17 @@ def show():
                 st.subheader("Analysis Results")
                 
                 # Create tabs - EXACTLY like in Show Detail page
-                tab1, tab2, tab3 = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
+                tabs = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
                 
                 # Tab 1: Success Metrics
-                with tab1:
+                with tabs[0]:
                     if hasattr(summary, 'success_metrics') and summary.success_metrics:
                         render_success_metrics(summary)
                     else:
                         st.info("No success metrics available for the selected criteria.")
                 
                 # Tab 2: Network Analysis
-                with tab2:
-                    st.subheader("Network Compatibility")
+                with tabs[1]:
                     if hasattr(summary, 'network_compatibility') and summary.network_compatibility:
                         render_network_compatibility(summary.network_compatibility)
                     elif hasattr(summary, 'top_networks') and summary.top_networks:
@@ -169,8 +149,7 @@ def show():
                         st.info("No network compatibility data available for the selected criteria.")
                 
                 # Tab 3: Recommendations
-                with tab3:
-                    st.subheader("Recommendations")
+                with tabs[2]:
                     if hasattr(summary, 'recommendations') and summary.recommendations:
                         # Group recommendations by type
                         recommendation_groups = group_recommendations(summary.recommendations)
