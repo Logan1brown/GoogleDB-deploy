@@ -140,22 +140,45 @@ class CriteriaScorer:
             # Create a mapping of show_id to success_score
             success_scores = {}
             
-            # Check if both required columns exist
-            has_show_id = 'show_id' in success_data.columns
+            # Check if success_score column exists
             has_success_score = 'success_score' in success_data.columns
             
-            if not has_show_id:
-                st.error("DEBUG ERROR: 'show_id' column missing from SuccessAnalyzer data")
-                raise ValueError("'show_id' column required for success score mapping")
-                
             if not has_success_score:
                 st.error("DEBUG ERROR: 'success_score' column missing from SuccessAnalyzer data")
                 raise ValueError("'success_score' column required for success score calculation")
             
+            # Check if show_id is the index (SuccessAnalyzer sets show_id as index)
+            is_show_id_index = success_data.index.name == 'show_id'
+            st.write(f"DEBUG: Index name: {success_data.index.name}")
+            
             # Map show_id to success_score
-            for _, row in success_data.iterrows():
-                # Normalize success score to 0-1 range (from 0-100)
-                success_scores[row['show_id']] = row['success_score'] / 100.0
+            if is_show_id_index:
+                # If show_id is the index, use the index for mapping
+                st.write("DEBUG: Using DataFrame index as show_id for mapping success scores")
+                for idx, row in success_data.iterrows():
+                    # Normalize success score to 0-1 range if it's on a 0-100 scale
+                    # Check if the score is already normalized (0-1) or needs normalization (0-100)
+                    score = row['success_score']
+                    if score > 1.0:  # If score is on 0-100 scale
+                        success_scores[idx] = score / 100.0
+                    else:  # If score is already on 0-1 scale
+                        success_scores[idx] = score
+            else:
+                # If show_id is not the index, check if it's a column
+                has_show_id = 'show_id' in success_data.columns
+                if not has_show_id:
+                    st.error("DEBUG ERROR: 'show_id' column missing and not set as index in SuccessAnalyzer data")
+                    raise ValueError("'show_id' column or index required for success score mapping")
+                
+                st.write("DEBUG: Using 'show_id' column for mapping success scores")
+                for _, row in success_data.iterrows():
+                    # Normalize success score to 0-1 range if it's on a 0-100 scale
+                    # Check if the score is already normalized (0-1) or needs normalization (0-100)
+                    score = row['success_score']
+                    if score > 1.0:  # If score is on 0-100 scale
+                        success_scores[row['show_id']] = score / 100.0
+                    else:  # If score is already on 0-1 scale
+                        success_scores[row['show_id']] = score
             
             if not success_scores:
                 st.error("DEBUG ERROR: No valid success scores found in SuccessAnalyzer data")
