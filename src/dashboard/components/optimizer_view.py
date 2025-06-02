@@ -24,6 +24,16 @@ class OptimizerView:
         """Initialize the optimizer view."""
         self.optimizer = ShowOptimizer()
         self.initialized = False
+        
+        # Ensure state dictionaries exist
+        if "field_options" not in st.session_state:
+            st.session_state.field_options = {}
+        if "display_options" not in st.session_state:
+            st.session_state.display_options = {}
+        if "criteria" not in st.session_state:
+            st.session_state.criteria = {}
+        if "optimizer_results" not in st.session_state:
+            st.session_state.optimizer_results = False
             
     def initialize(self, state: Dict) -> bool:
         """Initialize the optimizer components.
@@ -34,6 +44,12 @@ class OptimizerView:
         Returns:
             True if initialization was successful, False otherwise
         """
+        # Ensure state dictionaries exist
+        if "field_options" not in state:
+            state["field_options"] = {}
+        if "display_options" not in state:
+            state["display_options"] = {}
+            
         if not self.initialized:
             try:
                 with st.spinner("Initializing Show Optimizer..."):
