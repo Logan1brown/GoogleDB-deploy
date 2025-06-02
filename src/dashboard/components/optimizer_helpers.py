@@ -231,33 +231,64 @@ def render_results(state: Dict):
     Args:
         state: State dictionary containing summary and results
     """
-    # Check if summary exists in state
-    if 'summary' not in state:
+    # Check if summary exists in state or session state
+    summary = None
+    if 'summary' in state and state['summary']:
+        summary = state['summary']
+    elif 'optimizer_summary' in st.session_state:
+        summary = st.session_state.optimizer_summary
+        
+    if not summary:
+        st.info("No analysis results available. Try adjusting your criteria.")
         return False
-        
-    summary = state.get('summary')
     
-    # Display success metrics
-    if hasattr(summary, 'success_metrics') and summary.success_metrics:
-        st.markdown("### Success Metrics")
-        render_success_metrics(summary)
-        
-    # Display recommendations
-    if hasattr(summary, 'recommendations') and summary.recommendations:
-        st.markdown("### Recommendations")
-        for i, rec in enumerate(summary.recommendations):
-            with st.expander(f"Recommendation {i+1}: {rec.title}", expanded=i==0):
-                st.markdown(f"**Score:** {rec.score:.2f}")
-                st.markdown(f"**Description:** {rec.description}")
-                
-                # Display match details if available
-                if hasattr(rec, 'match_details') and rec.match_details:
-                    st.markdown("**Match Details:**")
-                    for category, details in rec.match_details.items():
-                        st.markdown(f"*{category}:* {details}")
-    else:
-        st.info("No recommendations available. Try adjusting your criteria.")
-        
+    # Create tabs for different sections (similar to original implementation)
+    tab1, tab2, tab3 = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
+    
+    # Tab 1: Success Metrics
+    with tab1:
+        if hasattr(summary, 'success_metrics') and summary.success_metrics:
+            render_success_metrics(summary)
+        else:
+            st.info("No success metrics available for the selected criteria.")
+    
+    # Tab 2: Network Analysis
+    with tab2:
+        st.subheader("Network Compatibility")
+        if hasattr(summary, 'network_compatibility') and summary.network_compatibility:
+            render_network_compatibility(summary.network_compatibility)
+        elif hasattr(summary, 'top_networks') and summary.top_networks:
+            # Create a simple table of top networks
+            networks_df = pd.DataFrame([(n.network_name, n.score) for n in summary.top_networks], 
+                                       columns=["Network", "Compatibility Score"])
+            st.dataframe(networks_df.sort_values("Compatibility Score", ascending=False))
+        else:
+            st.info("No network analysis available for the selected criteria.")
+    
+    # Tab 3: Recommendations
+    with tab3:
+        if hasattr(summary, 'recommendations') and summary.recommendations:
+            # Group recommendations by type
+            grouped_recs = group_recommendations(summary.recommendations)
+            
+            # Display each group
+            for group_name, recs in grouped_recs.items():
+                st.subheader(f"{group_name.capitalize()} Recommendations")
+                for i, rec in enumerate(recs):
+                    with st.expander(f"{rec.criteria_type.replace('_', ' ').title()}", expanded=i==0):
+                        st.markdown(f"**Score:** {rec.score:.2f}")
+                        st.markdown(f"**Description:** {rec.description}")
+                        if hasattr(rec, 'explanation') and rec.explanation:
+                            st.markdown(f"**Explanation:** {rec.explanation}")
+                        
+                        # Display match details if available
+                        if hasattr(rec, 'match_details') and rec.match_details:
+                            st.markdown("**Match Details:**")
+                            for category, details in rec.match_details.items():
+                                st.markdown(f"*{category}:* {details}")
+        else:
+            st.info("No recommendations available. Try adjusting your criteria.")
+    
     # Add button to reset criteria
     if st.button("Reset Criteria", key="reset_criteria_button"):
         # Clear criteria in state

@@ -156,12 +156,8 @@ class OptimizerView:
             criteria = state.get('criteria', {})
             st.session_state.optimizer_criteria = criteria.copy()
             
-            # Add a button to manually trigger analysis (in case automatic triggering fails)
+            # Run analysis automatically when criteria changes
             if criteria:
-                if st.button("Run Analysis", type="primary", key="run_analysis_button"):
-                    self._run_analysis(state)
-                
-                # Also try to run analysis automatically when criteria changes
                 self._run_analysis(state)
                 
         with col2:
@@ -170,9 +166,11 @@ class OptimizerView:
             
             # If we have criteria, show results
             if criteria:
-                # Get results from session state if available
-                if "optimizer_summary" in st.session_state:
-                    self._render_results()
+                # Get results from state or session state if available
+                if state.get('summary') or st.session_state.get("optimizer_summary"):
+                    # Import the render_results function here to avoid circular imports
+                    from src.dashboard.components.optimizer_helpers import render_results
+                    render_results(state)
                 else:
                     st.info("Select or adjust criteria on the left to analyze your show concept.")
             else:
@@ -211,17 +209,18 @@ class OptimizerView:
             return
             
         try:
-            # Simple validation
-            if not any([criteria.get("genre"), criteria.get("character_types")]):
-                st.warning("Please select at least one genre or character type.")
-                return
-                
+            # Display criteria for debugging
+            st.write(f"Debug - Processing criteria: {criteria}")
+            
             # Run the analysis
             with st.spinner("Analyzing concept..."):
                 summary = self.optimizer.analyze_concept(criteria)
             
             # Store results in state
             if summary:
+                # Debug output
+                st.write(f"Debug - Analysis successful. Summary has recommendations: {hasattr(summary, 'recommendations')}")
+                
                 # Update state with results
                 state['summary'] = summary
                 state['results'] = True
@@ -233,7 +232,8 @@ class OptimizerView:
                 # Force rerun to show results
                 st.rerun()
             else:
-                st.info("No recommendations found for the selected criteria.")
+                st.error("Analysis failed to produce results. Please try different criteria.")
+                st.write("Debug - The analyzer returned None instead of a summary object.")
                 state['results'] = False
                 if 'summary' in state:
                     del state['summary']
