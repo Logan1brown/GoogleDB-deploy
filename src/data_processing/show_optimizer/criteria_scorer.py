@@ -95,6 +95,8 @@ class CriteriaScorer:
         Returns:
             DataFrame with criteria data and success metrics
         """
+        import streamlit as st
+        
         # Check if we need to refresh the data
         current_time = datetime.now()
         if (self.criteria_data is None or 
@@ -102,45 +104,53 @@ class CriteriaScorer:
             self.last_update is None or 
             (current_time - self.last_update).total_seconds() > self.cache_duration):
             
-            logger.info("Fetching fresh criteria data with success metrics")
+            st.write("DEBUG: Fetching fresh criteria data with success metrics")
             
-            try:
-                # Get show data from ShowsAnalyzer using fetch_comp_data
-                # This returns both the show data and reference data
-                comp_df, _ = self.shows_analyzer.fetch_comp_data(force=force_refresh)
+            # Get show data from ShowsAnalyzer using fetch_comp_data
+            # This returns both the show data and reference data
+            comp_df, _ = self.shows_analyzer.fetch_comp_data(force=force_refresh)
+            
+            if comp_df.empty:
+                st.error("DEBUG ERROR: Empty data returned from ShowsAnalyzer")
+                raise ValueError("No show data available from ShowsAnalyzer")
                 
-                # Get success metrics from SuccessAnalyzer
-                # In a real implementation, we would get this from SuccessAnalyzer
-                # For now, we'll use the comp_df as our base data
-                
-                # Since we don't have direct access to success_metrics yet,
-                # we'll use the comp_df and add a placeholder success_score
-                if not comp_df.empty:
-                    self.criteria_data = comp_df.copy()
-                    
-                    # Add success score if it doesn't exist
-                    # In a real implementation, this would come from SuccessAnalyzer
-                    if 'success_score' not in self.criteria_data.columns:
-                        # For now, we'll create a simple placeholder based on seasons
-                        if 'tmdb_seasons' in self.criteria_data.columns:
-                            self.criteria_data['success_score'] = self.criteria_data['tmdb_seasons'].apply(
-                                lambda x: min(float(x) / 5.0, 1.0) if pd.notna(x) else 0.5
-                            )
-                        else:
-                            # Default placeholder score
-                            self.criteria_data['success_score'] = 0.5
-                    
-                    self.last_update = current_time
-                else:
-                    logger.warning("Empty data returned from ShowsAnalyzer")
-                    if self.criteria_data is None:
-                        # Initialize with empty DataFrame if we don't have any data yet
-                        self.criteria_data = pd.DataFrame()
-            except Exception as e:
-                logger.error(f"Error fetching criteria data: {e}")
-                if self.criteria_data is None:
-                    # Initialize with empty DataFrame if we don't have any data yet
-                    self.criteria_data = pd.DataFrame()
+            # Create base criteria data
+            self.criteria_data = comp_df.copy()
+            
+            # Fetch success data from SuccessAnalyzer
+            success_data = self.success_analyzer.fetch_success_data()
+            
+            if success_data.empty:
+                st.error("DEBUG ERROR: Empty success data returned from SuccessAnalyzer")
+                raise ValueError("No success data available from SuccessAnalyzer")
+            
+            # Create a mapping of show_id to success_score
+            success_scores = {}
+            for idx, row in success_data.iterrows():
+                if 'id' in row and 'success_score' in row:
+                    # Normalize success score to 0-1 range (from 0-100)
+                    success_scores[row['id']] = row['success_score'] / 100.0
+            
+            if not success_scores:
+                st.error("DEBUG ERROR: No valid success scores found in SuccessAnalyzer data")
+                raise ValueError("Success scores could not be extracted from SuccessAnalyzer data")
+            
+            # Apply success scores to criteria data
+            def get_success_score(show_id):
+                if not pd.notna(show_id) or show_id not in success_scores:
+                    st.write(f"DEBUG: No success score found for show ID: {show_id}")
+                    return None
+                return success_scores[show_id]
+            
+            self.criteria_data['success_score'] = self.criteria_data['id'].apply(get_success_score)
+            
+            # Drop rows with missing success scores to make issues visible
+            missing_scores = self.criteria_data['success_score'].isna().sum()
+            if missing_scores > 0:
+                st.write(f"DEBUG: Dropping {missing_scores} shows with missing success scores")
+                self.criteria_data = self.criteria_data.dropna(subset=['success_score'])
+            
+            self.last_update = current_time
         
         return self.criteria_data
     
@@ -292,62 +302,28 @@ class CriteriaScorer:
         """
         import streamlit as st
         
-        try:
-            # Get matching shows for the criteria
-            matching_shows = self._get_matching_shows(criteria)
-            if matching_shows.empty:
-                st.write("DEBUG - No matching shows found for criteria")
-                return {}
-            
-            component_scores = {}
-            
-            # Calculate audience score with error handling
-            try:
-                audience_score = self._calculate_audience_score(matching_shows)
-                component_scores['audience'] = audience_score
-            except Exception as e:
-                st.write(f"DEBUG - Error calculating audience score: {str(e)}")
-                # Create a default component score
-                component_scores['audience'] = ComponentScore(
-                    component='audience',
-                    score=0.5,  # Default middle score
-                    sample_size=len(matching_shows),
-                    confidence="low"
-                )
-            
-            # Calculate critics score with error handling
-            try:
-                critics_score = self._calculate_critics_score(matching_shows)
-                component_scores['critics'] = critics_score
-            except Exception as e:
-                st.write(f"DEBUG - Error calculating critics score: {str(e)}")
-                # Create a default component score
-                component_scores['critics'] = ComponentScore(
-                    component='critics',
-                    score=0.5,  # Default middle score
-                    sample_size=len(matching_shows),
-                    confidence="low"
-                )
-            
-            # Calculate longevity score with error handling
-            try:
-                longevity_score = self._calculate_longevity_score(matching_shows)
-                component_scores['longevity'] = longevity_score
-            except Exception as e:
-                st.write(f"DEBUG - Error calculating longevity score: {str(e)}")
-                # Create a default component score
-                component_scores['longevity'] = ComponentScore(
-                    component='longevity',
-                    score=0.5,  # Default middle score
-                    sample_size=len(matching_shows),
-                    confidence="low"
-                )
-            
-            return component_scores
-        except Exception as e:
-            st.write(f"DEBUG - Error in calculate_component_scores: {str(e)}")
-            # Return empty component scores as fallback
-            return {}
+        # Get matching shows for the criteria
+        matching_shows = self._get_matching_shows(criteria)
+        if matching_shows.empty:
+            logger.error("No matching shows found for criteria")
+            st.error("No matching shows found for the selected criteria")
+            raise ValueError("No matching shows found for criteria")
+        
+        component_scores = {}
+        
+        # Calculate audience score
+        audience_score = self._calculate_audience_score(matching_shows)
+        component_scores['audience'] = audience_score
+        
+        # Calculate critics score
+        critics_score = self._calculate_critics_score(matching_shows)
+        component_scores['critics'] = critics_score
+        
+        # Calculate longevity score
+        longevity_score = self._calculate_longevity_score(matching_shows)
+        component_scores['longevity'] = longevity_score
+        
+        return component_scores
     
     def _calculate_audience_score(self, shows: pd.DataFrame) -> ComponentScore:
         """Calculate audience score for a set of shows.
@@ -358,40 +334,30 @@ class CriteriaScorer:
         Returns:
             ComponentScore for audience
         """
+        import streamlit as st
+        
         if shows.empty:
-            return ComponentScore(
-                component='audience',
-                score=0.0,
-                sample_size=0,
-                confidence='none'
-            )
+            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_audience_score")
+            raise ValueError("Cannot calculate audience score with empty shows DataFrame")
         
         # Check if popcornmeter column exists
         if 'popcornmeter' not in shows.columns:
-            return ComponentScore(
-                component='audience',
-                score=0.5,  # Default middle score
-                sample_size=len(shows),
-                confidence='low'
-            )
+            st.error("DEBUG ERROR: Popcornmeter column missing from shows data")
+            raise ValueError("Popcornmeter column required for audience score calculation")
             
         # Filter shows with audience metrics
         audience_shows = shows[shows['popcornmeter'].notna()]
         sample_size = len(audience_shows)
         
+        if sample_size == 0:
+            st.error("DEBUG ERROR: No shows with valid popcornmeter data found")
+            raise ValueError("No shows with valid popcornmeter data available")
+        
         # Calculate confidence level
         confidence = OptimizerConfig.get_confidence_level(sample_size)
         
-        if sample_size < OptimizerConfig.CONFIDENCE['minimum_sample']:
-            return ComponentScore(
-                component='audience',
-                score=0.0,
-                sample_size=sample_size,
-                confidence=confidence
-            )
-        
         # Calculate average popcornmeter score (normalized to 0-1)
-        avg_popcorn = audience_shows['popcornmeter'].mean() / 100 if 'popcornmeter' in audience_shows.columns else 0
+        avg_popcorn = audience_shows['popcornmeter'].mean() / 100
         
         # Calculate audience engagement metrics if available
         details = {'popcornmeter': avg_popcorn}
@@ -416,40 +382,30 @@ class CriteriaScorer:
         Returns:
             ComponentScore for critics
         """
+        import streamlit as st
+        
         if shows.empty:
-            return ComponentScore(
-                component='critics',
-                score=0.0,
-                sample_size=0,
-                confidence='none'
-            )
+            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_critics_score")
+            raise ValueError("Cannot calculate critics score with empty shows DataFrame")
         
         # Check if tomatometer column exists
         if 'tomatometer' not in shows.columns:
-            return ComponentScore(
-                component='critics',
-                score=0.5,  # Default middle score
-                sample_size=len(shows),
-                confidence='low'
-            )
+            st.error("DEBUG ERROR: Tomatometer column missing from shows data")
+            raise ValueError("Tomatometer column required for critics score calculation")
             
         # Filter shows with critics metrics
         critics_shows = shows[shows['tomatometer'].notna()]
         sample_size = len(critics_shows)
         
+        if sample_size == 0:
+            st.error("DEBUG ERROR: No shows with valid tomatometer data found")
+            raise ValueError("No shows with valid tomatometer data available")
+        
         # Calculate confidence level
         confidence = OptimizerConfig.get_confidence_level(sample_size)
         
-        if sample_size < OptimizerConfig.CONFIDENCE['minimum_sample']:
-            return ComponentScore(
-                component='critics',
-                score=0.0,
-                sample_size=sample_size,
-                confidence=confidence
-            )
-        
         # Calculate average tomatometer score (normalized to 0-1)
-        avg_tomato = critics_shows['tomatometer'].mean() / 100 if 'tomatometer' in critics_shows.columns else 0
+        avg_tomato = critics_shows['tomatometer'].mean() / 100
         
         # Calculate critics engagement metrics if available
         details = {'tomatometer': avg_tomato}
@@ -474,31 +430,32 @@ class CriteriaScorer:
         Returns:
             ComponentScore for longevity
         """
+        import streamlit as st
+        
         if shows.empty:
-            return ComponentScore(
-                component='longevity',
-                score=0.0,
-                sample_size=0,
-                confidence='none'
-            )
+            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_longevity_score")
+            raise ValueError("Cannot calculate longevity score with empty shows DataFrame")
+        
+        # Check required columns
+        required_columns = ['tmdb_seasons', 'tmdb_status']
+        for column in required_columns:
+            if column not in shows.columns:
+                st.error(f"DEBUG ERROR: {column} column missing from shows data")
+                raise ValueError(f"{column} column required for longevity score calculation")
         
         # Filter shows with longevity metrics
         longevity_shows = shows[shows['tmdb_seasons'].notna()]
         sample_size = len(longevity_shows)
         
+        if sample_size == 0:
+            st.error("DEBUG ERROR: No shows with valid tmdb_seasons data found")
+            raise ValueError("No shows with valid tmdb_seasons data available")
+        
         # Calculate confidence level
         confidence = OptimizerConfig.get_confidence_level(sample_size)
         
-        if sample_size < OptimizerConfig.CONFIDENCE['minimum_sample']:
-            return ComponentScore(
-                component='longevity',
-                score=0.0,
-                sample_size=sample_size,
-                confidence=confidence
-            )
-        
         # Calculate average seasons
-        avg_seasons = longevity_shows['tmdb_seasons'].mean() if 'tmdb_seasons' in longevity_shows.columns else 0
+        avg_seasons = longevity_shows['tmdb_seasons'].mean()
         
         # Calculate renewal rate (shows with > 1 season)
         renewal_rate = len(longevity_shows[longevity_shows['tmdb_seasons'] > 1]) / sample_size
@@ -507,7 +464,7 @@ class CriteriaScorer:
         multi_season_rate = len(longevity_shows[longevity_shows['tmdb_seasons'] > 2]) / sample_size
         
         # Calculate status distribution
-        status_counts = longevity_shows['tmdb_status'].value_counts(normalize=True).to_dict() if 'tmdb_status' in longevity_shows.columns else {}
+        status_counts = longevity_shows['tmdb_status'].value_counts(normalize=True).to_dict()
         active_rate = status_counts.get('Returning Series', 0)
         
         # Calculate longevity details
