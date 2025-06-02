@@ -53,10 +53,11 @@ class OptimizerView:
                     # Try to initialize with force_refresh=True to ensure we get fresh data
                     self.initialized = self.optimizer.initialize(force_refresh=True)
                     
-                    if not self.initialized:
+                    # Check if initialization was successful and field_manager is available
+                    if not self.initialized or not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
                         st.error("Failed to initialize Show Optimizer. This may be due to database connection issues.")
-                        st.write("⚠️ The application requires Supabase environment variables to be properly configured.")
-                        st.write("Check the logs for more details on what might be missing.")
+                        st.write("⚠️ The application requires database access to function properly.")
+                        st.write("Please try again later or contact support if the problem persists.")
                         return False
                     
                     # Cache field options in session state (similar to Comp Builder)
@@ -66,13 +67,15 @@ class OptimizerView:
                     # Get all field options and store in session state
                     for field_name in field_names:
                         try:
-                            options = self.optimizer.get_field_options(field_name)
-                            if options:
-                                st.session_state.optimizer_field_options[field_name] = options
-                                # Also create display options (id, name) tuples for dropdowns
-                                st.session_state.optimizer_display_options[field_name] = [
-                                    (option.id, option.name) for option in options
-                                ]
+                            # Add extra safety check for the optimizer and field_manager
+                            if hasattr(self.optimizer, 'field_manager') and self.optimizer.field_manager is not None:
+                                options = self.optimizer.get_field_options(field_name)
+                                if options:
+                                    st.session_state.optimizer_field_options[field_name] = options
+                                    # Also create display options (id, name) tuples for dropdowns
+                                    st.session_state.optimizer_display_options[field_name] = [
+                                        (option.id, option.name) for option in options
+                                    ]
                         except Exception:
                             # Skip warning for deployed app
                             pass
@@ -115,89 +118,122 @@ class OptimizerView:
         
         # Check if field options are available in session state
         if not st.session_state.optimizer_display_options:
-            st.warning("Field options are not available. Please try refreshing the page.")
+            st.error("Unable to load field options from the database.")
+            st.info("This may be due to a temporary connection issue or database maintenance.")
+            
+            if st.button("Retry Initialization", type="primary"):
+                self.initialized = False
+                self.initialize()
+                
+            st.write("If the problem persists, please try again later or contact support.")
             return
-            
-        # Get field options from session state (similar to Comp Builder)
-        display_options = st.session_state.optimizer_display_options
         
-        # Create a form for criteria selection
+        # Create form for concept builder
         with st.form("concept_builder_form"):
-            # Display any validation errors at the top of the form
-            if "validation_errors" in st.session_state:
-                for field, error in st.session_state.validation_errors.items():
-                    st.warning(f"{field}: {error}")
-                # Clear errors after displaying
-                del st.session_state.validation_errors
+            st.subheader("Build Your Show Concept")
             
-            col1, col2 = st.columns(2)
+            # Create a 1:2 column layout (similar to comp builder)
+            col1, col2 = st.columns([1, 2])
             
             with col1:
                 # Content criteria section
-                st.subheader("Content")
+                with st.expander("Content Criteria", expanded=True):
+                    st.markdown("### Content")
+                    
+                    # Genre selection
+                    render_select_field('genre', 'Genre', display_options, criteria)
+                    
+                    # Subgenre selection (if available)
+                    if 'subgenres' in display_options:
+                        render_multiselect_field('subgenres', 'Subgenres', display_options, criteria)
+                    
+                    # Source type selection
+                    render_select_field('source_type', 'Source Type', display_options, criteria)
+                    
+                    # Character types selection
+                    render_multiselect_field('character_types', 'Character Types', display_options, criteria)
+                    
+                    # Plot elements selection
+                    render_multiselect_field('plot_elements', 'Plot Elements', display_options, criteria)
+                    
+                    # Theme selection
+                    render_multiselect_field('theme', 'Theme Elements', display_options, criteria)
+                    
+                    # Tone selection
+                    render_select_field('tone', 'Tone', display_options, criteria)
+                    
+                    # Time setting selection
+                    render_select_field('time_setting', 'Time Setting', display_options, criteria)
+                    
+                    # Location setting selection
+                    render_select_field('location_setting', 'Location', display_options, criteria)
                 
-                # Genre selection
-                selected_genres = render_multiselect_field('genre', 'Genres', display_options, criteria)
-                
-                # Character types selection
-                selected_characters = render_multiselect_field('character_types', 'Character Types', display_options, criteria)
-                
-                # Source type selection
-                render_select_field('source_type', 'Source Type', display_options, criteria)
-                
-                # Theme selection
-                render_multiselect_field('theme', 'Themes', display_options, criteria)
-            
-            with col2:
-                # Content criteria section
-                st.subheader("Content")
-                
-                # Plot elements selection
-                render_multiselect_field('plot_elements', 'Plot Elements', display_options, criteria)
-                
-                # Tone selection
-                render_select_field('tone', 'Tone', display_options, criteria)
-                
-                # Setting criteria section
-                st.subheader("Setting")
-                
-                # Time setting selection
-                render_select_field('time_setting', 'Time Setting', display_options, criteria)
-                
-                # Location setting selection
-                render_select_field('location_setting', 'Location Setting', display_options, criteria)
                 # Production criteria section
-                st.subheader("Production")
-                
-                # Network selection - using helper function while preserving special handling
-                selected_networks = render_multiselect_field('network', 'Networks', display_options, criteria)
-                
-                # Studios selection - using helper function while preserving special handling
-                selected_studios = render_multiselect_field('studios', 'Studios', display_options, criteria)
-                
-                # Team members selection - using helper function while preserving special handling for team_member_names
-                if 'team_members' in display_options:
-                    team_names = [name for _, name in display_options['team_members'] if name and name.strip()]
+                with st.expander("Production Criteria", expanded=True):
+                    st.markdown("### Production")
                     
-                    selected_teams = st.multiselect(
-                        "Team Members", 
-                        options=team_names,
-                        default=criteria.get("team_member_names", []),
-                        placeholder="Select team members..."
-                    )
+                    # Network selection
+                    render_select_field('network', 'Network', display_options, criteria)
                     
-                    # Update criteria with selected team members - preserving special field naming
-                    if selected_teams:
-                        criteria["team_members"] = get_ids_for_names(selected_teams, display_options['team_members'])
-                        criteria["team_member_names"] = selected_teams  # Store names for display
+                    # Studios selection
+                    render_multiselect_field('studios', 'Studios', display_options, criteria)
+                    
+                    # Team members selection - using basic approach for deployment compatibility
+                    if 'team_members' in display_options:
+                        team_names = [name for _, name in display_options['team_members'] if name and name.strip()]
+                        
+                        selected_teams = st.multiselect(
+                            "Team Members", 
+                            options=team_names,
+                            default=criteria.get("team_member_names", []),
+                            placeholder="Select team members..."
+                        )
+                        
+                        # Update criteria with selected team members - preserving special field naming
+                        if selected_teams:
+                            # Use basic ID lookup for deployment compatibility
+                            team_member_ids = []
+                            for name in selected_teams:
+                                id = next((id for id, opt_name in display_options['team_members'] 
+                                         if opt_name == name), None)
+                                if id is not None:
+                                    team_member_ids.append(id)
+                            
+                            # Store IDs in both fields for compatibility
+                            criteria["team_members"] = team_member_ids
+                            criteria["team_member_ids"] = team_member_ids  # For compatibility
+                            criteria["team_member_names"] = selected_teams  # Store names for display
+                        else:
+                            if "team_members" in criteria:
+                                del criteria["team_members"]
+                            if "team_member_ids" in criteria:
+                                del criteria["team_member_ids"]
+                            if "team_member_names" in criteria:
+                                del criteria["team_member_names"]
+                
+                # Format criteria section
+                with st.expander("Format Criteria", expanded=True):
+                    st.markdown("### Format")
+                    
+                    # Episode Count
+                    eps = st.number_input("Episode Count", min_value=1, max_value=100, value=criteria.get("episode_count"),
+                        help="Episode count for the show")
+                    if eps is not None and eps > 0:
+                        criteria["episode_count"] = eps
                     else:
-                        if "team_members" in criteria:
-                            del criteria["team_members"]
-                        if "team_member_names" in criteria:
-                            del criteria["team_member_names"]
+                        if "episode_count" in criteria:
+                            del criteria["episode_count"]
+                    
+                    # Order Type
+                    if 'order_type' in display_options:
+                        render_select_field('order_type', 'Order Type', display_options, criteria)
             
-            # Submit button
-            submitted = st.form_submit_button("Analyze Concept")
+            # Add a clear indication that the form requires submission
+            st.write("")
+            st.write("👇 Click the button below to analyze your concept")
+            
+            # Make the submit button more prominent
+            submitted = st.form_submit_button("ANALYZE CONCEPT", type="primary")
             
             if submitted:
                 # Save criteria to session state
@@ -209,12 +245,12 @@ class OptimizerView:
                     return
                 
                 # Check if field_manager is available
-                if not self.optimizer.field_manager:
+                if not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
                     try:
                         # Try to reinitialize
                         st.warning("Attempting to reinitialize Show Optimizer...")
                         self.initialized = self.optimizer.initialize(force_refresh=True)
-                        if not self.initialized or not self.optimizer.field_manager:
+                        if not self.initialized or not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
                             st.error("Could not initialize field manager. Please refresh the page and try again.")
                             st.write("⚠️ The application requires database access to function properly.")
                             return

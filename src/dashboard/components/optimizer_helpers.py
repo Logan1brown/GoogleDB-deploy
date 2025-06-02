@@ -30,18 +30,40 @@ def get_id_for_name(name: str, options: List[Tuple[int, str]]) -> Optional[int]:
     return None
 
 
-def get_ids_for_names(names: List[str], options: List[Tuple[int, str]]) -> List[int]:
+def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_name: str = None, optimizer = None) -> List[int]:
     """Get IDs for display names.
     
     Args:
         names: List of display names to look up
         options: List of (id, name) tuples
+        field_name: Name of the field (used to identify team members)
+        optimizer: Optional ShowOptimizer instance to use for team member lookups
         
     Returns:
         List of IDs for the given names
     """
     if not names:
         return []
+        
+    # For team members, get all IDs for each name (similar to comp builder)
+    if field_name == 'team_members' and optimizer and hasattr(optimizer, 'field_manager') and optimizer.field_manager is not None:
+        try:
+            # Get all IDs for selected names
+            all_ids = []
+            for name in names:
+                # Find the option with this name
+                opt = next((opt for opt in optimizer.field_manager.get_options('team_members') 
+                          if opt.name == name), None)
+                if opt and hasattr(opt, 'all_ids'):
+                    all_ids.extend(opt.all_ids)
+                elif opt:
+                    all_ids.append(opt.id)
+            return all_ids
+        except (AttributeError, TypeError):
+            # Fallback to basic ID lookup if field_manager.get_options fails
+            pass
+    
+    # For other fields, just take the first ID for each name
     result = []
     for name in names:
         id = get_id_for_name(name, options)
@@ -50,42 +72,45 @@ def get_ids_for_names(names: List[str], options: List[Tuple[int, str]]) -> List[
     return result
 
 
-def render_select_field(field_name: str, display_name: str, display_options: Dict, 
-                       criteria: Dict, placeholder: str = None) -> bool:
-    """Render a single-select field and update criteria.
+def render_select_field(field_name: str, display_name: str, display_options: Dict[str, List[Tuple[int, str]]], 
+                   criteria: Dict[str, Any], placeholder: str = None) -> None:
+    """Render a select field and update criteria with selection.
     
     Args:
-        field_name: Field name in display_options and criteria
+        field_name: Name of the field in the criteria dictionary
         display_name: Display name for the field
-        display_options: Dictionary of display options
+        display_options: Dictionary of field options from session state
         criteria: Criteria dictionary to update
         placeholder: Optional placeholder text
-        
-    Returns:
-        bool: True if a value was selected
     """
-    if field_name not in display_options:
-        return False
+    # Safety check for field options
+    if field_name not in display_options or not display_options[field_name]:
+        st.warning(f"No options available for {display_name}")
+        return
         
-    # Extract names from options
-    option_names = [name for _, name in display_options[field_name] if name and name.strip()]
+    # Get options and prepare for selectbox
+    default_placeholder = placeholder or f"Select {field_name.replace('_', ' ')}..."
+    options = [(None, default_placeholder)] + display_options[field_name]
+    option_names = [name for _, name in options]
     
-    # Default placeholder text
-    if not placeholder:
-        placeholder = f"Select {field_name.replace('_', ' ')}..."
-        
-    # Get current selection
-    current_name = criteria.get(f"{field_name}_name", None)
+    # Get default selection
+    default_idx = 0
+    if field_name in criteria and criteria[field_name] is not None:
+        # Find index of current selection
+        for i, (id, _) in enumerate(options):
+            if id == criteria[field_name]:
+                default_idx = i
+                break
     
     # Render select box
     selected = st.selectbox(
         display_name, 
-        options=[placeholder] + option_names,
-        index=0 if current_name is None else option_names.index(current_name) + 1 if current_name in option_names else 0
+        options=option_names,
+        index=default_idx
     )
     
     # Update criteria with selection
-    if selected != placeholder:
+    if selected != default_placeholder:
         criteria[field_name] = get_id_for_name(selected, display_options[field_name])
         criteria[f"{field_name}_name"] = selected  # Store name for display
         return True
@@ -112,7 +137,9 @@ def render_multiselect_field(field_name: str, display_name: str, display_options
     Returns:
         List[str]: Selected values
     """
-    if field_name not in display_options:
+    # Safety check for field options
+    if field_name not in display_options or not display_options[field_name]:
+        st.warning(f"No options available for {display_name}")
         return []
         
     # Extract names from options
@@ -122,10 +149,12 @@ def render_multiselect_field(field_name: str, display_name: str, display_options
     if not placeholder:
         placeholder = f"Select {field_name.replace('_', ' ')}..."
     
-    # Handle special case for character_types which uses different name format
+    # Handle special cases for fields that use different name formats
     names_field = f"{field_name}_names"
     if field_name == "character_types":
         names_field = "character_type_names"
+    elif field_name == "subgenres":
+        names_field = "subgenre_names"
         
     # Render multi-select
     selected = st.multiselect(
