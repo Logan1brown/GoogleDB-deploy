@@ -242,18 +242,21 @@ def render_results(state: Dict):
         st.info("No analysis results available. Try adjusting your criteria.")
         return False
     
-    # Create tabs for different sections
-    tab1, tab2, tab3 = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
+    # Create a clear header for the results section
+    st.header("Analysis Results")
+    
+    # Create tabs with explicit names - simplest approach
+    success_tab, network_tab, recommendations_tab = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
     
     # Tab 1: Success Metrics
-    with tab1:
+    with success_tab:
         if hasattr(summary, 'success_metrics') and summary.success_metrics:
             render_success_metrics(summary)
         else:
             st.info("No success metrics available for the selected criteria.")
     
     # Tab 2: Network Analysis
-    with tab2:
+    with network_tab:
         st.subheader("Network Compatibility")
         if hasattr(summary, 'network_compatibility') and summary.network_compatibility:
             render_network_compatibility(summary.network_compatibility)
@@ -262,16 +265,16 @@ def render_results(state: Dict):
             # Check if networks have compatibility_score or score attribute
             if hasattr(summary.top_networks[0], 'compatibility_score'):
                 networks_df = pd.DataFrame([(n.network_name, n.compatibility_score) for n in summary.top_networks], 
-                                          columns=["Network", "Compatibility Score"])
+                                           columns=["Network", "Compatibility Score"])
             else:
                 networks_df = pd.DataFrame([(n.network_name, n.score) for n in summary.top_networks], 
-                                          columns=["Network", "Compatibility Score"])
+                                           columns=["Network", "Compatibility Score"])
             st.dataframe(networks_df.sort_values("Compatibility Score", ascending=False))
         else:
             st.info("No network analysis available for the selected criteria.")
     
     # Tab 3: Recommendations
-    with tab3:
+    with recommendations_tab:
         if hasattr(summary, 'recommendations') and summary.recommendations:
             # Group recommendations by type
             grouped_recs = group_recommendations(summary.recommendations)

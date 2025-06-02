@@ -155,8 +155,7 @@ class OptimizerView:
                 self._run_analysis(state)
                 
         with col2:
-            # Results section
-            st.subheader("Analysis Results")
+            # Results section - no header here, it's in render_results
             
             # If we have criteria, show results
             if criteria:
@@ -164,6 +163,7 @@ class OptimizerView:
                 if state.get('summary') or st.session_state.get("optimizer_summary"):
                     # Import the render_results function here to avoid circular imports
                     from src.dashboard.components.optimizer_helpers import render_results
+                    # Call render_results with explicit state
                     render_results(state)
                 else:
                     st.info("Select or adjust criteria on the left to analyze your show concept.")
