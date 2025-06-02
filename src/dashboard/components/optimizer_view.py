@@ -87,17 +87,12 @@ class OptimizerView:
         st.write("DEBUG - Criteria being analyzed:")
         st.write(criteria)
         
-        # Check if criteria is empty
-        if not criteria:
-            st.error("No criteria provided. Please select at least one criteria value.")
-            state['results'] = False
-            return
-        
-        # Ensure optimizer is initialized with force_refresh=True to get fresh data
-        if not self.optimizer.initialized or not self.optimizer.initialize(force_refresh=True):
-            st.error("Failed to initialize Show Optimizer. Please try again.")
-            state['results'] = False
-            return
+        # Check if optimizer is initialized
+        if not self.initialized:
+            # Try to initialize if not already initialized
+            if not self.initialize(state):
+                st.error("Show Optimizer is not initialized. Please refresh the page and try again.")
+                return
             
         st.write("DEBUG - Optimizer initialized:", self.optimizer.initialized)
         
