@@ -134,10 +134,10 @@ class CriteriaAnalyzer:
     
     def identify_success_factors(self, criteria: Dict[str, Any], 
                                 limit: int = 5) -> List[SuccessFactor]:
-        """Identify the top success factors for the given criteria.
+        """Identify the most important success factors for a show concept.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Criteria defining the show concept
             limit: Maximum number of factors to return
             
         Returns:
@@ -153,34 +153,39 @@ class CriteriaAnalyzer:
             success_factors = []
             
             for criteria_type, values in impact_data.items():
-                try:
-                    for value_id, impact in values.items():
-                        try:
-                            # Get the name for this criteria value
-                            field_manager = self.criteria_scorer.field_manager
-                            options = field_manager.get_options(criteria_type)
-                            
-                            # Find the option with this ID
-                            name = str(value_id)  # Default if not found
-                            for option in options:
-                                if option.id == value_id:
-                                    name = option.name
-                                    break
-                                    
-                            factor = SuccessFactor(
-                                criteria_type=criteria_type,
-                                criteria_value=value_id,
-                                criteria_name=name,
-                                impact_score=impact,
-                                confidence="",
-                                sample_size=0
-                            )
-                            success_factors.append(factor)
-                        except Exception as e:
-                            st.write(f"DEBUG - Error processing value {value_id} for criteria type {criteria_type}: {str(e)}")
-                except Exception as e:
-                    st.write(f"DEBUG - Error processing criteria type {criteria_type}: {str(e)}")
+                # Process at most 5 values per criteria type to reduce processing
+                processed_count = 0
+                for value_id, impact in values.items():
+                    if processed_count >= 5:  # Limit processing per criteria type
+                        break
+                        
+                    try:
+                        # Get the name for this criteria value
+                        field_manager = self.criteria_scorer.field_manager
+                        options = field_manager.get_options(criteria_type)
+                        
+                        # Find the option with this ID
+                        name = str(value_id)  # Default if not found
+                        for option in options:
+                            if option.id == value_id:
+                                name = option.name
+                                break
+                                
+                        factor = SuccessFactor(
+                            criteria_type=criteria_type,
+                            criteria_value=value_id,
+                            criteria_name=name,
+                            impact_score=impact,
+                            confidence="",
+                            sample_size=0
+                        )
+                        success_factors.append(factor)
+                        processed_count += 1
+                    except Exception:
+                        # Silent error handling for individual values
+                        continue
         except Exception as e:
+            # Only log the main error, not individual processing errors
             st.write(f"DEBUG - Error identifying success factors: {str(e)}")
             # Create a default success factor as fallback
             if 'genre' in criteria:

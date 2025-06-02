@@ -545,6 +545,10 @@ class CriteriaScorer:
         """
         import streamlit as st
         
+        # Known problematic field types that need special handling
+        array_fields = ['character_types', 'plot_elements', 'thematic_elements', 'team_members']
+        error_counts = {field: 0 for field in array_fields}
+        
         try:
             # Get base success rate
             base_shows = self._get_matching_shows(base_criteria)
@@ -564,8 +568,8 @@ class CriteriaScorer:
                     if field_name in base_criteria:
                         continue
                     
-                    # Skip fields that might cause errors
-                    if field_name in ['character_types', 'plot_elements', 'thematic_elements'] and not base_criteria:
+                    # Skip array fields that are known to cause errors
+                    if field_name in array_fields:
                         continue
                     
                     field_impact = {}
@@ -589,14 +593,16 @@ class CriteriaScorer:
                             
                             # Store impact score
                             field_impact[option.id] = impact
-                        except Exception as e:
-                            st.write(f"DEBUG - Error calculating impact for {field_name} option {option.id}: {str(e)}")
+                        except Exception:
+                            # Silent error handling for individual options
                             continue
                     
                     if field_impact:
                         impact_scores[field_name] = field_impact
                 except Exception as e:
-                    st.write(f"DEBUG - Error calculating impact for field {field_name}: {str(e)}")
+                    # Only log non-array field errors to reduce noise
+                    if field_name not in array_fields:
+                        st.write(f"DEBUG - Error calculating impact for field {field_name}: {str(e)}")
                     continue
             
             # If we couldn't calculate any impacts, add a default one for genre
