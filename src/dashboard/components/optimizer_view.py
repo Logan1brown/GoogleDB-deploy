@@ -1,34 +1,24 @@
 """Show Optimizer View Component.
 
-This module contains the main view component for the Show Optimizer feature.
-It handles the UI presentation of the optimizer results and user interactions.
+This module contains the core functionality for the Show Optimizer feature.
+It handles initialization and analysis of show concepts.
 """
 
 import streamlit as st
-import pandas as pd
-import numpy as np
-import altair as alt
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Union, Tuple
+from typing import Dict, Any
 
 from src.data_processing.show_optimizer.show_optimizer import ShowOptimizer
 from src.data_processing.show_optimizer.criteria_scorer import CriteriaScorer
 from src.data_processing.show_optimizer.criteria_analyzer import CriteriaAnalyzer
-from src.data_processing.show_optimizer.suggestion_analyzer import SuggestionAnalyzer, OptimizationSummary, Recommendation
-from src.data_processing.analyze_shows import ShowsAnalyzer
-from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
-
-from src.dashboard.components.optimizer_helpers import (
-    get_id_for_name, get_ids_for_names,
-    render_success_metrics, render_metric_card, render_info_card,
-    render_success_factors, render_network_compatibility, group_recommendations,
-    render_recommendation_group, render_content_criteria, render_production_criteria, render_format_criteria
-)
-
-# No logger needed for deployed app
+from src.data_processing.show_optimizer.suggestion_analyzer import SuggestionAnalyzer
 
 class OptimizerView:
-    """Main view component for the Show Optimizer."""
+    """Core functionality for the Show Optimizer.
+    
+    This class handles initialization and analysis of show concepts.
+    It does not handle any UI rendering, which is done directly in the page file.
+    """
     
     def __init__(self):
         """Initialize the optimizer view."""
@@ -47,10 +37,8 @@ class OptimizerView:
         if not self.initialized:
             try:
                 with st.spinner("Initializing Show Optimizer..."):
-                    # Bypass the cached initialize method and directly initialize components
-                    # This matches how Comp Builder initializes and avoids st.cache_data issues
+                    # Initialize components directly
                     try:
-                        # Initialize components directly (similar to ShowOptimizer.initialize but without cache)
                         self.optimizer.criteria_scorer = CriteriaScorer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
                         self.optimizer.field_manager = self.optimizer.criteria_scorer.field_manager
                         self.optimizer.criteria_analyzer = CriteriaAnalyzer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
@@ -90,150 +78,7 @@ class OptimizerView:
                 return False
                 
         return self.initialized
-    
-    def render_criteria(self, state: Dict[str, Any]) -> None:
-        """Render only the criteria section of the optimizer view.
-
-        Args:
-            state: Page state dictionary
-        """
-        # Initialize optimizer components if needed
-        if not self.initialized:
-            if not self.initialize(state):
-                st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
-                return
-        
-        # Get criteria and display options from state
-        criteria = state.get('criteria', {})
-        display_options = state.get('display_options', {})
-        
-        # Check if field options are available in state
-        if not display_options:
-            st.error("Unable to load field options from the database.")
-            st.info("This may be due to a temporary connection issue or database maintenance.")
-            
-            if st.button("Retry Initialization", type="primary"):
-                self.initialized = False
-                self.initialize(state)
                 
-            st.write("If the problem persists, please try again later or contact support.")
-            return
-        
-        st.header("Build Your Show Concept")
-        
-        # Create two columns
-        col1, col2 = st.columns([1, 2])
-        
-        with col1:
-            # Render criteria sections using helper functions
-            render_content_criteria(state, self._update_criteria_and_analyze)
-            render_production_criteria(state, self._update_criteria_and_analyze)
-            render_format_criteria(state, self._update_criteria_and_analyze)
-            
-            # Save criteria to session state before running analysis
-            criteria = state.get('criteria', {})
-            st.session_state.optimizer_criteria = criteria.copy()
-            
-            # Run analysis automatically when criteria changes
-            if criteria:
-                self._run_analysis(state)
-                
-        with col2:
-            # Results section placeholder
-            if criteria:
-                if not (state.get('summary') or st.session_state.get("optimizer_summary")):
-                    st.info("Select or adjust criteria on the left to analyze your show concept.")
-            else:
-                st.info("Select criteria on the left to analyze your show concept.")
-    
-    def render(self, state: Dict[str, Any]) -> None:
-        """Render the complete optimizer view.
-
-        Args:
-            state: Page state dictionary
-        """
-        # This method is kept for backward compatibility
-        # Initialize optimizer components if needed
-        if not self.initialized:
-            if not self.initialize(state):
-                st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
-                return
-        
-        # Get criteria from state
-        criteria = state.get("criteria", {})
-        
-        # Create two columns
-        col1, col2 = st.columns([1, 2])
-        
-        # Render the concept builder
-        self._render_concept_builder(state, col1, col2)
-    
-    def _render_concept_builder(self, state: Dict, col1, col2):
-        """Render the concept builder section.
-        
-        Args:
-            state: State dictionary for the optimizer
-        """
-        # Get criteria and display options from state
-        criteria = state.get('criteria', {})
-        display_options = state.get('display_options', {})
-        
-        # Check if field options are available in state
-        if not display_options:
-            st.error("Unable to load field options from the database.")
-            st.info("This may be due to a temporary connection issue or database maintenance.")
-            
-            if st.button("Retry Initialization", type="primary"):
-                self.initialized = False
-                self.initialize(state)
-                
-            st.write("If the problem persists, please try again later or contact support.")
-            return
-        
-        st.header("Build Your Show Concept")
-        
-        # Use the columns passed as parameters instead of creating new ones
-        
-        with col1:
-            # Render criteria sections using helper functions
-            render_content_criteria(state, self._update_criteria_and_analyze)
-            render_production_criteria(state, self._update_criteria_and_analyze)
-            render_format_criteria(state, self._update_criteria_and_analyze)
-            
-            # Save criteria to session state before running analysis
-            criteria = state.get('criteria', {})
-            st.session_state.optimizer_criteria = criteria.copy()
-            
-            # Run analysis automatically when criteria changes
-            if criteria:
-                self._run_analysis(state)
-                
-        with col2:
-            # Results section
-            
-            # If we have criteria, just show a message
-            # Results will be rendered by the page file
-            if criteria:
-                if state.get('summary') or st.session_state.get("optimizer_summary"):
-                    # Don't render results here - it's handled by the page file
-                    st.info("Analysis complete. Results are shown below.")
-                else:
-                    st.info("Select or adjust criteria on the left to analyze your show concept.")
-            else:
-                st.info("Select criteria on the left to analyze your show concept.")
-                
-    def _render_results(self, state: Dict):
-        """This method is deprecated and no longer used.
-        Tab rendering has been moved to the page file (41_show_optimizer.py).
-        
-        Args:
-            state: State dictionary containing summary and results
-        """
-        # This method is kept for backward compatibility but is no longer used
-        # The tab rendering has been moved to the page file for consistency with Show Detail page
-        st.warning("This method is deprecated. Tab rendering has been moved to the page file.")
-        return False
-        
     def _run_analysis(self, state: Dict):
         """Run the analysis with the current criteria.
         
@@ -267,16 +112,10 @@ class OptimizerView:
             return
             
         try:
-            # Log the criteria for debugging
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"Analyzing criteria: {criteria}")
-            
             # Run the analysis
             with st.spinner("Analyzing concept..."):
                 # Ensure criteria is properly formatted
                 # Convert any list values with single items to scalar values
-                # This is a common issue with form submissions
                 normalized_criteria = {}
                 for key, value in criteria.items():
                     if isinstance(value, list) and len(value) == 1:
@@ -289,7 +128,7 @@ class OptimizerView:
                     try:
                         normalized_criteria['genre'] = int(normalized_criteria['genre'])
                     except (ValueError, TypeError):
-                        logger.warning(f"Failed to convert genre to int: {normalized_criteria['genre']}")
+                        pass
                 
                 # Run the analysis with normalized criteria
                 summary = self.optimizer.analyze_concept(normalized_criteria)
@@ -308,7 +147,6 @@ class OptimizerView:
                 st.rerun()
             else:
                 st.error("Analysis failed to produce results. Please try different criteria.")
-                logger.error(f"analyze_concept returned None for criteria: {normalized_criteria}")
                 state['results'] = False
                 if 'summary' in state:
                     del state['summary']
@@ -329,44 +167,4 @@ class OptimizerView:
             if "optimizer_summary" in st.session_state:
                 del st.session_state.optimizer_summary
             
-    def _update_criteria_and_analyze(self, field_name, value):
-        """Update a specific criteria field and run the analysis.
-        
-        Args:
-            field_name: Name of the field to update
-            value: New value for the field
-        """
-        # Get current state from session state
-        from src.dashboard.state.session import get_page_state, update_page_state
-        state = get_page_state("show_optimizer")
-        
-        # Ensure criteria exists in state
-        if 'criteria' not in state:
-            state['criteria'] = {}
-            
-        # Update the specific field in the criteria
-        if value is None or (isinstance(value, list) and len(value) == 0):
-            # Remove the field if value is None or empty list
-            if field_name in state['criteria']:
-                del state['criteria'][field_name]
-        else:
-            # Set the field value
-            state['criteria'][field_name] = value
-        
-        # Update the state in session state
-        update_page_state("show_optimizer", state)
-        
-        # Also update session state for compatibility
-        if "optimizer_criteria" not in st.session_state:
-            st.session_state.optimizer_criteria = {}
-        
-        # Keep the session_state.optimizer_criteria in sync with state['criteria']
-        st.session_state.optimizer_criteria = state['criteria'].copy()
-        
-        # Run the analysis with the updated criteria
-        if state['criteria']:
-            self._run_analysis(state)
-            
-    # The _render_results, _render_concept_analysis, _render_network_analysis, and _render_recommendations methods
-    # have been moved to helper functions in optimizer_helpers.py to reduce file size and improve maintainability.
-    # This follows the Comp Builder pattern of separating view logic from state management.
+    # All UI rendering and criteria updates are now handled directly in the page file

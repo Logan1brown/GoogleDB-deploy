@@ -37,47 +37,106 @@ logger = logging.getLogger(__name__)
 @auth_required()
 def show():
     """Main page content."""
-    # Page title using style from style_config
+    # Page title
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Optimizer</p>', unsafe_allow_html=True)
     
     # Add description
-    st.write("Optimize your show concept based on historical success patterns and network preferences. This tool analyzes your concept against our database to calculate success probability, identify best-matching networks, and recommend optimizations.")
+    st.write("Build and optimize your show concept based on historical success patterns and network preferences.")
     
-    try:
-        # Get page state
-        state = get_page_state("show_optimizer")
-        if not state:
-            state = {}
-        
-        # Initialize state if needed
-        if "criteria" not in state:
-            state["criteria"] = {}
-        if "field_options" not in state:
-            state["field_options"] = {}
-        if "display_options" not in state:
-            state["display_options"] = {}
-        if "results" not in state:
-            state["results"] = False
-        if "summary" not in state:
-            state["summary"] = None
-        
-        # Initialize the optimizer
-        optimizer_view = OptimizerView()
-        
-        # Render only the criteria section
-        optimizer_view.render_criteria(state)
-        
-        # If we have results, render tabs directly in the page
-        if state.get('summary') or st.session_state.get("optimizer_summary"):
-            # Get summary from state or session state
-            summary = state.get('summary') or st.session_state.get("optimizer_summary")
+    # Initialize state
+    state = get_page_state("show_optimizer")
+    
+    # Initialize default values if not present
+    if "criteria" not in state:
+        state["criteria"] = {}
+    if "field_options" not in state:
+        state["field_options"] = {}
+    if "display_options" not in state:
+        state["display_options"] = {}
+    if "results" not in state:
+        state["results"] = False
+    if "summary" not in state:
+        state["summary"] = None
+    
+    # Initialize the optimizer
+    optimizer_view = OptimizerView()
+    
+    # Initialize optimizer components if needed
+    if not optimizer_view.initialized:
+        if not optimizer_view.initialize(state):
+            st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
+            return
             
-            if summary:
+    # Create columns for criteria and results
+    col1, col2 = st.columns([1, 2])
+    
+    # Render criteria in the first column
+    with col1:
+        # Get criteria and display options from state
+        criteria = state.get('criteria', {})
+        display_options = state.get('display_options', {})
+        
+        # Check if field options are available in state
+        if not display_options:
+            st.error("Unable to load field options from the database.")
+            st.info("This may be due to a temporary connection issue or database maintenance.")
+            return
+        
+        st.subheader("Build Your Show Concept")
+        
+        # Define update function for criteria changes
+        def update_criteria_and_analyze(field_name, value):
+            # Ensure criteria exists in state
+            if 'criteria' not in state:
+                state['criteria'] = {}
+                
+            # Update the specific field in the criteria
+            if value is None or (isinstance(value, list) and len(value) == 0):
+                # Remove the field if value is None or empty list
+                if field_name in state['criteria']:
+                    del state['criteria'][field_name]
+            else:
+                # Set the field value
+                state['criteria'][field_name] = value
+            
+            # Update the state in session state
+            update_page_state("show_optimizer", state)
+            
+            # Also update session state for compatibility
+            if "optimizer_criteria" not in st.session_state:
+                st.session_state.optimizer_criteria = {}
+            
+            # Keep the session_state.optimizer_criteria in sync with state['criteria']
+            st.session_state.optimizer_criteria = state['criteria'].copy()
+            
+            # Run the analysis with the updated criteria
+            if state['criteria']:
+                optimizer_view._run_analysis(state)
+        
+        # Render criteria sections using helper functions
+        render_content_criteria(state, update_criteria_and_analyze)
+        render_production_criteria(state, update_criteria_and_analyze)
+        render_format_criteria(state, update_criteria_and_analyze)
+        
+        # Save criteria to session state before running analysis
+        criteria = state.get('criteria', {})
+        st.session_state.optimizer_criteria = criteria.copy()
+        
+        # Run analysis automatically when criteria changes
+        if criteria:
+            optimizer_view._run_analysis(state)
+    
+    # If we have results, render tabs in the second column
+    if state.get('summary') or st.session_state.get("optimizer_summary"):
+        # Get summary from state or session state
+        summary = state.get('summary') or st.session_state.get("optimizer_summary")
+        
+        if summary:
+            with col2:
                 # Create a clear header for the results section
-                st.header("Analysis Results")
+                st.subheader("Analysis Results")
                 
                 # Create tabs directly in the page - exactly like in Show Detail page
-                # This is the critical line that creates the tabs with explicit variables
                 success_tab, network_tab, recommendations_tab = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
                 
                 # Tab 1: Success Metrics
@@ -154,11 +213,8 @@ def show():
                         
                     st.rerun()
         
-        # Save state back to session
-        update_page_state("show_optimizer", state)
-        
-    except Exception as e:
-        st.error(f"Error in show optimizer: {str(e)}\n\nTraceback:\n{traceback.format_exc()}")
+    # Save state back to session
+    update_page_state("show_optimizer", state)
 
 if __name__ == "__main__":
     show()
