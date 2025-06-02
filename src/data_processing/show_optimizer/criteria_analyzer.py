@@ -185,8 +185,7 @@ class CriteriaAnalyzer:
                         # Silent error handling for individual values
                         continue
         except Exception as e:
-            # Only log the main error, not individual processing errors
-            st.write(f"DEBUG - Error identifying success factors: {str(e)}")
+            # Silent error handling for main function
             # Create a default success factor as fallback
             if 'genre' in criteria:
                 genre_id = criteria['genre']
