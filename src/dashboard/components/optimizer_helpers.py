@@ -7,7 +7,7 @@ These functions handle common patterns for field rendering and visualization.
 import streamlit as st
 import pandas as pd
 import altair as alt
-from typing import Dict, List, Tuple, Optional, Any, Union
+from typing import Dict, List, Tuple, Optional, Any, Union, Callable
 
 
 def get_id_for_name(name: str, options: List[Tuple[int, str]]) -> Optional[int]:
@@ -70,9 +70,213 @@ def get_ids_for_names(names: List[str], options: List[Tuple[int, str]], field_na
     return result
 
 
-# Note: The render_select_field and render_multiselect_field functions have been removed
-# as they are no longer used in the current implementation that follows the Comp Builder pattern.
-# The Show Optimizer UI now uses direct Streamlit widgets with inline state updates.   
+def render_content_criteria(state: Dict, update_callback: Callable) -> None:
+    """Render content criteria section.
+    
+    Args:
+        state: State dictionary containing criteria and display options
+        update_callback: Callback function for updating criteria
+    """
+    criteria = state.get('criteria', {})
+    display_options = state.get('display_options', {})
+    
+    with st.expander("Content Criteria (82 pts)", expanded=True):
+        st.markdown("### Content")
+        
+        # Genre selection
+        genre_name = st.selectbox("Genre",
+            options=[name for _, name in display_options.get('genre', []) if name and name.strip()],
+            key="optimizer_genre", index=None, placeholder="Select genre...",
+            on_change=lambda: update_callback("genre", 
+                                get_id_for_name(st.session_state.optimizer_genre, display_options.get('genre', [])) 
+                                if st.session_state.optimizer_genre else None))
+        
+        # Subgenre selection (if available)
+        if 'subgenres' in display_options:
+            subgenre_names = st.multiselect("Subgenres",
+                options=[name for _, name in display_options['subgenres'] if name and name.strip()],
+                key="optimizer_subgenres", placeholder="Select subgenres...")
+            criteria["subgenres"] = get_ids_for_names(subgenre_names, display_options['subgenres'])
+        
+        # Source type selection
+        source_name = st.selectbox("Source Type",
+            options=[name for _, name in display_options.get('source_type', []) if name and name.strip()],
+            key="optimizer_source_type", index=None, placeholder="Select source type...",
+            on_change=lambda: update_callback("source_type", 
+                                get_id_for_name(st.session_state.optimizer_source_type, display_options.get('source_type', [])) 
+                                if st.session_state.optimizer_source_type else None))
+        
+        # Character types selection
+        char_names = st.multiselect("Character Types",
+            options=[name for _, name in display_options.get('character_types', []) if name and name.strip()],
+            key="optimizer_character_types", placeholder="Select character types...",
+            on_change=lambda: update_callback("character_types", 
+                                get_ids_for_names(st.session_state.optimizer_character_types, 
+                                                display_options.get('character_types', []))))
+        
+        # Thematic elements selection
+        theme_names = st.multiselect("Thematic Elements",
+            options=[name for _, name in display_options.get('thematic_elements', []) if name and name.strip()],
+            key="optimizer_thematic_elements", placeholder="Select thematic elements...",
+            on_change=lambda: update_callback("thematic_elements", 
+                                get_ids_for_names(st.session_state.optimizer_thematic_elements, 
+                                                display_options.get('thematic_elements', []))))
+        
+        # Plot elements selection
+        plot_names = st.multiselect("Plot Elements",
+            options=[name for _, name in display_options.get('plot_elements', []) if name and name.strip()],
+            key="optimizer_plot_elements", placeholder="Select plot elements...",
+            on_change=lambda: update_callback("plot_elements", 
+                                get_ids_for_names(st.session_state.optimizer_plot_elements, 
+                                                display_options.get('plot_elements', []))))
+        
+        # Tone selection
+        tone_names = st.multiselect("Tone",
+            options=[name for _, name in display_options.get('tone', []) if name and name.strip()],
+            key="optimizer_tone", placeholder="Select tone...",
+            on_change=lambda: update_callback("tone", 
+                                get_ids_for_names(st.session_state.optimizer_tone, 
+                                                display_options.get('tone', []))))
+        
+        # Time setting selection
+        time_names = st.multiselect("Time Setting",
+            options=[name for _, name in display_options.get('time_setting', []) if name and name.strip()],
+            key="optimizer_time_setting", placeholder="Select time setting...",
+            on_change=lambda: update_callback("time_setting", 
+                                get_ids_for_names(st.session_state.optimizer_time_setting, 
+                                                display_options.get('time_setting', []))))
+        
+        # Location setting selection
+        location_names = st.multiselect("Location Setting",
+            options=[name for _, name in display_options.get('location_setting', []) if name and name.strip()],
+            key="optimizer_location_setting", placeholder="Select location setting...",
+            on_change=lambda: update_callback("location_setting", 
+                                get_ids_for_names(st.session_state.optimizer_location_setting, 
+                                                display_options.get('location_setting', []))))
+
+
+def render_production_criteria(state: Dict, update_callback: Callable) -> None:
+    """Render production criteria section.
+    
+    Args:
+        state: State dictionary containing criteria and display options
+        update_callback: Callback function for updating criteria
+    """
+    criteria = state.get('criteria', {})
+    display_options = state.get('display_options', {})
+    
+    with st.expander("Production Criteria (13 pts)", expanded=False):
+        st.markdown("### Production")
+        
+        # Network selection
+        network_name = st.selectbox("Network",
+            options=[name for _, name in display_options.get('network', []) if name and name.strip()],
+            key="optimizer_network", index=None, placeholder="Select network...",
+            on_change=lambda: update_callback("network", 
+                                get_id_for_name(st.session_state.optimizer_network, display_options.get('network', [])) 
+                                if st.session_state.optimizer_network else None))
+        
+        # Studios selection
+        studio_names = st.multiselect("Studios",
+            options=[name for _, name in display_options.get('studios', []) if name and name.strip()],
+            key="optimizer_studios", placeholder="Select studios...",
+            on_change=lambda: update_callback("studios", 
+                                get_ids_for_names(st.session_state.optimizer_studios, 
+                                                display_options.get('studios', []))))
+        
+        # Team members selection
+        team_names = st.multiselect("Team Members",
+            options=[name for _, name in display_options.get('team_members', []) if name and name.strip()],
+            key="optimizer_team_members", placeholder="Select team members...",
+            on_change=lambda: update_callback("team_members", 
+                                get_ids_for_names(st.session_state.optimizer_team_members, 
+                                                display_options.get('team_members', []))))
+
+
+def render_format_criteria(state: Dict, update_callback: Callable) -> None:
+    """Render format criteria section.
+    
+    Args:
+        state: State dictionary containing criteria and display options
+        update_callback: Callback function for updating criteria
+    """
+    criteria = state.get('criteria', {})
+    display_options = state.get('display_options', {})
+    
+    with st.expander("Format Criteria (5 pts)", expanded=False):
+        st.markdown("### Format")
+        
+        # Episode count
+        eps = st.number_input("Episode Count", min_value=0, value=None, placeholder="Enter episode count...",
+                            key="optimizer_episode_count")
+        if eps is not None and eps > 0:
+            criteria["episode_count"] = eps
+        else:
+            if "episode_count" in criteria:
+                del criteria["episode_count"]
+        
+        # Order Type
+        if 'order_type' in display_options:
+            order_name = st.selectbox("Order Type",
+                options=[name for _, name in display_options['order_type'] if name and name.strip()],
+                key="optimizer_order_type", index=None, placeholder="Select order type...",
+                on_change=lambda: update_callback("order_type", 
+                                    get_id_for_name(st.session_state.optimizer_order_type, display_options['order_type']) 
+                                    if st.session_state.optimizer_order_type else None))
+   
+
+def render_results(state: Dict):
+    """Render the analysis results.
+    
+    Args:
+        state: State dictionary containing summary and results
+    """
+    # Check if summary exists in state
+    if 'summary' not in state:
+        return False
+        
+    summary = state.get('summary')
+    
+    # Display success metrics
+    if hasattr(summary, 'success_metrics') and summary.success_metrics:
+        st.markdown("### Success Metrics")
+        render_success_metrics(summary)
+        
+    # Display recommendations
+    if hasattr(summary, 'recommendations') and summary.recommendations:
+        st.markdown("### Recommendations")
+        for i, rec in enumerate(summary.recommendations):
+            with st.expander(f"Recommendation {i+1}: {rec.title}", expanded=i==0):
+                st.markdown(f"**Score:** {rec.score:.2f}")
+                st.markdown(f"**Description:** {rec.description}")
+                
+                # Display match details if available
+                if hasattr(rec, 'match_details') and rec.match_details:
+                    st.markdown("**Match Details:**")
+                    for category, details in rec.match_details.items():
+                        st.markdown(f"*{category}:* {details}")
+    else:
+        st.info("No recommendations available. Try adjusting your criteria.")
+        
+    # Add button to reset criteria
+    if st.button("Reset Criteria", key="reset_criteria_button"):
+        # Clear criteria in state
+        if 'criteria' in state:
+            state['criteria'] = {}
+        if 'summary' in state:
+            del state['summary']
+        state['results'] = False
+        
+        # Also clear session state for compatibility
+        if "optimizer_criteria" in st.session_state:
+            st.session_state.optimizer_criteria = {}
+        if "optimizer_summary" in st.session_state:
+            del st.session_state.optimizer_summary
+            
+        st.rerun()
+    
+    return True
+
 
 # Visualization helper functions
 def render_metric_card(title: str, value: str, subtitle: str = None):
