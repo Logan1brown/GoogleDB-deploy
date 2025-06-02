@@ -46,46 +46,49 @@ class OptimizerView:
         Returns:
             True if initialization was successful, False otherwise
         """
-        if not self.initialized:
-            try:
+        try:
+            # Follow the Comp Builder pattern for initialization
+            if not self.initialized:
                 with st.spinner("Initializing Show Optimizer..."):
-                    # Try to initialize with force_refresh=True to ensure we get fresh data
-                    self.initialized = self.optimizer.initialize(force_refresh=True)
-                    
-                    # Check if initialization was successful and field_manager is available
-                    if not self.initialized or not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
-                        st.error("Failed to initialize Show Optimizer. This may be due to database connection issues.")
-                        st.write("⚠️ The application requires database access to function properly.")
-                        st.write("Please try again later or contact support if the problem persists.")
-                        return False
+                    # Direct initialization without using the cached method
+                    # This avoids potential issues with st.cache_data
+                    self.optimizer.shows_analyzer = ShowsAnalyzer()
+                    self.optimizer.success_analyzer = SuccessAnalyzer(self.optimizer.shows_analyzer)
+                    self.optimizer.criteria_scorer = CriteriaScorer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
+                    self.optimizer.field_manager = self.optimizer.criteria_scorer.field_manager
+                    self.optimizer.criteria_analyzer = CriteriaAnalyzer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
+                    self.optimizer.suggestion_analyzer = SuggestionAnalyzer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
+                    self.optimizer.initialized = True
+                    self.optimizer.last_update = datetime.now()
                     
                     # Cache field options in session state (similar to Comp Builder)
                     field_names = ["genre", "character_types", "source_type", "theme", "plot_elements", 
-                                  "tone", "time_setting", "location_setting", "network", "studios", "team_members"]
+                                  "tone", "time_setting", "location_setting", "network", "studios", "team_members", "order_type"]
                     
                     # Get all field options and store in session state
                     for field_name in field_names:
                         try:
-                            # Add extra safety check for the optimizer and field_manager
-                            if hasattr(self.optimizer, 'field_manager') and self.optimizer.field_manager is not None:
-                                options = self.optimizer.get_field_options(field_name)
-                                if options:
-                                    st.session_state.optimizer_field_options[field_name] = options
-                                    # Also create display options (id, name) tuples for dropdowns
-                                    st.session_state.optimizer_display_options[field_name] = [
-                                        (option.id, option.name) for option in options
-                                    ]
+                            options = self.optimizer.get_field_options(field_name)
+                            if options:
+                                st.session_state.optimizer_field_options[field_name] = options
+                                # Also create display options (id, name) tuples for dropdowns
+                                st.session_state.optimizer_display_options[field_name] = [
+                                    (option.id, option.name) for option in options
+                                ]
                         except Exception:
                             # Skip warning for deployed app
                             pass
-            except Exception as e:
-                # Display user-friendly error
-                st.error(f"An error occurred during initialization: {str(e)}")
-                st.write("⚠️ The Show Optimizer requires database access to function properly.")
-                st.write("Please try again later or contact support if the problem persists.")
-                return False
                     
-        return self.initialized
+                    self.initialized = True
+            
+            return self.initialized
+            
+        except Exception as e:
+            # Display user-friendly error
+            st.error(f"Failed to initialize Show Optimizer: {str(e)}")
+            st.write("⚠️ The application requires database access to function properly.")
+            st.write("Please try again later or contact support if the problem persists.")
+            return False
     
     def render(self):
         """Render the optimizer view."""
