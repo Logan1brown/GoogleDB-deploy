@@ -6,19 +6,25 @@ It handles the UI presentation of the optimizer results and user interactions.
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import altair as alt
-from typing import Dict, List, Any, Tuple, Optional
-import logging
+from typing import Dict, List, Tuple, Optional, Any
+from datetime import datetime
 
-from ...data_processing.show_optimizer.show_optimizer import ShowOptimizer
-from ...data_processing.show_optimizer.criteria_analyzer import SuccessFactor
-from ...data_processing.show_optimizer.suggestion_analyzer import Recommendation, OptimizationSummary
-from ...data_processing.show_optimizer.criteria_scorer import NetworkMatch, ComponentScore
-from ..utils.style_config import render_metric_card, render_info_card, render_warning
+from data_processing.show_optimizer.show_optimizer import ShowOptimizer
+from data_processing.show_optimizer.models import OptimizationSummary, Recommendation
+from data_processing.show_optimizer.criteria_analyzer import CriteriaAnalyzer
+from data_processing.show_optimizer.criteria_scorer import CriteriaScorer
 
-logger = logging.getLogger(__name__)
+# Import helper functions
+from dashboard.components.optimizer_helpers import (
+    get_id_for_name, get_ids_for_names, 
+    render_select_field, render_multiselect_field,
+    render_metric_card, render_info_card,
+    render_success_metrics, render_success_factors, render_network_compatibility,
+    group_recommendations
+)
 
+# No logger needed for deployed app
 
 class OptimizerView:
     """Main view component for the Show Optimizer."""
@@ -28,6 +34,13 @@ class OptimizerView:
         self.optimizer = ShowOptimizer()
         self.initialized = False
         
+        # Initialize field options in session state if not already present
+        if 'optimizer_field_options' not in st.session_state:
+            st.session_state.optimizer_field_options = {}
+            
+        if 'optimizer_display_options' not in st.session_state:
+            st.session_state.optimizer_display_options = {}
+            
     def initialize(self) -> bool:
         """Initialize the optimizer components.
         
@@ -35,12 +48,40 @@ class OptimizerView:
             True if initialization was successful, False otherwise
         """
         if not self.initialized:
-            with st.spinner("Initializing Show Optimizer..."):
-                self.initialized = self.optimizer.initialize()
-                
-                if not self.initialized:
-                    st.error("Failed to initialize Show Optimizer. Please try again later.")
-                    return False
+            try:
+                with st.spinner("Initializing Show Optimizer..."):
+                    # Try to initialize with force_refresh=True to ensure we get fresh data
+                    self.initialized = self.optimizer.initialize(force_refresh=True)
+                    
+                    if not self.initialized:
+                        st.error("Failed to initialize Show Optimizer. This may be due to database connection issues.")
+                        st.write("⚠️ The application requires Supabase environment variables to be properly configured.")
+                        st.write("Check the logs for more details on what might be missing.")
+                        return False
+                    
+                    # Cache field options in session state (similar to Comp Builder)
+                    field_names = ["genre", "character_types", "source_type", "theme", "plot_elements", 
+                                  "tone", "time_setting", "location_setting", "network", "studios", "team_members"]
+                    
+                    # Get all field options and store in session state
+                    for field_name in field_names:
+                        try:
+                            options = self.optimizer.get_field_options(field_name)
+                            if options:
+                                st.session_state.optimizer_field_options[field_name] = options
+                                # Also create display options (id, name) tuples for dropdowns
+                                st.session_state.optimizer_display_options[field_name] = [
+                                    (option.id, option.name) for option in options
+                                ]
+                        except Exception:
+                            # Skip warning for deployed app
+                            pass
+            except Exception as e:
+                # Display user-friendly error
+                st.error(f"An error occurred during initialization: {str(e)}")
+                st.write("⚠️ The Show Optimizer requires database access to function properly.")
+                st.write("Please try again later or contact support if the problem persists.")
+                return False
                     
         return self.initialized
     
@@ -72,125 +113,88 @@ class OptimizerView:
             
         criteria = st.session_state.optimizer_criteria
         
+        # Check if field options are available in session state
+        if not st.session_state.optimizer_display_options:
+            st.warning("Field options are not available. Please try refreshing the page.")
+            return
+            
+        # Get field options from session state (similar to Comp Builder)
+        display_options = st.session_state.optimizer_display_options
+        
         # Create a form for criteria selection
         with st.form("concept_builder_form"):
+            # Display any validation errors at the top of the form
+            if "validation_errors" in st.session_state:
+                for field, error in st.session_state.validation_errors.items():
+                    st.warning(f"{field}: {error}")
+                # Clear errors after displaying
+                del st.session_state.validation_errors
+            
             col1, col2 = st.columns(2)
             
             with col1:
+                # Content criteria section
+                st.subheader("Content")
+                
                 # Genre selection
-                genre_options = self.optimizer.get_field_options("genre")
-                if genre_options:
-                    genre_names = [option.name for option in genre_options]
-                    genre_ids = [option.id for option in genre_options]
-                    
-                    # Get current selection
-                    current_genre_ids = criteria.get("genre", [])
-                    if not isinstance(current_genre_ids, list):
-                        current_genre_ids = [current_genre_ids]
-                        
-                    # Convert IDs to indices
-                    current_indices = []
-                    for genre_id in current_genre_ids:
-                        if genre_id in genre_ids:
-                            current_indices.append(genre_ids.index(genre_id))
-                    
-                    selected_genres = st.multiselect(
-                        "Genres", 
-                        options=genre_names,
-                        default=[genre_names[i] for i in current_indices] if current_indices else None
-                    )
-                    
-                    # Update criteria with selected genres
-                    if selected_genres:
-                        selected_ids = [genre_ids[genre_names.index(name)] for name in selected_genres]
-                        criteria["genre"] = selected_ids
-                    else:
-                        if "genre" in criteria:
-                            del criteria["genre"]
+                selected_genres = render_multiselect_field('genre', 'Genres', display_options, criteria)
                 
                 # Character types selection
-                character_options = self.optimizer.get_field_options("character_types")
-                if character_options:
-                    character_names = [option.name for option in character_options]
-                    character_ids = [option.id for option in character_options]
-                    
-                    # Get current selection
-                    current_char_ids = criteria.get("character_types", [])
-                    if not isinstance(current_char_ids, list):
-                        current_char_ids = [current_char_ids]
-                        
-                    # Convert IDs to indices
-                    current_indices = []
-                    for char_id in current_char_ids:
-                        if char_id in character_ids:
-                            current_indices.append(character_ids.index(char_id))
-                    
-                    selected_characters = st.multiselect(
-                        "Character Types", 
-                        options=character_names,
-                        default=[character_names[i] for i in current_indices] if current_indices else None
-                    )
-                    
-                    # Update criteria with selected character types
-                    if selected_characters:
-                        selected_ids = [character_ids[character_names.index(name)] for name in selected_characters]
-                        criteria["character_types"] = selected_ids
-                    else:
-                        if "character_types" in criteria:
-                            del criteria["character_types"]
-            
-            with col2:
+                selected_characters = render_multiselect_field('character_types', 'Character Types', display_options, criteria)
+                
                 # Source type selection
-                source_options = self.optimizer.get_field_options("source_type")
-                if source_options:
-                    source_names = [option.name for option in source_options]
-                    source_ids = [option.id for option in source_options]
-                    
-                    # Get current selection
-                    current_source_id = criteria.get("source_type")
-                    current_index = source_ids.index(current_source_id) if current_source_id in source_ids else 0
-                    
-                    selected_source = st.selectbox(
-                        "Source Type", 
-                        options=source_names,
-                        index=current_index
-                    )
-                    
-                    # Update criteria with selected source type
-                    if selected_source:
-                        selected_id = source_ids[source_names.index(selected_source)]
-                        criteria["source_type"] = selected_id
+                render_select_field('source_type', 'Source Type', display_options, criteria)
                 
                 # Theme selection
-                theme_options = self.optimizer.get_field_options("theme")
-                if theme_options:
-                    theme_names = [option.name for option in theme_options]
-                    theme_ids = [option.id for option in theme_options]
+                render_multiselect_field('theme', 'Themes', display_options, criteria)
+            
+            with col2:
+                # Content criteria section
+                st.subheader("Content")
+                
+                # Plot elements selection
+                render_multiselect_field('plot_elements', 'Plot Elements', display_options, criteria)
+                
+                # Tone selection
+                render_select_field('tone', 'Tone', display_options, criteria)
+                
+                # Setting criteria section
+                st.subheader("Setting")
+                
+                # Time setting selection
+                render_select_field('time_setting', 'Time Setting', display_options, criteria)
+                
+                # Location setting selection
+                render_select_field('location_setting', 'Location Setting', display_options, criteria)
+                # Production criteria section
+                st.subheader("Production")
+                
+                # Network selection - using helper function while preserving special handling
+                selected_networks = render_multiselect_field('network', 'Networks', display_options, criteria)
+                
+                # Studios selection - using helper function while preserving special handling
+                selected_studios = render_multiselect_field('studios', 'Studios', display_options, criteria)
+                
+                # Team members selection - using helper function while preserving special handling for team_member_names
+                if 'team_members' in display_options:
+                    team_names = [name for _, name in display_options['team_members'] if name and name.strip()]
                     
-                    # Get current selection
-                    current_theme_ids = criteria.get("theme", [])
-                    if not isinstance(current_theme_ids, list):
-                        current_theme_ids = [current_theme_ids]
-                        
-                    # Convert IDs to indices
-                    current_indices = []
-                    for theme_id in current_theme_ids:
-                        if theme_id in theme_ids:
-                            current_indices.append(theme_ids.index(theme_id))
-                    
-                    selected_themes = st.multiselect(
-                        "Themes", 
-                        options=theme_names,
-                        default=[theme_names[i] for i in current_indices] if current_indices else None
+                    selected_teams = st.multiselect(
+                        "Team Members", 
+                        options=team_names,
+                        default=criteria.get("team_member_names", []),
+                        placeholder="Select team members..."
                     )
                     
-                    # Update criteria with selected themes
-                    if selected_themes:
-                        selected_ids = [theme_ids[theme_names.index(name)] for name in selected_themes]
-                        criteria["theme"] = selected_ids
+                    # Update criteria with selected team members - preserving special field naming
+                    if selected_teams:
+                        criteria["team_members"] = get_ids_for_names(selected_teams, display_options['team_members'])
+                        criteria["team_member_names"] = selected_teams  # Store names for display
                     else:
-                        if "theme" in criteria:
-                            del criteria["theme"]
+                        if "team_members" in criteria:
+                            del criteria["team_members"]
+                        if "team_member_names" in criteria:
+                            del criteria["team_member_names"]
             
             # Submit button
             submitted = st.form_submit_button("Analyze Concept")
@@ -199,15 +203,79 @@ class OptimizerView:
                 # Save criteria to session state
                 st.session_state.optimizer_criteria = criteria
                 
-                # Analyze concept
-                with st.spinner("Analyzing concept..."):
-                    summary = self.optimizer.analyze_concept(criteria)
-                    
-                    if summary:
-                        st.session_state.optimizer_summary = summary
-                        st.experimental_rerun()
-                    else:
-                        st.error("Failed to analyze concept. Please try again.")
+                # Check if optimizer is initialized
+                if not self.initialized:
+                    st.error("Show Optimizer is not initialized. Please refresh the page and try again.")
+                    return
+                
+                # Check if field_manager is available
+                if not self.optimizer.field_manager:
+                    try:
+                        # Try to reinitialize
+                        st.warning("Attempting to reinitialize Show Optimizer...")
+                        self.initialized = self.optimizer.initialize(force_refresh=True)
+                        if not self.initialized or not self.optimizer.field_manager:
+                            st.error("Could not initialize field manager. Please refresh the page and try again.")
+                            st.write("⚠️ The application requires database access to function properly.")
+                            return
+                    except Exception as e:
+                        st.error(f"Error reinitializing: {str(e)}")
+                        st.write("⚠️ Database connection may be unavailable.")
+                        # Skip error logging for deployed app
+                        return
+                
+                # Validate and analyze criteria
+                if criteria:
+                    try:
+                        # First, validate criteria using cached field options
+                        validation_errors = {}
+                        
+                        # Check for required fields
+                        if not criteria.get("genre") and not criteria.get("character_types"):
+                            validation_errors["criteria"] = "Please select at least one genre or character type"
+                        
+                        # If there are validation errors from the UI, show them
+                        if validation_errors:
+                            st.session_state.validation_errors = validation_errors
+                            st.experimental_rerun()
+                            return
+                            
+                        # Now use the backend validation
+                        normalized_criteria, backend_validation_errors = self.optimizer.validate_criteria(criteria)
+                        
+                        # If there are validation errors from the backend, store them and rerun
+                        if backend_validation_errors:
+                            st.session_state.validation_errors = backend_validation_errors
+                            st.experimental_rerun()
+                            return
+                        
+                        # Analyze concept if validation passed
+                        with st.spinner("Analyzing concept..."):
+                            try:
+                                summary = self.optimizer.analyze_concept(normalized_criteria)
+                                
+                                if summary:
+                                    st.session_state.optimizer_summary = summary
+                                    st.experimental_rerun()
+                                else:
+                                    st.error("Failed to analyze concept.")
+                                    st.write("⚠️ The analyzer couldn't process your criteria. This could be due to:")
+                                    st.write("- Missing database connection")
+                                    st.write("- Insufficient data for the selected criteria")
+                                    st.write("- Internal processing error")
+                                    st.write("Try selecting different criteria or check if all components are properly initialized.")
+                            except Exception as e:
+                                st.error(f"Error analyzing concept: {str(e)}")
+                                st.write("⚠️ An unexpected error occurred while analyzing your concept.")
+                                st.write("Try selecting different criteria or fewer options.")
+                                # Log the full error for developers
+                                # Skip error logging for deployed app
+                    except Exception as e:
+                        st.error(f"Error validating criteria: {str(e)}")
+                        st.write("⚠️ There was a problem with your selected criteria.")
+                        st.write("This may be due to database connection issues or invalid selections.")
+                        # Log the full error for developers
+                        # Skip error logging for deployed app
         
         # Display concept analysis if available
         if "optimizer_summary" in st.session_state:
@@ -221,67 +289,12 @@ class OptimizerView:
         """
         st.subheader("Concept Analysis")
         
-        # Display overall success probability
-        col1, col2, col3 = st.columns(3)
+        # Display success metrics using helper function
+        render_success_metrics(summary)
         
-        with col1:
-            render_metric_card(
-                "Success Probability", 
-                f"{summary.overall_success_probability:.0%}", 
-                f"Confidence: {summary.confidence.capitalize()}"
-            )
-        
-        # Display component scores
-        with col2:
-            audience_score = summary.component_scores.get("audience", None)
-            if audience_score:
-                render_metric_card(
-                    "Audience Appeal", 
-                    f"{audience_score.score:.0%}", 
-                    f"Confidence: {audience_score.confidence.capitalize()}"
-                )
-            
-        with col3:
-            critic_score = summary.component_scores.get("critics", None)
-            if critic_score:
-                render_metric_card(
-                    "Critical Reception", 
-                    f"{critic_score.score:.0%}", 
-                    f"Confidence: {critic_score.confidence.capitalize()}"
-                )
-        
-        # Display success factors
+        # Display success factors using helper function
         st.subheader("Success Factors")
-        
-        if summary.success_factors:
-            # Create a dataframe for the factors
-            factor_data = []
-            for factor in summary.success_factors:
-                factor_data.append({
-                    "Type": factor.criteria_type.replace("_", " ").title(),
-                    "Name": factor.criteria_name,
-                    "Impact": factor.impact_score,
-                    "Confidence": factor.confidence.capitalize()
-                })
-                
-            factor_df = pd.DataFrame(factor_data)
-            
-            # Create a bar chart
-            chart = alt.Chart(factor_df).mark_bar().encode(
-                x=alt.X('Impact:Q', title='Impact on Success'),
-                y=alt.Y('Name:N', title=None, sort='-x'),
-                color=alt.Color('Impact:Q', scale=alt.Scale(
-                    domain=[-0.5, 0, 0.5],
-                    range=['#f77', '#ddd', '#7d7']
-                )),
-                tooltip=['Type', 'Name', 'Impact', 'Confidence']
-            ).properties(
-                height=30 * len(factor_data)
-            )
-            
-            st.altair_chart(chart, use_container_width=True)
-        else:
-            st.info("No significant success factors identified.")
+        render_success_factors(summary.success_factors)
     
     def _render_network_analysis(self):
         """Render the network analysis section."""
@@ -307,41 +320,8 @@ class OptimizerView:
             
             for i, (tier_name, networks) in enumerate(network_tiers.items()):
                 with tier_tabs[i]:
-                    if networks:
-                        # Create a dataframe for the networks
-                        network_data = []
-                        for network in networks:
-                            network_data.append({
-                                "Network": network.network_name,
-                                "Success Probability": network.success_probability,
-                                "Compatibility": network.compatibility_score,
-                                "Sample Size": network.sample_size,
-                                "Confidence": network.confidence.capitalize()
-                            })
-                            
-                        network_df = pd.DataFrame(network_data)
-                        
-                        # Display as a table
-                        st.dataframe(
-                            network_df,
-                            column_config={
-                                "Success Probability": st.column_config.ProgressColumn(
-                                    "Success Probability",
-                                    format="%.0f%%",
-                                    min_value=0,
-                                    max_value=1
-                                ),
-                                "Compatibility": st.column_config.ProgressColumn(
-                                    "Compatibility",
-                                    format="%.0f%%",
-                                    min_value=0,
-                                    max_value=1
-                                )
-                            },
-                            hide_index=True
-                        )
-                    else:
-                        st.info(f"No networks in the {tier_name} tier.")
+                    # Use helper function to render network compatibility table
+                    render_network_compatibility(networks)
         else:
             st.info("No network compatibility data available.")
         
@@ -378,73 +358,11 @@ class OptimizerView:
         # Display recommendations
         if summary.recommendations:
             # Group recommendations by type
-            add_recs = [rec for rec in summary.recommendations if rec.recommendation_type == "add"]
-            replace_recs = [rec for rec in summary.recommendations if rec.recommendation_type == "replace"]
-            remove_recs = [rec for rec in summary.recommendations if rec.recommendation_type == "remove"]
-            consider_recs = [rec for rec in summary.recommendations if rec.recommendation_type == "consider"]
+            grouped_recs = group_recommendations(summary.recommendations)
             
-            # Display add recommendations
-            if add_recs:
-                st.subheader("Consider Adding")
-                for rec in add_recs[:3]:  # Show top 3
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        st.button(
-                            f"Add {rec.suggested_name}",
-                            key=f"add_{rec.criteria_type}_{rec.suggested_value}",
-                            on_click=self._apply_recommendation,
-                            args=(rec,)
-                        )
-                    with col2:
-                        render_info_card(
-                            f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}",
-                            rec.explanation
-                        )
-            
-            # Display replace recommendations
-            if replace_recs:
-                st.subheader("Consider Replacing")
-                for rec in replace_recs[:3]:  # Show top 3
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        st.button(
-                            f"Replace with {rec.suggested_name}",
-                            key=f"replace_{rec.criteria_type}_{rec.suggested_value}",
-                            on_click=self._apply_recommendation,
-                            args=(rec,)
-                        )
-                    with col2:
-                        render_info_card(
-                            f"{rec.criteria_type.replace('_', ' ').title()}: {rec.current_value} → {rec.suggested_name}",
-                            rec.explanation
-                        )
-            
-            # Display remove recommendations
-            if remove_recs:
-                st.subheader("Consider Removing")
-                for rec in remove_recs[:3]:  # Show top 3
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        st.button(
-                            f"Remove {rec.suggested_name}",
-                            key=f"remove_{rec.criteria_type}_{rec.current_value}",
-                            on_click=self._apply_recommendation,
-                            args=(rec,)
-                        )
-                    with col2:
-                        render_warning(
-                            f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}",
-                            rec.explanation
-                        )
-            
-            # Display consider recommendations
-            if consider_recs:
-                st.subheader("Additional Insights")
-                for rec in consider_recs[:3]:  # Show top 3
-                    render_info_card(
-                        f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}",
-                        rec.explanation
-                    )
+            # Render each recommendation group
+            for rec_type, recs in grouped_recs.items():
+                render_recommendation_group(rec_type, recs, self._apply_recommendation)
         else:
             st.info("No recommendations available.")
     

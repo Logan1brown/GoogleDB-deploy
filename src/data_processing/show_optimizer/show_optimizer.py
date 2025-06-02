@@ -101,9 +101,30 @@ class ShowOptimizer:
             List of options for the field
         """
         if not self.initialized and not self.initialize():
+            logger.warning(f"ShowOptimizer not initialized when getting options for {field_name}")
             return []
             
-        return self.field_manager.get_options(field_name)
+        if self.field_manager is None:
+            logger.error(f"Field manager is None when trying to get options for {field_name}")
+            # Force a re-initialization attempt
+            try:
+                # Try to initialize again with force_refresh=True
+                self.initialize(force_refresh=True)
+                
+                # If still None after re-initialization, return empty list
+                if self.field_manager is None:
+                    logger.error("Field manager still None after forced re-initialization")
+                    return []
+            except Exception as e:
+                logger.error(f"Error during re-initialization: {e}", exc_info=True)
+                return []
+        
+        # Try to get options with error handling
+        try:
+            return self.field_manager.get_options(field_name)
+        except Exception as e:
+            logger.error(f"Error getting options for {field_name}: {e}", exc_info=True)
+            return []
     
     def validate_criteria(self, criteria: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str]]:
         """Validate and normalize criteria.
@@ -115,9 +136,31 @@ class ShowOptimizer:
             Tuple of (normalized_criteria, validation_errors)
         """
         if not self.initialized and not self.initialize():
-            return {}, {"error": "Show Optimizer not initialized"}
+            logger.warning("ShowOptimizer not initialized when validating criteria")
+            return {}, {"error": "Show Optimizer not initialized. Please try refreshing the page."}
             
-        return self.field_manager.validate_criteria(criteria)
+        if self.field_manager is None:
+            logger.error("Field manager is None when trying to validate criteria")
+            # Force a re-initialization attempt
+            try:
+                # Try to initialize again with force_refresh=True
+                self.initialize(force_refresh=True)
+                
+                # If still None after re-initialization, return error
+                if self.field_manager is None:
+                    logger.error("Field manager still None after forced re-initialization")
+                    return {}, {"error": "Unable to initialize field manager. This may be due to database connection issues."}
+            except Exception as e:
+                logger.error(f"Error during re-initialization: {e}", exc_info=True)
+                return {}, {"error": f"Error initializing components: {str(e)}"}
+        
+        # Try to validate with error handling
+        try:
+            return self.field_manager.validate_criteria(criteria)
+        except Exception as e:
+            logger.error(f"Error validating criteria: {e}", exc_info=True)
+            return {}, {"error": f"Error validating criteria: {str(e)}"}
+        
     
     def match_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
         """Match shows based on criteria.
@@ -148,17 +191,27 @@ class ShowOptimizer:
         Returns:
             OptimizationSummary with success probability, recommendations, etc.
         """
-        if not self.initialized and not self.initialize():
-            return None
+        try:
+            if not self.initialized and not self.initialize():
+                logger.error("Failed to initialize Show Optimizer components")
+                return None
+                
+            # Check if required components are initialized
+            if self.suggestion_analyzer is None:
+                logger.error("SuggestionAnalyzer is not initialized")
+                return None
+                
+            # Validate criteria
+            normalized_criteria, errors = self.validate_criteria(criteria)
+            if errors:
+                logger.warning(f"Validation errors in criteria: {errors}")
+                # Continue with normalized criteria
             
-        # Validate criteria
-        normalized_criteria, errors = self.validate_criteria(criteria)
-        if errors:
-            logger.warning(f"Validation errors in criteria: {errors}")
-            # Continue with normalized criteria
-        
-        # Analyze concept
-        return self.suggestion_analyzer.analyze_show_concept(normalized_criteria)
+            # Analyze concept
+            return self.suggestion_analyzer.analyze_show_concept(normalized_criteria)
+        except Exception as e:
+            logger.error(f"Error analyzing concept: {e}", exc_info=True)
+            return None
     
     def get_network_tiers(self, criteria: Dict[str, Any], 
                         min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:
@@ -171,16 +224,26 @@ class ShowOptimizer:
         Returns:
             Dictionary mapping tier names to lists of NetworkMatch objects
         """
-        if not self.initialized and not self.initialize():
-            return {}
+        try:
+            if not self.initialized and not self.initialize():
+                logger.error("Failed to initialize Show Optimizer components")
+                return {}
+                
+            # Check if required components are initialized
+            if self.criteria_analyzer is None:
+                logger.error("CriteriaAnalyzer is not initialized")
+                return {}
+                
+            # Validate criteria
+            normalized_criteria, errors = self.validate_criteria(criteria)
+            if errors:
+                logger.warning(f"Validation errors in criteria: {errors}")
+                # Continue with normalized criteria
             
-        # Validate criteria
-        normalized_criteria, errors = self.validate_criteria(criteria)
-        if errors:
-            logger.warning(f"Validation errors in criteria: {errors}")
-            # Continue with normalized criteria
-        
-        return self.criteria_analyzer.find_matching_networks(normalized_criteria, min_confidence)
+            return self.criteria_analyzer.find_matching_networks(normalized_criteria, min_confidence)
+        except Exception as e:
+            logger.error(f"Error getting network tiers: {e}", exc_info=True)
+            return {}
     
     def get_success_factors(self, criteria: Dict[str, Any], 
                           limit: int = 5) -> List[SuccessFactor]:
@@ -193,16 +256,26 @@ class ShowOptimizer:
         Returns:
             List of SuccessFactor objects
         """
-        if not self.initialized and not self.initialize():
-            return []
+        try:
+            if not self.initialized and not self.initialize():
+                logger.error("Failed to initialize Show Optimizer components")
+                return []
+                
+            # Check if required components are initialized
+            if self.criteria_analyzer is None:
+                logger.error("CriteriaAnalyzer is not initialized")
+                return []
+                
+            # Validate criteria
+            normalized_criteria, errors = self.validate_criteria(criteria)
+            if errors:
+                logger.warning(f"Validation errors in criteria: {errors}")
+                # Continue with normalized criteria
             
-        # Validate criteria
-        normalized_criteria, errors = self.validate_criteria(criteria)
-        if errors:
-            logger.warning(f"Validation errors in criteria: {errors}")
-            # Continue with normalized criteria
-        
-        return self.criteria_analyzer.identify_success_factors(normalized_criteria, limit)
+            return self.criteria_analyzer.identify_success_factors(normalized_criteria, limit)
+        except Exception as e:
+            logger.error(f"Error getting success factors: {e}", exc_info=True)
+            return []
     
     def get_recommendations(self, criteria: Dict[str, Any]) -> List[Recommendation]:
         """Get recommendations for the given criteria.
