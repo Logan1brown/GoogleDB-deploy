@@ -72,7 +72,7 @@ class OptimizerView:
                         return False
                     
                     # Cache field options in session state (similar to Comp Builder)
-                    field_names = ["genre", "character_types", "source_type", "theme", "plot_elements", 
+                    field_names = ["genre", "character_types", "source_type", "thematic_elements", "plot_elements", 
                                   "tone", "time_setting", "location_setting", "network", "studios", "team_members", "order_type"]
                     
                     # Get all field options and store in session state
@@ -183,9 +183,9 @@ class OptimizerView:
                 
                 # Theme selection
                 theme_names = st.multiselect("Theme Elements",
-                    options=[name for _, name in display_options.get('theme', []) if name and name.strip()],
+                    options=[name for _, name in display_options.get('thematic_elements', []) if name and name.strip()],
                     key="optimizer_theme", placeholder="Select theme elements...")
-                criteria["theme"] = get_ids_for_names(theme_names, display_options.get('theme', []))
+                criteria["thematic_elements"] = get_ids_for_names(theme_names, display_options.get('thematic_elements', []))
                 
                 # Tone selection
                 tone_name = st.selectbox("Tone",
