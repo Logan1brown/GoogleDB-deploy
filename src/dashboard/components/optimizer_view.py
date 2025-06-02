@@ -37,14 +37,12 @@ class OptimizerView:
         if not self.initialized:
             try:
                 with st.spinner("Initializing Show Optimizer..."):
-                    # Initialize components directly
+                    # Use ShowOptimizer's initialize method instead of manually initializing components
                     try:
-                        self.optimizer.criteria_scorer = CriteriaScorer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
-                        self.optimizer.field_manager = self.optimizer.criteria_scorer.field_manager
-                        self.optimizer.criteria_analyzer = CriteriaAnalyzer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
-                        self.optimizer.suggestion_analyzer = SuggestionAnalyzer(self.optimizer.shows_analyzer, self.optimizer.success_analyzer)
-                        self.optimizer.initialized = True
-                        self.optimizer.last_update = datetime.now()
+                        # This is the correct way to initialize - let the ShowOptimizer handle it
+                        if not self.optimizer.initialize(force_refresh=True):
+                            st.error("Failed to initialize Show Optimizer components")
+                            return False
                     except Exception as e:
                         st.error(f"Failed to initialize optimizer components: {str(e)}")
                         return False
@@ -88,10 +86,18 @@ class OptimizerView:
         # Get criteria from state
         criteria = state.get('criteria', {})
         
+        # DEBUG: Show criteria being analyzed
+        st.write("DEBUG - Criteria being analyzed:")
+        st.write(criteria)
+        
         # Check if optimizer is initialized
         if not self.initialized:
             st.error("Show Optimizer is not initialized. Please refresh the page and try again.")
             return
+        
+        # DEBUG: Check optimizer initialization
+        st.write("DEBUG - Optimizer initialized:", self.initialized)
+        st.write("DEBUG - Has field_manager:", hasattr(self.optimizer, 'field_manager') and self.optimizer.field_manager is not None)
         
         # Check if field_manager is available
         if not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
@@ -123,6 +129,10 @@ class OptimizerView:
                     else:
                         normalized_criteria[key] = value
                 
+                # DEBUG: Show normalized criteria
+                st.write("DEBUG - Normalized criteria:")
+                st.write(normalized_criteria)
+                
                 # Ensure genre is an integer
                 if 'genre' in normalized_criteria and not isinstance(normalized_criteria['genre'], int):
                     try:
@@ -130,14 +140,30 @@ class OptimizerView:
                     except (ValueError, TypeError):
                         pass
                 
-                # Run the analysis with normalized criteria
-                summary = self.optimizer.analyze_concept(normalized_criteria)
+                # DEBUG: Show final criteria before analysis
+                st.write("DEBUG - Final criteria before analysis:")
+                st.write(normalized_criteria)
+                
+                try:
+                    # Run the analysis with normalized criteria
+                    summary = self.optimizer.analyze_concept(normalized_criteria)
+                    
+                    # DEBUG: Show summary result
+                    st.write("DEBUG - Analysis summary result:")
+                    st.write("Summary type:", type(summary))
+                    st.write("Summary has attributes:", dir(summary) if summary else "None")
+                except Exception as analysis_error:
+                    st.error(f"DEBUG - Error in analyze_concept: {str(analysis_error)}")
+                    import traceback
+                    st.write("Traceback:", traceback.format_exc())
+                    return
             
             # Store results in state
             if summary:
                 # Update state with results
                 state['summary'] = summary
                 state['results'] = True
+                st.write("DEBUG - Results stored in state successfully")
                 
                 # Also update session state for compatibility
                 st.session_state.optimizer_summary = summary
@@ -145,11 +171,12 @@ class OptimizerView:
                 
                 # Do not force rerun - let the page flow handle rendering
             else:
+                st.write("DEBUG - Summary is None or empty")
                 st.error("Analysis failed to produce results. Please try different criteria.")
                 state['results'] = False
                 if 'summary' in state:
                     del state['summary']
-                    
+                
                 # Also update session state for compatibility
                 st.session_state.optimizer_results = False
                 if "optimizer_summary" in st.session_state:
