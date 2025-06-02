@@ -211,12 +211,12 @@ class OptimizerView:
         with col2:
             # Results section
             
-            # If we have criteria, show results
+            # If we have criteria, just show a message
+            # Results will be rendered by the page file
             if criteria:
-                # Get results from state or session state if available
                 if state.get('summary') or st.session_state.get("optimizer_summary"):
-                    # Call our own render method
-                    self._render_results(state)
+                    # Don't render results here - it's handled by the page file
+                    st.info("Analysis complete. Results are shown below.")
                 else:
                     st.info("Select or adjust criteria on the left to analyze your show concept.")
             else:
