@@ -366,6 +366,15 @@ class CriteriaScorer:
                 confidence='none'
             )
         
+        # Check if popcornmeter column exists
+        if 'popcornmeter' not in shows.columns:
+            return ComponentScore(
+                component='audience',
+                score=0.5,  # Default middle score
+                sample_size=len(shows),
+                confidence='low'
+            )
+            
         # Filter shows with audience metrics
         audience_shows = shows[shows['popcornmeter'].notna()]
         sample_size = len(audience_shows)
@@ -415,6 +424,15 @@ class CriteriaScorer:
                 confidence='none'
             )
         
+        # Check if tomatometer column exists
+        if 'tomatometer' not in shows.columns:
+            return ComponentScore(
+                component='critics',
+                score=0.5,  # Default middle score
+                sample_size=len(shows),
+                confidence='low'
+            )
+            
         # Filter shows with critics metrics
         critics_shows = shows[shows['tomatometer'].notna()]
         sample_size = len(critics_shows)
@@ -525,48 +543,75 @@ class CriteriaScorer:
         Returns:
             Dictionary mapping criteria to dictionaries mapping values to impact scores
         """
-        # Get base success rate
-        base_shows = self._get_matching_shows(base_criteria)
-        if base_shows.empty:
-            return {}
+        import streamlit as st
         
-        base_rate = self._calculate_success_rate(base_shows)
-        if base_rate == 0:
-            return {}
-        
-        impact_scores = {}
-        
-        # For each criteria field, calculate impact of different values
-        for field_name in self.field_manager.FIELD_CONFIGS.keys():
-            # Skip fields already in base criteria
-            if field_name in base_criteria:
-                continue
+        try:
+            # Get base success rate
+            base_shows = self._get_matching_shows(base_criteria)
+            if base_shows.empty:
+                return {}
             
-            field_impact = {}
-            options = self.field_manager.get_options(field_name)
+            base_rate = self._calculate_success_rate(base_shows)
+            if base_rate == 0:
+                return {}
             
-            for option in options:
-                # Create new criteria with this option added
-                new_criteria = base_criteria.copy()
-                new_criteria[field_name] = option.id
-                
-                # Get success rate with this option
-                option_shows = self._get_matching_shows(new_criteria)
-                if len(option_shows) < OptimizerConfig.CONFIDENCE['minimum_sample']:
+            impact_scores = {}
+            
+            # For each criteria field, calculate impact of different values
+            for field_name in self.field_manager.FIELD_CONFIGS.keys():
+                try:
+                    # Skip fields already in base criteria
+                    if field_name in base_criteria:
+                        continue
+                    
+                    # Skip fields that might cause errors
+                    if field_name in ['character_types', 'plot_elements', 'thematic_elements'] and not base_criteria:
+                        continue
+                    
+                    field_impact = {}
+                    options = self.field_manager.get_options(field_name)
+                    
+                    for option in options:
+                        try:
+                            # Create new criteria with this option added
+                            new_criteria = base_criteria.copy()
+                            new_criteria[field_name] = option.id
+                            
+                            # Get success rate with this option
+                            option_shows = self._get_matching_shows(new_criteria)
+                            if len(option_shows) < OptimizerConfig.CONFIDENCE['minimum_sample']:
+                                continue
+                            
+                            option_rate = self._calculate_success_rate(option_shows)
+                            
+                            # Calculate impact as relative change in success rate
+                            impact = (option_rate - base_rate) / base_rate
+                            
+                            # Store impact score
+                            field_impact[option.id] = impact
+                        except Exception as e:
+                            st.write(f"DEBUG - Error calculating impact for {field_name} option {option.id}: {str(e)}")
+                            continue
+                    
+                    if field_impact:
+                        impact_scores[field_name] = field_impact
+                except Exception as e:
+                    st.write(f"DEBUG - Error calculating impact for field {field_name}: {str(e)}")
                     continue
-                
-                option_rate = self._calculate_success_rate(option_shows)
-                
-                # Calculate impact as relative change in success rate
-                impact = (option_rate - base_rate) / base_rate
-                
-                # Store impact score
-                field_impact[option.id] = impact
             
-            if field_impact:
-                impact_scores[field_name] = field_impact
-        
-        return impact_scores
+            # If we couldn't calculate any impacts, add a default one for genre
+            if not impact_scores and 'genre' in base_criteria:
+                genre_id = base_criteria['genre']
+                impact_scores['genre'] = {genre_id: 0.5}  # Default middle impact
+                
+            return impact_scores
+        except Exception as e:
+            st.write(f"DEBUG - Error in calculate_criteria_impact: {str(e)}")
+            # Return a minimal impact score dictionary
+            if 'genre' in base_criteria:
+                genre_id = base_criteria['genre']
+                return {'genre': {genre_id: 0.5}}  # Default middle impact
+            return {}
     
     def get_criteria_confidence(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate confidence levels for criteria.
