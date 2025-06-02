@@ -122,10 +122,7 @@ class OptimizerView:
             st.error("Field manager is not available. Please refresh the page.")
             return
         
-        # Validate and analyze criteria
-        if not criteria:
-            st.info("Select criteria to analyze your concept.")
-            return
+        # Continue with analysis
             
         try:
             # Run the analysis
