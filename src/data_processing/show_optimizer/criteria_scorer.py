@@ -127,6 +127,10 @@ class CriteriaScorer:
             
             st.write(f"DEBUG: SuccessAnalyzer returned data with {len(success_data)} rows")
             st.write(f"DEBUG: SuccessAnalyzer data columns: {list(success_data.columns)}")
+            
+            # Check if show_id is in the columns
+            st.write(f"DEBUG: 'show_id' in columns: {'show_id' in success_data.columns}")
+            
             if len(success_data) > 0:
                 st.write(f"DEBUG: Sample success score: {success_data['success_score'].iloc[0] if 'success_score' in success_data.columns else 'No success_score column'}")
                 st.write(f"DEBUG: Success score range: {success_data['success_score'].min() if 'success_score' in success_data.columns else 'N/A'} to {success_data['success_score'].max() if 'success_score' in success_data.columns else 'N/A'}")
@@ -135,22 +139,42 @@ class CriteriaScorer:
             
             # Create a mapping of show_id to success_score
             success_scores = {}
-            for idx, row in success_data.iterrows():
-                if 'id' in row and 'success_score' in row:
-                    # Normalize success score to 0-1 range (from 0-100)
-                    success_scores[row['id']] = row['success_score'] / 100.0
+            
+            # Check if both required columns exist
+            has_show_id = 'show_id' in success_data.columns
+            has_success_score = 'success_score' in success_data.columns
+            
+            if not has_show_id:
+                st.error("DEBUG ERROR: 'show_id' column missing from SuccessAnalyzer data")
+                raise ValueError("'show_id' column required for success score mapping")
+                
+            if not has_success_score:
+                st.error("DEBUG ERROR: 'success_score' column missing from SuccessAnalyzer data")
+                raise ValueError("'success_score' column required for success score calculation")
+            
+            # Map show_id to success_score
+            for _, row in success_data.iterrows():
+                # Normalize success score to 0-1 range (from 0-100)
+                success_scores[row['show_id']] = row['success_score'] / 100.0
             
             if not success_scores:
                 st.error("DEBUG ERROR: No valid success scores found in SuccessAnalyzer data")
                 raise ValueError("Success scores could not be extracted from SuccessAnalyzer data")
+                
+            st.write(f"DEBUG: Extracted {len(success_scores)} success scores from SuccessAnalyzer data")
             
             # Apply success scores to criteria data
+            # The criteria data uses 'id' while success data uses 'show_id'
+            # They are the same value, just different column names
             def get_success_score(show_id):
                 if not pd.notna(show_id) or show_id not in success_scores:
-                    st.write(f"DEBUG: No success score found for show ID: {show_id}")
+                    # Only log the first few missing IDs to avoid flooding the UI
+                    if show_id < 10:  # Assuming IDs start from small numbers
+                        st.write(f"DEBUG: No success score found for show ID: {show_id}")
                     return None
                 return success_scores[show_id]
             
+            # Add success scores to criteria data by mapping comp data 'id' to success metrics 'show_id'
             self.criteria_data['success_score'] = self.criteria_data['id'].apply(get_success_score)
             
             # Drop rows with missing success scores to make issues visible
