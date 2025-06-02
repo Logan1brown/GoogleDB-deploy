@@ -143,8 +143,7 @@ class OptimizerView:
                 st.session_state.optimizer_summary = summary
                 st.session_state.optimizer_results = True
                 
-                # Force rerun to show results
-                st.rerun()
+                # Do not force rerun - let the page flow handle rendering
             else:
                 st.error("Analysis failed to produce results. Please try different criteria.")
                 state['results'] = False

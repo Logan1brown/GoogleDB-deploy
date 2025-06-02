@@ -95,8 +95,10 @@ def render_content_criteria(state: Dict, update_callback: Callable) -> None:
         if 'subgenres' in display_options:
             subgenre_names = st.multiselect("Subgenres",
                 options=[name for _, name in display_options['subgenres'] if name and name.strip()],
-                key="optimizer_subgenres", placeholder="Select subgenres...")
-            criteria["subgenres"] = get_ids_for_names(subgenre_names, display_options['subgenres'])
+                key="optimizer_subgenres", placeholder="Select subgenres...",
+                on_change=lambda: update_callback("subgenres", 
+                                get_ids_for_names(st.session_state.optimizer_subgenres, 
+                                                display_options['subgenres'])))
         
         # Source type selection
         source_name = st.selectbox("Source Type",
@@ -208,12 +210,12 @@ def render_format_criteria(state: Dict, update_callback: Callable) -> None:
         
         # Episode count
         eps = st.number_input("Episode Count", min_value=0, value=None, placeholder="Enter episode count...",
-                            key="optimizer_episode_count")
-        if eps is not None and eps > 0:
-            criteria["episode_count"] = eps
-        else:
-            if "episode_count" in criteria:
-                del criteria["episode_count"]
+                            key="optimizer_episode_count",
+                            on_change=lambda: update_callback("episode_count", 
+                                                          st.session_state.optimizer_episode_count 
+                                                          if st.session_state.optimizer_episode_count and 
+                                                             st.session_state.optimizer_episode_count > 0 
+                                                          else None))
         
         # Order Type
         if 'order_type' in display_options:
