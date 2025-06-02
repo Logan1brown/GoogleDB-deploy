@@ -91,29 +91,100 @@ class OptimizerView:
                 
         return self.initialized
     
-    def render(self, state: Dict = None):
-        """Render the optimizer view.
-        
+    def render_criteria(self, state: Dict[str, Any]) -> None:
+        """Render only the criteria section of the optimizer view.
+
         Args:
-            state: State dictionary for the optimizer
+            state: Page state dictionary
         """
-        # Ensure state is a dictionary
-        if state is None:
-            state = {}
-            
-        # Initialize if needed
+        # Initialize optimizer components if needed
         if not self.initialized:
-            self.initialize(state)
+            try:
+                self.criteria_scorer = CriteriaScorer()
+                self.criteria_analyzer = CriteriaAnalyzer()
+                self.suggestion_analyzer = SuggestionAnalyzer()
+                self.shows_analyzer = ShowsAnalyzer()
+                self.success_analyzer = SuccessAnalyzer()
+                self.initialized = True
+            except Exception as e:
+                st.error(f"Failed to initialize optimizer components: {str(e)}")
+                st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
+                return
+        
+        # Get criteria and display options from state
+        criteria = state.get('criteria', {})
+        display_options = state.get('display_options', {})
+        
+        # Check if field options are available in state
+        if not display_options:
+            st.error("Unable to load field options from the database.")
+            st.info("This may be due to a temporary connection issue or database maintenance.")
             
-        # If initialization failed, show error and return
-        if not self.initialized:
-            st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
+            if st.button("Retry Initialization", type="primary"):
+                self.initialized = False
+                self.initialize(state)
+                
+            st.write("If the problem persists, please try again later or contact support.")
             return
         
-        # Render the concept builder (which also handles rendering results)
-        self._render_concept_builder(state)
+        st.header("Build Your Show Concept")
+        
+        # Create two columns
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            # Render criteria sections using helper functions
+            render_content_criteria(state, self._update_criteria_and_analyze)
+            render_production_criteria(state, self._update_criteria_and_analyze)
+            render_format_criteria(state, self._update_criteria_and_analyze)
+            
+            # Save criteria to session state before running analysis
+            criteria = state.get('criteria', {})
+            st.session_state.optimizer_criteria = criteria.copy()
+            
+            # Run analysis automatically when criteria changes
+            if criteria:
+                self._run_analysis(state)
+                
+        with col2:
+            # Results section placeholder
+            if criteria:
+                if not (state.get('summary') or st.session_state.get("optimizer_summary")):
+                    st.info("Select or adjust criteria on the left to analyze your show concept.")
+            else:
+                st.info("Select criteria on the left to analyze your show concept.")
     
-    def _render_concept_builder(self, state: Dict):
+    def render(self, state: Dict[str, Any]) -> None:
+        """Render the complete optimizer view.
+
+        Args:
+            state: Page state dictionary
+        """
+        # This method is kept for backward compatibility
+        # Initialize optimizer components if needed
+        if not self.initialized:
+            try:
+                self.criteria_scorer = CriteriaScorer()
+                self.criteria_analyzer = CriteriaAnalyzer()
+                self.suggestion_analyzer = SuggestionAnalyzer()
+                self.shows_analyzer = ShowsAnalyzer()
+                self.success_analyzer = SuccessAnalyzer()
+                self.initialized = True
+            except Exception as e:
+                st.error(f"Failed to initialize optimizer components: {str(e)}")
+                st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
+                return
+        
+        # Get criteria from state
+        criteria = state.get("criteria", {})
+        
+        # Create two columns
+        col1, col2 = st.columns([1, 2])
+        
+        # Render the concept builder
+        self._render_concept_builder(state, col1, col2)
+    
+    def _render_concept_builder(self, state: Dict, col1, col2):
         """Render the concept builder section.
         
         Args:
@@ -137,8 +208,7 @@ class OptimizerView:
         
         st.header("Build Your Show Concept")
         
-        # Create a 1:2 column layout (similar to comp builder)
-        col1, col2 = st.columns([1, 2])
+        # Use the columns passed as parameters instead of creating new ones
         
         with col1:
             # Render criteria sections using helper functions
