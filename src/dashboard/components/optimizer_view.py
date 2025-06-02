@@ -22,7 +22,7 @@ from src.dashboard.components.optimizer_helpers import (
     get_id_for_name, get_ids_for_names,
     render_success_metrics, render_metric_card, render_info_card,
     render_success_factors, render_network_compatibility, group_recommendations,
-    render_recommendation_group
+    render_recommendation_group, render_content_criteria, render_production_criteria, render_format_criteria
 )
 
 # No logger needed for deployed app
@@ -91,12 +91,16 @@ class OptimizerView:
                 
         return self.initialized
     
-    def render(self, state: Dict):
+    def render(self, state: Dict = None):
         """Render the optimizer view.
         
         Args:
             state: State dictionary for the optimizer
         """
+        # Ensure state is a dictionary
+        if state is None:
+            state = {}
+            
         # Initialize if needed
         if not self.initialized:
             self.initialize(state)
