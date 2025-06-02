@@ -103,6 +103,11 @@ class OptimizerView:
         st.write("DEBUG - Criteria being analyzed:")
         st.write(criteria)
         
+        # Check if criteria is empty
+        if not criteria:
+            st.info("Select criteria to analyze your concept.")
+            return
+            
         # Check if optimizer is initialized
         if not self.initialized:
             # Try to initialize if not already initialized
