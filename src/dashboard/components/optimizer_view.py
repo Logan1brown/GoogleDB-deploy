@@ -53,21 +53,18 @@ class OptimizerView:
         if not self.initialized:
             try:
                 with st.spinner("Initializing Show Optimizer..."):
-                    # Use ShowOptimizer's initialize method instead of manually initializing components
-                    try:
-                        # This is the correct way to initialize - let the ShowOptimizer handle it
-                        if not self.optimizer.initialize(force_refresh=True):
-                            st.error("Failed to initialize Show Optimizer components")
-                            return False
-                    except Exception as e:
-                        st.error(f"Failed to initialize optimizer components: {str(e)}")
+                    # Initialize the optimizer - this will set up the field_manager
+                    if not self.optimizer.initialize(force_refresh=False):
+                        st.error("Failed to initialize Show Optimizer components")
                         return False
-                    
+                        
                     # Verify field_manager is available
                     if not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
-                        st.error("Failed to initialize Show Optimizer. Field manager is not available.")
-                        st.write("⚠️ Please try refreshing the page or contact support if the problem persists.")
-                        return False
+                        # Try one more time with force_refresh=True
+                        if not self.optimizer.initialize(force_refresh=True):
+                            st.error("Failed to initialize Show Optimizer. Field manager is not available.")
+                            st.write("⚠️ Please try refreshing the page or contact support if the problem persists.")
+                            return False
                     
                     # Cache field options in state
                     field_names = ["genre", "character_types", "source_type", "thematic_elements", "plot_elements", 
