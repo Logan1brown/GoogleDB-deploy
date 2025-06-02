@@ -309,10 +309,10 @@ class CriteriaScorer:
                 st.write(f"DEBUG - Error calculating audience score: {str(e)}")
                 # Create a default component score
                 component_scores['audience'] = ComponentScore(
+                    component='audience',
                     score=0.5,  # Default middle score
                     sample_size=len(matching_shows),
-                    confidence="low",
-                    percentile=50  # Default middle percentile
+                    confidence="low"
                 )
             
             # Calculate critics score with error handling
@@ -323,10 +323,10 @@ class CriteriaScorer:
                 st.write(f"DEBUG - Error calculating critics score: {str(e)}")
                 # Create a default component score
                 component_scores['critics'] = ComponentScore(
+                    component='critics',
                     score=0.5,  # Default middle score
                     sample_size=len(matching_shows),
-                    confidence="low",
-                    percentile=50  # Default middle percentile
+                    confidence="low"
                 )
             
             # Calculate longevity score with error handling
@@ -337,10 +337,10 @@ class CriteriaScorer:
                 st.write(f"DEBUG - Error calculating longevity score: {str(e)}")
                 # Create a default component score
                 component_scores['longevity'] = ComponentScore(
+                    component='longevity',
                     score=0.5,  # Default middle score
                     sample_size=len(matching_shows),
-                    confidence="low",
-                    percentile=50  # Default middle percentile
+                    confidence="low"
                 )
             
             return component_scores

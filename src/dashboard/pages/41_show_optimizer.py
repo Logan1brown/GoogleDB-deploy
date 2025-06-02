@@ -203,7 +203,7 @@ def show():
                         if grouped["add"]:
                             st.subheader("Consider Adding")
                             for rec in grouped["add"][:3]:
-                                st.write(f"**{rec.field_name}:** {rec.value}")
+                                st.write(f"**{rec.criteria_type}:** {rec.suggested_name}")
                                 if hasattr(rec, 'impact_score'):
                                     st.write(f"Impact: {rec.impact_score:.2f}")
                                 st.write("---")
@@ -211,7 +211,7 @@ def show():
                         if grouped["replace"]:
                             st.subheader("Consider Replacing")
                             for rec in grouped["replace"][:3]:
-                                st.write(f"Replace **{rec.current_value}** with **{rec.value}**")
+                                st.write(f"Replace **{rec.current_value}** with **{rec.suggested_name}**")
                                 if hasattr(rec, 'impact_score'):
                                     st.write(f"Impact: {rec.impact_score:.2f}")
                                 st.write("---")
@@ -219,7 +219,7 @@ def show():
                         if grouped["remove"]:
                             st.subheader("Consider Removing")
                             for rec in grouped["remove"][:3]:
-                                st.write(f"**{rec.field_name}:** {rec.value}")
+                                st.write(f"**{rec.criteria_type}:** {rec.current_value}")
                                 if hasattr(rec, 'impact_score'):
                                     st.write(f"Impact: {rec.impact_score:.2f}")
                                 st.write("---")
@@ -227,9 +227,11 @@ def show():
                         if grouped["consider"]:
                             st.subheader("Additional Insights")
                             for rec in grouped["consider"][:3]:
-                                st.write(f"**{rec.field_name}:** {rec.value}")
+                                st.write(f"**{rec.criteria_type}:** {rec.suggested_name}")
                                 if hasattr(rec, 'explanation'):
                                     st.write(rec.explanation)
+                                if hasattr(rec, 'impact_score'):
+                                    st.write(f"Impact: {rec.impact_score:.2f}")
                                 st.write("---")
                     else:
                         st.info("No recommendations available for the selected criteria.")

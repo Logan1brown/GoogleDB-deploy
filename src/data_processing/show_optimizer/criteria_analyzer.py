@@ -205,8 +205,6 @@ class CriteriaAnalyzer:
                     sample_size=0
                 )
                 success_factors = [default_factor]
-                
-                success_factors.append(factor)
         
         # Sort by absolute impact (both positive and negative factors are important)
         success_factors.sort(key=lambda x: abs(x.impact_score), reverse=True)
