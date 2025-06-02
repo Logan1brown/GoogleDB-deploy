@@ -132,29 +132,32 @@ def show():
                 
                 # Tab 1: Success Metrics
                 with tab1:
-                    # Display success metrics directly without helper
-                    if hasattr(summary, 'success_metrics') and summary.success_metrics:
-                        # Create columns for metrics
-                        metric_col1, metric_col2, metric_col3 = st.columns(3)
-                        
-                        with metric_col1:
-                            if hasattr(summary, 'overall_success_probability'):
-                                probability = summary.overall_success_probability
-                                st.metric("Success Probability", f"{probability:.0%}")
-                            else:
-                                st.info("Overall success probability not available.")
-                        
-                        with metric_col2:
-                            if hasattr(summary, 'component_scores') and summary.component_scores:
-                                audience_score = summary.component_scores.get("audience", 0)
+                    # Display success metrics using available attributes
+                    # Create columns for metrics
+                    metric_col1, metric_col2, metric_col3 = st.columns(3)
+                    
+                    with metric_col1:
+                        if hasattr(summary, 'overall_success_probability'):
+                            probability = summary.overall_success_probability
+                            st.metric("Success Probability", f"{probability:.0%}")
+                        else:
+                            st.info("Overall success probability not available.")
+                    
+                    with metric_col2:
+                        if hasattr(summary, 'component_scores') and summary.component_scores:
+                            audience_score = summary.component_scores.get("audience", 0)
+                            if isinstance(audience_score, (int, float)):
                                 st.metric("Audience Appeal", f"{audience_score:.0%}")
-                        
-                        with metric_col3:
-                            if hasattr(summary, 'component_scores') and summary.component_scores:
-                                network_score = summary.component_scores.get("network", 0)
-                                st.metric("Network Fit", f"{network_score:.0%}")
-                    else:
-                        st.info("No success metrics available for the selected criteria.")
+                            elif hasattr(audience_score, 'score'):
+                                st.metric("Audience Appeal", f"{audience_score.score:.0%}")
+                    
+                    with metric_col3:
+                        if hasattr(summary, 'component_scores') and summary.component_scores:
+                            longevity_score = summary.component_scores.get("longevity", 0)
+                            if isinstance(longevity_score, (int, float)):
+                                st.metric("Longevity Score", f"{longevity_score:.0%}")
+                            elif hasattr(longevity_score, 'score'):
+                                st.metric("Longevity Score", f"{longevity_score.score:.0%}")
                 
                 # Tab 2: Network Analysis
                 with tab2:
