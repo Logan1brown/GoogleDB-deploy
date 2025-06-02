@@ -128,19 +128,52 @@ def show():
                 st.subheader("Analysis Results")
                 
                 # Create tabs - EXACTLY like in Show Detail page
-                tabs = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
+                tab1, tab2, tab3 = st.tabs(["Success Metrics", "Network Analysis", "Recommendations"])
                 
                 # Tab 1: Success Metrics
-                with tabs[0]:
+                with tab1:
+                    # Display success metrics directly without helper
                     if hasattr(summary, 'success_metrics') and summary.success_metrics:
-                        render_success_metrics(summary)
+                        # Create columns for metrics
+                        metric_col1, metric_col2, metric_col3 = st.columns(3)
+                        
+                        with metric_col1:
+                            if hasattr(summary, 'overall_success_probability'):
+                                probability = summary.overall_success_probability
+                                st.metric("Success Probability", f"{probability:.0%}")
+                            else:
+                                st.info("Overall success probability not available.")
+                        
+                        with metric_col2:
+                            if hasattr(summary, 'component_scores') and summary.component_scores:
+                                audience_score = summary.component_scores.get("audience", 0)
+                                st.metric("Audience Appeal", f"{audience_score:.0%}")
+                        
+                        with metric_col3:
+                            if hasattr(summary, 'component_scores') and summary.component_scores:
+                                network_score = summary.component_scores.get("network", 0)
+                                st.metric("Network Fit", f"{network_score:.0%}")
                     else:
                         st.info("No success metrics available for the selected criteria.")
                 
                 # Tab 2: Network Analysis
-                with tabs[1]:
+                with tab2:
+                    # Display network compatibility directly without helper
                     if hasattr(summary, 'network_compatibility') and summary.network_compatibility:
-                        render_network_compatibility(summary.network_compatibility)
+                        networks = summary.network_compatibility
+                        
+                        # Create a dataframe for the networks
+                        network_data = []
+                        for network in networks:
+                            network_data.append({
+                                "Network": network.network_name,
+                                "Success Probability": network.success_probability,
+                                "Compatibility": network.compatibility_score,
+                                "Sample Size": network.sample_size
+                            })
+                            
+                        network_df = pd.DataFrame(network_data)
+                        st.dataframe(network_df)
                     elif hasattr(summary, 'top_networks') and summary.top_networks:
                         # Create a simple table of top networks
                         network_df = pd.DataFrame(summary.top_networks)
@@ -149,14 +182,55 @@ def show():
                         st.info("No network compatibility data available for the selected criteria.")
                 
                 # Tab 3: Recommendations
-                with tabs[2]:
+                with tab3:
+                    # Display recommendations directly without helper
                     if hasattr(summary, 'recommendations') and summary.recommendations:
-                        # Group recommendations by type
-                        recommendation_groups = group_recommendations(summary.recommendations)
+                        recommendations = summary.recommendations
                         
-                        # Render each group
-                        for rec_type, recs in recommendation_groups.items():
-                            render_recommendation_group(rec_type, recs)
+                        # Group by type
+                        grouped = {
+                            "add": [],
+                            "replace": [],
+                            "remove": [],
+                            "consider": []
+                        }
+                        
+                        for rec in recommendations:
+                            if hasattr(rec, 'recommendation_type') and rec.recommendation_type in grouped:
+                                grouped[rec.recommendation_type].append(rec)
+                        
+                        # Display each group
+                        if grouped["add"]:
+                            st.subheader("Consider Adding")
+                            for rec in grouped["add"][:3]:
+                                st.write(f"**{rec.field_name}:** {rec.value}")
+                                if hasattr(rec, 'impact_score'):
+                                    st.write(f"Impact: {rec.impact_score:.2f}")
+                                st.write("---")
+                        
+                        if grouped["replace"]:
+                            st.subheader("Consider Replacing")
+                            for rec in grouped["replace"][:3]:
+                                st.write(f"Replace **{rec.current_value}** with **{rec.value}**")
+                                if hasattr(rec, 'impact_score'):
+                                    st.write(f"Impact: {rec.impact_score:.2f}")
+                                st.write("---")
+                        
+                        if grouped["remove"]:
+                            st.subheader("Consider Removing")
+                            for rec in grouped["remove"][:3]:
+                                st.write(f"**{rec.field_name}:** {rec.value}")
+                                if hasattr(rec, 'impact_score'):
+                                    st.write(f"Impact: {rec.impact_score:.2f}")
+                                st.write("---")
+                        
+                        if grouped["consider"]:
+                            st.subheader("Additional Insights")
+                            for rec in grouped["consider"][:3]:
+                                st.write(f"**{rec.field_name}:** {rec.value}")
+                                if hasattr(rec, 'explanation'):
+                                    st.write(rec.explanation)
+                                st.write("---")
                     else:
                         st.info("No recommendations available for the selected criteria.")
                 
