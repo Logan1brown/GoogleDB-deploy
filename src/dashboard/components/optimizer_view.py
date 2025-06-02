@@ -97,8 +97,6 @@ class OptimizerView:
             state: State dictionary for the optimizer
         """
         criteria = state.get('criteria', {})
-        st.write("DEBUG - Criteria being analyzed:")
-        st.write(criteria)
         
         # Check if criteria is empty
         if not criteria:
@@ -112,7 +110,7 @@ class OptimizerView:
                 st.error("Show Optimizer is not initialized. Please refresh the page and try again.")
                 return
             
-        st.write("DEBUG - Optimizer initialized:", self.optimizer.initialized)
+        # Optimizer initialization status checked above
         
         # Check if field_manager is available
         if not hasattr(self.optimizer, 'field_manager') or self.optimizer.field_manager is None:
@@ -133,9 +131,7 @@ class OptimizerView:
                     else:
                         normalized_criteria[key] = value
                 
-                # DEBUG: Show normalized criteria
-                st.write("DEBUG - Normalized criteria:")
-                st.write(normalized_criteria)
+                # Normalize criteria silently
                 
                 # Ensure genre is an integer
                 if 'genre' in normalized_criteria and not isinstance(normalized_criteria['genre'], int):
@@ -144,61 +140,35 @@ class OptimizerView:
                     except (ValueError, TypeError):
                         pass
                 
-                # DEBUG: Show final criteria before analysis
-                st.write("DEBUG - Final criteria before analysis:")
-                st.write(normalized_criteria)
+                # Final criteria ready for analysis
                 
                 try:
-                    # Add more detailed debugging to trace data flow
-                    st.write("DEBUG - Testing data availability:")
-                    
                     # Check if criteria_scorer has data
                     if hasattr(self.optimizer, 'criteria_scorer'):
                         criteria_data = self.optimizer.criteria_scorer.fetch_criteria_data(force_refresh=True)
-                        st.write(f"DEBUG - Criteria data available: {not criteria_data.empty}")
-                        if not criteria_data.empty:
-                            st.write(f"DEBUG - Criteria data shape: {criteria_data.shape}")
-                            st.write(f"DEBUG - Criteria data columns: {list(criteria_data.columns)}")
-                        else:
-                            st.write("DEBUG - Criteria data is empty!")
-                    else:
-                        st.write("DEBUG - No criteria_scorer available")
+                        if criteria_data.empty:
+                            st.warning("No criteria data available for analysis.")
+                            return
                     
                     # Run the analysis with normalized criteria
-                    st.write("DEBUG - Calling analyze_concept...")
                     
                     # Try to catch any exceptions during analysis
                     try:
                         # Check if criteria_analyzer is initialized
-                        if hasattr(self.optimizer, 'criteria_analyzer') and self.optimizer.criteria_analyzer is not None:
-                            st.write("DEBUG - CriteriaAnalyzer is available")
-                            
-                            # Try to get success rate directly from criteria_analyzer
-                            try:
-                                success_prob, confidence = self.optimizer.criteria_analyzer.get_overall_success_rate(normalized_criteria)
-                                st.write(f"DEBUG - Success probability: {success_prob}, Confidence: {confidence}")
-                            except Exception as e:
-                                st.write(f"DEBUG - Error getting success rate: {str(e)}")
-                        else:
-                            st.write("DEBUG - CriteriaAnalyzer is not available")
+                        if not (hasattr(self.optimizer, 'criteria_analyzer') and self.optimizer.criteria_analyzer is not None):
+                            st.warning("Analysis components are not properly initialized.")
+                            return
                             
                         # Run the actual analysis
                         summary = self.optimizer.analyze_concept(normalized_criteria)
                         
-                        # DEBUG: Show summary result
-                        st.write("DEBUG - Analysis summary result:")
-                        st.write("Summary type:", type(summary))
-                        st.write("Summary has attributes:", dir(summary) if summary else "None")
+                        # Analysis complete
                         
                     except Exception as e:
-                        st.write(f"DEBUG - Exception in analyze_concept: {str(e)}")
-                        import traceback
-                        st.write("Traceback:", traceback.format_exc())
+                        st.error(f"Error analyzing concept: {str(e)}")
                         summary = None
                 except Exception as analysis_error:
-                    st.error(f"DEBUG - Error in analyze_concept: {str(analysis_error)}")
-                    import traceback
-                    st.write("Traceback:", traceback.format_exc())
+                    st.error(f"Error in analysis: {str(analysis_error)}")
                     return
             
             # Store results in state

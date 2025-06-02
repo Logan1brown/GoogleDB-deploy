@@ -600,9 +600,7 @@ class CriteriaScorer:
                     if field_impact:
                         impact_scores[field_name] = field_impact
                 except Exception as e:
-                    # Only log non-array field errors to reduce noise
-                    if field_name not in array_fields:
-                        st.write(f"DEBUG - Error calculating impact for field {field_name}: {str(e)}")
+                    # Silent error handling for all fields
                     continue
             
             # If we couldn't calculate any impacts, add a default one for genre
@@ -612,7 +610,6 @@ class CriteriaScorer:
                 
             return impact_scores
         except Exception as e:
-            st.write(f"DEBUG - Error in calculate_criteria_impact: {str(e)}")
             # Return a minimal impact score dictionary
             if 'genre' in base_criteria:
                 genre_id = base_criteria['genre']
