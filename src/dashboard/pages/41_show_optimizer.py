@@ -21,7 +21,8 @@ from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS
 from src.dashboard.components.optimizer_view import OptimizerView
 from src.dashboard.components.optimizer_helpers import (
     render_success_metrics, render_network_compatibility, group_recommendations,
-    render_recommendation_group, render_content_criteria, render_production_criteria, render_format_criteria
+    render_recommendation_group, render_content_criteria, render_production_criteria, render_format_criteria,
+    render_success_factors
 )
 
 @auth_required()
