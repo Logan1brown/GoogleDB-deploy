@@ -360,16 +360,29 @@ class MatchingCalculator:
         Returns:
             Tuple of (DataFrame of matching shows with success metrics, count of matches)
         """
+        # Add debug output
+        st.write(f"DEBUG: MatchingCalculator.get_matching_shows called with criteria: {criteria}")
+        
         # Get criteria data, only force refresh if we don't have it yet
         if self._criteria_data is None:
+            st.write("DEBUG: No cached criteria data, fetching fresh data")
             data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
             self._criteria_data = data
         else:
+            st.write("DEBUG: Using cached criteria data")
             data = self._criteria_data
         
         if data.empty:
             st.error("Empty criteria data from fetch_criteria_data")
             raise ValueError("No criteria data available")
+            
+        # Debug output for data shape and columns
+        st.write(f"DEBUG: Criteria data shape: {data.shape}")
+        st.write(f"DEBUG: Criteria data columns: {list(data.columns)}")
+        if 'success_score' in data.columns:
+            st.write(f"DEBUG: success_score exists in data")
+        else:
+            st.write(f"DEBUG: success_score MISSING from data")
         
         # Get array fields and mapping from field_manager
         array_field_mapping = self.criteria_scorer.field_manager.get_array_field_mapping()
