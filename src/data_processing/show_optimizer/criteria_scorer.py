@@ -374,40 +374,25 @@ class CriteriaScorer:
             st.error("DEBUG ERROR: Empty criteria data from fetch_criteria_data")
             raise ValueError("No criteria data available")
         
-        # Log available columns for debugging
         st.write(f"DEBUG: Available columns in data: {list(data.columns)}")
         
         # Log array fields in criteria
-        # Use the array_field_mapping from calculate_criteria_impact
-        array_field_mapping = {
-            'character_types': 'character_type_ids',
-            'plot_elements': 'plot_element_ids',
-            'thematic_elements': 'thematic_element_ids',
-            'team_members': 'team_member_ids',
-            'subgenres': 'subgenres',  # This one doesn't have _ids suffix
-            'studios': 'studios'       # This one doesn't have _ids suffix
-        }
-        array_fields = list(array_field_mapping.keys())
+        array_fields = ['character_types', 'plot_elements', 'thematic_elements', 'team_members', 'subgenres', 'studios']
         
         for field_name in criteria.keys():
             if field_name in array_fields:
-                mapped_field = array_field_mapping[field_name]
                 st.write(f"DEBUG: Processing array field '{field_name}' with value {criteria[field_name]}")
-                if mapped_field in data.columns:
-                    st.write(f"DEBUG: Found corresponding column '{mapped_field}' for '{field_name}'")
-                else:
-                    st.error(f"DEBUG ERROR: Mapped field '{mapped_field}' not found in data columns")
+                # Let field_manager handle the mapping
         
         # Use FieldManager to match shows against criteria
         matched_shows, match_count = self.field_manager.match_shows(criteria, data)
         
         if matched_shows.empty:
             st.error(f"DEBUG ERROR: No shows matched the criteria {criteria}")
-            raise ValueError("No shows matched the specified criteria")
+            return matched_shows, 0
             
         st.write(f"DEBUG: Found {match_count} shows matching the criteria")
-        return matched_shows
-    
+        return matched_shows, match_count   
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: float = 0.6) -> float:
         """Calculate the success rate for a set of shows.
         
@@ -1030,16 +1015,8 @@ class CriteriaScorer:
         
         st.write("DEBUG: Starting calculate_criteria_impact")
         
-        # Fields that support multiple values and their corresponding column names in the data
-        array_field_mapping = {
-            'character_types': 'character_type_ids',
-            'plot_elements': 'plot_element_ids',
-            'thematic_elements': 'thematic_element_ids',
-            'team_members': 'team_member_ids',
-            'subgenres': 'subgenres',  # This one doesn't have _ids suffix
-            'studios': 'studios'       # This one doesn't have _ids suffix
-        }
-        array_fields = list(array_field_mapping.keys())
+        # Fields that support multiple values
+        array_fields = ['character_types', 'plot_elements', 'thematic_elements', 'team_members', 'subgenres', 'studios']
         # Track error counts for reporting
         error_counts = {field: 0 for field in array_fields}
         
@@ -1085,10 +1062,14 @@ class CriteriaScorer:
                     
                     for option in options:
                         try:
-                            # Create new criteria with this option added
+                            # Skip this option if we've had too many errors with this field
+                            if error_counts.get(field_name, 0) > 3:
+                                continue
+                            
+                            # Create a new criteria with just this option
                             new_criteria = base_criteria.copy()
                             
-                            # For array fields, we need to use a list
+                            # For array fields, use the original field name in criteria, we'll transform it in _get_matching_shows
                             if is_array_field:
                                 new_criteria[field_name] = [option.id]
                             else:
