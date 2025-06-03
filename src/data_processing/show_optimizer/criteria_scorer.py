@@ -137,7 +137,7 @@ class ComponentScore:
     score: float  # 0-1 score
     sample_size: int
     confidence: str  # none, low, medium, high
-    details: Dict[str, float] = field(default_factory=dict)  # Detailed breakdown of score
+    details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
 
 
 class CriteriaScorer:
