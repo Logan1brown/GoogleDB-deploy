@@ -13,8 +13,8 @@ import streamlit as st
 from functools import lru_cache
 from datetime import datetime, timedelta
 
-from ..shows_analyzer import ShowsAnalyzer
-from ..success_analyzer import SuccessAnalyzer
+from ..analyze_shows import ShowsAnalyzer
+from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
 from .optimizer_config import OptimizerConfig
 from .score_calculators import ComponentScore, ScoreCalculationError, NetworkMatch, NetworkScoreCalculator, MatchingCalculator
