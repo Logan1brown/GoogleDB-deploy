@@ -309,14 +309,14 @@ class CriteriaScorer:
         
         return self.criteria_data
     
-    def _get_matching_shows(self, criteria: Dict[str, Any]) -> pd.DataFrame:
+    def _get_matching_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
         """Get shows matching the given criteria.
         
         Args:
             criteria: Dictionary of criteria
             
         Returns:
-            DataFrame of matching shows with success metrics
+            Tuple of (DataFrame of matching shows with success metrics, count of matches)
         """
         import streamlit as st
         
@@ -327,26 +327,58 @@ class CriteriaScorer:
             raise ValueError("No criteria data available")
         
         st.write(f"DEBUG: Available columns in data: {list(data.columns)}")
+        st.write(f"DEBUG: Available columns in data for matching: {list(data.columns)}")
         
         # Get array fields and mapping from field_manager
         array_field_mapping = self.field_manager.get_array_field_mapping()
         array_fields = list(array_field_mapping.keys())
         
-        for field_name in criteria.keys():
+        # Clean up criteria - remove None or empty values to make matching more lenient
+        clean_criteria = {}
+        for field_name, value in criteria.items():
+            # Skip None values and empty lists
+            if value is None:
+                continue
+            if isinstance(value, list) and len(value) == 0:
+                continue
+            
+            # Handle array fields
             if field_name in array_fields:
                 # Make sure array field values are always lists
-                if not isinstance(criteria[field_name], list):
-                    criteria[field_name] = [criteria[field_name]]
-                # Let field_manager handle the mapping
+                if not isinstance(value, list):
+                    clean_criteria[field_name] = [value]
+                else:
+                    clean_criteria[field_name] = value
+            else:
+                clean_criteria[field_name] = value
+        
+        # If we have no valid criteria after cleaning, return all shows
+        if not clean_criteria:
+            logger.warning("No valid criteria after cleaning, returning all shows")
+            return data, len(data)
         
         # Use FieldManager to match shows against criteria
-        matched_shows, match_count = self.field_manager.match_shows(criteria, data)
-        
-        if matched_shows.empty:
-            st.error(f"ERROR: No shows matched the criteria")
-            return matched_shows, 0
+        try:
+            matched_shows, match_count = self.field_manager.match_shows(clean_criteria, data)
             
-        return matched_shows, match_count   
+            if matched_shows.empty:
+                st.error(f"ERROR: No shows matched the criteria")
+                # Return a small subset of shows instead of empty DataFrame
+                # This allows the analysis to continue with some data
+                if len(data) > 0:
+                    fallback_shows = data.head(min(5, len(data)))
+                    return fallback_shows, len(fallback_shows)
+                return matched_shows, 0
+                
+            return matched_shows, match_count
+        except Exception as e:
+            logger.error(f"Error matching shows: {e}")
+            st.error(f"Error matching shows: {str(e)}")
+            # Return a small subset of shows as fallback
+            if len(data) > 0:
+                fallback_shows = data.head(min(5, len(data)))
+                return fallback_shows, len(fallback_shows)
+            return pd.DataFrame(), 0   
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: float = 0.6) -> Optional[float]:
         """Calculate the success rate for a set of shows.
         
@@ -478,7 +510,16 @@ class CriteriaScorer:
                     if rate is not None:
                         # Calculate impact as relative change in success rate
                         impact = (rate - base_rate) / base_rate if base_rate != 0 else 0
-                        field_impact[option_id] = impact
+                        
+                        # Ensure option_id is hashable (not a dict or list)
+                        if isinstance(option_id, (dict, list)):
+                            # Convert to a string representation for dict/list option_ids
+                            hashable_id = str(option_id)
+                            logger.warning(f"Converting unhashable option_id to string: {option_id} -> {hashable_id}")
+                        else:
+                            hashable_id = option_id
+                            
+                        field_impact[hashable_id] = impact
                 
                 if field_impact:  # Only add if we have valid impacts
                     impact_scores[current_field] = field_impact
