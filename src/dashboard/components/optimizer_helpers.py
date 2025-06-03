@@ -91,14 +91,13 @@ def render_content_criteria(state: Dict, update_callback: Callable) -> None:
                                 get_id_for_name(st.session_state.optimizer_genre, display_options.get('genre', [])) 
                                 if st.session_state.optimizer_genre else None))
         
-        # Subgenre selection (if available)
-        if 'subgenres' in display_options:
-            subgenre_names = st.multiselect("Subgenres",
-                options=[name for _, name in display_options['subgenres'] if name and name.strip()],
-                key="optimizer_subgenres", placeholder="Select subgenres...",
-                on_change=lambda: update_callback("subgenres", 
-                                get_ids_for_names(st.session_state.optimizer_subgenres, 
-                                                display_options['subgenres'])))
+        # Subgenre selection
+        subgenre_names = st.multiselect("Subgenres",
+            options=[name for _, name in display_options.get('subgenres', []) if name and name.strip()],
+            key="optimizer_subgenres", placeholder="Select subgenres...",
+            on_change=lambda: update_callback("subgenres", 
+                            get_ids_for_names(st.session_state.optimizer_subgenres, 
+                                            display_options.get('subgenres', []))))
         
         # Source type selection
         source_name = st.selectbox("Source Type",

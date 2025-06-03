@@ -66,7 +66,7 @@ class OptimizerView:
                         return False
                     
                     # Cache field options in state
-                    field_names = ["genre", "character_types", "source_type", "thematic_elements", "plot_elements", 
+                    field_names = ["genre", "subgenres", "character_types", "source_type", "thematic_elements", "plot_elements", 
                                    "tone", "time_setting", "location_setting", "network", "studios", "team_members", "order_type"]
                     
                     for field_name in field_names:
