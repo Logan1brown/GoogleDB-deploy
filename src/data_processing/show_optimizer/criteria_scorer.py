@@ -326,9 +326,6 @@ class CriteriaScorer:
             st.error("DEBUG ERROR: Empty criteria data from fetch_criteria_data")
             raise ValueError("No criteria data available")
         
-        st.write(f"DEBUG: Available columns in data: {list(data.columns)}")
-        st.write(f"DEBUG: Available columns in data for matching: {list(data.columns)}")
-        
         # Get array fields and mapping from field_manager
         array_field_mapping = self.field_manager.get_array_field_mapping()
         array_fields = list(array_field_mapping.keys())

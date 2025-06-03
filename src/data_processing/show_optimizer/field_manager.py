@@ -442,7 +442,7 @@ class FieldManager:
         array_fields = {}
         
         # Log available columns for debugging
-        st.write(f"DEBUG: Available columns in data for matching: {list(matches.columns)}")
+        # Debug output removed to reduce verbosity
         
         for field_name, value in criteria.items():
             if isinstance(value, list):
