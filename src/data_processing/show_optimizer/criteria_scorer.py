@@ -27,17 +27,17 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple, Any, Union, Callable
 import pandas as pd
 import numpy as np
-import logging
 from functools import lru_cache, partial
 from datetime import datetime, timedelta
 from abc import ABC, abstractmethod
+import ast
 
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .optimizer_config import OptimizerConfig
 from .field_manager import FieldManager
+import streamlit as st
 
-logger = logging.getLogger(__name__)
 
 __all__ = ['CriteriaScorer', 'ComponentScore', 'NetworkMatch', 'ScoreCalculationError']
 
@@ -159,7 +159,7 @@ class CriteriaScorer:
             comp_df, reference_data = shows_analyzer.fetch_comp_data()
             self.field_manager = FieldManager(reference_data)
         except Exception as e:
-            logger.error(f"Error initializing FieldManager: {e}")
+            st.error(f"Optimizer Initialization Error: Could not initialize FieldManager due to: {e}. Some features may not work correctly or data may be incomplete.")
             # Initialize with empty reference data as fallback
             self.field_manager = FieldManager({})
             
@@ -179,115 +179,126 @@ class CriteriaScorer:
         Raises:
             ValueError: If data cannot be fetched or is invalid
         """
-        import streamlit as st
-        
         # Check cache first
         current_time = datetime.now()
         if not force_refresh and self.criteria_data is not None and \
            self.last_update is not None and \
            (current_time - self.last_update) < timedelta(seconds=self.cache_duration):
-            logger.debug("Using cached criteria data")
+
             return self.criteria_data
             
-        logger.debug("Fetching fresh criteria data")
+
         
         try:
             # Get show criteria data from ShowsAnalyzer
             comp_df, reference_data = self.shows_analyzer.fetch_comp_data()
             
             if comp_df.empty:
+
+                st.error("CRITICAL: No base data returned from ShowsAnalyzer for CriteriaScorer. Optimizer cannot function.")
                 raise ValueError("No data returned from ShowsAnalyzer.fetch_comp_data()")
                 
             # Get success metrics from SuccessAnalyzer
             success_df = self.success_analyzer.fetch_success_data()
             
+            # Define success metrics to merge from success_df
+            # These are considered the source of truth if success_df is available.
+            success_metrics_to_integrate = ['success_score', 'popcornmeter', 'tomatometer', 'has_rt']
+            
+            comp_df_merge_key = 'id'
+            success_df_merge_key = 'show_id'
+            
+            # Determine which of the success_metrics_to_integrate are actually available in success_df
+            available_metrics_in_success_df = []
             if not success_df.empty:
-                # Success data is indexed by show_id, so we need to merge on that
-                # Create a temporary copy of comp_df with show_id as index for merging
-                comp_df_indexed = comp_df.set_index('id', drop=False)
+                available_metrics_in_success_df = [col for col in success_metrics_to_integrate if col in success_df.columns]
+
+            if not success_df.empty and available_metrics_in_success_df:
+
                 
-                # Get all required success metrics from success_df
-                required_metrics = ['success_score', 'popcornmeter', 'tomatometer', 'has_rt']
-                available_metrics = [col for col in required_metrics if col in success_df.columns]
-                
-                if not available_metrics:
-                    # No metrics found, but continue processing
-                    pass
+                success_df_to_merge = pd.DataFrame() # Initialize
+                if success_df_merge_key not in success_df.columns:
+
+                    st.warning(f"Optimizer Warning: Success metrics might be incomplete. Expected identifier '{success_df_merge_key}' not found in success data source.")
                 else:
-                    # Merge the success metrics into comp_df
-                    success_metrics = success_df[available_metrics]
-                    comp_df_indexed = comp_df_indexed.join(success_metrics, how='left')
+                    # Prepare success_df with only relevant metrics and the specific merge key
+                    success_df_prepared = success_df[[success_df_merge_key] + available_metrics_in_success_df].copy()
                     
-                    # Reset the index and update comp_df
-                    comp_df = comp_df_indexed.reset_index(drop=True)
-            else:
-                # No success data available, but continue processing
-                pass
-                
+                    # Deduplicate success_df_prepared based on its merge key
+                    if success_df_prepared.duplicated(subset=[success_df_merge_key]).any():
+                        count_before = len(success_df_prepared)
+
+                        st.warning(f"Optimizer Data Note: Duplicate entries for show identifier '{success_df_merge_key}' found in success metrics. Using the first encountered entry for each affected show.")
+                        success_df_prepared.drop_duplicates(subset=[success_df_merge_key], keep='first', inplace=True)
+
+                    
+                    success_df_to_merge = success_df_prepared
+
+                if not success_df_to_merge.empty:
+
+                    
+                    # Drop existing versions of these metrics from comp_df to ensure success_df is the source of truth
+                    cols_to_drop_from_comp = [col for col in available_metrics_in_success_df if col in comp_df.columns]
+                    if cols_to_drop_from_comp:
+
+                        comp_df = comp_df.drop(columns=cols_to_drop_from_comp)
+                    
+                    comp_df = comp_df.merge(
+                        success_df_to_merge,
+                        left_on=comp_df_merge_key,
+                        right_on=success_df_merge_key,
+                        how='left',
+                        suffixes=('', '_succ') # Suffix for any other unexpected column overlaps from success_df
+                    )
+
+
+                    # If the merge key from success_df was added as a new column and is different from comp_df's merge key, drop it.
+                    if success_df_merge_key in comp_df.columns and success_df_merge_key != comp_df_merge_key:
+
+                        comp_df = comp_df.drop(columns=[success_df_merge_key])
+                    
+                    # Log if any columns ended with '_succ' due to unforeseen overlaps beyond the handled metrics
+                    succ_cols = [col for col in comp_df.columns if col.endswith('_succ')]
+                    if succ_cols:
+                        st.warning(f"Optimizer Data Note: Potential unexpected data columns found after merging success metrics: {succ_cols}. This could subtly affect results if these columns are used inadvertently.")
+                else:
+                    pass
+
+            elif success_df.empty:
+                st.warning("Optimizer Data Note: Success metrics data is currently empty. Scores and analyses will not include these metrics.")
+            else: # success_df not empty, but available_metrics_in_success_df is empty
+                st.warning(f"Optimizer Data Note: Key success metrics ({success_metrics_to_integrate}) were not found in the available success data. Scores and analyses will not include these specific metrics.")
+
+            # Normalize success_score to 0-1 range if it exists and is on 0-100 scale
+            if 'success_score' in comp_df.columns:
+                # Check if any non-NaN scores are > 1, indicating a 0-100 scale
+                if comp_df['success_score'].notna().any() and (comp_df.loc[comp_df['success_score'].notna(), 'success_score'] > 1).any():
+                    st.info("Data Normalization: 'success_score' was detected on a 0-100 scale and has been normalized to 0-1.")
+                    comp_df['success_score'] = comp_df['success_score'] / 100.0
+            
             # Update field manager with new reference data
             self.field_manager = FieldManager(reference_data)
             
             # Validate required columns
             if 'id' not in comp_df.columns:
+
+                st.error("CRITICAL: Show ID column 'id' not found in criteria data after processing. Optimizer cannot function.")
                 raise ValueError("Show ID column 'id' not found in criteria data")
                 
-            # Clean up any duplicate columns from merge
-            duplicate_cols = [col for col in comp_df.columns if col.endswith('_orig') or col.endswith('_success')]
-            if duplicate_cols:
-                # Clean up duplicate columns by keeping the non-null version
-                processed_base_cols = set()  # Track which base columns we've already processed
-                
-                for col in duplicate_cols:
-                    if col.endswith('_orig'):
-                        base_col = col[:-5]  # Remove _orig suffix
-                        success_col = f"{base_col}_success"
-                        
-                        # Skip if we've already processed this base column
-                        if base_col in processed_base_cols:
-                            continue
-                        processed_base_cols.add(base_col)
-                        
-                        # Only process if both versions exist
-                        if success_col in comp_df.columns:
-                            # Keep the non-null version of the data
-                            comp_df[base_col] = comp_df[base_col].fillna(comp_df[success_col])
-                            comp_df = comp_df.drop(columns=[success_col])
-                        comp_df = comp_df.drop(columns=[col])
-            
-            # Verify that all required columns exist after cleanup
-            required_columns = ['id']  # Add other required columns as needed
-            for col in required_columns:
-                if col not in comp_df.columns:
-                    # Try to recover from suffix columns if they still exist
-                    orig_col = f"{col}_orig"
-                    success_col = f"{col}_success"
-                    
-                    if orig_col in comp_df.columns:
-                        comp_df[col] = comp_df[orig_col]
-                        comp_df = comp_df.drop([orig_col], axis=1, errors='ignore')
-                    elif success_col in comp_df.columns:
-                        comp_df[col] = comp_df[success_col]
-                        comp_df = comp_df.drop([success_col], axis=1, errors='ignore')
-            
-            # Drop rows with missing success scores to make issues visible
-            if 'success_score' in comp_df.columns:
-                comp_df = comp_df.dropna(subset=['success_score'])
-            
-            # Store the data and update timestamp
             self.criteria_data = comp_df
             self.last_update = datetime.now()
-            
-            # Cache the criteria data
-            self._criteria_data = self.criteria_data
-            
+            st.toast(f"Optimizer data refreshed. Shape: {self.criteria_data.shape}")
             return self.criteria_data
-            
+        
+        except ValueError as ve:
+
+            st.error(f"Data Error in Optimizer: {str(ve)}") # Cloud visible error
+            raise
         except Exception as e:
-            st.error(f"Error fetching criteria data: {str(e)}")
+
+            st.error("An unexpected error occurred in the Optimizer while fetching data.") # Cloud visible error
             raise
         
-        return self.criteria_data
-    
     def _get_matching_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
         """Get shows matching the given criteria.
         
@@ -299,7 +310,7 @@ class CriteriaScorer:
         """
         data = self.fetch_criteria_data()
         if data.empty:
-            logger.error("Empty criteria data from fetch_criteria_data")
+            st.error("Empty criteria data from fetch_criteria_data")
             raise ValueError("No criteria data available")
         
         # Get array fields and mapping from field_manager
@@ -327,7 +338,7 @@ class CriteriaScorer:
         
         # If we have no valid criteria after cleaning, return all shows
         if not clean_criteria:
-            logger.warning("No valid criteria after cleaning, returning all shows")
+            st.info("No specific criteria provided after cleaning; proceeding with all available shows for matching.")
             return data, len(data)
         
         # Use FieldManager to match shows against criteria
@@ -343,6 +354,7 @@ class CriteriaScorer:
         except Exception as e:
             # Return empty DataFrame with zero matches
             # The calling code should handle this appropriately
+            st.error(f"Optimizer Error: An error occurred during show matching. Criteria attempted: {clean_criteria}. Details: {e}")
             return pd.DataFrame(), 0   
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Optional[float]:
         """Calculate the success rate for a set of shows.
@@ -363,6 +375,7 @@ class CriteriaScorer:
             return None
         
         if 'success_score' not in shows.columns:
+            st.warning("Optimizer Calculation Warning: Cannot calculate success rate. The 'success_score' column is missing from the input data for the current calculation.")
             return None
         
         # Filter out shows with missing success scores AND shows with a score of 0
@@ -370,6 +383,7 @@ class CriteriaScorer:
         shows_with_scores = shows[(shows['success_score'].notna()) & (shows['success_score'] > 0)]
         
         if len(shows_with_scores) == 0:
+            st.warning("Optimizer Calculation Warning: Cannot calculate success rate. No shows have valid 'success_score' data for the current calculation.")
             return None
         
         # Get success score range and distribution
@@ -417,12 +431,10 @@ class CriteriaScorer:
             base_shows, base_match_count = self._get_matching_shows(base_criteria)
             
             if base_shows.empty:
-                st.error("ERROR: No shows matched the base criteria")
                 raise ValueError("Cannot calculate impact scores with no matching shows")
                 
             if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                st.error(f"ERROR: Insufficient sample size for base criteria: {base_match_count} shows")
-                raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows)")
+                raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows). Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
             
             base_rate = self._calculate_success_rate(base_shows)
             
@@ -431,8 +443,7 @@ class CriteriaScorer:
                 return {}
             
             if base_rate == 0:
-                st.error("ERROR: Base success rate is zero")
-                raise ValueError("Cannot calculate impact scores with zero base success rate")
+                raise ValueError("Base success rate is zero, cannot calculate meaningful impact scores.")
             
             impact_scores = {}
             
@@ -454,7 +465,8 @@ class CriteriaScorer:
                 for option in options:
                     new_criteria = base_criteria.copy()
                     if is_array_field:
-                        new_criteria[current_field] = [option.id]
+                        # Ensure option.id is treated as a list item for array fields
+                        new_criteria[current_field] = [option.id] if not isinstance(option.id, list) else option.id
                     else:
                         new_criteria[current_field] = option.id
                     batch_criteria.append(new_criteria)
@@ -465,40 +477,32 @@ class CriteriaScorer:
                 
                 # Process results
                 field_impact = {}
-                field_sample_sizes = {}
                 
-                # Get sample sizes for each option
                 for i, criteria_set in enumerate(batch_criteria):
-                    # Get the option ID and name
                     option_id, option_name = option_data[i]
                     rate = success_rates[i]
                     
                     if rate is not None:
-                        # Get the sample size for this criteria
                         option_shows, match_count = self._get_matching_shows(criteria_set)
-                        
-                        # Calculate impact as relative change in success rate
                         impact = (rate - base_rate) / base_rate if base_rate != 0 else 0
                         
-                        # Ensure option_id is hashable (not a dict or list)
-                        if isinstance(option_id, (dict, list)):
-                            # Convert to a string representation for dict/list option_ids
-                            hashable_id = str(option_id)
-                            logger.warning(f"Converting unhashable option_id to string: {option_id} -> {hashable_id}")
-                        else:
-                            hashable_id = option_id
-                            
-                        # Store both impact and sample size
-                        field_impact[hashable_id] = {"impact": impact, "sample_size": match_count}
+                        # option_id is guaranteed to be an int from FieldManager's FieldOption.id, which is hashable.
+                        # No conversion or special handling is needed for its use as a dictionary key.
+                        field_impact[option_id] = {"impact": impact, "sample_size": match_count, "option_name": option_name}
                 
-                if field_impact:  # Only add if we have valid impacts
+                if field_impact:
                     impact_scores[current_field] = field_impact
                     
-            if not impact_scores:
-                raise ValueError("Could not calculate any impact scores with the given criteria")
+            if not impact_scores and fields_to_process:
+                # Only raise if we attempted to process fields but got no results.
+                # If fields_to_process was empty (e.g. field_name was already in base_criteria), this is not an error.
+                raise ValueError("Could not calculate any impact scores with the given criteria configuration.")
                 
             return impact_scores
-            
+
+        except ValueError as ve:
+            st.error(str(ve)) # Surface our specific ValueErrors
+            raise
         except Exception as e:
             st.error(f"Error calculating criteria impact: {str(e)}")
             raise
@@ -515,37 +519,41 @@ class CriteriaScorer:
         Raises:
             ValueError: If no component scores could be calculated
         """
-        import streamlit as st
-        
         # Get matching shows first
         try:
             matching_shows, match_count = self._get_matching_shows(criteria)
             if matching_shows.empty:
-                st.error("No matching shows found for the given criteria")
-                raise ValueError("No matching shows found for the given criteria")
+                raise ValueError("No matching shows found for the given criteria. Cannot calculate component scores.")
                 
             component_scores = {}
             
             # Calculate each component score with individual error handling
-            for component in ['audience', 'critics', 'longevity']:
+            for component_name in ['audience', 'critics', 'longevity']:
                 try:
-                    score_method = getattr(self, f'_calculate_{component}_score')
-                    score = score_method(matching_shows)
-                    component_scores[component] = score
+                    score_method = getattr(self, f'_calculate_{component_name}_score')
+                    score_obj = score_method(matching_shows) # score_obj is a ComponentScore object
+                    component_scores[component_name] = score_obj
                 except Exception as e:
-                    logger.error(f"Error calculating {component} score: {str(e)}", exc_info=True)
+                    st.error(f"Optimizer Error: Failed to calculate score for component '{component_name}'. Criteria: {criteria}. Details: {e}")
+                    # Individual component failure is logged; will be caught by missing_components check.
             
-            # Check if we have all required component scores
+            # Check if all required component scores were successfully calculated.
             required_components = ['audience', 'critics', 'longevity']
             missing_components = [c for c in required_components if c not in component_scores]
             
             if missing_components:
-                logger.error(f"Failed to calculate required component scores: {missing_components}")
-                raise ValueError(f"Failed to calculate required component scores: {', '.join(missing_components)}")
-            
-            logger.debug(f"Final component scores: {component_scores}")
+                # Log the specific components that failed
+                st.error(f"Optimizer Error: Failed to calculate required component scores: {', '.join(missing_components)}. Individual component calculations may have failed.")
+                raise ValueError(f"Failed to calculate required component scores: {', '.join(missing_components)}.")
+
+            if not component_scores: # Should be caught by missing_components, but as a safeguard
+                raise ValueError("Failed to calculate any component scores.")
+
             return component_scores
-            
+
+        except ValueError as ve: # Catch specific ValueErrors we raise (like no matching shows or missing components)
+            st.error(str(ve)) # Surface these via st.error for cloud visibility
+            raise # Re-raise to stop execution and indicate failure
         except Exception as e:
             st.error(f"Error in calculate_component_scores: {str(e)}")
             raise
@@ -562,15 +570,13 @@ class CriteriaScorer:
         Raises:
             ValueError: If popcornmeter data is missing or empty
         """
-        import streamlit as st
-        
         if shows.empty:
-            logger.error("Empty shows DataFrame provided to _calculate_audience_score")
+            st.error("Empty shows DataFrame provided to _calculate_audience_score")
             raise ValueError("Cannot calculate audience score with empty shows DataFrame")
         
         # Check if popcornmeter column exists
         if 'popcornmeter' not in shows.columns:
-            logger.error(f"Popcornmeter column missing from shows data. Available columns: {list(shows.columns)}")
+            st.error(f"Popcornmeter column missing from shows data. Available columns: {list(shows.columns)}")
             raise ValueError("popcornmeter column is required for audience score calculation")
             
         # Filter shows with audience metrics
@@ -578,7 +584,7 @@ class CriteriaScorer:
         sample_size = len(audience_shows)
         
         if sample_size == 0:
-            logger.error("No shows with valid popcornmeter data found")
+            st.error("No shows with valid popcornmeter data found")
             raise ValueError("No shows with valid popcornmeter data available")
         
         # Calculate confidence level
@@ -612,15 +618,13 @@ class CriteriaScorer:
         Raises:
             ValueError: If tomatometer data is missing or empty
         """
-        import streamlit as st
-        
         if shows.empty:
-            logger.error("Empty shows DataFrame provided to _calculate_critics_score")
+            st.error("Empty shows DataFrame provided to _calculate_critics_score")
             raise ValueError("Cannot calculate critics score with empty shows DataFrame")
         
         # Check if tomatometer column exists
         if 'tomatometer' not in shows.columns:
-            logger.error(f"Tomatometer column missing from shows data. Available columns: {list(shows.columns)}")
+            st.error(f"Tomatometer column missing from shows data. Available columns: {list(shows.columns)}")
             raise ValueError("tomatometer column is required for critics score calculation")
             
         # Filter shows with critics metrics
@@ -628,7 +632,7 @@ class CriteriaScorer:
         sample_size = len(critics_shows)
         
         if sample_size == 0:
-            logger.error("No shows with valid tomatometer data found")
+            st.error("No shows with valid tomatometer data found")
             raise ValueError("No shows with valid tomatometer data available")
         
         # Calculate confidence level
@@ -669,18 +673,16 @@ class CriteriaScorer:
         Raises:
             ValueError: If required TMDB metrics are missing or empty
         """
-        import streamlit as st
-        
         if shows.empty:
-            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_longevity_score")
+            st.error("Empty shows DataFrame provided to _calculate_longevity_score")
             raise ValueError("Cannot calculate longevity score with empty shows DataFrame")
         
         # Check for required columns
         required_columns = ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
         missing_columns = [col for col in required_columns if col not in shows.columns]
         if missing_columns:
-            st.error(f"DEBUG ERROR: Missing required columns for longevity calculation: {missing_columns}")
-            st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
+            st.error(f"Missing required columns for longevity calculation: {missing_columns}")
+            st.error("Available columns: " + str(list(shows.columns)))
             raise ValueError(f"Missing required columns for longevity calculation: {', '.join(missing_columns)}")
         
         # Filter shows with required metrics
@@ -688,7 +690,7 @@ class CriteriaScorer:
         sample_size = len(valid_shows)
         
         if sample_size == 0:
-            st.error("DEBUG ERROR: No shows with valid TMDB metrics found for longevity calculation")
+            st.error("No shows with valid TMDB metrics found for longevity calculation")
             raise ValueError("No shows with valid TMDB metrics available for longevity calculation")
         
         # Calculate confidence level
@@ -770,10 +772,7 @@ class CriteriaScorer:
                 else:
                     results.append(None)
             except Exception as e:
-                import streamlit as st
-                import traceback
                 st.error(f"Error calculating success rate: {str(e)}")
-                st.error(f"Traceback: {traceback.format_exc()}")
                 results.append(None)
                 
         return results
@@ -809,16 +808,21 @@ class CriteriaScorer:
         Returns:
             List of NetworkMatch objects with compatibility and success scores
         """
-        import streamlit as st
-        import ast
-        import traceback
-        
         try:
-            # Parse criteria string back to dictionary if needed
+            criteria: Dict[str, Any]
             if isinstance(criteria_str, str):
-                criteria = ast.literal_eval(criteria_str)
-            else:
+                try:
+                    criteria = ast.literal_eval(criteria_str)
+                except (SyntaxError, ValueError) as parse_err:
+                    st.warning(f"Invalid criteria string format for network scores: '{criteria_str}'. Error: {parse_err}")
+                    st.error(f"Invalid format for criteria input: {str(parse_err)}. Please check the input string.")
+                    raise ValueError(f"Invalid criteria string format: {str(parse_err)}") from parse_err
+            elif isinstance(criteria_str, dict):
                 criteria = criteria_str
+            else:
+                err_msg = f"Invalid criteria type: {type(criteria_str)}. Must be a dict or a string representation of a dict."
+                st.error(err_msg)
+                raise ValueError(err_msg)
                 
             # Get all networks from the data
             data = self.fetch_criteria_data()
@@ -872,8 +876,10 @@ class CriteriaScorer:
                 results.append(network_match)
                 
             return results
-            
+
+        except ValueError as ve:
+            st.error(f"Calculation Error (Network Scores): {str(ve)}")
+            raise
         except Exception as e:
-            st.error(f"Error in calculate_network_scores: {str(e)}")
-            st.error(f"Traceback: {traceback.format_exc()}")
-            return []
+            st.error(f"Optimizer Error: An unexpected error occurred while calculating network scores. Details: {e}")
+            raise
