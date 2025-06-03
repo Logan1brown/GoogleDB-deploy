@@ -611,44 +611,94 @@ class CriteriaScorer:
         
 
     def _calculate_longevity_score(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate longevity score for a set of shows using success_score.
+        """Calculate longevity score for a set of shows using TMDB metrics.
+        
+        Longevity is calculated based on:
+        - Number of seasons (weight: 40%)
+        - Number of episodes (weight: 40%)
+        - Show status (weight: 20%)
         
         Args:
-            shows: DataFrame containing show data with 'success_score' column
+            shows: DataFrame containing show data with TMDB metrics
             
         Returns:
-            ComponentScore for longevity
+            ComponentScore for longevity (0-1 scale)
             
         Raises:
-            ValueError: If success_score data is missing or empty
+            ValueError: If required TMDB metrics are missing or empty
         """
         import streamlit as st
         
         if shows.empty:
             st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_longevity_score")
             raise ValueError("Cannot calculate longevity score with empty shows DataFrame")
-            
-        if 'success_score' not in shows.columns:
-            st.error("DEBUG ERROR: success_score column missing from shows data")
+        
+        # Check for required columns
+        required_columns = ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
+        missing_columns = [col for col in required_columns if col not in shows.columns]
+        if missing_columns:
+            st.error(f"DEBUG ERROR: Missing required columns for longevity calculation: {missing_columns}")
             st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
-            raise ValueError("success_score column is required for longevity score calculation")
-            
-        # Filter shows with success metrics
-        longevity_shows = shows[shows['success_score'].notna()]
-        sample_size = len(longevity_shows)
+            raise ValueError(f"Missing required columns for longevity calculation: {', '.join(missing_columns)}")
+        
+        # Filter shows with required metrics
+        valid_shows = shows.dropna(subset=required_columns)
+        sample_size = len(valid_shows)
         
         if sample_size == 0:
-            st.error("DEBUG ERROR: No shows with valid success_score data found")
-            raise ValueError("No shows with valid success_score data available")
+            st.error("DEBUG ERROR: No shows with valid TMDB metrics found for longevity calculation")
+            raise ValueError("No shows with valid TMDB metrics available for longevity calculation")
         
         # Calculate confidence level
         confidence = OptimizerConfig.get_confidence_level(sample_size)
         
-        # Use success_score as longevity score (assuming it's already normalized to 0-1)
-        avg_score = longevity_shows['success_score'].mean()
+        # Calculate season score (0-100 scale)
+        def calculate_season_score(seasons):
+            if seasons >= 2:
+                return min(100, 50 + (seasons - 2) * 10)  # 50 for 2 seasons, +10 per additional season, max 100
+            return seasons * 25  # 25 for 1 season, 0 for 0 seasons
+        
+        # Calculate episode score (0-100 scale)
+        def calculate_episode_score(episodes):
+            if episodes >= 10:
+                return 100
+            elif episodes >= 5:
+                return 50 + (episodes - 5) * 10  # 50 for 5 episodes, +10 per episode up to 100
+            return episodes * 10  # 10 points per episode up to 5
+        
+        # Calculate status score (0-100 scale)
+        status_scores = {
+            'Returning Series': 100,
+            'Ended': 75,
+            'Canceled': 25,
+            'In Production': 50,
+            'Pilot': 10,
+            'In Development': 5
+        }
+        
+        # Calculate scores for each show
+        valid_shows = valid_shows.copy()
+        valid_shows['season_score'] = valid_shows['tmdb_seasons'].apply(calculate_season_score)
+        valid_shows['episode_score'] = valid_shows['tmdb_total_episodes'].apply(calculate_episode_score)
+        valid_shows['status_score'] = valid_shows['tmdb_status'].map(status_scores).fillna(0)
+        
+        # Calculate weighted average (40% season, 40% episode, 20% status)
+        valid_shows['longevity_score'] = (
+            valid_shows['season_score'] * 0.4 +
+            valid_shows['episode_score'] * 0.4 +
+            valid_shows['status_score'] * 0.2
+        ) / 100  # Convert to 0-1 scale
+        
+        # Calculate average longevity score across all shows
+        avg_score = valid_shows['longevity_score'].mean()
         
         # Prepare score details
-        details = {'success_score': avg_score}
+        details = {
+            'avg_seasons': valid_shows['tmdb_seasons'].mean(),
+            'avg_episodes': valid_shows['tmdb_total_episodes'].mean(),
+            'status_distribution': valid_shows['tmdb_status'].value_counts().to_dict(),
+            'sample_size': sample_size
+        }
         
         return ComponentScore(
             component='longevity',
