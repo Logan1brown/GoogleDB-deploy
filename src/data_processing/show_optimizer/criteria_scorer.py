@@ -71,11 +71,13 @@ class CriteriaScorer:
         Returns:
             DataFrame of criteria data with success metrics
         """
+        st.write(f"DEBUG: fetch_criteria_data called with force_refresh={force_refresh}")
         current_time = datetime.now()
         
         # Use cached data if available and not forcing refresh
         if not force_refresh and self.criteria_data is not None and self.last_update is not None:
             if (current_time - self.last_update) < timedelta(seconds=self.cache_duration):
+                st.write("DEBUG: Using cached criteria data")
                 return self.criteria_data
         
         try:
@@ -145,6 +147,15 @@ class CriteriaScorer:
             # Update cache
             self.criteria_data = comp_df
             self.last_update = current_time
+            
+            # Debug output for success metrics
+            st.write(f"DEBUG: Final criteria data shape: {self.criteria_data.shape}")
+            st.write(f"DEBUG: Final criteria data columns: {list(self.criteria_data.columns)}")
+            if 'success_score' in self.criteria_data.columns:
+                st.write(f"DEBUG: success_score exists in final data")
+                st.write(f"DEBUG: success_score non-null count: {self.criteria_data['success_score'].notna().sum()}")
+            else:
+                st.write(f"DEBUG: success_score MISSING from final data")
             
             st.toast(f"Optimizer data refreshed. Shape: {self.criteria_data.shape}")
             return self.criteria_data
