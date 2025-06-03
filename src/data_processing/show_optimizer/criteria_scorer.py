@@ -359,7 +359,14 @@ class CriteriaScorer:
             matched_shows, match_count = self.field_manager.match_shows(clean_criteria, data)
             
             if matched_shows.empty:
-                st.error(f"ERROR: No shows matched the criteria")
+                # Provide a more specific error message with the criteria that failed to match
+                criteria_str = ", ".join([f"{k}: {v}" for k, v in clean_criteria.items()])
+                st.error(f"ERROR: No shows matched the criteria: {criteria_str}")
+                
+                # Log the criteria and available columns for debugging
+                logger.warning(f"No shows matched criteria: {clean_criteria}")
+                logger.info(f"Available columns: {list(data.columns)}")
+                
                 # Return a small subset of shows instead of empty DataFrame
                 # This allows the analysis to continue with some data
                 if len(data) > 0:

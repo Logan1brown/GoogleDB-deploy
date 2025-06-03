@@ -160,12 +160,14 @@ class CriteriaAnalyzer:
                         break
                         
                     try:
-                        # Check if value_id is a dictionary (unhashable)
-                        if isinstance(value_id, dict):
-                            # Convert dict to a string representation or use a key from it
+                        # Check if value_id is a dictionary or other unhashable type
+                        if isinstance(value_id, (dict, list)):
+                            # Convert to a string representation for unhashable types
                             # This is a workaround for the unhashable type error
                             value_id_str = str(value_id)
                             name = value_id_str
+                            # Store the string representation for use in the SuccessFactor
+                            criteria_value = value_id_str
                         else:
                             # Get the name for this criteria value
                             field_manager = self.criteria_scorer.field_manager
@@ -177,9 +179,9 @@ class CriteriaAnalyzer:
                                 if option.id == value_id:
                                     name = option.name
                                     break
-                        
-                        # Use the string representation for dict values
-                        criteria_value = value_id_str if isinstance(value_id, dict) else value_id
+                            
+                            # For hashable types, use the original value
+                            criteria_value = value_id
                                 
                         factor = SuccessFactor(
                             criteria_type=criteria_type,
@@ -290,17 +292,50 @@ class CriteriaAnalyzer:
             
             # Filter shows with this criteria
             if config.is_array:
+                # Use the same array field mapping as in match_shows
+                array_field_mapping = self.criteria_scorer.field_manager.get_array_field_mapping()
+                
+                # Get the correct column name for this field
+                if field_name in array_field_mapping:
+                    field_id = array_field_mapping[field_name]
+                else:
+                    # If not in mapping, skip this field
+                    import streamlit as st
+                    st.error(f"ERROR: Field '{field_name}' not found in array field mapping")
+                    success_rates[field_name] = 0.0
+                    continue
+                
+                # Check if the column exists in the DataFrame
+                if field_id not in network_data.columns:
+                    import streamlit as st
+                    st.error(f"ERROR: Column '{field_id}' for field '{field_name}' not found in data")
+                    success_rates[field_name] = 0.0
+                    continue
+                
+                # Check data format (list or scalar)
+                sample = network_data[field_id].iloc[0] if not network_data.empty else None
+                
                 if isinstance(value, list):
                     # Multiple values
                     value_set = set(value)
-                    matching_shows = network_data[network_data[field_name].apply(
-                        lambda x: isinstance(x, list) and bool(value_set.intersection(x))
-                    )]
+                    if isinstance(sample, list):
+                        # If column contains lists, use intersection
+                        matching_shows = network_data[network_data[field_id].apply(
+                            lambda x: isinstance(x, list) and bool(value_set.intersection(x))
+                        )]
+                    else:
+                        # If column doesn't contain lists, use isin
+                        matching_shows = network_data[network_data[field_id].isin(value)]
                 else:
                     # Single value
-                    matching_shows = network_data[network_data[field_name].apply(
-                        lambda x: isinstance(x, list) and value in x
-                    )]
+                    if isinstance(sample, list):
+                        # If column contains lists, check if value is in list
+                        matching_shows = network_data[network_data[field_id].apply(
+                            lambda x: isinstance(x, list) and value in x
+                        )]
+                    else:
+                        # If column doesn't contain lists, use equality
+                        matching_shows = network_data[network_data[field_id] == value]
             else:
                 # Scalar field
                 field_id = f"{field_name}_id" if f"{field_name}_id" in network_data.columns else field_name
