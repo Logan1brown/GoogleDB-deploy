@@ -1023,13 +1023,13 @@ class CriteriaScorer:
         try:
             # Get base success rate
             st.write(f"DEBUG: Getting base shows for criteria: {base_criteria}")
-            base_shows = self._get_matching_shows(base_criteria)
+            base_shows, match_count = self._get_matching_shows(base_criteria)
             
             if base_shows.empty:
                 st.error("DEBUG ERROR: No matching shows found for base criteria")
                 raise ValueError("No matching shows found for base criteria")
             
-            st.write(f"DEBUG: Found {len(base_shows)} base shows")
+            st.write(f"DEBUG: Found {match_count} base shows")
             
             base_rate = self._calculate_success_rate(base_shows)
             st.write(f"DEBUG: Base success rate: {base_rate}")
@@ -1069,21 +1069,22 @@ class CriteriaScorer:
                             # Create a new criteria with just this option
                             new_criteria = base_criteria.copy()
                             
-                            # For array fields, use the original field name in criteria, we'll transform it in _get_matching_shows
+                            # For array fields, wrap the option ID in a list
                             if is_array_field:
                                 new_criteria[field_name] = [option.id]
+                                st.write(f"DEBUG: Using array field '{field_name}' with value {[option.id]}")
                             else:
                                 new_criteria[field_name] = option.id
                             
                             # Get success rate with this option
-                            option_shows = self._get_matching_shows(new_criteria)
+                            option_shows, option_match_count = self._get_matching_shows(new_criteria)
                             
                             # Check if we got any matching shows
                             if option_shows.empty:
                                 st.error(f"DEBUG ERROR: No shows matched the criteria {new_criteria}")
                                 continue
                                 
-                            if len(option_shows) < OptimizerConfig.CONFIDENCE['minimum_sample']:
+                            if option_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
                                 st.write(f"DEBUG: Insufficient sample size for {field_name}={option.name} (id={option.id})")
                                 continue
                             
