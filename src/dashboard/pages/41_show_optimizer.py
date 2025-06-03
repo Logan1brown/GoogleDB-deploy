@@ -143,6 +143,8 @@ def show():
                         if hasattr(summary, 'overall_success_probability'):
                             probability = summary.overall_success_probability
                             st.metric("Success Probability", f"{probability:.0%}")
+                            if hasattr(summary, 'confidence'):
+                                st.caption(f"Confidence: {summary.confidence.capitalize()}")
                         else:
                             st.info("Overall success probability not available.")
                     
@@ -151,6 +153,8 @@ def show():
                             audience_score = summary.component_scores["audience"]
                             if hasattr(audience_score, 'score'):
                                 st.metric("Audience Appeal", f"{audience_score.score:.0%}")
+                                if hasattr(audience_score, 'sample_size'):
+                                    st.caption(f"Sample size: {audience_score.sample_size} shows")
                             else:
                                 st.error("Audience score object missing 'score' attribute")
                     
@@ -159,6 +163,8 @@ def show():
                             critics_score = summary.component_scores["critics"]
                             if hasattr(critics_score, 'score'):
                                 st.metric("Critics Score", f"{critics_score.score:.0%}")
+                                if hasattr(critics_score, 'sample_size'):
+                                    st.caption(f"Sample size: {critics_score.sample_size} shows")
                             else:
                                 st.error("Critics score object missing 'score' attribute")
                     
@@ -167,8 +173,28 @@ def show():
                             longevity_score = summary.component_scores["longevity"]
                             if hasattr(longevity_score, 'score'):
                                 st.metric("Longevity Score", f"{longevity_score.score:.0%}")
+                                if hasattr(longevity_score, 'sample_size'):
+                                    st.caption(f"Sample size: {longevity_score.sample_size} shows")
                             else:
                                 st.error("Longevity score object missing 'score' attribute")
+                    
+                    # Display matching show titles
+                    st.subheader("Matching Shows")
+                    st.write("Shows matching all selected criteria:")
+                    
+                    # Display matching titles from the summary object
+                    if hasattr(summary, 'matching_titles') and summary.matching_titles:
+                        # Show sample size
+                        st.caption(f"Sample size: {len(summary.matching_titles)} shows")
+                        
+                        # Display titles in a scrollable container
+                        titles_html = "<div style='max-height: 300px; overflow-y: auto;'><ul>"
+                        for title in summary.matching_titles:
+                            titles_html += f"<li>{title}</li>"
+                        titles_html += "</ul></div>"
+                        st.markdown(titles_html, unsafe_allow_html=True)
+                    else:
+                        st.info("No matching shows available for the selected criteria.")
                 
                 # Tab 2: Network Analysis
                 with tab2:

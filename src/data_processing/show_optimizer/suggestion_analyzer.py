@@ -61,6 +61,7 @@ class OptimizationSummary:
     component_scores: Dict[str, ComponentScore]
     recommendations: List[Recommendation]
     success_factors: List[SuccessFactor]
+    matching_titles: List[str] = field(default_factory=list)  # Titles of shows matching all criteria
 
 
 class SuggestionAnalyzer:
@@ -95,6 +96,20 @@ class SuggestionAnalyzer:
             # Get top networks
             top_networks = self.criteria_analyzer.rank_networks_by_compatibility(criteria, limit=5)
             
+            # Get matching shows first
+            matching_shows, match_count = self.criteria_analyzer.criteria_scorer._get_matching_shows(criteria)
+            if matching_shows.empty:
+                logger.error("No matching shows found for the given criteria")
+                raise ValueError("No matching shows found for the given criteria")
+                
+            # Get matching show titles (up to 100) to include in the summary
+            matching_titles = []
+            if 'title' in matching_shows.columns:
+                matching_titles = matching_shows['title'].tolist()
+                # Limit to 100 titles
+                if len(matching_titles) > 100:
+                    matching_titles = matching_titles[:100]
+                
             # Get component scores
             component_scores = self.criteria_analyzer.analyze_components(criteria)
             
@@ -121,7 +136,8 @@ class SuggestionAnalyzer:
                 top_networks=top_networks,
                 component_scores=component_scores,
                 recommendations=recommendations,
-                success_factors=success_factors
+                success_factors=success_factors,
+                matching_titles=matching_titles
             )
             return summary
                 

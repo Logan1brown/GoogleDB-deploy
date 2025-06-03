@@ -186,10 +186,10 @@ class CriteriaScorer:
         if not force_refresh and self.criteria_data is not None and \
            self.last_update is not None and \
            (current_time - self.last_update) < timedelta(seconds=self.cache_duration):
-            st.write("DEBUG: Using cached criteria data")
+            logger.debug("Using cached criteria data")
             return self.criteria_data
             
-        st.write("DEBUG: Fetching fresh criteria data")
+        logger.debug("Fetching fresh criteria data")
         
         try:
             # Get show criteria data from ShowsAnalyzer
@@ -395,26 +395,26 @@ class CriteriaScorer:
         import streamlit as st
         
         if shows.empty:
-            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_success_rate")
+            logger.error("Empty shows DataFrame provided to _calculate_success_rate")
             return None
         
         if 'success_score' not in shows.columns:
-            st.error("DEBUG ERROR: 'success_score' column missing from shows data")
+            logger.error("'success_score' column missing from shows data")
             return None
         
         # Filter out shows with missing success scores
         shows_with_scores = shows[shows['success_score'].notna()]
         
         if len(shows_with_scores) == 0:
-            st.error("DEBUG ERROR: No shows with valid success scores found")
+            logger.error("No shows with valid success scores found")
             raise ValueError("No shows with valid success scores available")
         
-        # Get success score range and distribution for debugging
+        # Get success score range and distribution for logging
         min_score = shows_with_scores['success_score'].min()
         max_score = shows_with_scores['success_score'].max()
         mean_score = shows_with_scores['success_score'].mean()
         
-        st.write(f"DEBUG: Success score range: {min_score} to {max_score}, mean: {mean_score}")
+        logger.debug(f"Success score range: {min_score} to {max_score}, mean: {mean_score}")
         
         # Normalize threshold if scores are on 0-100 scale
         normalized_threshold = threshold
@@ -432,10 +432,10 @@ class CriteriaScorer:
         success_count = len(successful)
         total_count = len(shows_with_scores)
         
-        st.write(f"DEBUG: Success rate calculation - {success_count} successful shows out of {total_count} total (threshold: {threshold})")
+        logger.debug(f"Success rate calculation - {success_count} successful shows out of {total_count} total (threshold: {threshold})")
         
         success_rate = success_count / total_count
-        st.write(f"DEBUG: Success rate: {success_rate:.4f} ({success_rate*100:.1f}%)")
+        logger.debug(f"Success rate: {success_rate:.4f} ({success_rate*100:.1f}%)")
         
         return success_rate
     
@@ -573,25 +573,21 @@ class CriteriaScorer:
             # Calculate each component score with individual error handling
             for component in ['audience', 'critics', 'longevity']:
                 try:
-                    st.write(f"DEBUG: Calculating {component} score")
                     score_method = getattr(self, f'_calculate_{component}_score')
                     score = score_method(matching_shows)
-                    st.write(f"DEBUG: {component.capitalize()} score result: {score}")
                     component_scores[component] = score
                 except Exception as e:
-                    st.error(f"DEBUG ERROR: Error calculating {component} score: {str(e)}")
-                    import traceback
-                    st.error(f"DEBUG ERROR: {component.capitalize()} score traceback: {traceback.format_exc()}")
+                    logger.error(f"Error calculating {component} score: {str(e)}", exc_info=True)
             
             # Check if we have all required component scores
             required_components = ['audience', 'critics', 'longevity']
             missing_components = [c for c in required_components if c not in component_scores]
             
             if missing_components:
-                st.error(f"DEBUG ERROR: Failed to calculate required component scores: {missing_components}")
+                logger.error(f"Failed to calculate required component scores: {missing_components}")
                 raise ValueError(f"Failed to calculate required component scores: {', '.join(missing_components)}")
             
-            st.write(f"DEBUG: Final component scores: {component_scores}")
+            logger.debug(f"Final component scores: {component_scores}")
             return component_scores
             
         except Exception as e:
@@ -613,13 +609,12 @@ class CriteriaScorer:
         import streamlit as st
         
         if shows.empty:
-            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_audience_score")
+            logger.error("Empty shows DataFrame provided to _calculate_audience_score")
             raise ValueError("Cannot calculate audience score with empty shows DataFrame")
         
         # Check if popcornmeter column exists
         if 'popcornmeter' not in shows.columns:
-            st.error("DEBUG ERROR: Popcornmeter column missing from shows data")
-            st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
+            logger.error(f"Popcornmeter column missing from shows data. Available columns: {list(shows.columns)}")
             raise ValueError("popcornmeter column is required for audience score calculation")
             
         # Filter shows with audience metrics
@@ -627,7 +622,7 @@ class CriteriaScorer:
         sample_size = len(audience_shows)
         
         if sample_size == 0:
-            st.error("DEBUG ERROR: No shows with valid popcornmeter data found")
+            logger.error("No shows with valid popcornmeter data found")
             raise ValueError("No shows with valid popcornmeter data available")
         
         # Calculate confidence level
@@ -637,7 +632,9 @@ class CriteriaScorer:
         avg_popcorn = audience_shows['popcornmeter'].mean() / 100
         
         # Prepare score details
-        details = {'popcornmeter': avg_popcorn}
+        details = {
+            'popcornmeter': avg_popcorn
+        }
         
         return ComponentScore(
             component='audience',
@@ -662,13 +659,12 @@ class CriteriaScorer:
         import streamlit as st
         
         if shows.empty:
-            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_critics_score")
+            logger.error("Empty shows DataFrame provided to _calculate_critics_score")
             raise ValueError("Cannot calculate critics score with empty shows DataFrame")
         
         # Check if tomatometer column exists
         if 'tomatometer' not in shows.columns:
-            st.error("DEBUG ERROR: Tomatometer column missing from shows data")
-            st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
+            logger.error(f"Tomatometer column missing from shows data. Available columns: {list(shows.columns)}")
             raise ValueError("tomatometer column is required for critics score calculation")
             
         # Filter shows with critics metrics
@@ -676,7 +672,7 @@ class CriteriaScorer:
         sample_size = len(critics_shows)
         
         if sample_size == 0:
-            st.error("DEBUG ERROR: No shows with valid tomatometer data found")
+            logger.error("No shows with valid tomatometer data found")
             raise ValueError("No shows with valid tomatometer data available")
         
         # Calculate confidence level
