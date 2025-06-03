@@ -347,10 +347,12 @@ class MatchingCalculator:
         Returns:
             Tuple of (DataFrame of matching shows with success metrics, count of matches)
         """
-        # Force a refresh of criteria data to ensure we have the latest success metrics
-        data = self.criteria_scorer.fetch_criteria_data(force_refresh=True)
-        # Store the data for use in other methods
-        self._criteria_data = data
+        # Get criteria data, only force refresh if we don't have it yet
+        if self._criteria_data is None:
+            data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
+            self._criteria_data = data
+        else:
+            data = self._criteria_data
         
         if data.empty:
             st.error("Empty criteria data from fetch_criteria_data")
@@ -419,12 +421,12 @@ class MatchingCalculator:
         
         # Ensure we have success_score column
         if 'success_score' not in shows.columns:
-            # Try to get fresh criteria data if we don't have success_score
-            if self._criteria_data is None or 'success_score' not in self._criteria_data.columns:
+            # Try to use existing criteria data if we don't have success_score
+            if self._criteria_data is None:
                 try:
-                    self._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=True)
+                    self._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
                 except Exception as e:
-                    st.error(f"Error refreshing criteria data: {e}")
+                    st.error(f"Error fetching criteria data: {e}")
             
             # If we have criteria data with success_score, merge it with shows
             if self._criteria_data is not None and 'success_score' in self._criteria_data.columns:
@@ -478,11 +480,12 @@ class MatchingCalculator:
         Returns:
             List of success rates in the same order as criteria_list, with None for missing data
         """
-        # Ensure we have fresh criteria data with success metrics
-        try:
-            self._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=True)
-        except Exception as e:
-            st.error(f"Error refreshing criteria data: {e}")
+        # Ensure we have criteria data with success metrics, but don't force refresh
+        if self._criteria_data is None:
+            try:
+                self._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
+            except Exception as e:
+                st.error(f"Error fetching criteria data: {e}")
             
         results = []
         for criteria in criteria_list:

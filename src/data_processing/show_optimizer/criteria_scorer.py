@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import ast
 import streamlit as st
+import time
 from functools import lru_cache
 from datetime import datetime, timedelta
 
@@ -43,6 +44,10 @@ class CriteriaScorer:
         """
         self.shows_analyzer = shows_analyzer
         self.success_analyzer = success_analyzer
+        self.criteria_data = None
+        self.last_update = None
+        self.cache_duration = 300  # Cache for 5 minutes
+        self._normalization_performed = False  # Track if normalization has been performed
         
         # Get reference data from ShowsAnalyzer using fetch_comp_data
         try:
@@ -59,37 +64,30 @@ class CriteriaScorer:
         self.last_update = None
         self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
         
-    def fetch_criteria_data(self, force_refresh: bool = False) -> pd.DataFrame:
-        """Fetch show criteria data from ShowsAnalyzer.
+    def fetch_criteria_data(self, force_refresh=False):
+        """Fetch criteria data for matching and scoring.
         
         Args:
-            force_refresh: Whether to force a refresh of the data
+            force_refresh: Force refresh of data, ignoring cache
             
         Returns:
-            DataFrame with show criteria data
-            
-        Raises:
-            ValueError: If data cannot be fetched or is invalid
+            DataFrame of criteria data with success metrics
         """
-        # Check cache first
         current_time = datetime.now()
-        if not force_refresh and self.criteria_data is not None and \
-           self.last_update is not None and \
-           (current_time - self.last_update) < timedelta(seconds=self.cache_duration):
-
-            return self.criteria_data
-            
-
+        
+        # Use cached data if available and not forcing refresh
+        if not force_refresh and self.criteria_data is not None and self.last_update is not None:
+            if (current_time - self.last_update) < timedelta(seconds=self.cache_duration):
+                return self.criteria_data
         
         try:
             # Get show criteria data from ShowsAnalyzer
             comp_df, reference_data = self.shows_analyzer.fetch_comp_data()
             
             if comp_df.empty:
-
                 st.error("CRITICAL: No base data returned from ShowsAnalyzer for CriteriaScorer. Optimizer cannot function.")
                 raise ValueError("No data returned from ShowsAnalyzer.fetch_comp_data()")
-                
+            
             # Get success metrics from SuccessAnalyzer
             success_df = self.success_analyzer.fetch_success_data()
             
@@ -98,101 +96,66 @@ class CriteriaScorer:
                 success_df = success_df.reset_index()
             
             # Define success metrics to merge from success_df
-            # These are considered the source of truth if success_df is available.
-            success_metrics_to_integrate = ['success_score', 'popcornmeter', 'tomatometer', 'has_rt']
+            success_metrics_to_integrate = ['success_score', 'rt_score', 'imdb_score', 'metacritic_score']
             
-            comp_df_merge_key = 'id'
-            success_df_merge_key = 'show_id'
-            
-            # Determine which of the success_metrics_to_integrate are actually available in success_df
+            # Determine which metrics are available in success_df
             available_metrics_in_success_df = []
             if not success_df.empty:
                 available_metrics_in_success_df = [col for col in success_metrics_to_integrate if col in success_df.columns]
-
-            if not success_df.empty and available_metrics_in_success_df:
-
-                
-                success_df_to_merge = pd.DataFrame() # Initialize
-                if success_df_merge_key not in success_df.columns:
-
-                    st.warning(f"Optimizer Warning: Success metrics might be incomplete. Expected identifier '{success_df_merge_key}' not found in success data source.")
-                else:
-                    # Prepare success_df with only relevant metrics and the specific merge key
-                    success_df_prepared = success_df[[success_df_merge_key] + available_metrics_in_success_df].copy()
-                    
-                    # Deduplicate success_df_prepared based on its merge key
-                    if success_df_prepared.duplicated(subset=[success_df_merge_key]).any():
-                        count_before = len(success_df_prepared)
-
-                        st.warning(f"Optimizer Data Note: Duplicate entries for show identifier '{success_df_merge_key}' found in success metrics. Using the first encountered entry for each affected show.")
-                        success_df_prepared.drop_duplicates(subset=[success_df_merge_key], keep='first', inplace=True)
-
-                    
-                    success_df_to_merge = success_df_prepared
-
-                if not success_df_to_merge.empty:
-
-                    
-                    # Drop existing versions of these metrics from comp_df to ensure success_df is the source of truth
-                    cols_to_drop_from_comp = [col for col in available_metrics_in_success_df if col in comp_df.columns]
-                    if cols_to_drop_from_comp:
-
-                        comp_df = comp_df.drop(columns=cols_to_drop_from_comp)
-                    
-                    comp_df = comp_df.merge(
-                        success_df_to_merge,
-                        left_on=comp_df_merge_key,
-                        right_on=success_df_merge_key,
-                        how='left',
-                        suffixes=('', '_succ') # Suffix for any other unexpected column overlaps from success_df
+            
+            # Merge success metrics if available
+            if available_metrics_in_success_df and not success_df.empty:
+                try:
+                    # Merge success metrics into comp_df
+                    comp_df = pd.merge(
+                        comp_df,
+                        success_df[['show_id'] + available_metrics_in_success_df],
+                        left_on='id',
+                        right_on='show_id',
+                        how='left'
                     )
-
-
-                    # If the merge key from success_df was added as a new column and is different from comp_df's merge key, drop it.
-                    if success_df_merge_key in comp_df.columns and success_df_merge_key != comp_df_merge_key:
-
-                        comp_df = comp_df.drop(columns=[success_df_merge_key])
                     
-                    # Log if any columns ended with '_succ' due to unforeseen overlaps beyond the handled metrics
-                    succ_cols = [col for col in comp_df.columns if col.endswith('_succ')]
-                    if succ_cols:
-                        st.warning(f"Optimizer Data Note: Potential unexpected data columns found after merging success metrics: {succ_cols}. This could subtly affect results if these columns are used inadvertently.")
-                else:
-                    pass
-
+                    # Drop the redundant show_id column from the merge
+                    if 'show_id' in comp_df.columns:
+                        comp_df = comp_df.drop(columns=['show_id'])
+                    
+                except Exception as e:
+                    st.error(f"Optimizer Data Error: Failed to merge success metrics. Details: {e}")
+            
             elif success_df.empty:
                 st.warning("Optimizer Data Note: Success metrics data is currently empty. Scores and analyses will not include these metrics.")
-            else: # success_df not empty, but available_metrics_in_success_df is empty
+            else:  # success_df not empty, but available_metrics_in_success_df is empty
                 st.warning(f"Optimizer Data Note: Key success metrics ({success_metrics_to_integrate}) were not found in the available success data. Scores and analyses will not include these specific metrics.")
-
+            
             # Normalize success_score to 0-1 range if it exists and is on 0-100 scale
-            if 'success_score' in comp_df.columns:
+            # Only perform normalization if it hasn't been done already
+            if 'success_score' in comp_df.columns and not self._normalization_performed:
                 # Check if any non-NaN scores are > 1, indicating a 0-100 scale
                 if comp_df['success_score'].notna().any() and (comp_df.loc[comp_df['success_score'].notna(), 'success_score'] > 1).any():
                     st.info("Data Normalization: 'success_score' was detected on a 0-100 scale and has been normalized to 0-1.")
                     comp_df['success_score'] = comp_df['success_score'] / 100.0
+                    self._normalization_performed = True  # Mark normalization as performed
             
             # Update field manager with new reference data
             self.field_manager = FieldManager(reference_data)
             
             # Validate required columns
             if 'id' not in comp_df.columns:
-
                 st.error("CRITICAL: Show ID column 'id' not found in criteria data after processing. Optimizer cannot function.")
                 raise ValueError("Show ID column 'id' not found in criteria data")
-                
+            
+            # Update cache
             self.criteria_data = comp_df
-            self.last_update = datetime.now()
+            self.last_update = current_time
+            
             st.toast(f"Optimizer data refreshed. Shape: {self.criteria_data.shape}")
             return self.criteria_data
-        
+            
         except ValueError as ve:
-
-            st.error(f"Data Error in Optimizer: {str(ve)}") # Cloud visible error
+            st.error(f"Data Error in Optimizer: {str(ve)}")  # Cloud visible error
             raise
         except Exception as e:
-
-            st.error("An unexpected error occurred in the Optimizer while fetching data.") # Cloud visible error
+            st.error("An unexpected error occurred in the Optimizer while fetching data.")  # Cloud visible error
             raise
         
     def _get_matching_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
