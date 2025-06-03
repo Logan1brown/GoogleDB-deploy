@@ -137,141 +137,45 @@ class CriteriaScorer:
                 st.write(f"DEBUG: Success score distribution: {success_data['success_score'].value_counts().head(3) if 'success_score' in success_data.columns else 'N/A'}")
             
             
-            # Create a mapping of show_id to success_score
-            success_scores = {}
+            # SuccessAnalyzer already provides all necessary success metrics
+            # Reset index to make show_id a column if it's the index
+            if success_data.index.name == 'show_id':
+                success_data = success_data.reset_index()
             
-            # Check if success_score column exists
-            has_success_score = 'success_score' in success_data.columns
-            
-            if not has_success_score:
-                st.error("DEBUG ERROR: 'success_score' column missing from SuccessAnalyzer data")
-                raise ValueError("'success_score' column required for success score calculation")
-            
-            # Check if show_id is the index (SuccessAnalyzer sets show_id as index)
-            is_show_id_index = success_data.index.name == 'show_id'
-            st.write(f"DEBUG: Index name: {success_data.index.name}")
-            
-            # Map show_id to success_score
-            if is_show_id_index:
-                # If show_id is the index, use the index for mapping
-                st.write("DEBUG: Using DataFrame index as show_id for mapping success scores")
-                for idx, row in success_data.iterrows():
-                    # Normalize success score to 0-1 range if it's on a 0-100 scale
-                    # Check if the score is already normalized (0-1) or needs normalization (0-100)
-                    score = row['success_score']
-                    
-                    # Check for NaN or None values
-                    if pd.isna(score):
-                        continue
-                        
-                    # Normalize if needed
-                    if score > 1.0:  # If score is on 0-100 scale
-                        success_scores[idx] = score / 100.0
-                    else:  # If score is already on 0-1 scale
-                        success_scores[idx] = score
-            else:
-                # If show_id is not the index, check if it's a column
-                has_show_id = 'show_id' in success_data.columns
-                if not has_show_id:
-                    st.error("DEBUG ERROR: 'show_id' column missing and not set as index in SuccessAnalyzer data")
-                    raise ValueError("'show_id' column or index required for success score mapping")
-                
-                st.write("DEBUG: Using 'show_id' column for mapping success scores")
-                for _, row in success_data.iterrows():
-                    # Normalize success score to 0-1 range if it's on a 0-100 scale
-                    # Check if the score is already normalized (0-1) or needs normalization (0-100)
-                    score = row['success_score']
-                    
-                    # Check for NaN or None values
-                    if pd.isna(score):
-                        continue
-                        
-                    # Normalize if needed
-                    if score > 1.0:  # If score is on 0-100 scale
-                        success_scores[row['show_id']] = score / 100.0
-                    else:  # If score is already on 0-1 scale
-                        success_scores[row['show_id']] = score
-            
-            if not success_scores:
-                st.error("DEBUG ERROR: No valid success scores found in SuccessAnalyzer data")
-                raise ValueError("Success scores could not be extracted from SuccessAnalyzer data")
-                
-            st.write(f"DEBUG: Extracted {len(success_scores)} success scores from SuccessAnalyzer data")
-            
-            # Apply success metrics to criteria data
-            # The criteria data uses 'id' while success data uses 'show_id' as index
-            # They are the same value, just different column names/structure
-            # Create a copy of success_data with show_id as a column (from index)
-            success_data_with_id = success_data.reset_index()
-            
-            # Get required columns for component score calculations
-            required_columns = ['show_id', 'success_score', 'popcornmeter', 'tomatometer', 
-                                'tmdb_seasons', 'tmdb_episodes', 'tmdb_status']
-            
-            # Check which required columns are available in success data
-            # First ensure show_id is always included since it might be the index
-            if 'show_id' not in success_data_with_id.columns and success_data_with_id.index.name == 'show_id':
-                success_data_with_id = success_data_with_id.reset_index()
-                
-            available_columns = [col for col in required_columns if col in success_data_with_id.columns]
-            missing_columns = [col for col in required_columns if col not in success_data_with_id.columns]
-            
-            st.write(f"DEBUG: Available success metrics columns: {available_columns}")
+            # Ensure we have the required columns
+            required_columns = ['show_id', 'success_score']
+            missing_columns = [col for col in required_columns if col not in success_data.columns]
             if missing_columns:
-                st.write(f"DEBUG WARNING: Missing success metrics columns: {missing_columns}")
-                st.write("DEBUG: This may affect component score calculations")
+                raise ValueError(f"Missing required columns from SuccessAnalyzer: {missing_columns}")
             
-            # Always ensure show_id and success_score are included
-            if 'show_id' not in available_columns:
-                st.error("DEBUG ERROR: 'show_id' column missing from success data after reset_index")
-                # This shouldn't happen if reset_index worked correctly, but just in case
-                if hasattr(success_data_with_id.index, 'name') and success_data_with_id.index.name == 'show_id':
-                    success_data_with_id = success_data_with_id.reset_index()
-                else:
-                    # Last resort - create show_id from index
-                    success_data_with_id['show_id'] = success_data_with_id.index
-                available_columns.append('show_id')
+            # Select only the columns we need for the merge
+            metrics_columns = [
+                'show_id', 'success_score', 'tmdb_seasons', 
+                'tmdb_episodes', 'tmdb_status', 'tomatometer', 'popcornmeter'
+            ]
+            metrics_columns = [col for col in metrics_columns if col in success_data.columns]
             
-            if 'success_score' not in available_columns:
-                st.error("DEBUG ERROR: 'success_score' column missing from success data")
-                raise ValueError("'success_score' column required for success score calculation")
+            # Log the columns being used for merge
+            st.write(f"DEBUG: Merging with metrics columns: {metrics_columns}")
             
-            # Check if we have at least one audience metric (popcornmeter)
-            if 'popcornmeter' not in available_columns:
-                st.write("DEBUG WARNING: 'popcornmeter' column missing from success data")
-                st.write("DEBUG: Will use success_score as fallback for audience score calculation")
-            
-            # Check if we have at least one critics metric (tomatometer)
-            if 'tomatometer' not in available_columns:
-                st.write("DEBUG WARNING: 'tomatometer' column missing from success data")
-                st.write("DEBUG: Will use success_score as fallback for critics score calculation")
-            
-            # Check if we have longevity metrics
-            longevity_columns = ['tmdb_seasons', 'tmdb_status']
-            missing_longevity = [col for col in longevity_columns if col not in available_columns]
-            if missing_longevity:
-                st.write(f"DEBUG WARNING: Missing longevity metrics: {missing_longevity}")
-                st.write("DEBUG: Will use success_score as fallback for longevity score calculation")
-            
-            # Merge success metrics into criteria data
-            st.write("DEBUG: Merging success metrics into criteria data")
-            st.write(f"DEBUG: Criteria data before merge: {len(self.criteria_data)} rows")
-            
-            # Use explicit suffixes to better track duplicate columns
+            # Perform the merge
             self.criteria_data = pd.merge(
                 self.criteria_data,
-                success_data_with_id[available_columns],
+                success_data[metrics_columns],
                 left_on='id',
                 right_on='show_id',
-                how='left',
-                suffixes=('_orig', '_success')
+                how='left'
             )
+            
+            # Drop the duplicate show_id column if it was created
+            if 'show_id' in self.criteria_data.columns and 'id' in self.criteria_data.columns:
+                self.criteria_data = self.criteria_data.drop('show_id', axis=1)
             
             st.write(f"DEBUG: Criteria data after merge: {len(self.criteria_data)} rows")
             st.write(f"DEBUG: Merge success: {self.criteria_data['success_score'].notna().sum()} rows with success scores")
             
             # Log the merge results for each key column
-            for col in available_columns:
+            for col in ['show_id', 'success_score', 'tmdb_seasons', 'tmdb_episodes', 'tmdb_status', 'tomatometer', 'popcornmeter']:
                 if col in self.criteria_data.columns:
                     non_null_count = self.criteria_data[col].notna().sum()
                     st.write(f"DEBUG: '{col}' column has {non_null_count} non-null values after merge")
