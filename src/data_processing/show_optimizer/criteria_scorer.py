@@ -1002,34 +1002,52 @@ class CriteriaScorer:
                 if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
                     results.append(self._calculate_success_rate(shows))
                 else:
+                    results.append(None)
+            except Exception as e:
+                import streamlit as st
+                st.error(f"Error calculating success rate: {str(e)}")
+                results.append(None)
+                
+        return results
     
-    # Filter shows with success metrics
-    critics_shows = shows[shows['success_score'].notna()]
-    sample_size = len(critics_shows)
-    
-    if sample_size == 0:
-        st.error("DEBUG ERROR: No shows with valid success_score data found")
-        raise ValueError("No shows with valid success metrics available for critics score")
-    
-    # Calculate confidence level
-    confidence = OptimizerConfig.get_confidence_level(sample_size)
-    
-    # Use success_score as critics score (assuming it's already normalized to 0-1)
-    avg_score = critics_shows['success_score'].mean()
-    
-    # Calculate critics engagement metrics
-    details = {'success_score': avg_score}
-    
-    # Calculate overall critics score
-    score = avg_score
-    
-    return ComponentScore(
-        component='critics',
-        score=score,
-        sample_size=sample_size,
-        confidence=confidence,
-        details=details
-    )
+    def _calculate_critics_score(self, shows: pd.DataFrame) -> ComponentScore:
+        """Calculate critics score for a set of shows.
+        
+        Args:
+            shows: DataFrame of shows
+            
+        Returns:
+            ComponentScore for critics
+        """
+        import streamlit as st
+        
+        # Filter shows with success metrics
+        critics_shows = shows[shows['success_score'].notna()]
+        sample_size = len(critics_shows)
+        
+        if sample_size == 0:
+            st.error("ERROR: No shows with valid success_score data found")
+            return self._calculate_critics_score_from_success(shows)
+        
+        # Calculate confidence level
+        confidence = OptimizerConfig.get_confidence_level(sample_size)
+        
+        # Use success_score as critics score (assuming it's already normalized to 0-1)
+        avg_score = critics_shows['success_score'].mean()
+        
+        # Calculate critics engagement metrics
+        details = {'success_score': avg_score}
+        
+        # Calculate overall critics score
+        score = avg_score
+        
+        return ComponentScore(
+            component='critics',
+            score=score,
+            sample_size=sample_size,
+            confidence=confidence,
+            details=details
+        )
 
 def _calculate_longevity_score(self, shows: pd.DataFrame) -> ComponentScore:
     """Calculate longevity score for a set of shows.
@@ -1153,35 +1171,29 @@ def _calculate_longevity_score_from_success(self, shows: pd.DataFrame) -> Compon
         details=details
     )
 
-def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[float]:
-    """Batch calculate success rates for multiple criteria.
-    
-    Args:
-        criteria_list: List of criteria dictionaries
+    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[float]:
+        """Batch calculate success rates for multiple criteria.
         
-    Returns:
-        List of success rates in the same order as criteria_list
-    """
-    results = []
-    for criteria in criteria_list:
-        try:
-            shows, count = self._get_matching_shows(criteria)
-            if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                results.append(self._calculate_success_rate(shows))
-                    impact_scores['genre'] = {genre_id: 0.0}  # Neutral impact (no effect)
-                    st.error("DEBUG ERROR: This is a placeholder and does not represent real data")
-            else:
-                st.write(f"DEBUG: Successfully calculated impact scores for {field_count} fields")
-                
-            return impact_scores
-        except Exception as e:
-            st.error(f"DEBUG ERROR: Error in calculate_criteria_impact: {str(e)}")
-            import traceback
-            st.error(f"DEBUG ERROR: Traceback: {traceback.format_exc()}")
+        Args:
+            criteria_list: List of criteria dictionaries
             
-            # Return an empty dictionary instead of a default
-            # This will make it clear that no impact scores could be calculated
-            return {}
+        Returns:
+            List of success rates in the same order as criteria_list
+        """
+        results = []
+        for criteria in criteria_list:
+            try:
+                shows, count = self._get_matching_shows(criteria)
+                if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                    results.append(self._calculate_success_rate(shows))
+                else:
+                    results.append(None)
+            except Exception as e:
+                import streamlit as st
+                st.error(f"Error calculating success rate: {str(e)}")
+                results.append(None)
+                
+        return results
     
     def get_criteria_confidence(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate confidence levels for criteria.
