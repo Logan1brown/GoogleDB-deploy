@@ -441,19 +441,43 @@ class FieldManager:
                 field_id = f"{field_name}_id" if f"{field_name}_id" in matches.columns else field_name
                 scalar_fields[field_id] = value
         
+        # Define standard mapping for array fields to their column names
+        array_field_mapping = {
+            'character_types': 'character_type_ids',
+            'plot_elements': 'plot_element_ids',
+            'thematic_elements': 'thematic_element_ids',
+            'team_members': 'team_member_ids',
+            'subgenres': 'subgenres',  # This one doesn't have _ids suffix
+            'studios': 'studios'       # This one doesn't have _ids suffix
+        }
+        
         # Process array fields (these require apply functions)
         for field_name, value in array_fields.items():
-            # Check if we need to map the field name to a different column name
-            field_column = field_name
-            if field_name not in matches.columns:
-                # Try with _ids suffix which is common in the database
-                field_column_ids = f"{field_name}_ids"
-                if field_column_ids in matches.columns:
-                    field_column = field_column_ids
+            import streamlit as st
+            
+            # Use our standard mapping if available
+            if field_name in array_field_mapping:
+                field_column = array_field_mapping[field_name]
+                st.write(f"DEBUG: Using mapped field name '{field_column}' for '{field_name}'")
+            # Otherwise, try to determine the column name dynamically
+            else:
+                # First check if the field exists directly
+                if field_name in matches.columns:
+                    field_column = field_name
+                    st.write(f"DEBUG: Using exact field name '{field_name}' for filtering")
+                # Then try with _ids suffix which is common in the database
+                elif f"{field_name}_ids" in matches.columns:
+                    field_column = f"{field_name}_ids"
+                    st.write(f"DEBUG: Field '{field_name}' mapped to '{field_column}' for filtering")
+                # If neither exists, log an error and skip this field
                 else:
-                    import streamlit as st
                     st.error(f"DEBUG ERROR: Field '{field_name}' not found in data columns. Available columns: {list(matches.columns)}")
                     continue
+            
+            # Verify the mapped column exists
+            if field_column not in matches.columns:
+                st.error(f"DEBUG ERROR: Mapped field '{field_column}' not found in data columns")
+                continue
                     
             if isinstance(value, list):
                 # Multiple values: any show containing any of the values matches
