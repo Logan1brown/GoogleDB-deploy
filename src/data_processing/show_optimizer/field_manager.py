@@ -407,6 +407,21 @@ class FieldManager:
             'fields': field_samples
         }
     
+    def get_array_field_mapping(self) -> Dict[str, str]:
+        """Get the mapping from array field names to their column names in the DataFrame.
+        
+        Returns:
+            Dictionary mapping array field names to column names.
+        """
+        return {
+            'character_types': 'character_type_ids',
+            'plot_elements': 'plot_element_ids',
+            'thematic_elements': 'thematic_element_ids',
+            'team_members': 'team_member_ids',
+            'subgenres': 'subgenres',  # This one doesn't have _ids suffix
+            'studios': 'studios'       # This one doesn't have _ids suffix
+        }
+        
     def match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame) -> Tuple[pd.DataFrame, int]:
         """Match shows against criteria.
         
@@ -439,14 +454,7 @@ class FieldManager:
                 scalar_fields[field_id] = value
         
         # Define standard mapping for array fields to their column names
-        array_field_mapping = {
-            'character_types': 'character_type_ids',
-            'plot_elements': 'plot_element_ids',
-            'thematic_elements': 'thematic_element_ids',
-            'team_members': 'team_member_ids',
-            'subgenres': 'subgenres',  # This one doesn't have _ids suffix
-            'studios': 'studios'       # This one doesn't have _ids suffix
-        }
+        array_field_mapping = self.get_array_field_mapping()
         
         # Also create a reverse mapping for debugging purposes
         column_to_field_mapping = {v: k for k, v in array_field_mapping.items()}
@@ -495,19 +503,14 @@ class FieldManager:
                 
                 # Handle different data formats
                 if isinstance(sample, list):
+                    # If the column contains lists, use list intersection
                     mask = matches[field_column].apply(
                         lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
                 else:
-                    # If the column isn't storing lists, we need a different approach
-                    st.write(f"DEBUG: Column '{field_column}' doesn't contain list values, using alternative filtering")
-                    # Try to convert to list if it's a string representation of a list
-                    try:
-                        mask = matches[field_column].apply(
-                            lambda x: bool(value_set.intersection(eval(x))) if isinstance(x, str) and x.startswith('[') else False)
-                    except:
-                        # Fallback to exact matching
-                        st.write(f"DEBUG: Falling back to exact matching for '{field_column}'")
-                        mask = matches[field_column].isin(value)
+                    # If the column isn't storing lists, use standard filtering
+                    st.write(f"DEBUG: Column '{field_column}' doesn't contain list values, using standard filtering")
+                    # Just use direct value matching - safer than trying to parse strings as lists
+                    mask = matches[field_column].isin(value)
             else:
                 # Single value: any show containing the value matches
                 # Check if the column contains lists or is itself a list
@@ -515,19 +518,14 @@ class FieldManager:
                 
                 # Handle different data formats
                 if isinstance(sample, list):
+                    # If the column contains lists, check if value is in the list
                     mask = matches[field_column].apply(
                         lambda x: isinstance(x, list) and value in x)
                 else:
-                    # If the column isn't storing lists, we need a different approach
-                    st.write(f"DEBUG: Column '{field_column}' doesn't contain list values for single value, using alternative filtering")
-                    # Try to convert to list if it's a string representation of a list
-                    try:
-                        mask = matches[field_column].apply(
-                            lambda x: value in eval(x) if isinstance(x, str) and x.startswith('[') else False)
-                    except:
-                        # Fallback to exact matching
-                        st.write(f"DEBUG: Falling back to exact matching for single value in '{field_column}'")
-                        mask = matches[field_column] == value
+                    # If the column isn't storing lists, use standard equality check
+                    st.write(f"DEBUG: Column '{field_column}' doesn't contain list values for single value, using direct equality")
+                    # Just use direct equality - safer than trying to parse strings as lists
+                    mask = matches[field_column] == value
                     
             # Apply filter
             matches = matches[mask]

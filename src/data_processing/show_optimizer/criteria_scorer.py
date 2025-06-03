@@ -376,18 +376,9 @@ class CriteriaScorer:
         
         st.write(f"DEBUG: Available columns in data: {list(data.columns)}")
         
-        # Log array fields in criteria
-        array_fields = ['character_types', 'plot_elements', 'thematic_elements', 'team_members', 'subgenres', 'studios']
-        
-        # Get the field manager's mapping dictionary for reference
-        array_field_mapping = {
-            'character_types': 'character_type_ids',
-            'plot_elements': 'plot_element_ids',
-            'thematic_elements': 'thematic_element_ids',
-            'team_members': 'team_member_ids',
-            'subgenres': 'subgenres',  # This one doesn't have _ids suffix
-            'studios': 'studios'       # This one doesn't have _ids suffix
-        }
+        # Get array fields and mapping from field_manager
+        array_field_mapping = self.field_manager.get_array_field_mapping()
+        array_fields = list(array_field_mapping.keys())
         
         for field_name in criteria.keys():
             if field_name in array_fields:
@@ -1018,34 +1009,37 @@ class CriteriaScorer:
             details=details
         )
     
-    def calculate_criteria_impact(self, base_criteria: Dict[str, Any]) -> Dict[str, Dict[int, float]]:
-        """Calculate the impact of each criteria value on success.
+    def calculate_criteria_impact(self, base_criteria: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+        """Calculate the impact of each criteria value on success rate.
         
         Args:
-            base_criteria: Base criteria to calculate impact relative to
+            base_criteria: The base criteria to compare against.
             
         Returns:
-            Dictionary mapping criteria to dictionaries mapping values to impact scores
+            A dictionary mapping field names to dictionaries of option IDs to impact scores.
         """
-        import streamlit as st
-        
-        st.write("DEBUG: Starting calculate_criteria_impact")
-        
-        # Fields that support multiple values
-        array_fields = ['character_types', 'plot_elements', 'thematic_elements', 'team_members', 'subgenres', 'studios']
-        # Track error counts for reporting
-        error_counts = {field: 0 for field in array_fields}
-        
         try:
+            import streamlit as st
+            
+            # Get the field manager's array field mapping
+            array_field_mapping = self.field_manager.get_array_field_mapping()
+            
+            # Define which fields are array fields (need special handling)
+            array_fields = list(array_field_mapping.keys())
+            
+            # Track error counts to avoid excessive errors for problematic fields
+            error_counts = {}
+            
             # Get base success rate
-            st.write(f"DEBUG: Getting base shows for criteria: {base_criteria}")
-            base_shows, match_count = self._get_matching_shows(base_criteria)
+            base_shows, base_match_count = self._get_matching_shows(base_criteria)
             
             if base_shows.empty:
-                st.error("DEBUG ERROR: No matching shows found for base criteria")
-                raise ValueError("No matching shows found for base criteria")
-            
-            st.write(f"DEBUG: Found {match_count} base shows")
+                st.error("DEBUG ERROR: No shows matched the base criteria")
+                raise ValueError("Cannot calculate impact scores with no matching shows")
+                
+            if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
+                st.error(f"DEBUG ERROR: Insufficient sample size for base criteria: {base_match_count} shows")
+                raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows)")
             
             base_rate = self._calculate_success_rate(base_shows)
             st.write(f"DEBUG: Base success rate: {base_rate}")
@@ -1067,9 +1061,6 @@ class CriteriaScorer:
                     # Handle array fields specially
                     is_array_field = field_name in array_fields
                     
-                    # We'll still calculate impact for array fields, but we need to be aware
-                    # that they might use different column names in the data
-                    
                     field_impact = {}
                     options = self.field_manager.get_options(field_name)
                     
@@ -1089,19 +1080,6 @@ class CriteriaScorer:
                             if is_array_field:
                                 new_criteria[field_name] = [option.id]
                                 st.write(f"DEBUG: Using array field '{field_name}' with value {[option.id]}")
-                                
-                                # Reference the field manager's mapping for debugging
-                                array_field_mapping = {
-                                    'character_types': 'character_type_ids',
-                                    'plot_elements': 'plot_element_ids',
-                                    'thematic_elements': 'thematic_element_ids',
-                                    'team_members': 'team_member_ids',
-                                    'subgenres': 'subgenres',
-                                    'studios': 'studios'
-                                }
-                                
-                                if field_name in array_field_mapping:
-                                    st.write(f"DEBUG: This will be mapped to column '{array_field_mapping[field_name]}' by field_manager")
                             else:
                                 new_criteria[field_name] = option.id
                             
