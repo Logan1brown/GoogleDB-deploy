@@ -429,15 +429,32 @@ class MatchingCalculator:
         
         # Use FieldManager to match shows against criteria
         try:
+            st.write(f"DEBUG: Before matching - clean_criteria: {clean_criteria}")
+            st.write(f"DEBUG: Before matching - data shape: {data.shape}")
+            
             matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(clean_criteria, data)
             
+            st.write(f"DEBUG: After matching - matched_shows shape: {matched_shows.shape}")
+            st.write(f"DEBUG: After matching - match_count: {match_count}")
+            
             if matched_shows.empty:
-                # Instead of returning an empty DataFrame, return the original data
-                # This allows the UI to show all shows when no matches are found
-                # which is better than showing no results
-                st.warning("No exact matches found for the specified criteria. Showing all available shows instead.")
-                return data, len(data)
-                
+                st.error(f"DEBUG: No matches found for criteria: {clean_criteria}")
+                # Return empty DataFrame with zero matches
+                # The calling code should handle this appropriately
+                return matched_shows, 0
+            
+            # Verify that success_score is present in the matched shows
+            if 'success_score' not in matched_shows.columns:
+                st.error("DEBUG: success_score column missing from matched shows")
+                # Try to merge success_score from original data
+                if 'success_score' in data.columns and 'id' in matched_shows.columns and 'id' in data.columns:
+                    st.write("DEBUG: Attempting to merge success_score from original data")
+                    matched_shows = matched_shows.merge(data[['id', 'success_score']], on='id', how='left')
+            
+            st.write(f"DEBUG: Final matched_shows columns: {list(matched_shows.columns)}")
+            if 'success_score' in matched_shows.columns:
+                st.write(f"DEBUG: success_score non-null count: {matched_shows['success_score'].notna().sum()}")
+            
             return matched_shows, match_count
         except Exception as e:
             # Return empty DataFrame with zero matches
