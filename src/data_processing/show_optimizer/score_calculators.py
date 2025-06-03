@@ -336,6 +336,7 @@ class MatchingCalculator:
             criteria_scorer: The CriteriaScorer instance to use for calculations
         """
         self.criteria_scorer = criteria_scorer
+        self._criteria_data = None
     
     def get_matching_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
         """Get shows matching the given criteria.
@@ -346,7 +347,11 @@ class MatchingCalculator:
         Returns:
             Tuple of (DataFrame of matching shows with success metrics, count of matches)
         """
-        data = self.criteria_scorer.fetch_criteria_data()
+        # Force a refresh of criteria data to ensure we have the latest success metrics
+        data = self.criteria_scorer.fetch_criteria_data(force_refresh=True)
+        # Store the data for use in other methods
+        self._criteria_data = data
+        
         if data.empty:
             st.error("Empty criteria data from fetch_criteria_data")
             raise ValueError("No criteria data available")
@@ -412,9 +417,24 @@ class MatchingCalculator:
         if shows.empty:
             return None
         
+        # Ensure we have success_score column
         if 'success_score' not in shows.columns:
-            st.warning("Optimizer Calculation Warning: Cannot calculate success rate. The 'success_score' column is missing from the input data for the current calculation.")
-            return None
+            # Try to get fresh criteria data if we don't have success_score
+            if self._criteria_data is None or 'success_score' not in self._criteria_data.columns:
+                try:
+                    self._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=True)
+                except Exception as e:
+                    st.error(f"Error refreshing criteria data: {e}")
+            
+            # If we have criteria data with success_score, merge it with shows
+            if self._criteria_data is not None and 'success_score' in self._criteria_data.columns:
+                # Merge success_score from criteria_data into shows
+                shows = shows.merge(self._criteria_data[['id', 'success_score']], on='id', how='left')
+            
+            # Check again if we have success_score
+            if 'success_score' not in shows.columns:
+                st.warning("Optimizer Calculation Warning: Cannot calculate success rate. The 'success_score' column is missing from the input data for the current calculation.")
+                return None
         
         # Filter out shows with missing success scores AND shows with a score of 0
         # Shows with a score of 0 are typically those that haven't aired yet or have unreliable data
@@ -458,11 +478,22 @@ class MatchingCalculator:
         Returns:
             List of success rates in the same order as criteria_list, with None for missing data
         """
+        # Ensure we have fresh criteria data with success metrics
+        try:
+            self._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=True)
+        except Exception as e:
+            st.error(f"Error refreshing criteria data: {e}")
+            
         results = []
         for criteria in criteria_list:
             try:
                 shows, count = self.get_matching_shows(criteria)
                 if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                    # If success_score is not in shows, try to merge it from criteria_data
+                    if 'success_score' not in shows.columns and self._criteria_data is not None:
+                        if 'success_score' in self._criteria_data.columns:
+                            shows = shows.merge(self._criteria_data[['id', 'success_score']], on='id', how='left')
+                    
                     success_rate = self.calculate_success_rate(shows)
                     results.append(success_rate)  # This might be None if success_score is missing
                 else:
