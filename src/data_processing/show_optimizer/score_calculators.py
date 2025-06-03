@@ -280,6 +280,9 @@ class NetworkScoreCalculator:
                 # Get shows matching both criteria and network
                 # Use the matching calculator if available, otherwise fall back to direct method
                 if hasattr(self.criteria_scorer, '_matching_calculator'):
+                    # First ensure we have criteria data with success metrics
+                    if self.criteria_scorer._matching_calculator._criteria_data is None:
+                        self.criteria_scorer._matching_calculator._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
                     matching_shows, count = self.criteria_scorer._matching_calculator.get_matching_shows(network_criteria)
                 else:
                     matching_shows, count = self.criteria_scorer._get_matching_shows(network_criteria)
@@ -290,6 +293,16 @@ class NetworkScoreCalculator:
                 
                 # Calculate success probability if we have enough shows
                 if not matching_shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                    # Check if we have success_score in the matching_shows
+                    if 'success_score' not in matching_shows.columns and hasattr(self.criteria_scorer, '_matching_calculator'):
+                        # Try to merge success_score from criteria_data
+                        if self.criteria_scorer._matching_calculator._criteria_data is not None and 'success_score' in self.criteria_scorer._matching_calculator._criteria_data.columns:
+                            matching_shows = matching_shows.merge(
+                                self.criteria_scorer._matching_calculator._criteria_data[['id', 'success_score']], 
+                                on='id', 
+                                how='left'
+                            )
+                    
                     # Use the matching calculator if available, otherwise fall back to direct method
                     if hasattr(self.criteria_scorer, '_matching_calculator'):
                         success_rate = self.criteria_scorer._matching_calculator.calculate_success_rate(matching_shows)
