@@ -342,11 +342,11 @@ class NetworkScoreCalculator:
 class MatchingCalculator:
     """Handles show matching and success rate calculations."""
     
-    def __init__(self, criteria_scorer):
-        """Initialize the calculator with a reference to the CriteriaScorer.
+    def __init__(self, criteria_scorer: 'CriteriaScorer'):
+        """Initialize the MatchingCalculator.
         
         Args:
-            criteria_scorer: The CriteriaScorer instance to use for calculations
+            criteria_scorer: CriteriaScorer instance to use for data access
         """
         self.criteria_scorer = criteria_scorer
         self._criteria_data = None

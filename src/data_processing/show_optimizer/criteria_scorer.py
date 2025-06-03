@@ -18,7 +18,7 @@ from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
 from .optimizer_config import OptimizerConfig
-from .score_calculators import ComponentScore, ScoreCalculationError, NetworkMatch, NetworkScoreCalculator, MatchingCalculator
+from .score_calculators import ComponentScore, ScoreCalculationError, NetworkMatch, NetworkScoreCalculator
 from .score_calculators import SuccessScoreCalculator, AudienceScoreCalculator, CriticsScoreCalculator, LongevityScoreCalculator
 
 SCORE_CALCULATORS_CLASSES = {
@@ -49,27 +49,18 @@ class CriteriaScorer:
         self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
         self._normalization_performed = False  # Track if normalization has been performed
         
-        # Initialize field manager
-        self.field_manager = FieldManager({})
-        
-        # Initialize the MatchingCalculator
-        from .score_calculators import MatchingCalculator
-        self._matching_calculator = MatchingCalculator(self)
-        
         # Get reference data from ShowsAnalyzer using fetch_comp_data
         try:
             comp_df, reference_data = shows_analyzer.fetch_comp_data()
             self.field_manager = FieldManager(reference_data)
-            # Initialize the matching calculator
-            self._matching_calculator = MatchingCalculator(self)
         except Exception as e:
             st.error(f"Optimizer Initialization Error: Could not initialize FieldManager due to: {e}. Some features may not work correctly or data may be incomplete.")
             # Initialize with empty reference data as fallback
             self.field_manager = FieldManager({})
-            
-        self.criteria_data = None
-        self.last_update = None
-        self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
+        
+        # Initialize the matching calculator after field_manager is set up
+        from .score_calculators import MatchingCalculator
+        self._matching_calculator = MatchingCalculator(self)
         
     def fetch_criteria_data(self, force_refresh=False):
         """Fetch criteria data for matching and scoring.
