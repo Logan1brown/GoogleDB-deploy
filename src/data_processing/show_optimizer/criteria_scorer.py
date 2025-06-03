@@ -198,6 +198,34 @@ class CriteriaScorer:
             if comp_df.empty:
                 raise ValueError("No data returned from ShowsAnalyzer.fetch_comp_data()")
                 
+            # Get success metrics from SuccessAnalyzer
+            success_df = self.success_analyzer.fetch_success_data()
+            
+            if not success_df.empty:
+                # Success data is indexed by show_id, so we need to merge on that
+                # Create a temporary copy of comp_df with show_id as index for merging
+                comp_df_indexed = comp_df.set_index('id', drop=False)
+                
+                # Get all required success metrics from success_df
+                required_metrics = ['success_score', 'popcornmeter', 'tomatometer', 'has_rt']
+                available_metrics = [col for col in required_metrics if col in success_df.columns]
+                
+                if not available_metrics:
+                    st.error("DEBUG ERROR: No required metrics found in success data")
+                else:
+                    # Merge the success metrics into comp_df
+                    success_metrics = success_df[available_metrics]
+                    comp_df_indexed = comp_df_indexed.join(success_metrics, how='left')
+                    
+                    # Reset the index and update comp_df
+                    comp_df = comp_df_indexed.reset_index(drop=True)
+                    
+                    # Log which metrics were added
+                    for metric in available_metrics:
+                        st.write(f"DEBUG: Added {metric} from SuccessAnalyzer to {comp_df[metric].notna().sum()} shows")
+            else:
+                st.error("DEBUG ERROR: No success data available from SuccessAnalyzer")
+                
             # Update field manager with new reference data
             self.field_manager = FieldManager(reference_data)
             
@@ -319,7 +347,7 @@ class CriteriaScorer:
             return matched_shows, 0
             
         return matched_shows, match_count   
-    def _calculate_success_rate(self, shows: pd.DataFrame, threshold: float = 0.6) -> float:
+    def _calculate_success_rate(self, shows: pd.DataFrame, threshold: float = 0.6) -> Optional[float]:
         """Calculate the success rate for a set of shows.
         
         Args:
@@ -327,17 +355,17 @@ class CriteriaScorer:
             threshold: Success threshold (shows with score >= threshold are considered successful)
             
         Returns:
-            Success rate (0-1)
+            Success rate (0-1) or None if success_score is missing
         """
         import streamlit as st
         
         if shows.empty:
             st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_success_rate")
-            raise ValueError("Cannot calculate success rate with empty shows DataFrame")
+            return None
         
         if 'success_score' not in shows.columns:
             st.error("DEBUG ERROR: 'success_score' column missing from shows data")
-            raise ValueError("'success_score' column required for success rate calculation")
+            return None
         
         # Filter out shows with missing success scores
         shows_with_scores = shows[shows['success_score'].notna()]
@@ -406,6 +434,10 @@ class CriteriaScorer:
                 raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows)")
             
             base_rate = self._calculate_success_rate(base_shows)
+            
+            if base_rate is None:
+                st.warning("WARNING: Unable to calculate base success rate - success_score data missing")
+                return {}
             
             if base_rate == 0:
                 st.error("ERROR: Base success rate is zero")
@@ -712,21 +744,22 @@ class CriteriaScorer:
         )
         
 
-    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[float]:
+    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[Optional[float]]:
         """Batch calculate success rates for multiple criteria.
         
         Args:
             criteria_list: List of criteria dictionaries
             
         Returns:
-            List of success rates in the same order as criteria_list
+            List of success rates in the same order as criteria_list, with None for missing data
         """
         results = []
         for criteria in criteria_list:
             try:
                 shows, count = self._get_matching_shows(criteria)
                 if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                    results.append(self._calculate_success_rate(shows))
+                    success_rate = self._calculate_success_rate(shows)
+                    results.append(success_rate)  # This might be None if success_score is missing
                 else:
                     results.append(None)
             except Exception as e:

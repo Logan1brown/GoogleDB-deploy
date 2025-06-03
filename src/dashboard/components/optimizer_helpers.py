@@ -273,13 +273,21 @@ def render_success_metrics(summary: Any):
         # Check for overall_success_probability attribute
         if hasattr(summary, 'overall_success_probability'):
             probability = summary.overall_success_probability
-            confidence = summary.confidence if hasattr(summary, 'confidence') else 'medium'
             
-            render_metric_card(
-                "Success Probability", 
-                f"{probability:.0%}", 
-                f"Confidence: {confidence.capitalize()}"
-            )
+            if probability is None:
+                render_metric_card(
+                    "Success Probability", 
+                    "N/A", 
+                    "Data unavailable"
+                )
+            else:
+                confidence = summary.confidence if hasattr(summary, 'confidence') else 'medium'
+                
+                render_metric_card(
+                    "Success Probability", 
+                    f"{probability:.0%}", 
+                    f"Confidence: {confidence.capitalize()}"
+                )
         else:
             st.info("Overall success probability not available.")
     
@@ -292,13 +300,21 @@ def render_success_metrics(summary: Any):
                 # Check if audience_score has score attribute
                 if hasattr(audience_score, 'score'):
                     score = audience_score.score
-                    confidence = audience_score.confidence if hasattr(audience_score, 'confidence') else 'medium'
                     
-                    render_metric_card(
-                        "Audience Appeal", 
-                        f"{score:.0%}", 
-                        f"Confidence: {confidence.capitalize()}"
-                    )
+                    if score is None:
+                        render_metric_card(
+                            "Audience Appeal", 
+                            "N/A", 
+                            "Data unavailable"
+                        )
+                    else:
+                        confidence = audience_score.confidence if hasattr(audience_score, 'confidence') else 'medium'
+                        
+                        render_metric_card(
+                            "Audience Appeal", 
+                            f"{score:.0%}", 
+                            f"Confidence: {confidence.capitalize()}"
+                        )
         
     with col3:
         # Check if component_scores exists
@@ -308,13 +324,21 @@ def render_success_metrics(summary: Any):
                 # Check if critic_score has score attribute
                 if hasattr(critic_score, 'score'):
                     score = critic_score.score
-                    confidence = critic_score.confidence if hasattr(critic_score, 'confidence') else 'medium'
                     
-                    render_metric_card(
-                        "Critical Reception", 
-                        f"{score:.0%}", 
-                        f"Confidence: {confidence.capitalize()}"
-                    )
+                    if score is None:
+                        render_metric_card(
+                            "Critical Reception", 
+                            "N/A", 
+                            "Data unavailable"
+                        )
+                    else:
+                        confidence = critic_score.confidence if hasattr(critic_score, 'confidence') else 'medium'
+                        
+                        render_metric_card(
+                            "Critical Reception", 
+                            f"{score:.0%}", 
+                            f"Confidence: {confidence.capitalize()}"
+                        )
 
 
 def render_success_factors(success_factors: List):
