@@ -385,20 +385,15 @@ class CriteriaScorer:
                 # Make sure array field values are always lists
                 if not isinstance(criteria[field_name], list):
                     criteria[field_name] = [criteria[field_name]]
-                    
-                st.write(f"DEBUG: Processing array field '{field_name}' with value {criteria[field_name]}")
-                if field_name in array_field_mapping:
-                    st.write(f"DEBUG: This will be mapped to column '{array_field_mapping[field_name]}' by field_manager")
                 # Let field_manager handle the mapping
         
         # Use FieldManager to match shows against criteria
         matched_shows, match_count = self.field_manager.match_shows(criteria, data)
         
         if matched_shows.empty:
-            st.error(f"DEBUG ERROR: No shows matched the criteria {criteria}")
+            st.error(f"ERROR: No shows matched the criteria")
             return matched_shows, 0
             
-        st.write(f"DEBUG: Found {match_count} shows matching the criteria")
         return matched_shows, match_count   
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: float = 0.6) -> float:
         """Calculate the success rate for a set of shows.
@@ -1034,18 +1029,17 @@ class CriteriaScorer:
             base_shows, base_match_count = self._get_matching_shows(base_criteria)
             
             if base_shows.empty:
-                st.error("DEBUG ERROR: No shows matched the base criteria")
+                st.error("ERROR: No shows matched the base criteria")
                 raise ValueError("Cannot calculate impact scores with no matching shows")
                 
             if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                st.error(f"DEBUG ERROR: Insufficient sample size for base criteria: {base_match_count} shows")
+                st.error(f"ERROR: Insufficient sample size for base criteria: {base_match_count} shows")
                 raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows)")
             
             base_rate = self._calculate_success_rate(base_shows)
-            st.write(f"DEBUG: Base success rate: {base_rate}")
             
             if base_rate == 0:
-                st.error("DEBUG ERROR: Base success rate is zero")
+                st.error("ERROR: Base success rate is zero")
                 raise ValueError("Cannot calculate impact scores with zero base success rate")
             
             impact_scores = {}
@@ -1063,8 +1057,6 @@ class CriteriaScorer:
                     
                     field_impact = {}
                     options = self.field_manager.get_options(field_name)
-                    
-                    st.write(f"DEBUG: Calculating impact for field {field_name} with {len(options)} options")
                     option_count = 0
                     
                     for option in options:
@@ -1079,7 +1071,6 @@ class CriteriaScorer:
                             # For array fields, wrap the option ID in a list
                             if is_array_field:
                                 new_criteria[field_name] = [option.id]
-                                st.write(f"DEBUG: Using array field '{field_name}' with value {[option.id]}")
                             else:
                                 new_criteria[field_name] = option.id
                             

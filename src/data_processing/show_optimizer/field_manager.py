@@ -466,31 +466,23 @@ class FieldManager:
             # Use our standard mapping if available
             if field_name in array_field_mapping:
                 field_column = array_field_mapping[field_name]
-                st.write(f"DEBUG: Using mapped field name '{field_column}' for '{field_name}'")
             # Otherwise, try to determine the column name dynamically
             else:
                 # First check if the field exists directly
                 if field_name in matches.columns:
                     field_column = field_name
-                    st.write(f"DEBUG: Using exact field name '{field_name}' for filtering")
                 # Then try with _ids suffix which is common in the database
                 elif f"{field_name}_ids" in matches.columns:
                     field_column = f"{field_name}_ids"
-                    st.write(f"DEBUG: Field '{field_name}' mapped to '{field_column}' for filtering")
                 # If neither exists, log an error and skip this field
                 else:
-                    st.error(f"DEBUG ERROR: Field '{field_name}' not found in data columns. Available columns: {list(matches.columns)}")
+                    st.error(f"ERROR: Field '{field_name}' not found in data columns")
                     continue
             
             # Verify the mapped column exists
             if field_column not in matches.columns:
-                st.error(f"DEBUG ERROR: Mapped field '{field_column}' not found in data columns")
+                st.error(f"ERROR: Mapped field '{field_column}' not found in data columns")
                 continue
-                
-            st.write(f"DEBUG: Filtering on column '{field_column}' for field '{field_name}'")
-            # Log the first few values in this column to help with debugging
-            sample_values = matches[field_column].iloc[:3].tolist()
-            st.write(f"DEBUG: Sample values in column '{field_column}': {sample_values}")
                     
             if isinstance(value, list):
                 # Multiple values: any show containing any of the values matches
@@ -499,7 +491,6 @@ class FieldManager:
                 
                 # Check if the column contains lists or is itself a list
                 sample = matches[field_column].iloc[0] if not matches.empty else None
-                st.write(f"DEBUG: Sample value type for '{field_column}': {type(sample).__name__}")
                 
                 # Handle different data formats
                 if isinstance(sample, list):
@@ -508,8 +499,6 @@ class FieldManager:
                         lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
                 else:
                     # If the column isn't storing lists, use standard filtering
-                    st.write(f"DEBUG: Column '{field_column}' doesn't contain list values, using standard filtering")
-                    # Just use direct value matching - safer than trying to parse strings as lists
                     mask = matches[field_column].isin(value)
             else:
                 # Single value: any show containing the value matches
