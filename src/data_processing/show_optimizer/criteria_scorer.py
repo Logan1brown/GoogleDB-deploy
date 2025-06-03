@@ -24,24 +24,20 @@ Key concepts:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple, Any, Union, Callable
+from typing import Dict, List, Optional, Tuple, Any
 import pandas as pd
 import numpy as np
-from functools import lru_cache, partial
-from datetime import datetime, timedelta
 import ast
-
-from ..analyze_shows import ShowsAnalyzer
-from ..success_analysis import SuccessAnalyzer
-from .optimizer_config import OptimizerConfig
-from .field_manager import FieldManager
-from .score_calculators import (
-    ComponentScore, ScoreCalculationError, SuccessScoreCalculator,
-    AudienceScoreCalculator, CriticsScoreCalculator, LongevityScoreCalculator
-)
 import streamlit as st
+from functools import lru_cache
+from datetime import datetime, timedelta
 
-
+from ..shows_analyzer import ShowsAnalyzer
+from ..success_analyzer import SuccessAnalyzer
+from .field_manager import FieldManager
+from .optimizer_config import OptimizerConfig
+from .score_calculators import ComponentScore, ScoreCalculationError, NetworkMatch, NetworkScoreCalculator
+from .score_calculators import SuccessScoreCalculator, AudienceScoreCalculator, CriticsScoreCalculator, LongevityScoreCalculator
 
 SCORE_CALCULATORS_CLASSES = {
     'success': SuccessScoreCalculator,
@@ -50,20 +46,8 @@ SCORE_CALCULATORS_CLASSES = {
     'longevity': LongevityScoreCalculator,
 }
 
-__all__ = ['CriteriaScorer', 'ComponentScore', 'NetworkMatch', 'ScoreCalculationError']
+__all__ = ['CriteriaScorer', 'ComponentScore', 'ScoreCalculationError']
 
-
-@dataclass
-class NetworkMatch:
-    """Network match information with success metrics."""
-    network_id: int
-    network_name: str
-    compatibility_score: float  # 0-1 score of how well the network matches criteria
-    success_probability: float  # 0-1 probability of success on this network
-    sample_size: int  # Number of shows in the sample
-    confidence: str  # none, low, medium, high
-
-    details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
 
 
 class CriteriaScorer:
@@ -527,156 +511,7 @@ class CriteriaScorer:
             return {}
 
         return component_scores
-    def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Optional[float]:
-        """Calculate the success rate for a set of shows.
-        
-        Args:
-            shows: DataFrame of shows
-            threshold: Success threshold (shows with score >= threshold are considered successful)
-            
-        Returns:
-            Success rate (0-1) or None if success_score is missing
-        """
-        # Use threshold from OptimizerConfig if not provided
-        if threshold is None:
-            from .optimizer_config import OptimizerConfig
-            threshold = OptimizerConfig.THRESHOLDS['success_threshold']
-        
-        if shows.empty:
-            return None
-        
-        if 'success_score' not in shows.columns:
-            st.warning("Optimizer Calculation Warning: Cannot calculate success rate. The 'success_score' column is missing from the input data for the current calculation.")
-            return None
-        
-        # Filter out shows with missing success scores AND shows with a score of 0
-        # Shows with a score of 0 are typically those that haven't aired yet or have unreliable data
-        shows_with_scores = shows[(shows['success_score'].notna()) & (shows['success_score'] > 0)]
-        
-        if len(shows_with_scores) == 0:
-            st.warning("Optimizer Calculation Warning: Cannot calculate success rate. No shows have valid 'success_score' data for the current calculation.")
-            return None
-        
-        # Get success score range and distribution
-        min_score = shows_with_scores['success_score'].min()
-        max_score = shows_with_scores['success_score'].max()
-        mean_score = shows_with_scores['success_score'].mean()
-        
-        # Normalize threshold if scores are on 0-100 scale
-        normalized_threshold = threshold
-        normalized_scores = shows_with_scores['success_score'].copy()
-        
-        # Check if scores need normalization (0-100 scale)
-        if max_score > 1.0:  # If scores are on 0-100 scale
-            normalized_threshold = threshold * 100
-        else:  # If scores are already on 0-1 scale but threshold is on 0-100 scale
-            if threshold > 1.0:
-                normalized_threshold = threshold / 100
-        
-        # Count successful shows (those with score >= threshold)
-        successful = shows_with_scores[shows_with_scores['success_score'] >= normalized_threshold]
-        success_count = len(successful)
-        total_count = len(shows_with_scores)
-        
-        success_rate = success_count / total_count
-        
-        return success_rate
 
-    @lru_cache(maxsize=32)
-    def calculate_criteria_impact(self, base_criteria: Dict[str, Any], field_name: Optional[str] = None) -> Dict[str, Dict[str, float]]:
-        """Calculate the impact of criteria values on success rate.
-        
-        Args:
-            base_criteria: The base criteria to compare against.
-            field_name: Optional name of the field to analyze. If None, analyzes all fields.
-            
-        Returns:
-            A dictionary mapping field names to dictionaries of option IDs to impact scores.
-        """
-        try:
-            # Get the field manager's array field mapping
-            array_field_mapping = self.field_manager.get_array_field_mapping()
-            array_fields = list(array_field_mapping.keys())
-            
-            # Get base success rate
-            base_shows, base_match_count = self._get_matching_shows(base_criteria)
-            
-            if base_shows.empty:
-                raise ValueError("Cannot calculate impact scores with no matching shows")
-                
-            if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows). Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
-            
-            base_rate = self._calculate_success_rate(base_shows)
-            
-            if base_rate is None:
-                st.warning("WARNING: Unable to calculate base success rate - success_score data missing")
-                return {}
-            
-            if base_rate == 0:
-                raise ValueError("Base success rate is zero, cannot calculate meaningful impact scores.")
-            
-            impact_scores = {}
-            
-            # Determine which fields to process
-            fields_to_process = [field_name] if field_name else self.field_manager.FIELD_CONFIGS.keys()
-            
-            for current_field in fields_to_process:
-                # Skip fields already in base criteria
-                if current_field in base_criteria:
-                    continue
-                
-                is_array_field = current_field in array_fields
-                options = self.field_manager.get_options(current_field)
-                
-                # Prepare batch criteria for all options
-                batch_criteria = []
-                option_data = []
-                
-                for option in options:
-                    new_criteria = base_criteria.copy()
-                    if is_array_field:
-                        # Ensure option.id is treated as a list item for array fields
-                        new_criteria[current_field] = [option.id] if not isinstance(option.id, list) else option.id
-                    else:
-                        new_criteria[current_field] = option.id
-                    batch_criteria.append(new_criteria)
-                    option_data.append((option.id, option.name))
-                
-                # Batch calculate success rates
-                success_rates = self._batch_calculate_success_rates(batch_criteria)
-                
-                # Process results
-                field_impact = {}
-                
-                for i, criteria_set in enumerate(batch_criteria):
-                    option_id, option_name = option_data[i]
-                    rate = success_rates[i]
-                    
-                    if rate is not None:
-                        option_shows, match_count = self._get_matching_shows(criteria_set)
-                        impact = (rate - base_rate) / base_rate if base_rate != 0 else 0
-                        
-                        # option_id is guaranteed to be an int from FieldManager's FieldOption.id, which is hashable.
-                        # No conversion or special handling is needed for its use as a dictionary key.
-                        field_impact[option_id] = {"impact": impact, "sample_size": match_count, "option_name": option_name}
-                
-                if field_impact:
-                    impact_scores[current_field] = field_impact
-                    
-            if not impact_scores and fields_to_process:
-                # Only raise if we attempted to process fields but got no results.
-                # If fields_to_process was empty (e.g. field_name was already in base_criteria), this is not an error.
-                raise ValueError("Could not calculate any impact scores with the given criteria configuration.")
-                
-            return impact_scores
-
-        except ValueError as ve:
-            st.error(str(ve)) # Surface our specific ValueErrors
-            raise
-        except Exception as e:
-            st.error(f"Error calculating criteria impact: {str(e)}")
-            raise
 
 
 
@@ -711,78 +546,7 @@ class CriteriaScorer:
         Returns:
             List of NetworkMatch objects with compatibility and success scores
         """
-        try:
-            criteria: Dict[str, Any]
-            if isinstance(criteria_str, str):
-                try:
-                    criteria = ast.literal_eval(criteria_str)
-                except (SyntaxError, ValueError) as parse_err:
-                    st.warning(f"Invalid criteria string format for network scores: '{criteria_str}'. Error: {parse_err}")
-                    st.error(f"Invalid format for criteria input: {str(parse_err)}. Please check the input string.")
-                    raise ValueError(f"Invalid criteria string format: {str(parse_err)}") from parse_err
-            elif isinstance(criteria_str, dict):
-                criteria = criteria_str
-            else:
-                err_msg = f"Invalid criteria type: {type(criteria_str)}. Must be a dict or a string representation of a dict."
-                st.error(err_msg)
-                raise ValueError(err_msg)
-                
-            # Get all networks from the data
-            data = self.fetch_criteria_data()
-            networks = data[['network_id', 'network_name']].drop_duplicates().dropna()
-            
-            # Prepare results list
-            results = []
-            
-            # For each network, calculate compatibility and success probability
-            for _, network in networks.iterrows():
-                network_id = network['network_id']
-                network_name = network['network_name']
-                
-                # Skip if network_id is not valid
-                if pd.isna(network_id) or pd.isna(network_name):
-                    continue
-                    
-                # Create network-specific criteria
-                network_criteria = criteria.copy()
-                network_criteria['network'] = int(network_id)
-                
-                # Get shows matching both criteria and network
-                matching_shows, count = self._get_matching_shows(network_criteria)
-                
-                # Calculate compatibility score (0-1)
-                # Simple version: percentage of criteria that match the network's typical shows
-                compatibility_score = 0.5  # Default medium compatibility
-                
-                # Calculate success probability if we have enough shows
-                if not matching_shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                    success_rate = self._calculate_success_rate(matching_shows)
-                    confidence = OptimizerConfig.get_confidence_level(count)
-                else:
-                    success_rate = None
-                    confidence = 'none'
-                
-                # Create NetworkMatch object
-                network_match = NetworkMatch(
-                    network_id=int(network_id),
-                    network_name=network_name,
-                    compatibility_score=compatibility_score,
-                    success_probability=success_rate if success_rate is not None else 0.0,
-                    sample_size=count if not matching_shows.empty else 0,
-                    confidence=confidence,
-                    details={
-                        'criteria': network_criteria,
-                        'matching_shows': count if not matching_shows.empty else 0
-                    }
-                )
-                
-                results.append(network_match)
-                
-            return results
-
-        except ValueError as ve:
-            st.error(f"Calculation Error (Network Scores): {str(ve)}")
-            raise
-        except Exception as e:
-            st.error(f"Optimizer Error: An unexpected error occurred while calculating network scores. Details: {e}")
-            raise
+        # Use the NetworkScoreCalculator to calculate network scores
+        if not hasattr(self, '_network_calculator'):
+            self._network_calculator = NetworkScoreCalculator(self)
+        return self._network_calculator.calculate_network_scores(criteria_str)
