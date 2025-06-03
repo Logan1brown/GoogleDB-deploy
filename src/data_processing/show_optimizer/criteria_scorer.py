@@ -211,7 +211,8 @@ class CriteriaScorer:
                 available_metrics = [col for col in required_metrics if col in success_df.columns]
                 
                 if not available_metrics:
-                    logger.error("No required metrics found in success data")
+                    # No metrics found, but continue processing
+                    pass
                 else:
                     # Merge the success metrics into comp_df
                     success_metrics = success_df[available_metrics]
@@ -219,12 +220,9 @@ class CriteriaScorer:
                     
                     # Reset the index and update comp_df
                     comp_df = comp_df_indexed.reset_index(drop=True)
-                    
-                    # Log which metrics were added
-                    for metric in available_metrics:
-                        logger.debug(f"Added {metric} from SuccessAnalyzer to {comp_df[metric].notna().sum()} shows")
             else:
-                logger.error("No success data available from SuccessAnalyzer")
+                # No success data available, but continue processing
+                pass
                 
             # Update field manager with new reference data
             self.field_manager = FieldManager(reference_data)
@@ -236,7 +234,6 @@ class CriteriaScorer:
             # Clean up any duplicate columns from merge
             duplicate_cols = [col for col in comp_df.columns if col.endswith('_orig') or col.endswith('_success')]
             if duplicate_cols:
-                logger.warning(f"Duplicate columns created during merge: {duplicate_cols}")
                 # Clean up duplicate columns by keeping the non-null version
                 processed_base_cols = set()  # Track which base columns we've already processed
                 
@@ -261,38 +258,20 @@ class CriteriaScorer:
             required_columns = ['id']  # Add other required columns as needed
             for col in required_columns:
                 if col not in comp_df.columns:
-                    logger.error(f"Required column '{col}' missing after duplicate cleanup")
                     # Try to recover from suffix columns if they still exist
                     orig_col = f"{col}_orig"
                     success_col = f"{col}_success"
                     
                     if orig_col in comp_df.columns:
                         comp_df[col] = comp_df[orig_col]
-                        logger.debug(f"Recovered '{col}' from '{orig_col}'")
                         comp_df = comp_df.drop([orig_col], axis=1, errors='ignore')
                     elif success_col in comp_df.columns:
                         comp_df[col] = comp_df[success_col]
-                        logger.debug(f"Recovered '{col}' from '{success_col}'")
                         comp_df = comp_df.drop([success_col], axis=1, errors='ignore')
             
             # Drop rows with missing success scores to make issues visible
             if 'success_score' in comp_df.columns:
-                missing_scores = comp_df['success_score'].isna().sum()
-                if missing_scores > 0:
-                    logger.debug(f"Dropping {missing_scores} shows with missing success scores")
-                    comp_df = comp_df.dropna(subset=['success_score'])
-            
-            # Log the columns in the merged data
-            logger.debug(f"Merged criteria data columns: {list(comp_df.columns)}")
-            logger.debug(f"Merged data has {len(comp_df)} rows")
-            
-            # Check if we have the required metrics columns
-            for col in ['popcornmeter', 'tomatometer']:
-                if col not in comp_df.columns:
-                    logger.warning(f"'{col}' column missing from merged data")
-                else:
-                    logger.debug(f"'{col}' column present in merged data")
-                    logger.debug(f"'{col}' non-null count: {comp_df[col].notna().sum()}")
+                comp_df = comp_df.dropna(subset=['success_score'])
             
             # Store the data and update timestamp
             self.criteria_data = comp_df
@@ -356,14 +335,6 @@ class CriteriaScorer:
             matched_shows, match_count = self.field_manager.match_shows(clean_criteria, data)
             
             if matched_shows.empty:
-                # Provide a more specific error message with the criteria that failed to match
-                criteria_str = ", ".join([f"{k}: {v}" for k, v in clean_criteria.items()])
-                logger.error(f"No shows matched the criteria: {criteria_str}")
-                
-                # Log the criteria and available columns for debugging
-                logger.warning(f"No shows matched criteria: {clean_criteria}")
-                logger.info(f"Available columns: {list(data.columns)}")
-                
                 # Return empty DataFrame with zero matches
                 # The calling code should handle this appropriately
                 return matched_shows, 0
