@@ -349,7 +349,7 @@ class MatchingCalculator:
             criteria_scorer: CriteriaScorer instance to use for data access
         """
         self.criteria_scorer = criteria_scorer
-        self._criteria_data = None
+        self._criteria_data = None  # Cache for criteria data
     
     def get_matching_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
         """Get shows matching the given criteria.

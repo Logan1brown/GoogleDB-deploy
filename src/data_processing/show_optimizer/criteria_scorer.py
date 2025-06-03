@@ -59,8 +59,15 @@ class CriteriaScorer:
             self.field_manager = FieldManager({})
         
         # Initialize the matching calculator after field_manager is set up
+        # Import here to avoid circular imports
         from .score_calculators import MatchingCalculator
+        # Create an instance and store it
         self._matching_calculator = MatchingCalculator(self)
+        # Ensure it has access to the field_manager
+        if hasattr(self, 'field_manager'):
+            st.write("DEBUG: FieldManager is available for MatchingCalculator")
+        else:
+            st.error("DEBUG: FieldManager is NOT available for MatchingCalculator")
         
     def fetch_criteria_data(self, force_refresh=False):
         """Fetch criteria data for matching and scoring.
