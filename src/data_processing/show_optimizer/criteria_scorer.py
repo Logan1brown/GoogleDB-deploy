@@ -358,7 +358,6 @@ class CriteriaScorer:
         if threshold is None:
             from .optimizer_config import OptimizerConfig
             threshold = OptimizerConfig.THRESHOLDS['success_threshold']
-        import streamlit as st
         
         if shows.empty:
             return None
@@ -366,8 +365,9 @@ class CriteriaScorer:
         if 'success_score' not in shows.columns:
             return None
         
-        # Filter out shows with missing success scores
-        shows_with_scores = shows[shows['success_score'].notna()]
+        # Filter out shows with missing success scores AND shows with a score of 0
+        # Shows with a score of 0 are typically those that haven't aired yet or have unreliable data
+        shows_with_scores = shows[(shows['success_score'].notna()) & (shows['success_score'] > 0)]
         
         if len(shows_with_scores) == 0:
             return None
