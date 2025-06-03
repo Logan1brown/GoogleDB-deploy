@@ -46,8 +46,15 @@ class CriteriaScorer:
         self.success_analyzer = success_analyzer
         self.criteria_data = None
         self.last_update = None
-        self.cache_duration = 300  # Cache for 5 minutes
+        self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
         self._normalization_performed = False  # Track if normalization has been performed
+        
+        # Initialize field manager
+        self.field_manager = FieldManager({})
+        
+        # Initialize the MatchingCalculator
+        from .score_calculators import MatchingCalculator
+        self._matching_calculator = MatchingCalculator(self)
         
         # Get reference data from ShowsAnalyzer using fetch_comp_data
         try:
@@ -167,31 +174,8 @@ class CriteriaScorer:
         Returns:
             Tuple of (DataFrame of matching shows with success metrics, count of matches)
         """
-        # If we have a MatchingCalculator, delegate to it, otherwise use the original implementation
-        if hasattr(self, '_matching_calculator'):
-            return self._matching_calculator.get_matching_shows(criteria)
-        
-        # Original implementation for backward compatibility
-        # Get criteria data
-        data = self.fetch_criteria_data()
-        
-        if data.empty:
-            st.error("Empty criteria data from fetch_criteria_data")
-            raise ValueError("No criteria data available")
-        
-        # Use FieldManager to match shows against criteria
-        try:
-            matched_shows, match_count = self.field_manager.match_shows(criteria, data)
-            
-            if matched_shows.empty:
-                # Return empty DataFrame with zero matches
-                return matched_shows, 0
-                
-            return matched_shows, match_count
-        except Exception as e:
-            # Return empty DataFrame with zero matches
-            st.error(f"Optimizer Error: An error occurred during show matching. Criteria attempted: {criteria}. Details: {e}")
-            return pd.DataFrame(), 0
+        # Delegate to the MatchingCalculator
+        return self._matching_calculator.get_matching_shows(criteria)
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Optional[float]:
         """Calculate the success rate for a set of shows.
         
@@ -202,65 +186,8 @@ class CriteriaScorer:
         Returns:
             Success rate (0-1) or None if success_score is missing
         """
-        # If we have a MatchingCalculator, delegate to it, otherwise use the original implementation
-        if hasattr(self, '_matching_calculator'):
-            return self._matching_calculator.calculate_success_rate(shows, threshold)
-        
-        # Original implementation for backward compatibility
-        # Use threshold from OptimizerConfig if not provided
-        if threshold is None:
-            threshold = OptimizerConfig.THRESHOLDS['success_threshold']
-        
-        if shows.empty:
-            return None
-        
-        # Ensure we have success_score column
-        if 'success_score' not in shows.columns:
-            # Try to use existing criteria data if we don't have success_score
-            criteria_data = self.fetch_criteria_data(force_refresh=False)
-            
-            # If we have criteria data with success_score, merge it with shows
-            if 'success_score' in criteria_data.columns:
-                # Merge success_score from criteria_data into shows
-                shows = shows.merge(criteria_data[['id', 'success_score']], on='id', how='left')
-            
-            # Check again if we have success_score
-            if 'success_score' not in shows.columns:
-                st.warning("Optimizer Calculation Warning: Cannot calculate success rate. The 'success_score' column is missing from the input data for the current calculation.")
-                return None
-        
-        # Filter out shows with missing success scores AND shows with a score of 0
-        # Shows with a score of 0 are typically those that haven't aired yet or have unreliable data
-        shows_with_scores = shows[(shows['success_score'].notna()) & (shows['success_score'] > 0)]
-        
-        if len(shows_with_scores) == 0:
-            st.warning("Optimizer Calculation Warning: Cannot calculate success rate. No shows have valid 'success_score' data for the current calculation.")
-            return None
-        
-        # Get success score range and distribution
-        min_score = shows_with_scores['success_score'].min()
-        max_score = shows_with_scores['success_score'].max()
-        mean_score = shows_with_scores['success_score'].mean()
-        
-        # Normalize threshold if scores are on 0-100 scale
-        normalized_threshold = threshold
-        normalized_scores = shows_with_scores['success_score'].copy()
-        
-        # Check if scores need normalization (0-100 scale)
-        if max_score > 1.0:  # If scores are on 0-100 scale
-            normalized_threshold = threshold * 100
-        else:  # If scores are already on 0-1 scale but threshold is on 0-100 scale
-            if threshold > 1.0:
-                normalized_threshold = threshold / 100
-        
-        # Count successful shows (those with score >= threshold)
-        successful = shows_with_scores[shows_with_scores['success_score'] >= normalized_threshold]
-        success_count = len(successful)
-        total_count = len(shows_with_scores)
-        
-        success_rate = success_count / total_count
-        
-        return success_rate
+        # Delegate to the MatchingCalculator
+        return self._matching_calculator.calculate_success_rate(shows, threshold)
 
    
     def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[Optional[float]]:
@@ -272,32 +199,8 @@ class CriteriaScorer:
         Returns:
             List of success rates in the same order as criteria_list, with None for missing data
         """
-        # If we have a MatchingCalculator, delegate to it, otherwise use the original implementation
-        if hasattr(self, '_matching_calculator'):
-            return self._matching_calculator.batch_calculate_success_rates(criteria_list)
-        
-        # Original implementation for backward compatibility
-        # Ensure we have criteria data with success metrics, but don't force refresh
-        criteria_data = self.fetch_criteria_data(force_refresh=False)
-        
-        # Calculate success rate for each criteria
-        results = []
-        for criteria in criteria_list:
-            try:
-                # Get matching shows for this criteria
-                matching_shows, count = self._get_matching_shows(criteria)
-                
-                # Calculate success rate if we have enough shows
-                if not matching_shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                    success_rate = self._calculate_success_rate(matching_shows)
-                    results.append(success_rate)
-                else:
-                    results.append(None)
-            except Exception as e:
-                st.error(f"Error calculating success rate for criteria: {e}")
-                results.append(None)
-        
-        return results
+        # Delegate to the MatchingCalculator
+        return self._matching_calculator.batch_calculate_success_rates(criteria_list)
     
     @lru_cache(maxsize=32)
     def calculate_criteria_impact(self, base_criteria: Dict[str, Any], field_name: Optional[str] = None) -> Dict[str, Dict[str, float]]:
