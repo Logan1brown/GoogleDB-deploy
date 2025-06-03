@@ -313,7 +313,12 @@ class CriteriaScorer:
         component_scores: Dict[str, ComponentScore] = {}
 
         try:
+            # Get matching shows and ensure they have all required columns for scoring
             matching_shows, match_count = self._get_matching_shows(criteria)
+            
+            # Debug output to help diagnose issues
+            st.write(f"DEBUG: Matching shows found: {match_count}")
+            st.write(f"DEBUG: Columns in matching_shows: {list(matching_shows.columns)}")
 
             if matching_shows.empty:
                 st.warning(f"No matching shows found for criteria: {criteria}. Cannot calculate component scores.")
@@ -327,6 +332,20 @@ class CriteriaScorer:
                     f"Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}"
                 )
                 return {}
+                
+            # Ensure all required columns are present in the data
+            required_columns = {
+                'success': ['success_score'],
+                'audience': ['popcornmeter'],
+                'critics': ['tomatometer'],
+                'longevity': ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
+            }
+            
+            # Check if we have all required columns and log any missing ones
+            for component, columns in required_columns.items():
+                missing = [col for col in columns if col not in matching_shows.columns]
+                if missing:
+                    st.warning(f"Missing columns for {component} score calculation: {missing}")
 
         except Exception as e:
             st.error(f"Optimizer Error: Failed to get matching shows for component score calculation. Criteria: {criteria}. Details: {e}")
@@ -334,41 +353,32 @@ class CriteriaScorer:
 
         # Ensure field_manager is initialized (should be in __init__)
         if not hasattr(self, 'field_manager') or self.field_manager is None:
-            st.error("Optimizer Critical Error: FieldManager is not initialized in CriteriaScorer. This may affect score calculations like longevity.")
-            # Depending on how critical, could return {} here or let individual calculators fail.
+            st.error("Optimizer Critical Error: FieldManager is not initialized in CriteriaScorer. This may affect score calculations.")
 
+        # Initialize the calculators
         calculators = [
-            SuccessScoreCalculator(component_name="success"),
-            AudienceScoreCalculator(component_name="audience"),
-            CriticsScoreCalculator(component_name="critics"),
-            LongevityScoreCalculator(component_name="longevity", field_manager=self.field_manager)
+            SuccessScoreCalculator(),
+            AudienceScoreCalculator(),
+            CriticsScoreCalculator(),
+            LongevityScoreCalculator()
         ]
-
+        
+        # Calculate scores for each component
         for calculator in calculators:
             try:
+                st.write(f"DEBUG: Calculating {calculator.component_name} score")
                 score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
                 if score_component:  # Ensure a component score object was returned
                     component_scores[calculator.component_name] = score_component
-                else:
-                    st.warning(
-                        f"Score calculation for component '{calculator.component_name}' did not return a score object. "
-                        "This component will be excluded."
-                    )
-            except ScoreCalculationError as e:
-                st.warning(
-                    f"Could not calculate score for component '{calculator.component_name}': {e}. "
-                    "This component will be excluded from the results."
-                )
+                    st.write(f"DEBUG: Successfully calculated {calculator.component_name} score")
             except Exception as e:
-                st.error(
-                    f"An unexpected error occurred while calculating score for component '{calculator.component_name}': {e}. "
-                    "This component will be excluded from the results."
-                )
+                st.error(f"Failed to calculate {calculator.component_name} score: {str(e)}")
 
         if not component_scores:
             st.warning("No component scores could be calculated for the given criteria after attempting all components.")
             return {}
 
+        st.write(f"DEBUG: Final component scores: {list(component_scores.keys())}")
         return component_scores
 
 
