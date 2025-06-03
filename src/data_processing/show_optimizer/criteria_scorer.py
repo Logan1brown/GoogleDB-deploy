@@ -159,6 +159,12 @@ class CriteriaScorer:
                     # Normalize success score to 0-1 range if it's on a 0-100 scale
                     # Check if the score is already normalized (0-1) or needs normalization (0-100)
                     score = row['success_score']
+                    
+                    # Check for NaN or None values
+                    if pd.isna(score):
+                        continue
+                        
+                    # Normalize if needed
                     if score > 1.0:  # If score is on 0-100 scale
                         success_scores[idx] = score / 100.0
                     else:  # If score is already on 0-1 scale
@@ -175,6 +181,12 @@ class CriteriaScorer:
                     # Normalize success score to 0-1 range if it's on a 0-100 scale
                     # Check if the score is already normalized (0-1) or needs normalization (0-100)
                     score = row['success_score']
+                    
+                    # Check for NaN or None values
+                    if pd.isna(score):
+                        continue
+                        
+                    # Normalize if needed
                     if score > 1.0:  # If score is on 0-100 scale
                         success_scores[row['show_id']] = score / 100.0
                     else:  # If score is already on 0-1 scale
@@ -197,6 +209,10 @@ class CriteriaScorer:
                                 'tmdb_seasons', 'tmdb_episodes', 'tmdb_status']
             
             # Check which required columns are available in success data
+            # First ensure show_id is always included since it might be the index
+            if 'show_id' not in success_data_with_id.columns and success_data_with_id.index.name == 'show_id':
+                success_data_with_id = success_data_with_id.reset_index()
+                
             available_columns = [col for col in required_columns if col in success_data_with_id.columns]
             missing_columns = [col for col in required_columns if col not in success_data_with_id.columns]
             
@@ -209,7 +225,11 @@ class CriteriaScorer:
             if 'show_id' not in available_columns:
                 st.error("DEBUG ERROR: 'show_id' column missing from success data after reset_index")
                 # This shouldn't happen if reset_index worked correctly, but just in case
-                success_data_with_id['show_id'] = success_data_with_id.index
+                if hasattr(success_data_with_id.index, 'name') and success_data_with_id.index.name == 'show_id':
+                    success_data_with_id = success_data_with_id.reset_index()
+                else:
+                    # Last resort - create show_id from index
+                    success_data_with_id['show_id'] = success_data_with_id.index
                 available_columns.append('show_id')
             
             if 'success_score' not in available_columns:
@@ -237,12 +257,14 @@ class CriteriaScorer:
             st.write("DEBUG: Merging success metrics into criteria data")
             st.write(f"DEBUG: Criteria data before merge: {len(self.criteria_data)} rows")
             
+            # Use explicit suffixes to better track duplicate columns
             self.criteria_data = pd.merge(
                 self.criteria_data,
                 success_data_with_id[available_columns],
                 left_on='id',
                 right_on='show_id',
-                how='left'
+                how='left',
+                suffixes=('_orig', '_success')
             )
             
             st.write(f"DEBUG: Criteria data after merge: {len(self.criteria_data)} rows")
@@ -259,24 +281,55 @@ class CriteriaScorer:
                     st.error(f"DEBUG ERROR: '{col}' column missing from merged data")
             
             # Check for duplicate columns that might have been created during the merge
-            duplicate_cols = [col for col in self.criteria_data.columns if col.endswith('_x') or col.endswith('_y')]
+            duplicate_cols = [col for col in self.criteria_data.columns if col.endswith('_orig') or col.endswith('_success')]
             if duplicate_cols:
                 st.write(f"DEBUG WARNING: Duplicate columns created during merge: {duplicate_cols}")
                 # Clean up duplicate columns by keeping the non-null version
+                processed_base_cols = set()  # Track which base columns we've already processed
+                
                 for col in duplicate_cols:
-                    base_col = col[:-2]  # Remove _x or _y suffix
-                    if f"{base_col}_x" in self.criteria_data.columns and f"{base_col}_y" in self.criteria_data.columns:
-                        # Keep the version with more non-null values
-                        x_count = self.criteria_data[f"{base_col}_x"].notna().sum()
-                        y_count = self.criteria_data[f"{base_col}_y"].notna().sum()
-                        if x_count >= y_count:
-                            self.criteria_data[base_col] = self.criteria_data[f"{base_col}_x"]
-                            st.write(f"DEBUG: Using '{base_col}_x' for '{base_col}' ({x_count} non-null values)")
-                        else:
-                            self.criteria_data[base_col] = self.criteria_data[f"{base_col}_y"]
-                            st.write(f"DEBUG: Using '{base_col}_y' for '{base_col}' ({y_count} non-null values)")
-                        # Drop the duplicate columns
-                        self.criteria_data = self.criteria_data.drop([f"{base_col}_x", f"{base_col}_y"], axis=1)
+                    if col.endswith('_orig'):
+                        base_col = col[:-5]  # Remove _orig suffix
+                        success_col = f"{base_col}_success"
+                        
+                        # Skip if we've already processed this base column
+                        if base_col in processed_base_cols:
+                            continue
+                        processed_base_cols.add(base_col)
+                        
+                        # Only process if both versions exist
+                        if success_col in self.criteria_data.columns:
+                            # Keep the version with more non-null values
+                            orig_count = self.criteria_data[col].notna().sum()
+                            success_count = self.criteria_data[success_col].notna().sum()
+                            
+                            # Create consolidated column
+                            if success_count > 0:  # Prefer success data when available
+                                self.criteria_data[base_col] = self.criteria_data[success_col].fillna(self.criteria_data[col])
+                                st.write(f"DEBUG: Using '{success_col}' (filled with '{col}') for '{base_col}' ({success_count} success values, {orig_count} orig values)")
+                            else:
+                                self.criteria_data[base_col] = self.criteria_data[col]
+                                st.write(f"DEBUG: Using '{col}' for '{base_col}' ({orig_count} non-null values)")
+                            
+                            # Drop the duplicate columns
+                            self.criteria_data = self.criteria_data.drop([col, success_col], axis=1, errors='ignore')
+                
+                # Verify that all required columns exist after cleanup
+                for col in required_columns:
+                    if col not in self.criteria_data.columns:
+                        st.error(f"DEBUG ERROR: Required column '{col}' missing after duplicate cleanup")
+                        # Try to recover from suffix columns if they still exist
+                        orig_col = f"{col}_orig"
+                        success_col = f"{col}_success"
+                        
+                        if orig_col in self.criteria_data.columns:
+                            self.criteria_data[col] = self.criteria_data[orig_col]
+                            st.write(f"DEBUG: Recovered '{col}' from '{orig_col}'")
+                            self.criteria_data = self.criteria_data.drop([orig_col], axis=1, errors='ignore')
+                        elif success_col in self.criteria_data.columns:
+                            self.criteria_data[col] = self.criteria_data[success_col]
+                            st.write(f"DEBUG: Recovered '{col}' from '{success_col}'")
+                            self.criteria_data = self.criteria_data.drop([success_col], axis=1, errors='ignore')
             
             # Drop rows with missing success scores to make issues visible
             missing_scores = self.criteria_data['success_score'].isna().sum()
@@ -343,40 +396,47 @@ class CriteriaScorer:
         """
         import streamlit as st
         
-        st.write(f"DEBUG: Calculating success rate for {len(shows)} shows with threshold {threshold}")
-        
         if shows.empty:
             st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_success_rate")
             raise ValueError("Cannot calculate success rate with empty shows DataFrame")
         
         if 'success_score' not in shows.columns:
-            st.error("DEBUG ERROR: success_score column missing from shows data")
-            st.error(f"DEBUG ERROR: Available columns: {list(shows.columns)}")
-            raise ValueError("success_score column required for success rate calculation")
+            st.error("DEBUG ERROR: 'success_score' column missing from shows data")
+            raise ValueError("'success_score' column required for success rate calculation")
         
-        # Check for null values in success_score
-        null_scores = shows['success_score'].isna().sum()
-        if null_scores > 0:
-            st.error(f"DEBUG ERROR: {null_scores} shows have null success_score values")
-            # Filter out null values to avoid calculation errors
-            shows = shows.dropna(subset=['success_score'])
-            st.write(f"DEBUG: Filtered to {len(shows)} shows with non-null success scores")
-            
-            if shows.empty:
-                st.error("DEBUG ERROR: All shows have null success_score values")
-                raise ValueError("Cannot calculate success rate with all null success scores")
+        # Filter out shows with missing success scores
+        shows_with_scores = shows[shows['success_score'].notna()]
         
-        # Log success score distribution
-        min_score = shows['success_score'].min()
-        max_score = shows['success_score'].max()
-        mean_score = shows['success_score'].mean()
+        if len(shows_with_scores) == 0:
+            st.error("DEBUG ERROR: No shows with valid success scores found")
+            raise ValueError("No shows with valid success scores available")
+        
+        # Get success score range and distribution for debugging
+        min_score = shows_with_scores['success_score'].min()
+        max_score = shows_with_scores['success_score'].max()
+        mean_score = shows_with_scores['success_score'].mean()
+        
         st.write(f"DEBUG: Success score range: {min_score} to {max_score}, mean: {mean_score}")
         
-        # Count shows with success score above threshold
-        successful = shows[shows['success_score'] >= threshold]
-        success_rate = len(successful) / len(shows)
+        # Normalize threshold if scores are on 0-100 scale
+        normalized_threshold = threshold
+        normalized_scores = shows_with_scores['success_score'].copy()
         
-        st.write(f"DEBUG: Success rate calculation - {len(successful)} successful shows out of {len(shows)} total (threshold: {threshold})")
+        # Check if scores need normalization (0-100 scale)
+        if max_score > 1.0:  # If scores are on 0-100 scale
+            normalized_threshold = threshold * 100
+        else:  # If scores are already on 0-1 scale but threshold is on 0-100 scale
+            if threshold > 1.0:
+                normalized_threshold = threshold / 100
+        
+        # Count successful shows (those with score >= threshold)
+        successful = shows_with_scores[shows_with_scores['success_score'] >= normalized_threshold]
+        success_count = len(successful)
+        total_count = len(shows_with_scores)
+        
+        st.write(f"DEBUG: Success rate calculation - {success_count} successful shows out of {total_count} total (threshold: {threshold})")
+        
+        success_rate = success_count / total_count
         st.write(f"DEBUG: Success rate: {success_rate:.4f} ({success_rate*100:.1f}%)")
         
         return success_rate
@@ -997,11 +1057,21 @@ class CriteriaScorer:
                             
                             # Get success rate with this option
                             option_shows = self._get_matching_shows(new_criteria)
+                            
+                            # Check if we got any matching shows
+                            if option_shows.empty:
+                                st.error(f"DEBUG ERROR: No shows matched the criteria {new_criteria}")
+                                continue
+                                
                             if len(option_shows) < OptimizerConfig.CONFIDENCE['minimum_sample']:
                                 st.write(f"DEBUG: Insufficient sample size for {field_name}={option.name} (id={option.id})")
                                 continue
                             
-                            option_rate = self._calculate_success_rate(option_shows)
+                            try:
+                                option_rate = self._calculate_success_rate(option_shows)
+                            except Exception as e:
+                                st.error(f"DEBUG ERROR: Error calculating success rate for {field_name}={option.name}: {str(e)}")
+                                continue
                             
                             # Calculate impact as relative change in success rate
                             impact = (option_rate - base_rate) / base_rate
