@@ -1006,8 +1006,9 @@ class CriteriaScorer:
         
         st.write("DEBUG: Starting calculate_criteria_impact")
         
-        # Known problematic field types that need special handling
-        array_fields = ['character_types', 'plot_elements', 'thematic_elements', 'team_members']
+        # Fields that support multiple values
+        array_fields = ['character_types', 'plot_elements', 'thematic_elements', 'team_members', 'subgenres', 'studios']
+        # Track error counts for reporting
         error_counts = {field: 0 for field in array_fields}
         
         try:
@@ -1038,10 +1039,11 @@ class CriteriaScorer:
                     if field_name in base_criteria:
                         continue
                     
-                    # Skip array fields that are known to cause errors
-                    if field_name in array_fields:
-                        st.write(f"DEBUG: Skipping array field {field_name} that may cause errors")
-                        continue
+                    # Handle array fields specially
+                    is_array_field = field_name in array_fields
+                    
+                    # We'll still calculate impact for array fields, but we need to be aware
+                    # that they might use different column names in the data
                     
                     field_impact = {}
                     options = self.field_manager.get_options(field_name)
@@ -1053,7 +1055,12 @@ class CriteriaScorer:
                         try:
                             # Create new criteria with this option added
                             new_criteria = base_criteria.copy()
-                            new_criteria[field_name] = option.id
+                            
+                            # For array fields, we need to use a list
+                            if is_array_field:
+                                new_criteria[field_name] = [option.id]
+                            else:
+                                new_criteria[field_name] = option.id
                             
                             # Get success rate with this option
                             option_shows = self._get_matching_shows(new_criteria)
