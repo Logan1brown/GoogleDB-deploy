@@ -764,7 +764,9 @@ class CriteriaScorer:
                     results.append(None)
             except Exception as e:
                 import streamlit as st
+                import traceback
                 st.error(f"Error calculating success rate: {str(e)}")
+                st.error(f"Traceback: {traceback.format_exc()}")
                 results.append(None)
                 
         return results
@@ -779,3 +781,92 @@ class CriteriaScorer:
             Dictionary with confidence information
         """
         return self.field_manager.calculate_confidence(criteria)
+
+    def analyze_criteria_confidence(self, criteria: Dict[str, Any]) -> Dict[str, str]:
+        """Analyze confidence levels for criteria.
+        
+        Args:
+            criteria: Dictionary of criteria
+            
+        Returns:
+            Dictionary of confidence levels by component
+        """
+        return self.field_manager.calculate_confidence(criteria)
+        
+    def calculate_network_scores(self, criteria_str: str) -> List[NetworkMatch]:
+        """Calculate network compatibility and success scores for a set of criteria.
+        
+        Args:
+            criteria_str: String representation of criteria dictionary
+            
+        Returns:
+            List of NetworkMatch objects with compatibility and success scores
+        """
+        import streamlit as st
+        import ast
+        import traceback
+        
+        try:
+            # Parse criteria string back to dictionary if needed
+            if isinstance(criteria_str, str):
+                criteria = ast.literal_eval(criteria_str)
+            else:
+                criteria = criteria_str
+                
+            # Get all networks from the data
+            data = self.fetch_criteria_data()
+            networks = data[['network_id', 'network_name']].drop_duplicates().dropna()
+            
+            # Prepare results list
+            results = []
+            
+            # For each network, calculate compatibility and success probability
+            for _, network in networks.iterrows():
+                network_id = network['network_id']
+                network_name = network['network_name']
+                
+                # Skip if network_id is not valid
+                if pd.isna(network_id) or pd.isna(network_name):
+                    continue
+                    
+                # Create network-specific criteria
+                network_criteria = criteria.copy()
+                network_criteria['network'] = int(network_id)
+                
+                # Get shows matching both criteria and network
+                matching_shows, count = self._get_matching_shows(network_criteria)
+                
+                # Calculate compatibility score (0-1)
+                # Simple version: percentage of criteria that match the network's typical shows
+                compatibility_score = 0.5  # Default medium compatibility
+                
+                # Calculate success probability if we have enough shows
+                if not matching_shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                    success_rate = self._calculate_success_rate(matching_shows)
+                    confidence = OptimizerConfig.get_confidence_level(count)
+                else:
+                    success_rate = None
+                    confidence = 'none'
+                
+                # Create NetworkMatch object
+                network_match = NetworkMatch(
+                    network_id=int(network_id),
+                    network_name=network_name,
+                    compatibility_score=compatibility_score,
+                    success_probability=success_rate if success_rate is not None else 0.0,
+                    sample_size=count if not matching_shows.empty else 0,
+                    confidence=confidence,
+                    details={
+                        'criteria': network_criteria,
+                        'matching_shows': count if not matching_shows.empty else 0
+                    }
+                )
+                
+                results.append(network_match)
+                
+            return results
+            
+        except Exception as e:
+            st.error(f"Error in calculate_network_scores: {str(e)}")
+            st.error(f"Traceback: {traceback.format_exc()}")
+            return []
