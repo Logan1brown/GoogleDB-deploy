@@ -432,9 +432,11 @@ class MatchingCalculator:
             matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(clean_criteria, data)
             
             if matched_shows.empty:
-                # Return empty DataFrame with zero matches
-                # The calling code should handle this appropriately
-                return matched_shows, 0
+                # Instead of returning an empty DataFrame, return the original data
+                # This allows the UI to show all shows when no matches are found
+                # which is better than showing no results
+                st.warning("No exact matches found for the specified criteria. Showing all available shows instead.")
+                return data, len(data)
                 
             return matched_shows, match_count
         except Exception as e:
