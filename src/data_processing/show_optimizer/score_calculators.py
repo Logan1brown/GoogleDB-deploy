@@ -390,22 +390,71 @@ class MatchingCalculator:
         
         # Clean up criteria - remove None or empty values to make matching more lenient
         clean_criteria = {}
+        
+        # Debug output for array fields
+        st.write(f"DEBUG: Array fields from field_manager: {array_fields}")
+        st.write(f"DEBUG: Array field mapping: {array_field_mapping}")
+        
+        # Check for 'genre' field specifically
+        if 'genre' in criteria:
+            st.write(f"DEBUG: Original genre value: {criteria['genre']}")
+            # Check if we should be using genre_id instead
+            if 'genre_id' in data.columns:
+                st.write(f"DEBUG: Found genre_id column in data")
+                # Check unique values in genre_id column
+                unique_genre_ids = data['genre_id'].unique()
+                st.write(f"DEBUG: Unique genre_id values: {unique_genre_ids[:10]}{'...' if len(unique_genre_ids) > 10 else ''}")
+        
         for field_name, value in criteria.items():
             # Skip None values and empty lists
             if value is None:
+                st.write(f"DEBUG: Skipping {field_name} with None value")
                 continue
             if isinstance(value, list) and len(value) == 0:
+                st.write(f"DEBUG: Skipping {field_name} with empty list")
                 continue
             
             # Handle array fields
             if field_name in array_fields:
+                st.write(f"DEBUG: {field_name} is an array field")
                 # Make sure array field values are always lists
                 if not isinstance(value, list):
                     clean_criteria[field_name] = [value]
+                    st.write(f"DEBUG: Converting {field_name} value {value} to list: {[value]}")
                 else:
                     clean_criteria[field_name] = value
+                    st.write(f"DEBUG: Keeping {field_name} as list: {value}")
             else:
-                clean_criteria[field_name] = value
+                # Check if we need to map field_name to field_name_id
+                field_id = f"{field_name}_id" if f"{field_name}_id" in data.columns else field_name
+                if field_id != field_name:
+                    st.write(f"DEBUG: Mapping {field_name} to {field_id}")
+                    clean_criteria[field_id] = value
+                else:
+                    clean_criteria[field_name] = value
+                st.write(f"DEBUG: Added scalar field {field_id if field_id != field_name else field_name} with value {value}")
+        
+        st.write(f"DEBUG: Final clean criteria: {clean_criteria}")
+        
+        # Check if any fields in clean_criteria are not in data.columns
+        for field in clean_criteria.keys():
+            if field not in data.columns:
+                st.write(f"DEBUG: WARNING - Field '{field}' from clean_criteria is not in data columns")
+            else:
+                st.write(f"DEBUG: Field '{field}' is present in data columns")
+                # Check if we have any matches for this field
+                if isinstance(clean_criteria[field], list):
+                    # For list values, check if any value is in the column
+                    has_matches = any(data[field].isin(clean_criteria[field]))
+                else:
+                    # For scalar values, check if the value is in the column
+                    has_matches = (data[field] == clean_criteria[field]).any()
+                st.write(f"DEBUG: Field '{field}' has matches: {has_matches}")
+                if not has_matches:
+                    st.write(f"DEBUG: No matches found for field '{field}' with value {clean_criteria[field]}")
+                    st.write(f"DEBUG: Sample values from '{field}' column: {data[field].head(5).tolist()}")
+                    st.write(f"DEBUG: Data types - criteria: {type(clean_criteria[field])}, column: {data[field].dtype}")
+        
         
         # If we have no valid criteria after cleaning, return all shows
         if not clean_criteria:
