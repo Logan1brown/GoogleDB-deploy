@@ -103,24 +103,40 @@ class CriteriaScorer:
                 success_df = success_df.reset_index()
             
             # Define success metrics to merge from success_df
-            success_metrics_to_integrate = ['success_score', 'rt_score', 'imdb_score', 'metacritic_score']
+            # Include all required columns for component calculators
+            success_metrics_to_integrate = ['success_score', 'popcornmeter', 'tomatometer', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
             
             # Determine which metrics are available in success_df
             available_metrics_in_success_df = []
-            if not success_df.empty:
-                available_metrics_in_success_df = [col for col in success_metrics_to_integrate if col in success_df.columns]
             
             # Merge success metrics if available
-            if available_metrics_in_success_df and not success_df.empty:
+            if not success_df.empty:
                 try:
+                    # Include all necessary columns for component calculators
+                    columns_to_merge = ['show_id', 'success_score', 'popcornmeter', 'tomatometer', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
+                    available_columns = [col for col in columns_to_merge if col in success_df.columns]
+                    
+                    st.write(f"DEBUG: Available columns in success_df: {list(success_df.columns)}")
+                    st.write(f"DEBUG: Columns being merged: {available_columns}")
+                    
                     # Merge success metrics into comp_df
                     comp_df = pd.merge(
                         comp_df,
-                        success_df[['show_id'] + available_metrics_in_success_df],
+                        success_df[available_columns],
                         left_on='id',
                         right_on='show_id',
                         how='left'
                     )
+                    
+                    # Debug output for merged columns
+                    st.write(f"DEBUG: Columns after merging success data: {list(comp_df.columns)}")
+                    
+                    # Check for required component calculator columns
+                    for col in ['popcornmeter', 'tomatometer']:
+                        if col in comp_df.columns:
+                            st.write(f"DEBUG: {col} is present in merged data")
+                        else:
+                            st.error(f"DEBUG: {col} is MISSING from merged data")
                     
                     # Drop the redundant show_id column from the merge
                     if 'show_id' in comp_df.columns:
@@ -374,12 +390,38 @@ class CriteriaScorer:
         for calculator in calculators:
             try:
                 st.write(f"DEBUG: Calculating {calculator.component_name} score")
+                
+                # Check if required columns for this calculator are present
+                if calculator.component_name == 'success' and 'success_score' not in matching_shows.columns:
+                    st.error(f"DEBUG: success_score column missing for {calculator.component_name} calculator")
+                elif calculator.component_name == 'audience' and 'popcornmeter' not in matching_shows.columns:
+                    st.error(f"DEBUG: popcornmeter column missing for {calculator.component_name} calculator")
+                elif calculator.component_name == 'critics' and 'tomatometer' not in matching_shows.columns:
+                    st.error(f"DEBUG: tomatometer column missing for {calculator.component_name} calculator")
+                elif calculator.component_name == 'longevity':
+                    missing = [col for col in ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'] if col not in matching_shows.columns]
+                    if missing:
+                        st.error(f"DEBUG: {missing} columns missing for {calculator.component_name} calculator")
+                
+                # Calculate the component score
                 score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
                 if score_component:  # Ensure a component score object was returned
                     component_scores[calculator.component_name] = score_component
-                    st.write(f"DEBUG: Successfully calculated {calculator.component_name} score")
+                    st.write(f"DEBUG: Successfully calculated {calculator.component_name} score: {score_component.score:.2f}")
+                    st.write(f"DEBUG: {calculator.component_name} sample size: {score_component.sample_size}")
             except Exception as e:
                 st.error(f"Failed to calculate {calculator.component_name} score: {str(e)}")
+                # Print stack trace for debugging
+                import traceback
+                st.error(f"DEBUG: Stack trace: {traceback.format_exc()}")
+                
+                # Check for null values in required columns
+                if calculator.component_name == 'success' and 'success_score' in matching_shows.columns:
+                    st.write(f"DEBUG: success_score null count: {matching_shows['success_score'].isna().sum()}")
+                elif calculator.component_name == 'audience' and 'popcornmeter' in matching_shows.columns:
+                    st.write(f"DEBUG: popcornmeter null count: {matching_shows['popcornmeter'].isna().sum()}")
+                elif calculator.component_name == 'critics' and 'tomatometer' in matching_shows.columns:
+                    st.write(f"DEBUG: tomatometer null count: {matching_shows['tomatometer'].isna().sum()}")
 
         if not component_scores:
             st.warning("No component scores could be calculated for the given criteria after attempting all components.")
