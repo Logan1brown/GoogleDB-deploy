@@ -395,8 +395,10 @@ class CriteriaAnalyzer:
             
             # Calculate success rate and sample size
             if not matching_shows.empty:
-                # Calculate success rate
-                success_count = matching_shows[matching_shows['success_score'] >= self.criteria_scorer.success_threshold].shape[0]
+                # Calculate success rate using threshold from OptimizerConfig
+                from .optimizer_config import OptimizerConfig
+                success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
+                success_count = matching_shows[matching_shows['success_score'] >= success_threshold].shape[0]
                 total_count = matching_shows.shape[0]
                 
                 # Get matching show titles (up to 100)

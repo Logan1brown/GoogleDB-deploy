@@ -378,7 +378,11 @@ class CriteriaScorer:
             # Return empty DataFrame with zero matches
             # The calling code should handle this appropriately
             return pd.DataFrame(), 0   
-    def _calculate_success_rate(self, shows: pd.DataFrame, threshold: float = 0.6) -> Optional[float]:
+    def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Optional[float]:
+        # Use threshold from OptimizerConfig if not provided
+        if threshold is None:
+            from .optimizer_config import OptimizerConfig
+            threshold = OptimizerConfig.THRESHOLDS['success_threshold']
         """Calculate the success rate for a set of shows.
         
         Args:
