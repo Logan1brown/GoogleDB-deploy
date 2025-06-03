@@ -453,106 +453,88 @@ class CriteriaScorer:
         return success_rate
     
     @lru_cache(maxsize=32)
-    def calculate_network_scores(self, criteria_key: str) -> List[NetworkMatch]:
-        """Calculate network compatibility and success scores for criteria.
+    def calculate_criteria_impact(self, base_criteria: Dict[str, Any], field_name: Optional[str] = None) -> Dict[str, Dict[str, float]]:
+        """Calculate the impact of criteria values on success rate.
         
         Args:
-            criteria_key: String representation of criteria dictionary for caching
+            base_criteria: The base criteria to compare against.
+            field_name: Optional name of the field to analyze. If None, analyzes all fields.
             
         Returns:
-            List of NetworkMatch objects sorted by success probability
+            A dictionary mapping field names to dictionaries of option IDs to impact scores.
         """
-        # Convert string key back to dictionary
-        criteria = eval(criteria_key)
+        import streamlit as st
         
-        # Get matching shows for the criteria
-        matching_shows = self._get_matching_shows(criteria)
-        if matching_shows.empty:
-            return []
-        
-        # Get all networks
-        networks = self.field_manager.get_options('network')
-        network_matches = []
-        
-        # Calculate scores for each network
-        for network in networks:
-            network_id = network.id
-            network_name = network.name
+        try:
+            # Get the field manager's array field mapping
+            array_field_mapping = self.field_manager.get_array_field_mapping()
+            array_fields = list(array_field_mapping.keys())
             
-            # Get shows on this network
-            network_shows = matching_shows[matching_shows['network_id'] == network_id]
-            sample_size = len(network_shows)
+            # Get base success rate
+            base_shows, base_match_count = self._get_matching_shows(base_criteria)
             
-            # Skip networks with insufficient data
-            if sample_size < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                continue
-            
-            # Calculate success rate for this network
-            success_rate = self._calculate_success_rate(network_shows)
-            
-            # Calculate compatibility score
-            # This measures how well the network aligns with the criteria
-            # We use the network's historical success rate with similar shows
-            compatibility_score = 0.0
-            
-            # Get the network's typical shows
-            all_network_shows = self.criteria_data[self.criteria_data['network_id'] == network_id]
-            
-            if not all_network_shows.empty:
-                # For each criteria, calculate how often the network produces shows with that criteria
-                weights = {}
-                for field, value in criteria.items():
-                    if field in self.field_manager.FIELD_CONFIGS:
-                        config = self.field_manager.FIELD_CONFIGS[field]
-                        
-                        if config.is_array:
-                            # For array fields, check what percentage of the network's shows have this value
-                            if isinstance(value, list):
-                                field_matches = all_network_shows[all_network_shows[field].apply(
-                                    lambda x: isinstance(x, list) and any(v in x for v in value)
-                                )]
-                            else:
-                                field_matches = all_network_shows[all_network_shows[field].apply(
-                                    lambda x: isinstance(x, list) and value in x
-                                )]
-                        else:
-                            # For scalar fields, check exact matches
-                            field_id = f"{field}_id" if f"{field}_id" in all_network_shows.columns else field
-                            if isinstance(value, list):
-                                field_matches = all_network_shows[all_network_shows[field_id].isin(value)]
-                            else:
-                                field_matches = all_network_shows[all_network_shows[field_id] == value]
-                        
-                        # Calculate weight based on how common this criteria is for the network
-                        weight = len(field_matches) / len(all_network_shows) if len(all_network_shows) > 0 else 0
-                        weights[field] = weight * OptimizerConfig.get_criteria_weight(field)
+            if base_shows.empty:
+                st.error("ERROR: No shows matched the base criteria")
+                raise ValueError("Cannot calculate impact scores with no matching shows")
                 
-                # Calculate weighted compatibility score
-                total_weight = sum(OptimizerConfig.get_criteria_weight(field) for field in criteria.keys() 
-                                  if field in self.field_manager.FIELD_CONFIGS)
+            if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
+                st.error(f"ERROR: Insufficient sample size for base criteria: {base_match_count} shows")
+                raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows)")
+            
+            base_rate = self._calculate_success_rate(base_shows)
+            
+            if base_rate == 0:
+                st.error("ERROR: Base success rate is zero")
+                raise ValueError("Cannot calculate impact scores with zero base success rate")
+            
+            impact_scores = {}
+            
+            # Determine which fields to process
+            fields_to_process = [field_name] if field_name else self.field_manager.FIELD_CONFIGS.keys()
+            
+            for current_field in fields_to_process:
+                # Skip fields already in base criteria
+                if current_field in base_criteria:
+                    continue
                 
-                if total_weight > 0:
-                    compatibility_score = sum(weights.values()) / total_weight
+                is_array_field = current_field in array_fields
+                options = self.field_manager.get_options(current_field)
+                
+                # Prepare batch criteria for all options
+                batch_criteria = []
+                option_data = []
+                
+                for option in options:
+                    new_criteria = base_criteria.copy()
+                    if is_array_field:
+                        new_criteria[current_field] = [option.id]
+                    else:
+                        new_criteria[current_field] = option.id
+                    batch_criteria.append(new_criteria)
+                    option_data.append((option.id, option.name))
+                
+                # Batch calculate success rates
+                success_rates = self._batch_calculate_success_rates(batch_criteria)
+                
+                # Process results
+                field_impact = {}
+                for (option_id, option_name), rate in zip(option_data, success_rates):
+                    if rate is not None:
+                        # Calculate impact as relative change in success rate
+                        impact = (rate - base_rate) / base_rate if base_rate != 0 else 0
+                        field_impact[option_id] = impact
+                
+                if field_impact:  # Only add if we have valid impacts
+                    impact_scores[current_field] = field_impact
+                    
+            if not impact_scores:
+                raise ValueError("Could not calculate any impact scores with the given criteria")
+                
+            return impact_scores
             
-            # Calculate confidence level
-            confidence = OptimizerConfig.get_confidence_level(sample_size)
-            
-            # Create NetworkMatch object
-            network_match = NetworkMatch(
-                network_id=network_id,
-                network_name=network_name,
-                compatibility_score=compatibility_score,
-                success_probability=success_rate,
-                sample_size=sample_size,
-                confidence=confidence
-            )
-            
-            network_matches.append(network_match)
-        
-        # Sort by success probability (descending)
-        network_matches.sort(key=lambda x: x.success_probability, reverse=True)
-        
-        return network_matches
+        except Exception as e:
+            st.error(f"Error calculating criteria impact: {str(e)}")
+            raise
     
     def calculate_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, ComponentScore]:
         """Calculate component scores for a set of criteria.
@@ -1004,122 +986,188 @@ class CriteriaScorer:
             details=details
         )
     
-    def calculate_criteria_impact(self, base_criteria: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
-        """Calculate the impact of each criteria value on success rate.
+    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[float]:
+        """Batch calculate success rates for multiple criteria.
         
         Args:
-            base_criteria: The base criteria to compare against.
+            criteria_list: List of criteria dictionaries
             
         Returns:
-            A dictionary mapping field names to dictionaries of option IDs to impact scores.
+            List of success rates in the same order as criteria_list
         """
+        results = []
+        for criteria in criteria_list:
+            try:
+                shows, count = self._get_matching_shows(criteria)
+                if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                    results.append(self._calculate_success_rate(shows))
+                else:
+    
+    # Filter shows with success metrics
+    critics_shows = shows[shows['success_score'].notna()]
+    sample_size = len(critics_shows)
+    
+    if sample_size == 0:
+        st.error("DEBUG ERROR: No shows with valid success_score data found")
+        raise ValueError("No shows with valid success metrics available for critics score")
+    
+    # Calculate confidence level
+    confidence = OptimizerConfig.get_confidence_level(sample_size)
+    
+    # Use success_score as critics score (assuming it's already normalized to 0-1)
+    avg_score = critics_shows['success_score'].mean()
+    
+    # Calculate critics engagement metrics
+    details = {'success_score': avg_score}
+    
+    # Calculate overall critics score
+    score = avg_score
+    
+    return ComponentScore(
+        component='critics',
+        score=score,
+        sample_size=sample_size,
+        confidence=confidence,
+        details=details
+    )
+
+def _calculate_longevity_score(self, shows: pd.DataFrame) -> ComponentScore:
+    """Calculate longevity score for a set of shows.
+    
+    Args:
+        shows: DataFrame of shows
+        
+    Returns:
+        ComponentScore for longevity
+    """
+    import streamlit as st
+    
+    if shows.empty:
+        st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_longevity_score")
+        raise ValueError("Cannot calculate longevity score with empty shows DataFrame")
+    
+    # Check required columns
+    required_columns = ['tmdb_seasons', 'tmdb_status']
+    missing_columns = [col for col in required_columns if col not in shows.columns]
+    
+    if missing_columns:
+        st.error(f"DEBUG ERROR: Missing columns for longevity calculation: {missing_columns}")
+        st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
+        
+        # Try to use success_score as a fallback if available
+        if 'success_score' in shows.columns:
+            st.write("DEBUG: Using success_score as fallback for longevity score calculation")
+            return self._calculate_longevity_score_from_success(shows)
+        else:
+            raise ValueError(f"Missing required columns for longevity score calculation: {missing_columns}")
+    
+    # Filter shows with longevity metrics
+    longevity_shows = shows[shows['tmdb_seasons'].notna()]
+    sample_size = len(longevity_shows)
+    
+    if sample_size == 0:
+        st.error("DEBUG ERROR: No shows with valid tmdb_seasons data found")
+        # Try to use success_score as a fallback
+        if 'success_score' in shows.columns:
+            st.write("DEBUG: Using success_score as fallback for longevity score calculation")
+            return self._calculate_longevity_score_from_success(shows)
+        else:
+            raise ValueError("No shows with valid tmdb_seasons data available")
+    
+    # Calculate confidence level
+    confidence = OptimizerConfig.get_confidence_level(sample_size)
+    
+    # Calculate average seasons
+    avg_seasons = longevity_shows['tmdb_seasons'].mean()
+    
+    # Calculate renewal rate (shows with > 1 season)
+    renewal_rate = len(longevity_shows[longevity_shows['tmdb_seasons'] > 1]) / sample_size
+    
+    # Calculate multi-season rate (shows with > 2 seasons)
+    multi_season_rate = len(longevity_shows[longevity_shows['tmdb_seasons'] > 2]) / sample_size
+    
+    # Calculate status distribution
+    status_counts = longevity_shows['tmdb_status'].value_counts(normalize=True).to_dict()
+    active_rate = status_counts.get('Returning Series', 0)
+    
+    # Calculate longevity details
+    details = {
+        'avg_seasons': avg_seasons / 10,  # Normalize to 0-1 (assuming 10 seasons is max)
+        'renewal_rate': renewal_rate,
+        'multi_season_rate': multi_season_rate,
+        'active_rate': active_rate
+    }
+    
+    # Calculate overall longevity score (weighted average of metrics)
+    score = (
+        0.3 * details['avg_seasons'] +
+        0.3 * details['renewal_rate'] +
+        0.2 * details['multi_season_rate'] +
+        0.2 * details['active_rate']
+    )
+    
+    return ComponentScore(
+        component='longevity',
+        score=score,
+        sample_size=sample_size,
+        confidence=confidence,
+        details=details
+    )
+
+def _calculate_longevity_score_from_success(self, shows: pd.DataFrame) -> ComponentScore:
+    """Calculate longevity score using success_score as a fallback.
+    
+    Args:
+        shows: DataFrame of shows
+        
+    Returns:
+        ComponentScore for longevity
+    """
+    import streamlit as st
+    
+    # Filter shows with success metrics
+    longevity_shows = shows[shows['success_score'].notna()]
+    sample_size = len(longevity_shows)
+    
+    if sample_size == 0:
+        st.error("DEBUG ERROR: No shows with valid success_score data found")
+        raise ValueError("No shows with valid success metrics available for longevity score")
+    
+    # Calculate confidence level
+    confidence = OptimizerConfig.get_confidence_level(sample_size)
+    
+    # Use success_score as longevity score (assuming it's already normalized to 0-1)
+    avg_score = longevity_shows['success_score'].mean()
+    
+    # Calculate basic longevity details
+    details = {'success_score': avg_score}
+    
+    # Calculate overall longevity score
+    score = avg_score
+    
+    return ComponentScore(
+        component='longevity',
+        score=score,
+        sample_size=sample_size,
+        confidence=confidence,
+        details=details
+    )
+
+def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[float]:
+    """Batch calculate success rates for multiple criteria.
+    
+    Args:
+        criteria_list: List of criteria dictionaries
+        
+    Returns:
+        List of success rates in the same order as criteria_list
+    """
+    results = []
+    for criteria in criteria_list:
         try:
-            import streamlit as st
-            
-            # Get the field manager's array field mapping
-            array_field_mapping = self.field_manager.get_array_field_mapping()
-            
-            # Define which fields are array fields (need special handling)
-            array_fields = list(array_field_mapping.keys())
-            
-            # Track error counts to avoid excessive errors for problematic fields
-            error_counts = {}
-            
-            # Get base success rate
-            base_shows, base_match_count = self._get_matching_shows(base_criteria)
-            
-            if base_shows.empty:
-                st.error("ERROR: No shows matched the base criteria")
-                raise ValueError("Cannot calculate impact scores with no matching shows")
-                
-            if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                st.error(f"ERROR: Insufficient sample size for base criteria: {base_match_count} shows")
-                raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows)")
-            
-            base_rate = self._calculate_success_rate(base_shows)
-            
-            if base_rate == 0:
-                st.error("ERROR: Base success rate is zero")
-                raise ValueError("Cannot calculate impact scores with zero base success rate")
-            
-            impact_scores = {}
-            
-            # For each criteria field, calculate impact of different values
-            field_count = 0
-            for field_name in self.field_manager.FIELD_CONFIGS.keys():
-                try:
-                    # Skip fields already in base criteria
-                    if field_name in base_criteria:
-                        continue
-                    
-                    # Handle array fields specially
-                    is_array_field = field_name in array_fields
-                    
-                    field_impact = {}
-                    options = self.field_manager.get_options(field_name)
-                    option_count = 0
-                    
-                    for option in options:
-                        try:
-                            # Skip this option if we've had too many errors with this field
-                            if error_counts.get(field_name, 0) > 3:
-                                continue
-                            
-                            # Create a new criteria with just this option
-                            new_criteria = base_criteria.copy()
-                            
-                            # For array fields, wrap the option ID in a list
-                            if is_array_field:
-                                new_criteria[field_name] = [option.id]
-                            else:
-                                new_criteria[field_name] = option.id
-                            
-                            # Get success rate with this option
-                            option_shows, option_match_count = self._get_matching_shows(new_criteria)
-                            
-                            # Check if we got any matching shows
-                            if option_shows.empty:
-                                st.error(f"DEBUG ERROR: No shows matched the criteria {new_criteria}")
-                                continue
-                                
-                            if option_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                                st.write(f"DEBUG: Insufficient sample size for {field_name}={option.name} (id={option.id})")
-                                continue
-                            
-                            try:
-                                option_rate = self._calculate_success_rate(option_shows)
-                            except Exception as e:
-                                st.error(f"DEBUG ERROR: Error calculating success rate for {field_name}={option.name}: {str(e)}")
-                                continue
-                            
-                            # Calculate impact as relative change in success rate
-                            impact = (option_rate - base_rate) / base_rate
-                            
-                            # Store impact score
-                            field_impact[option.id] = impact
-                            option_count += 1
-                        except Exception as e:
-                            st.error(f"DEBUG ERROR: Error calculating impact for {field_name}={option.name}: {str(e)}")
-                            continue
-                    
-                    if field_impact:
-                        impact_scores[field_name] = field_impact
-                        field_count += 1
-                        st.write(f"DEBUG: Added {option_count} impact scores for field {field_name}")
-                except Exception as e:
-                    st.error(f"DEBUG ERROR: Error processing field {field_name}: {str(e)}")
-                    continue
-            
-            # Check if we have any impact scores
-            if not impact_scores:
-                st.error("DEBUG ERROR: No impact scores could be calculated")
-                
-                # If we have a genre, we can create a placeholder impact score for visualization
-                # but we clearly mark it as a placeholder
-                if 'genre' in base_criteria:
-                    genre_id = base_criteria['genre']
-                    genre_name = self.field_manager.get_option_name('genre', genre_id)
-                    st.error(f"DEBUG ERROR: Using placeholder impact score for genre {genre_name} (id={genre_id})")
+            shows, count = self._get_matching_shows(criteria)
+            if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                results.append(self._calculate_success_rate(shows))
                     impact_scores['genre'] = {genre_id: 0.0}  # Neutral impact (no effect)
                     st.error("DEBUG ERROR: This is a placeholder and does not represent real data")
             else:
