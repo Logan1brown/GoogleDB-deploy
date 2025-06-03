@@ -211,7 +211,7 @@ class CriteriaScorer:
                 available_metrics = [col for col in required_metrics if col in success_df.columns]
                 
                 if not available_metrics:
-                    st.error("DEBUG ERROR: No required metrics found in success data")
+                    logger.error("No required metrics found in success data")
                 else:
                     # Merge the success metrics into comp_df
                     success_metrics = success_df[available_metrics]
@@ -222,9 +222,9 @@ class CriteriaScorer:
                     
                     # Log which metrics were added
                     for metric in available_metrics:
-                        st.write(f"DEBUG: Added {metric} from SuccessAnalyzer to {comp_df[metric].notna().sum()} shows")
+                        logger.debug(f"Added {metric} from SuccessAnalyzer to {comp_df[metric].notna().sum()} shows")
             else:
-                st.error("DEBUG ERROR: No success data available from SuccessAnalyzer")
+                logger.error("No success data available from SuccessAnalyzer")
                 
             # Update field manager with new reference data
             self.field_manager = FieldManager(reference_data)
@@ -236,7 +236,7 @@ class CriteriaScorer:
             # Clean up any duplicate columns from merge
             duplicate_cols = [col for col in comp_df.columns if col.endswith('_orig') or col.endswith('_success')]
             if duplicate_cols:
-                st.write(f"DEBUG WARNING: Duplicate columns created during merge: {duplicate_cols}")
+                logger.warning(f"Duplicate columns created during merge: {duplicate_cols}")
                 # Clean up duplicate columns by keeping the non-null version
                 processed_base_cols = set()  # Track which base columns we've already processed
                 
@@ -261,38 +261,38 @@ class CriteriaScorer:
             required_columns = ['id']  # Add other required columns as needed
             for col in required_columns:
                 if col not in comp_df.columns:
-                    st.error(f"DEBUG ERROR: Required column '{col}' missing after duplicate cleanup")
+                    logger.error(f"Required column '{col}' missing after duplicate cleanup")
                     # Try to recover from suffix columns if they still exist
                     orig_col = f"{col}_orig"
                     success_col = f"{col}_success"
                     
                     if orig_col in comp_df.columns:
                         comp_df[col] = comp_df[orig_col]
-                        st.write(f"DEBUG: Recovered '{col}' from '{orig_col}'")
+                        logger.debug(f"Recovered '{col}' from '{orig_col}'")
                         comp_df = comp_df.drop([orig_col], axis=1, errors='ignore')
                     elif success_col in comp_df.columns:
                         comp_df[col] = comp_df[success_col]
-                        st.write(f"DEBUG: Recovered '{col}' from '{success_col}'")
+                        logger.debug(f"Recovered '{col}' from '{success_col}'")
                         comp_df = comp_df.drop([success_col], axis=1, errors='ignore')
             
             # Drop rows with missing success scores to make issues visible
             if 'success_score' in comp_df.columns:
                 missing_scores = comp_df['success_score'].isna().sum()
                 if missing_scores > 0:
-                    st.write(f"DEBUG: Dropping {missing_scores} shows with missing success scores")
+                    logger.debug(f"Dropping {missing_scores} shows with missing success scores")
                     comp_df = comp_df.dropna(subset=['success_score'])
             
             # Log the columns in the merged data
-            st.write(f"DEBUG: Merged criteria data columns: {list(comp_df.columns)}")
-            st.write(f"DEBUG: Merged data has {len(comp_df)} rows")
+            logger.debug(f"Merged criteria data columns: {list(comp_df.columns)}")
+            logger.debug(f"Merged data has {len(comp_df)} rows")
             
             # Check if we have the required metrics columns
             for col in ['popcornmeter', 'tomatometer']:
                 if col not in comp_df.columns:
-                    st.write(f"DEBUG WARNING: '{col}' column missing from merged data")
+                    logger.warning(f"'{col}' column missing from merged data")
                 else:
-                    st.write(f"DEBUG: '{col}' column present in merged data")
-                    st.write(f"DEBUG: '{col}' non-null count: {comp_df[col].notna().sum()}")
+                    logger.debug(f"'{col}' column present in merged data")
+                    logger.debug(f"'{col}' non-null count: {comp_df[col].notna().sum()}")
             
             # Store the data and update timestamp
             self.criteria_data = comp_df
@@ -318,12 +318,9 @@ class CriteriaScorer:
         Returns:
             Tuple of (DataFrame of matching shows with success metrics, count of matches)
         """
-        import streamlit as st
-        
-        # Fetch the latest criteria data
         data = self.fetch_criteria_data()
         if data.empty:
-            st.error("DEBUG ERROR: Empty criteria data from fetch_criteria_data")
+            logger.error("Empty criteria data from fetch_criteria_data")
             raise ValueError("No criteria data available")
         
         # Get array fields and mapping from field_manager
@@ -361,7 +358,7 @@ class CriteriaScorer:
             if matched_shows.empty:
                 # Provide a more specific error message with the criteria that failed to match
                 criteria_str = ", ".join([f"{k}: {v}" for k, v in clean_criteria.items()])
-                st.error(f"ERROR: No shows matched the criteria: {criteria_str}")
+                logger.error(f"No shows matched the criteria: {criteria_str}")
                 
                 # Log the criteria and available columns for debugging
                 logger.warning(f"No shows matched criteria: {clean_criteria}")
@@ -373,16 +370,11 @@ class CriteriaScorer:
                 
             return matched_shows, match_count
         except Exception as e:
-            logger.error(f"Error matching shows: {e}")
-            st.error(f"Error matching shows: {str(e)}")
+            logger.error(f"Error matching shows: {e}", exc_info=True)
             # Return empty DataFrame with zero matches
             # The calling code should handle this appropriately
             return pd.DataFrame(), 0   
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Optional[float]:
-        # Use threshold from OptimizerConfig if not provided
-        if threshold is None:
-            from .optimizer_config import OptimizerConfig
-            threshold = OptimizerConfig.THRESHOLDS['success_threshold']
         """Calculate the success rate for a set of shows.
         
         Args:
@@ -392,6 +384,10 @@ class CriteriaScorer:
         Returns:
             Success rate (0-1) or None if success_score is missing
         """
+        # Use threshold from OptimizerConfig if not provided
+        if threshold is None:
+            from .optimizer_config import OptimizerConfig
+            threshold = OptimizerConfig.THRESHOLDS['success_threshold']
         import streamlit as st
         
         if shows.empty:
@@ -450,8 +446,6 @@ class CriteriaScorer:
         Returns:
             A dictionary mapping field names to dictionaries of option IDs to impact scores.
         """
-        import streamlit as st
-        
         try:
             # Get the field manager's array field mapping
             array_field_mapping = self.field_manager.get_array_field_mapping()

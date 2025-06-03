@@ -447,7 +447,7 @@ class FieldManager:
         for field_name, value in criteria.items():
             if isinstance(value, list):
                 array_fields[field_name] = value
-                st.write(f"DEBUG: Identified array field '{field_name}' with value {value}")
+                logger.debug(f"Identified array field '{field_name}' with value {value}")
             else:
                 # For scalar fields, determine the actual column name
                 field_id = f"{field_name}_id" if f"{field_name}_id" in matches.columns else field_name
@@ -476,12 +476,12 @@ class FieldManager:
                     field_column = f"{field_name}_ids"
                 # If neither exists, log an error and skip this field
                 else:
-                    st.error(f"ERROR: Field '{field_name}' not found in data columns")
+                    logger.error(f"Field '{field_name}' not found in data columns")
                     continue
             
             # Verify the mapped column exists
             if field_column not in matches.columns:
-                st.error(f"ERROR: Mapped field '{field_column}' not found in data columns")
+                logger.error(f"Mapped field '{field_column}' not found in data columns")
                 continue
                     
             if isinstance(value, list):
