@@ -155,11 +155,21 @@ class CriteriaAnalyzer:
             for criteria_type, values in impact_data.items():
                 # Process at most 5 values per criteria type to reduce processing
                 processed_count = 0
-                for value_id, impact in values.items():
+                for value_id, impact_data in values.items():
                     if processed_count >= 5:  # Limit processing per criteria type
                         break
                         
                     try:
+                        # Extract impact and sample size from the impact data
+                        # Handle both old format (float) and new format (dict with impact and sample_size)
+                        if isinstance(impact_data, dict) and 'impact' in impact_data:
+                            impact = impact_data['impact']
+                            sample_size = impact_data.get('sample_size', 0)
+                        else:
+                            # Backward compatibility for old format
+                            impact = impact_data
+                            sample_size = 0
+                        
                         # Check if value_id is a dictionary or other unhashable type
                         if isinstance(value_id, (dict, list)):
                             # Convert to a string representation for unhashable types
@@ -182,14 +192,21 @@ class CriteriaAnalyzer:
                             
                             # For hashable types, use the original value
                             criteria_value = value_id
+                        
+                        # Set confidence based on sample size
+                        confidence = "low"
+                        if sample_size >= 30:
+                            confidence = "high"
+                        elif sample_size >= 10:
+                            confidence = "medium"
                                 
                         factor = SuccessFactor(
                             criteria_type=criteria_type,
                             criteria_value=criteria_value,
                             criteria_name=name,
                             impact_score=impact,
-                            confidence="",
-                            sample_size=0
+                            confidence=confidence,
+                            sample_size=sample_size
                         )
                         success_factors.append(factor)
                         processed_count += 1
@@ -344,12 +361,23 @@ class CriteriaAnalyzer:
                 else:
                     matching_shows = network_data[network_data[field_id] == value]
             
-            # Calculate success rate
+            # Calculate success rate and sample size
             if not matching_shows.empty:
                 success_rate = self.criteria_scorer._calculate_success_rate(matching_shows)
-                success_rates[field_name] = success_rate
+                success_rates[field_name] = {
+                    'rate': success_rate,
+                    'sample_size': len(matching_shows),
+                    'has_data': True
+                }
             else:
-                success_rates[field_name] = 0.0
+                # No matching shows - indicate this is a data gap, not a 0% success rate
+                import streamlit as st
+                st.warning(f"No shows match the '{field_name}' criterion for this network. Sample size is 0.")
+                success_rates[field_name] = {
+                    'rate': None,  # None indicates no data rather than 0%
+                    'sample_size': 0,
+                    'has_data': False
+                }
         
         return success_rates
     

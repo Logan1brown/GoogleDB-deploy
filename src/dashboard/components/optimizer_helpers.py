@@ -354,16 +354,21 @@ def render_success_factors(success_factors: List):
     # Create a dataframe for the factors
     factor_data = []
     for factor in success_factors:
+        # Format sample size for display
+        sample_size_display = f"Sample: {factor.sample_size}" if hasattr(factor, 'sample_size') and factor.sample_size > 0 else "Sample: Unknown"
+        
         factor_data.append({
             "Type": factor.criteria_type.replace("_", " ").title(),
             "Name": factor.criteria_name,
             "Impact": factor.impact_score,
-            "Confidence": factor.confidence.capitalize()
+            "Confidence": factor.confidence.capitalize(),
+            "Sample": factor.sample_size if hasattr(factor, 'sample_size') else 0,
+            "SampleDisplay": sample_size_display
         })
         
     factor_df = pd.DataFrame(factor_data)
     
-    # Create a bar chart
+    # Create a bar chart with sample size information
     chart = alt.Chart(factor_df).mark_bar().encode(
         x=alt.X('Impact:Q', title='Impact on Success'),
         y=alt.Y('Name:N', title=None, sort='-x'),
@@ -371,12 +376,24 @@ def render_success_factors(success_factors: List):
             domain=[-0.5, 0, 0.5],
             range=['#f77', '#ddd', '#7d7']
         )),
-        tooltip=['Type', 'Name', 'Impact', 'Confidence']
+        tooltip=['Type', 'Name', 'Impact', 'Confidence', 'SampleDisplay']
     ).properties(
         height=30 * len(factor_data)
     )
     
+    # Display the chart
     st.altair_chart(chart, use_container_width=True)
+    
+    # Add a note about sample sizes
+    st.caption("Note: Sample size indicates the number of shows matching each criteria. Larger samples provide more reliable insights.")
+    
+    # Display a table with detailed information including sample sizes
+    with st.expander("View detailed success factors data"):
+        # Create a more readable table for display
+        display_df = factor_df[['Name', 'Type', 'Impact', 'Sample', 'Confidence']].copy()
+        display_df['Impact'] = display_df['Impact'].apply(lambda x: f"{x:.2f}")
+        display_df.columns = ['Factor', 'Category', 'Impact Score', 'Sample Size', 'Confidence']
+        st.dataframe(display_df, use_container_width=True)
 
 
 def render_network_compatibility(networks: List):

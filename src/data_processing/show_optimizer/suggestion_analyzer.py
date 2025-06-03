@@ -271,10 +271,16 @@ class SuggestionAnalyzer:
             overall_rates[criteria_type] = rate
         
         # Find criteria where network rate differs significantly from overall rate
-        for criteria_type, network_rate in network_rates.items():
+        for criteria_type, network_rate_data in network_rates.items():
             if criteria_type not in overall_rates:
                 continue
                 
+            # Skip if we don't have enough data for this criteria
+            if not network_rate_data['has_data'] or network_rate_data['rate'] is None:
+                continue
+                
+            # Get the actual rate value from the dictionary
+            network_rate = network_rate_data['rate']
             overall_rate = overall_rates[criteria_type]
             
             # Calculate the difference

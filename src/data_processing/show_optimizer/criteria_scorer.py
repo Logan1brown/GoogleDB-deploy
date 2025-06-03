@@ -367,21 +367,16 @@ class CriteriaScorer:
                 logger.warning(f"No shows matched criteria: {clean_criteria}")
                 logger.info(f"Available columns: {list(data.columns)}")
                 
-                # Return a small subset of shows instead of empty DataFrame
-                # This allows the analysis to continue with some data
-                if len(data) > 0:
-                    fallback_shows = data.head(min(5, len(data)))
-                    return fallback_shows, len(fallback_shows)
+                # Return empty DataFrame with zero matches
+                # The calling code should handle this appropriately
                 return matched_shows, 0
                 
             return matched_shows, match_count
         except Exception as e:
             logger.error(f"Error matching shows: {e}")
             st.error(f"Error matching shows: {str(e)}")
-            # Return a small subset of shows as fallback
-            if len(data) > 0:
-                fallback_shows = data.head(min(5, len(data)))
-                return fallback_shows, len(fallback_shows)
+            # Return empty DataFrame with zero matches
+            # The calling code should handle this appropriately
             return pd.DataFrame(), 0   
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: float = 0.6) -> Optional[float]:
         """Calculate the success rate for a set of shows.
@@ -510,8 +505,18 @@ class CriteriaScorer:
                 
                 # Process results
                 field_impact = {}
-                for (option_id, option_name), rate in zip(option_data, success_rates):
+                field_sample_sizes = {}
+                
+                # Get sample sizes for each option
+                for i, criteria_set in enumerate(batch_criteria):
+                    # Get the option ID and name
+                    option_id, option_name = option_data[i]
+                    rate = success_rates[i]
+                    
                     if rate is not None:
+                        # Get the sample size for this criteria
+                        option_shows, match_count = self._get_matching_shows(criteria_set)
+                        
                         # Calculate impact as relative change in success rate
                         impact = (rate - base_rate) / base_rate if base_rate != 0 else 0
                         
@@ -523,7 +528,8 @@ class CriteriaScorer:
                         else:
                             hashable_id = option_id
                             
-                        field_impact[hashable_id] = impact
+                        # Store both impact and sample size
+                        field_impact[hashable_id] = {"impact": impact, "sample_size": match_count}
                 
                 if field_impact:  # Only add if we have valid impacts
                     impact_scores[current_field] = field_impact
