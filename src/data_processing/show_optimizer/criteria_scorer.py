@@ -92,18 +92,16 @@ class AudienceScoreCalculator(ScoreCalculator):
             raise ScoreCalculationError("Cannot calculate audience score with empty shows DataFrame")
             
         if 'popcornmeter' not in shows.columns:
-            logger.warning("popcornmeter column not found, falling back to success score")
-            return SuccessScoreCalculator('audience').calculate(shows)
+            raise ScoreCalculationError("popcornmeter column not found in shows data")
             
         # Filter shows with audience metrics
         valid_shows = shows[shows['popcornmeter'].notna()]
         sample_size = len(valid_shows)
         
         if sample_size == 0:
-            logger.warning("No shows with valid popcornmeter data, falling back to success score")
-            return SuccessScoreCalculator('audience').calculate(shows)
+            raise ScoreCalculationError("No shows with valid popcornmeter data found")
             
-        # Calculate metrics
+        # Calculate average popcornmeter score (normalized to 0-1)
         avg_score = valid_shows['popcornmeter'].mean() / 100  # Normalize to 0-1
         confidence = self._get_confidence(sample_size)
         
@@ -495,19 +493,13 @@ class CriteriaScorer:
                     import traceback
                     st.error(f"DEBUG ERROR: {component.capitalize()} score traceback: {traceback.format_exc()}")
             
-            # Check if we have at least one component score
-            if not component_scores:
-                st.error("DEBUG ERROR: Failed to calculate any component scores")
-                raise ValueError("Failed to calculate any component scores")
+            # Check if we have all required component scores
+            required_components = ['audience', 'critics', 'longevity']
+            missing_components = [c for c in required_components if c not in component_scores]
             
-            # If we're missing any component scores but have success_score, create fallback scores
-            if 'success_score' in matching_shows.columns:
-                for component in ['audience', 'critics', 'longevity']:
-                    if component not in component_scores:
-                        st.write(f"DEBUG: Creating fallback {component} score from success_score")
-                        fallback_method = getattr(self, f'_calculate_{component}_score_from_success', None)
-                        if fallback_method:
-                            component_scores[component] = fallback_method(matching_shows)
+            if missing_components:
+                st.error(f"DEBUG ERROR: Failed to calculate required component scores: {missing_components}")
+                raise ValueError(f"Failed to calculate required component scores: {', '.join(missing_components)}")
             
             st.write(f"DEBUG: Final component scores: {component_scores}")
             return component_scores
@@ -517,13 +509,16 @@ class CriteriaScorer:
             raise
     
     def _calculate_audience_score(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate audience score for a set of shows.
+        """Calculate audience score for a set of shows using popcornmeter.
         
         Args:
-            shows: DataFrame of shows
+            shows: DataFrame of shows with 'popcornmeter' column
             
         Returns:
             ComponentScore for audience
+            
+        Raises:
+            ValueError: If popcornmeter data is missing or empty
         """
         import streamlit as st
         
@@ -535,39 +530,7 @@ class CriteriaScorer:
         if 'popcornmeter' not in shows.columns:
             st.error("DEBUG ERROR: Popcornmeter column missing from shows data")
             st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
-            
-            # Try to use success_score as a fallback if available
-            if 'success_score' in shows.columns:
-                st.write("DEBUG: Using success_score as fallback for audience score calculation")
-                # Filter shows with success metrics
-                audience_shows = shows[shows['success_score'].notna()]
-                sample_size = len(audience_shows)
-                
-                if sample_size == 0:
-                    st.error("DEBUG ERROR: No shows with valid success_score data found")
-                    raise ValueError("No shows with valid success metrics available for audience score")
-                
-                # Calculate confidence level
-                confidence = OptimizerConfig.get_confidence_level(sample_size)
-                
-                # Use success_score as audience score (assuming it's already normalized to 0-1)
-                avg_score = audience_shows['success_score'].mean()
-                
-                # Calculate audience engagement metrics
-                details = {'success_score': avg_score}
-                
-                # Calculate overall audience score
-                score = avg_score
-                
-                return ComponentScore(
-                    component='audience',
-                    score=score,
-                    sample_size=sample_size,
-                    confidence=confidence,
-                    details=details
-                )
-            else:
-                raise ValueError("No metrics available for audience score calculation")
+            raise ValueError("popcornmeter column is required for audience score calculation")
             
         # Filter shows with audience metrics
         audience_shows = shows[shows['popcornmeter'].notna()]
@@ -575,12 +538,7 @@ class CriteriaScorer:
         
         if sample_size == 0:
             st.error("DEBUG ERROR: No shows with valid popcornmeter data found")
-            # Try to use success_score as a fallback
-            if 'success_score' in shows.columns:
-                st.write("DEBUG: Using success_score as fallback for audience score calculation")
-                return self._calculate_audience_score_from_success(shows)
-            else:
-                raise ValueError("No shows with valid popcornmeter data available")
+            raise ValueError("No shows with valid popcornmeter data available")
         
         # Calculate confidence level
         confidence = OptimizerConfig.get_confidence_level(sample_size)
@@ -588,67 +546,28 @@ class CriteriaScorer:
         # Calculate average popcornmeter score (normalized to 0-1)
         avg_popcorn = audience_shows['popcornmeter'].mean() / 100
         
-        # Calculate audience engagement metrics if available
+        # Prepare score details
         details = {'popcornmeter': avg_popcorn}
         
-        # Calculate overall audience score
-        score = avg_popcorn
-        
         return ComponentScore(
             component='audience',
-            score=score,
+            score=avg_popcorn,
             sample_size=sample_size,
             confidence=confidence,
             details=details
         )
         
-    def _calculate_audience_score_from_success(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate audience score using success_score as a fallback.
-        
-        Args:
-            shows: DataFrame of shows
-            
-        Returns:
-            ComponentScore for audience
-        """
-        import streamlit as st
-        
-        # Filter shows with success metrics
-        audience_shows = shows[shows['success_score'].notna()]
-        sample_size = len(audience_shows)
-        
-        if sample_size == 0:
-            st.error("DEBUG ERROR: No shows with valid success_score data found")
-            raise ValueError("No shows with valid success metrics available for audience score")
-        
-        # Calculate confidence level
-        confidence = OptimizerConfig.get_confidence_level(sample_size)
-        
-        # Use success_score as audience score (assuming it's already normalized to 0-1)
-        avg_score = audience_shows['success_score'].mean()
-        
-        # Calculate audience engagement metrics
-        details = {'success_score': avg_score}
-        
-        # Calculate overall audience score
-        score = avg_score
-        
-        return ComponentScore(
-            component='audience',
-            score=score,
-            sample_size=sample_size,
-            confidence=confidence,
-            details=details
-        )
-    
     def _calculate_critics_score(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate critics score for a set of shows.
+        """Calculate critics score for a set of shows using tomatometer.
         
         Args:
-            shows: DataFrame of shows
+            shows: DataFrame of shows with 'tomatometer' column
             
         Returns:
             ComponentScore for critics
+            
+        Raises:
+            ValueError: If tomatometer data is missing or empty
         """
         import streamlit as st
         
@@ -660,13 +579,7 @@ class CriteriaScorer:
         if 'tomatometer' not in shows.columns:
             st.error("DEBUG ERROR: Tomatometer column missing from shows data")
             st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
-            
-            # Try to use success_score as a fallback if available
-            if 'success_score' in shows.columns:
-                st.write("DEBUG: Using success_score as fallback for critics score calculation")
-                return self._calculate_critics_score_from_success(shows)
-            else:
-                raise ValueError("No metrics available for critics score calculation")
+            raise ValueError("tomatometer column is required for critics score calculation")
             
         # Filter shows with critics metrics
         critics_shows = shows[shows['tomatometer'].notna()]
@@ -674,12 +587,7 @@ class CriteriaScorer:
         
         if sample_size == 0:
             st.error("DEBUG ERROR: No shows with valid tomatometer data found")
-            # Try to use success_score as a fallback
-            if 'success_score' in shows.columns:
-                st.write("DEBUG: Using success_score as fallback for critics score calculation")
-                return self._calculate_critics_score_from_success(shows)
-            else:
-                raise ValueError("No shows with valid tomatometer data available")
+            raise ValueError("No shows with valid tomatometer data available")
         
         # Calculate confidence level
         confidence = OptimizerConfig.get_confidence_level(sample_size)
@@ -687,80 +595,43 @@ class CriteriaScorer:
         # Calculate average critics score (normalized to 0-1)
         avg_score = critics_shows['tomatometer'].mean() / 100.0
         
-        # Calculate basic critics details
+        # Prepare score details
         details = {
             'tomatometer': avg_score,
             'sample_size': sample_size
         }
         
-        # Calculate overall critics score
-        score = avg_score
-        
         return ComponentScore(
             component='critics',
-            score=score,
+            score=avg_score,
             sample_size=sample_size,
             confidence=confidence,
             details=details
         )
         
-    def _calculate_critics_score_from_success(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate critics score using success_score as a fallback.
-        
-        Args:
-            shows: DataFrame of shows
-            
-        Returns:
-            ComponentScore for critics
-        """
-        import streamlit as st
-        
-        # Filter shows with success metrics
-        critics_shows = shows[shows['success_score'].notna()]
-        sample_size = len(critics_shows)
-        
-        if sample_size == 0:
-            st.error("DEBUG ERROR: No shows with valid success_score data found")
-            raise ValueError("No shows with valid success metrics available for critics score")
-        
-        # Calculate confidence level
-        confidence = OptimizerConfig.get_confidence_level(sample_size)
-        
-        # Use success_score as critics score (assuming it's already normalized to 0-1)
-        avg_score = critics_shows['success_score'].mean()
-        
-        # Calculate critics engagement metrics
-        details = {'success_score': avg_score}
-        
-        # Calculate overall critics score
-        score = avg_score
-        
-        return ComponentScore(
-            component='critics',
-            score=score,
-            sample_size=len(shows),
-            confidence=OptimizerConfig.get_confidence_level(len(shows)),
-            details={'avg_score': avg_score}
-        )
-        
+
     def _calculate_longevity_score(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate longevity score for a set of shows.
+        """Calculate longevity score for a set of shows using success_score.
         
         Args:
-            shows: DataFrame containing show data with required columns
+            shows: DataFrame containing show data with 'success_score' column
             
         Returns:
             ComponentScore for longevity
+            
+        Raises:
+            ValueError: If success_score data is missing or empty
         """
         import streamlit as st
         
-        required_columns = ['success_score']
-        missing_columns = [col for col in required_columns if col not in shows.columns]
-        
-        if missing_columns:
-            st.error(f"DEBUG ERROR: Missing columns for longevity calculation: {missing_columns}")
+        if shows.empty:
+            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_longevity_score")
+            raise ValueError("Cannot calculate longevity score with empty shows DataFrame")
+            
+        if 'success_score' not in shows.columns:
+            st.error("DEBUG ERROR: success_score column missing from shows data")
             st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
-            return self._calculate_longevity_score_from_success(shows)
+            raise ValueError("success_score column is required for longevity score calculation")
             
         # Filter shows with success metrics
         longevity_shows = shows[shows['success_score'].notna()]
@@ -768,7 +639,7 @@ class CriteriaScorer:
         
         if sample_size == 0:
             st.error("DEBUG ERROR: No shows with valid success_score data found")
-            return self._calculate_longevity_score_from_success(shows)
+            raise ValueError("No shows with valid success_score data available")
         
         # Calculate confidence level
         confidence = OptimizerConfig.get_confidence_level(sample_size)
@@ -776,58 +647,17 @@ class CriteriaScorer:
         # Use success_score as longevity score (assuming it's already normalized to 0-1)
         avg_score = longevity_shows['success_score'].mean()
         
-        # Calculate basic longevity details
+        # Prepare score details
         details = {'success_score': avg_score}
-        
-        # Calculate overall longevity score
-        score = avg_score
         
         return ComponentScore(
             component='longevity',
-            score=score,
+            score=avg_score,
             sample_size=sample_size,
             confidence=confidence,
             details=details
         )
         
-    def _calculate_longevity_score_from_success(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate longevity score using success_score as a fallback.
-        
-        Args:
-            shows: DataFrame of shows
-            
-        Returns:
-            ComponentScore for longevity
-        """
-        import streamlit as st
-        
-        # Filter shows with success metrics
-        longevity_shows = shows[shows['success_score'].notna()]
-        sample_size = len(longevity_shows)
-        
-        if sample_size == 0:
-            st.error("DEBUG ERROR: No shows with valid success_score data found")
-            raise ValueError("No shows with valid success metrics available for longevity score")
-        
-        # Calculate confidence level
-        confidence = OptimizerConfig.get_confidence_level(sample_size)
-        
-        # Use success_score as longevity score (assuming it's already normalized to 0-1)
-        avg_score = longevity_shows['success_score'].mean()
-        
-        # Calculate basic longevity details
-        details = {'success_score': avg_score}
-        
-        # Calculate overall longevity score
-        score = avg_score
-        
-        return ComponentScore(
-            component='longevity',
-            score=score,
-            sample_size=sample_size,
-            confidence=confidence,
-            details=details
-        )
 
     def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[float]:
         """Batch calculate success rates for multiple criteria.
