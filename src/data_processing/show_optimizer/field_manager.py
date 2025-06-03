@@ -443,15 +443,27 @@ class FieldManager:
         
         # Process array fields (these require apply functions)
         for field_name, value in array_fields.items():
+            # Check if we need to map the field name to a different column name
+            field_column = field_name
+            if field_name not in matches.columns:
+                # Try with _ids suffix which is common in the database
+                field_column_ids = f"{field_name}_ids"
+                if field_column_ids in matches.columns:
+                    field_column = field_column_ids
+                else:
+                    import streamlit as st
+                    st.error(f"DEBUG ERROR: Field '{field_name}' not found in data columns. Available columns: {list(matches.columns)}")
+                    continue
+                    
             if isinstance(value, list):
                 # Multiple values: any show containing any of the values matches
                 # Use vectorized operations where possible
                 value_set = set(value)  # Convert to set for faster lookups
-                mask = matches[field_name].apply(
+                mask = matches[field_column].apply(
                     lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
             else:
                 # Single value: any show containing the value matches
-                mask = matches[field_name].apply(
+                mask = matches[field_column].apply(
                     lambda x: isinstance(x, list) and value in x)
                     
             # Apply filter
