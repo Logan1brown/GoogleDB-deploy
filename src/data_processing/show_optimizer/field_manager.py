@@ -407,35 +407,32 @@ class FieldManager:
             'fields': field_samples
         }
     
-    def match_shows(self, criteria: Dict[str, Any], shows_data: pd.DataFrame) -> Tuple[pd.DataFrame, int]:
-        """Match shows against the given criteria.
+    def match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame) -> Tuple[pd.DataFrame, int]:
+        """Match shows against criteria.
         
         Args:
-            criteria: Dictionary of criteria to match against
-            shows_data: DataFrame of shows data
+            criteria: Dictionary of criteria
+            data: DataFrame of shows
             
         Returns:
-            Tuple of (matched_shows, sample_size) where:
-            - matched_shows: DataFrame of shows matching the criteria
-            - sample_size: Number of shows in the match
+            Tuple of (matched_shows, match_count)
         """
-        if shows_data.empty or not criteria:
-            return shows_data, 0
-            
-        # Start with all shows
-        matches = shows_data.copy()
+        import streamlit as st
         
-        # Pre-process criteria to avoid repeated lookups
-        array_fields = {}
+        # Start with all shows
+        matches = data.copy()
+        
+        # Separate array fields from scalar fields
         scalar_fields = {}
+        array_fields = {}
+        
+        # Log available columns for debugging
+        st.write(f"DEBUG: Available columns in data for matching: {list(matches.columns)}")
         
         for field_name, value in criteria.items():
-            if field_name not in self.FIELD_CONFIGS:
-                continue
-                
-            config = self.FIELD_CONFIGS[field_name]
-            if config.is_array:
+            if isinstance(value, list):
                 array_fields[field_name] = value
+                st.write(f"DEBUG: Identified array field '{field_name}' with value {value}")
             else:
                 # For scalar fields, determine the actual column name
                 field_id = f"{field_name}_id" if f"{field_name}_id" in matches.columns else field_name
@@ -450,6 +447,9 @@ class FieldManager:
             'subgenres': 'subgenres',  # This one doesn't have _ids suffix
             'studios': 'studios'       # This one doesn't have _ids suffix
         }
+        
+        # Also create a reverse mapping for debugging purposes
+        column_to_field_mapping = {v: k for k, v in array_field_mapping.items()}
         
         # Process array fields (these require apply functions)
         for field_name, value in array_fields.items():
@@ -478,17 +478,56 @@ class FieldManager:
             if field_column not in matches.columns:
                 st.error(f"DEBUG ERROR: Mapped field '{field_column}' not found in data columns")
                 continue
+                
+            st.write(f"DEBUG: Filtering on column '{field_column}' for field '{field_name}'")
+            # Log the first few values in this column to help with debugging
+            sample_values = matches[field_column].iloc[:3].tolist()
+            st.write(f"DEBUG: Sample values in column '{field_column}': {sample_values}")
                     
             if isinstance(value, list):
                 # Multiple values: any show containing any of the values matches
                 # Use vectorized operations where possible
                 value_set = set(value)  # Convert to set for faster lookups
-                mask = matches[field_column].apply(
-                    lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
+                
+                # Check if the column contains lists or is itself a list
+                sample = matches[field_column].iloc[0] if not matches.empty else None
+                st.write(f"DEBUG: Sample value type for '{field_column}': {type(sample).__name__}")
+                
+                # Handle different data formats
+                if isinstance(sample, list):
+                    mask = matches[field_column].apply(
+                        lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
+                else:
+                    # If the column isn't storing lists, we need a different approach
+                    st.write(f"DEBUG: Column '{field_column}' doesn't contain list values, using alternative filtering")
+                    # Try to convert to list if it's a string representation of a list
+                    try:
+                        mask = matches[field_column].apply(
+                            lambda x: bool(value_set.intersection(eval(x))) if isinstance(x, str) and x.startswith('[') else False)
+                    except:
+                        # Fallback to exact matching
+                        st.write(f"DEBUG: Falling back to exact matching for '{field_column}'")
+                        mask = matches[field_column].isin(value)
             else:
                 # Single value: any show containing the value matches
-                mask = matches[field_column].apply(
-                    lambda x: isinstance(x, list) and value in x)
+                # Check if the column contains lists or is itself a list
+                sample = matches[field_column].iloc[0] if not matches.empty else None
+                
+                # Handle different data formats
+                if isinstance(sample, list):
+                    mask = matches[field_column].apply(
+                        lambda x: isinstance(x, list) and value in x)
+                else:
+                    # If the column isn't storing lists, we need a different approach
+                    st.write(f"DEBUG: Column '{field_column}' doesn't contain list values for single value, using alternative filtering")
+                    # Try to convert to list if it's a string representation of a list
+                    try:
+                        mask = matches[field_column].apply(
+                            lambda x: value in eval(x) if isinstance(x, str) and x.startswith('[') else False)
+                    except:
+                        # Fallback to exact matching
+                        st.write(f"DEBUG: Falling back to exact matching for single value in '{field_column}'")
+                        mask = matches[field_column] == value
                     
             # Apply filter
             matches = matches[mask]

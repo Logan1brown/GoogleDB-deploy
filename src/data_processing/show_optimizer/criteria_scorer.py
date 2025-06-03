@@ -379,9 +379,25 @@ class CriteriaScorer:
         # Log array fields in criteria
         array_fields = ['character_types', 'plot_elements', 'thematic_elements', 'team_members', 'subgenres', 'studios']
         
+        # Get the field manager's mapping dictionary for reference
+        array_field_mapping = {
+            'character_types': 'character_type_ids',
+            'plot_elements': 'plot_element_ids',
+            'thematic_elements': 'thematic_element_ids',
+            'team_members': 'team_member_ids',
+            'subgenres': 'subgenres',  # This one doesn't have _ids suffix
+            'studios': 'studios'       # This one doesn't have _ids suffix
+        }
+        
         for field_name in criteria.keys():
             if field_name in array_fields:
+                # Make sure array field values are always lists
+                if not isinstance(criteria[field_name], list):
+                    criteria[field_name] = [criteria[field_name]]
+                    
                 st.write(f"DEBUG: Processing array field '{field_name}' with value {criteria[field_name]}")
+                if field_name in array_field_mapping:
+                    st.write(f"DEBUG: This will be mapped to column '{array_field_mapping[field_name]}' by field_manager")
                 # Let field_manager handle the mapping
         
         # Use FieldManager to match shows against criteria
@@ -1073,6 +1089,19 @@ class CriteriaScorer:
                             if is_array_field:
                                 new_criteria[field_name] = [option.id]
                                 st.write(f"DEBUG: Using array field '{field_name}' with value {[option.id]}")
+                                
+                                # Reference the field manager's mapping for debugging
+                                array_field_mapping = {
+                                    'character_types': 'character_type_ids',
+                                    'plot_elements': 'plot_element_ids',
+                                    'thematic_elements': 'thematic_element_ids',
+                                    'team_members': 'team_member_ids',
+                                    'subgenres': 'subgenres',
+                                    'studios': 'studios'
+                                }
+                                
+                                if field_name in array_field_mapping:
+                                    st.write(f"DEBUG: This will be mapped to column '{array_field_mapping[field_name]}' by field_manager")
                             else:
                                 new_criteria[field_name] = option.id
                             
