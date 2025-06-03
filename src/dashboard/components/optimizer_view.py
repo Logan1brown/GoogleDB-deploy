@@ -176,7 +176,7 @@ class OptimizerView:
                 # Update state with results
                 state['summary'] = summary
                 state['results'] = True
-                st.write("DEBUG - Results stored in state successfully")
+                # Store results in state and session state
                 
                 # Also update session state for compatibility
                 st.session_state.optimizer_summary = summary
@@ -184,7 +184,7 @@ class OptimizerView:
                 
                 # Do not force rerun - let the page flow handle rendering
             else:
-                st.write("DEBUG - Summary is None or empty")
+                # No valid results were produced
                 st.error("Analysis failed to produce results. Please try different criteria.")
                 state['results'] = False
                 if 'summary' in state:

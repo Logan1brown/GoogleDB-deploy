@@ -206,43 +206,27 @@ class ShowOptimizer:
             OptimizationSummary with success probability, recommendations, etc.
         """
         try:
-            import streamlit as st
-            
-            # Debug initialization state
-            st.write(f"DEBUG - ShowOptimizer.analyze_concept - initialized: {self.initialized}")
-            
+            # Check if optimizer is initialized
             if not self.initialized and not self.initialize():
-                st.write("DEBUG - Failed to initialize Show Optimizer components")
                 logger.error("Failed to initialize Show Optimizer components")
                 return None
                 
             # Check if required components are initialized
-            st.write(f"DEBUG - SuggestionAnalyzer available: {self.suggestion_analyzer is not None}")
             if self.suggestion_analyzer is None:
-                st.write("DEBUG - SuggestionAnalyzer is not initialized")
                 logger.error("SuggestionAnalyzer is not initialized")
                 return None
                 
             # Skip validation for now and just use the criteria as is
-            st.write(f"DEBUG - Using criteria directly: {criteria}")
             normalized_criteria = criteria.copy()
             
             # Analyze concept
-            st.write("DEBUG - Calling suggestion_analyzer.analyze_show_concept")
             try:
                 result = self.suggestion_analyzer.analyze_show_concept(normalized_criteria)
-                st.write(f"DEBUG - analyze_show_concept result type: {type(result)}")
                 return result
             except Exception as inner_e:
-                st.write(f"DEBUG - Error in analyze_show_concept: {str(inner_e)}")
-                import traceback
-                st.write(f"DEBUG - Traceback: {traceback.format_exc()}")
+                logger.error(f"Error in analyze_show_concept: {str(inner_e)}", exc_info=True)
                 return None
         except Exception as e:
-            import streamlit as st
-            st.write(f"DEBUG - Error analyzing concept: {str(e)}")
-            import traceback
-            st.write(f"DEBUG - Traceback: {traceback.format_exc()}")
             logger.error(f"Error analyzing concept: {e}", exc_info=True)
             return None
     

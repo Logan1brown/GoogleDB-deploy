@@ -133,13 +133,7 @@ def show():
                 
                 # Tab 1: Success Metrics
                 with tab1:
-                    # Debug output for component scores
-                    if hasattr(summary, 'component_scores'):
-                        st.write(f"DEBUG UI: Available component scores: {list(summary.component_scores.keys())}")
-                        for comp_name, comp_score in summary.component_scores.items():
-                            st.write(f"DEBUG UI: {comp_name} score: {comp_score}")
-                    else:
-                        st.write("DEBUG UI: No component_scores attribute found in summary")
+                    # Display component scores in metrics
                         
                     # Display success metrics using available attributes
                     # Create columns for metrics - now 4 columns for all scores
@@ -206,10 +200,7 @@ def show():
                     # Display success factors if available
                     if hasattr(summary, 'success_factors') and summary.success_factors:
                         st.subheader("Success Factors")
-                        # Debug success factors
-                        st.write(f"DEBUG UI: Success factors count: {len(summary.success_factors)}")
-                        if len(summary.success_factors) > 0:
-                            st.write(f"DEBUG UI: First success factor: {summary.success_factors[0].__dict__}")
+                        # Display success factors
                         render_success_factors(summary.success_factors)
                         
                         # Group by type

@@ -88,48 +88,33 @@ class SuggestionAnalyzer:
         Returns:
             OptimizationSummary with success probability, recommendations, etc.
         """
-        import streamlit as st
-        
         try:
             # Get overall success probability
-            st.write("DEBUG - Getting overall success rate")
             success_probability, confidence = self.criteria_analyzer.get_overall_success_rate(criteria)
-            st.write(f"DEBUG - Success probability: {success_probability}, Confidence: {confidence}")
             
             # Get top networks
-            st.write("DEBUG - Ranking networks by compatibility")
             top_networks = self.criteria_analyzer.rank_networks_by_compatibility(criteria, limit=5)
-            st.write(f"DEBUG - Top networks count: {len(top_networks)}")
             
             # Get component scores
-            st.write("DEBUG - Analyzing components")
             component_scores = self.criteria_analyzer.analyze_components(criteria)
-            st.write(f"DEBUG - Component scores: {component_scores}")
             
             # Verify component scores are valid
             if not component_scores:
-                st.error("DEBUG ERROR: Empty component scores returned from analyze_components")
                 raise ValueError("No component scores available for analysis")
                 
             # Check that all expected component scores are present
             expected_components = ['audience', 'critics', 'longevity']
             missing_components = [comp for comp in expected_components if comp not in component_scores]
             if missing_components:
-                st.error(f"DEBUG ERROR: Missing component scores: {missing_components}")
                 raise ValueError(f"Missing required component scores: {missing_components}")
             
             # Get success factors
-            st.write("DEBUG - Identifying success factors")
             success_factors = self.criteria_analyzer.identify_success_factors(criteria, limit=5)
-            st.write(f"DEBUG - Success factors count: {len(success_factors)}")
             
             # Generate recommendations
-            st.write("DEBUG - Generating recommendations")
             recommendations = self.generate_recommendations(criteria, success_factors, top_networks)
-            st.write(f"DEBUG - Recommendations count: {len(recommendations)}")
             
             # Create summary
-            st.write("DEBUG - Creating OptimizationSummary")
             summary = OptimizationSummary(
                 overall_success_probability=success_probability,
                 confidence=confidence,
@@ -138,13 +123,10 @@ class SuggestionAnalyzer:
                 recommendations=recommendations,
                 success_factors=success_factors
             )
-            st.write(f"DEBUG - Summary created successfully: {type(summary)}")
             return summary
                 
         except Exception as e:
-            st.write(f"DEBUG - Error in analyze_show_concept: {str(e)}")
-            import traceback
-            st.write(f"DEBUG - Traceback: {traceback.format_exc()}")
+            logger.error(f"Error in analyze_show_concept: {e}", exc_info=True)
             return None
     
     def generate_recommendations(self, criteria: Dict[str, Any], 
