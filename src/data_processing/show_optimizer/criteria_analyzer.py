@@ -160,20 +160,30 @@ class CriteriaAnalyzer:
                         break
                         
                     try:
-                        # Get the name for this criteria value
-                        field_manager = self.criteria_scorer.field_manager
-                        options = field_manager.get_options(criteria_type)
+                        # Check if value_id is a dictionary (unhashable)
+                        if isinstance(value_id, dict):
+                            # Convert dict to a string representation or use a key from it
+                            # This is a workaround for the unhashable type error
+                            value_id_str = str(value_id)
+                            name = value_id_str
+                        else:
+                            # Get the name for this criteria value
+                            field_manager = self.criteria_scorer.field_manager
+                            options = field_manager.get_options(criteria_type)
+                            
+                            # Find the option with this ID
+                            name = str(value_id)  # Default if not found
+                            for option in options:
+                                if option.id == value_id:
+                                    name = option.name
+                                    break
                         
-                        # Find the option with this ID
-                        name = str(value_id)  # Default if not found
-                        for option in options:
-                            if option.id == value_id:
-                                name = option.name
-                                break
+                        # Use the string representation for dict values
+                        criteria_value = value_id_str if isinstance(value_id, dict) else value_id
                                 
                         factor = SuccessFactor(
                             criteria_type=criteria_type,
-                            criteria_value=value_id,
+                            criteria_value=criteria_value,
                             criteria_name=name,
                             impact_score=impact,
                             confidence="",
