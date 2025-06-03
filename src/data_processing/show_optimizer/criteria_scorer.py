@@ -341,7 +341,6 @@ class CriteriaScorer:
                 
             return matched_shows, match_count
         except Exception as e:
-            logger.error(f"Error matching shows: {e}", exc_info=True)
             # Return empty DataFrame with zero matches
             # The calling code should handle this appropriately
             return pd.DataFrame(), 0   
@@ -362,26 +361,21 @@ class CriteriaScorer:
         import streamlit as st
         
         if shows.empty:
-            logger.error("Empty shows DataFrame provided to _calculate_success_rate")
             return None
         
         if 'success_score' not in shows.columns:
-            logger.error("'success_score' column missing from shows data")
             return None
         
         # Filter out shows with missing success scores
         shows_with_scores = shows[shows['success_score'].notna()]
         
         if len(shows_with_scores) == 0:
-            logger.error("No shows with valid success scores found")
-            raise ValueError("No shows with valid success scores available")
+            return None
         
-        # Get success score range and distribution for logging
+        # Get success score range and distribution
         min_score = shows_with_scores['success_score'].min()
         max_score = shows_with_scores['success_score'].max()
         mean_score = shows_with_scores['success_score'].mean()
-        
-        logger.debug(f"Success score range: {min_score} to {max_score}, mean: {mean_score}")
         
         # Normalize threshold if scores are on 0-100 scale
         normalized_threshold = threshold
@@ -399,10 +393,7 @@ class CriteriaScorer:
         success_count = len(successful)
         total_count = len(shows_with_scores)
         
-        logger.debug(f"Success rate calculation - {success_count} successful shows out of {total_count} total (threshold: {threshold})")
-        
         success_rate = success_count / total_count
-        logger.debug(f"Success rate: {success_rate:.4f} ({success_rate*100:.1f}%)")
         
         return success_rate
     
