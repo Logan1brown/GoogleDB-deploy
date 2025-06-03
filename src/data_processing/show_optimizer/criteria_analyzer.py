@@ -57,6 +57,7 @@ class SuccessFactor:
     impact_score: float  # Impact on success (-1 to 1)
     confidence: str      # none, low, medium, high
     sample_size: int
+    matching_titles: List[str] = field(default_factory=list)  # List of show titles matching this criteria
 
 
 class CriteriaAnalyzer:
@@ -199,6 +200,25 @@ class CriteriaAnalyzer:
                             confidence = "high"
                         elif sample_size >= 10:
                             confidence = "medium"
+                        
+                        # Get matching titles for this criteria
+                        matching_titles = []
+                        try:
+                            # Create a single-criteria dictionary for this factor
+                            single_criteria = {criteria_type: criteria_value}
+                            
+                            # Get matching shows for just this criteria
+                            matching_shows, _ = self.criteria_scorer._get_matching_shows(single_criteria)
+                            
+                            # Extract titles if available
+                            if not matching_shows.empty and 'title' in matching_shows.columns:
+                                matching_titles = matching_shows['title'].tolist()
+                                # Limit to 100 titles
+                                if len(matching_titles) > 100:
+                                    matching_titles = matching_titles[:100]
+                        except Exception as e:
+                            # Silent error handling for title extraction
+                            logger.warning(f"Could not extract matching titles for {criteria_type}={name}: {str(e)}")
                                 
                         factor = SuccessFactor(
                             criteria_type=criteria_type,
@@ -206,7 +226,8 @@ class CriteriaAnalyzer:
                             criteria_name=name,
                             impact_score=impact,
                             confidence=confidence,
-                            sample_size=sample_size
+                            sample_size=sample_size,
+                            matching_titles=matching_titles
                         )
                         success_factors.append(factor)
                         processed_count += 1
@@ -363,20 +384,40 @@ class CriteriaAnalyzer:
             
             # Calculate success rate and sample size
             if not matching_shows.empty:
-                success_rate = self.criteria_scorer._calculate_success_rate(matching_shows)
-                success_rates[field_name] = {
-                    'rate': success_rate,
-                    'sample_size': len(matching_shows),
-                    'has_data': True
-                }
+                # Calculate success rate
+                success_count = matching_shows[matching_shows['success_score'] >= self.criteria_scorer.success_threshold].shape[0]
+                total_count = matching_shows.shape[0]
+                
+                # Get matching show titles (up to 100)
+                matching_titles = []
+                if 'title' in matching_shows.columns:
+                    matching_titles = matching_shows['title'].tolist()
+                    # Limit to 100 titles
+                    if len(matching_titles) > 100:
+                        matching_titles = matching_titles[:100]
+                
+                if total_count > 0:
+                    success_rate = success_count / total_count
+                    success_rates[field_name] = {
+                        'rate': success_rate,
+                        'sample_size': total_count,
+                        'has_data': True,
+                        'matching_titles': matching_titles
+                    }
+                else:
+                    success_rates[field_name] = {
+                        'rate': None,
+                        'sample_size': 0,
+                        'has_data': False,
+                        'matching_titles': []
+                    }
             else:
-                # No matching shows - indicate this is a data gap, not a 0% success rate
-                import streamlit as st
-                st.warning(f"No shows match the '{field_name}' criterion for this network. Sample size is 0.")
+                # No matching shows
                 success_rates[field_name] = {
-                    'rate': None,  # None indicates no data rather than 0%
+                    'rate': None,
                     'sample_size': 0,
-                    'has_data': False
+                    'has_data': False,
+                    'matching_titles': []
                 }
         
         return success_rates

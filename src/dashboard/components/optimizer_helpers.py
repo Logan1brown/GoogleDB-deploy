@@ -394,6 +394,17 @@ def render_success_factors(success_factors: List):
         display_df['Impact'] = display_df['Impact'].apply(lambda x: f"{x:.2f}")
         display_df.columns = ['Factor', 'Category', 'Impact Score', 'Sample Size', 'Confidence']
         st.dataframe(display_df, use_container_width=True)
+        
+    # Display matching show titles in an expander
+    for factor in success_factors:
+        if hasattr(factor, 'matching_titles') and factor.matching_titles:
+            with st.expander(f"Shows matching '{factor.criteria_name}' ({len(factor.matching_titles)} shows)"):
+                # Display titles in a scrollable container with fixed height
+                titles_html = "<div style='max-height: 300px; overflow-y: auto;'><ul>"
+                for title in factor.matching_titles:
+                    titles_html += f"<li>{title}</li>"
+                titles_html += "</ul></div>"
+                st.markdown(titles_html, unsafe_allow_html=True)
 
 
 def render_network_compatibility(networks: List):
