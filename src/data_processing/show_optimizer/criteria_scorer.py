@@ -29,103 +29,28 @@ import pandas as pd
 import numpy as np
 from functools import lru_cache, partial
 from datetime import datetime, timedelta
-from abc import ABC, abstractmethod
 import ast
 
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .optimizer_config import OptimizerConfig
 from .field_manager import FieldManager
+from .score_calculators import (
+    ComponentScore, ScoreCalculationError, SuccessScoreCalculator,
+    AudienceScoreCalculator, CriticsScoreCalculator, LongevityScoreCalculator
+)
 import streamlit as st
 
 
+
+SCORE_CALCULATORS_CLASSES = {
+    'success': SuccessScoreCalculator,
+    'audience': AudienceScoreCalculator,
+    'critics': CriticsScoreCalculator,
+    'longevity': LongevityScoreCalculator,
+}
+
 __all__ = ['CriteriaScorer', 'ComponentScore', 'NetworkMatch', 'ScoreCalculationError']
-
-@dataclass
-class ComponentScore:
-    """Success score for a component (audience, critics, longevity)."""
-    component: str  # audience, critics, or longevity
-    score: float  # 0-1 score
-    sample_size: int
-    confidence: str  # none, low, medium, high
-    details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
-
-class ScoreCalculationError(Exception):
-    """Base exception for score calculation errors."""
-    pass
-
-class ScoreCalculator(ABC):
-    """Abstract base class for score calculations."""
-    
-    def __init__(self, component_name: str):
-        self.component_name = component_name
-    
-    @abstractmethod
-    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate the component score."""
-        pass
-    
-    def _get_confidence(self, sample_size: int) -> str:
-        """Get confidence level based on sample size."""
-        return OptimizerConfig.get_confidence_level(sample_size)
-
-class SuccessScoreCalculator(ScoreCalculator):
-    """Calculate score based on success metrics."""
-    
-    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
-        if shows.empty:
-            raise ScoreCalculationError(f"Cannot calculate {self.component_name} score with empty shows DataFrame")
-        
-        # Filter shows with success metrics
-        valid_shows = shows[shows['success_score'].notna()]
-        sample_size = len(valid_shows)
-        
-        if sample_size == 0:
-            raise ScoreCalculationError(f"No shows with valid success_score data found for {self.component_name}")
-        
-        # Calculate metrics
-        avg_score = valid_shows['success_score'].mean()
-        confidence = self._get_confidence(sample_size)
-        
-        return ComponentScore(
-            component=self.component_name,
-            score=avg_score,
-            sample_size=sample_size,
-            confidence=confidence,
-            details={'success_score': avg_score}
-        )
-
-class AudienceScoreCalculator(ScoreCalculator):
-    """Calculate audience score."""
-    
-    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
-        if shows.empty:
-            raise ScoreCalculationError("Cannot calculate audience score with empty shows DataFrame")
-            
-        if 'popcornmeter' not in shows.columns:
-            raise ScoreCalculationError("popcornmeter column not found in shows data")
-            
-        # Filter shows with audience metrics
-        valid_shows = shows[shows['popcornmeter'].notna()]
-        sample_size = len(valid_shows)
-        
-        if sample_size == 0:
-            raise ScoreCalculationError("No shows with valid popcornmeter data found")
-            
-        # Calculate average popcornmeter score (normalized to 0-1)
-        avg_score = valid_shows['popcornmeter'].mean() / 100  # Normalize to 0-1
-        confidence = self._get_confidence(sample_size)
-        
-        return ComponentScore(
-            component='audience',
-            score=avg_score,
-            sample_size=sample_size,
-            confidence=confidence,
-            details={'popcornmeter': avg_score}
-        )
-
-# Similar classes for CriticsScoreCalculator and LongevityScoreCalculator would follow
-# ...
 
 
 @dataclass
@@ -410,6 +335,31 @@ class CriteriaScorer:
         success_rate = success_count / total_count
         
         return success_rate
+
+   
+    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[Optional[float]]:
+        """Batch calculate success rates for multiple criteria.
+        
+        Args:
+            criteria_list: List of criteria dictionaries
+            
+        Returns:
+            List of success rates in the same order as criteria_list, with None for missing data
+        """
+        results = []
+        for criteria in criteria_list:
+            try:
+                shows, count = self._get_matching_shows(criteria)
+                if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                    success_rate = self._calculate_success_rate(shows)
+                    results.append(success_rate)  # This might be None if success_score is missing
+                else:
+                    results.append(None)
+            except Exception as e:
+                st.error(f"Error calculating success rate: {str(e)}")
+                results.append(None)
+                
+        return results
     
     @lru_cache(maxsize=32)
     def calculate_criteria_impact(self, base_criteria: Dict[str, Any], field_name: Optional[str] = None) -> Dict[str, Dict[str, float]]:
@@ -507,276 +457,229 @@ class CriteriaScorer:
             st.error(f"Error calculating criteria impact: {str(e)}")
             raise
     
-    def calculate_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, 'ComponentScore']:
-        """Calculate component scores for a set of criteria.
-        
+    def calculate_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, ComponentScore]:
+        """
+        Calculate component scores for a set of criteria.
+
         Args:
             criteria: Dictionary of criteria to calculate scores for
-            
+
         Returns:
             Dictionary mapping component names to ComponentScore objects
-            
-        Raises:
-            ValueError: If no component scores could be calculated
         """
-        # Get matching shows first
+        component_scores: Dict[str, ComponentScore] = {}
+
         try:
             matching_shows, match_count = self._get_matching_shows(criteria)
+
             if matching_shows.empty:
-                raise ValueError("No matching shows found for the given criteria. Cannot calculate component scores.")
-                
-            component_scores = {}
-            
-            # Calculate each component score with individual error handling
-            for component_name in ['audience', 'critics', 'longevity']:
-                try:
-                    score_method = getattr(self, f'_calculate_{component_name}_score')
-                    score_obj = score_method(matching_shows) # score_obj is a ComponentScore object
-                    component_scores[component_name] = score_obj
-                except Exception as e:
-                    st.error(f"Optimizer Error: Failed to calculate score for component '{component_name}'. Criteria: {criteria}. Details: {e}")
-                    # Individual component failure is logged; will be caught by missing_components check.
-            
-            # Check if all required component scores were successfully calculated.
-            required_components = ['audience', 'critics', 'longevity']
-            missing_components = [c for c in required_components if c not in component_scores]
-            
-            if missing_components:
-                # Log the specific components that failed
-                st.error(f"Optimizer Error: Failed to calculate required component scores: {', '.join(missing_components)}. Individual component calculations may have failed.")
-                raise ValueError(f"Failed to calculate required component scores: {', '.join(missing_components)}.")
+                st.warning(f"No matching shows found for criteria: {criteria}. Cannot calculate component scores.")
+                return {}
 
-            if not component_scores: # Should be caught by missing_components, but as a safeguard
-                raise ValueError("Failed to calculate any component scores.")
+            # Using general minimum_sample from OptimizerConfig
+            if match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
+                st.warning(
+                    f"Insufficient sample size ({match_count}) for criteria: {criteria} "
+                    f"to calculate reliable component scores. "
+                    f"Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}"
+                )
+                return {}
 
-            return component_scores
-
-        except ValueError as ve: # Catch specific ValueErrors we raise (like no matching shows or missing components)
-            st.error(str(ve)) # Surface these via st.error for cloud visibility
-            raise # Re-raise to stop execution and indicate failure
         except Exception as e:
-            st.error(f"Error in calculate_component_scores: {str(e)}")
-            raise
-    
-    def _calculate_audience_score(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate audience score for a set of shows using popcornmeter.
-        
-        Args:
-            shows: DataFrame of shows with 'popcornmeter' column
-            
-        Returns:
-            ComponentScore for audience
-            
-        Raises:
-            ValueError: If popcornmeter data is missing or empty
-        """
-        if shows.empty:
-            st.error("Empty shows DataFrame provided to _calculate_audience_score")
-            raise ValueError("Cannot calculate audience score with empty shows DataFrame")
-        
-        # Check if popcornmeter column exists
-        if 'popcornmeter' not in shows.columns:
-            st.error(f"Popcornmeter column missing from shows data. Available columns: {list(shows.columns)}")
-            raise ValueError("popcornmeter column is required for audience score calculation")
-            
-        # Filter shows with audience metrics
-        audience_shows = shows[shows['popcornmeter'].notna()]
-        sample_size = len(audience_shows)
-        
-        if sample_size == 0:
-            st.error("No shows with valid popcornmeter data found")
-            raise ValueError("No shows with valid popcornmeter data available")
-        
-        # Calculate confidence level
-        confidence = OptimizerConfig.get_confidence_level(sample_size)
-        
-        # Calculate average popcornmeter score (normalized to 0-1)
-        avg_popcorn = audience_shows['popcornmeter'].mean() / 100
-        
-        # Prepare score details
-        details = {
-            'popcornmeter': avg_popcorn
-        }
-        
-        return ComponentScore(
-            component='audience',
-            score=avg_popcorn,
-            sample_size=sample_size,
-            confidence=confidence,
-            details=details
-        )
-        
-    def _calculate_critics_score(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate critics score for a set of shows using tomatometer.
-        
-        Args:
-            shows: DataFrame of shows with 'tomatometer' column
-            
-        Returns:
-            ComponentScore for critics
-            
-        Raises:
-            ValueError: If tomatometer data is missing or empty
-        """
-        if shows.empty:
-            st.error("Empty shows DataFrame provided to _calculate_critics_score")
-            raise ValueError("Cannot calculate critics score with empty shows DataFrame")
-        
-        # Check if tomatometer column exists
-        if 'tomatometer' not in shows.columns:
-            st.error(f"Tomatometer column missing from shows data. Available columns: {list(shows.columns)}")
-            raise ValueError("tomatometer column is required for critics score calculation")
-            
-        # Filter shows with critics metrics
-        critics_shows = shows[shows['tomatometer'].notna()]
-        sample_size = len(critics_shows)
-        
-        if sample_size == 0:
-            st.error("No shows with valid tomatometer data found")
-            raise ValueError("No shows with valid tomatometer data available")
-        
-        # Calculate confidence level
-        confidence = OptimizerConfig.get_confidence_level(sample_size)
-        
-        # Calculate average critics score (normalized to 0-1)
-        avg_score = critics_shows['tomatometer'].mean() / 100.0
-        
-        # Prepare score details
-        details = {
-            'tomatometer': avg_score,
-            'sample_size': sample_size
-        }
-        
-        return ComponentScore(
-            component='critics',
-            score=avg_score,
-            sample_size=sample_size,
-            confidence=confidence,
-            details=details
-        )
-        
+            st.error(f"Optimizer Error: Failed to get matching shows for component score calculation. Criteria: {criteria}. Details: {e}")
+            return {}
 
-    def _calculate_longevity_score(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate longevity score for a set of shows using TMDB metrics.
-        
-        Longevity is calculated based on:
-        - Number of seasons (weight: 40%)
-        - Number of episodes (weight: 40%)
-        - Show status (weight: 20%)
-        
-        Args:
-            shows: DataFrame containing show data with TMDB metrics
-            
-        Returns:
-            ComponentScore for longevity (0-1 scale)
-            
-        Raises:
-            ValueError: If required TMDB metrics are missing or empty
-        """
-        if shows.empty:
-            st.error("Empty shows DataFrame provided to _calculate_longevity_score")
-            raise ValueError("Cannot calculate longevity score with empty shows DataFrame")
-        
-        # Check for required columns
-        required_columns = ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
-        missing_columns = [col for col in required_columns if col not in shows.columns]
-        if missing_columns:
-            st.error(f"Missing required columns for longevity calculation: {missing_columns}")
-            st.error("Available columns: " + str(list(shows.columns)))
-            raise ValueError(f"Missing required columns for longevity calculation: {', '.join(missing_columns)}")
-        
-        # Filter shows with required metrics
-        valid_shows = shows.dropna(subset=required_columns)
-        sample_size = len(valid_shows)
-        
-        if sample_size == 0:
-            st.error("No shows with valid TMDB metrics found for longevity calculation")
-            raise ValueError("No shows with valid TMDB metrics available for longevity calculation")
-        
-        # Calculate confidence level
-        confidence = OptimizerConfig.get_confidence_level(sample_size)
-        
-        # Calculate season score (0-100 scale)
-        def calculate_season_score(seasons):
-            if seasons >= 2:
-                return min(100, 50 + (seasons - 2) * 10)  # 50 for 2 seasons, +10 per additional season, max 100
-            return seasons * 25  # 25 for 1 season, 0 for 0 seasons
-        
-        # Calculate episode score (0-100 scale)
-        def calculate_episode_score(episodes):
-            if episodes >= 10:
-                return 100
-            elif episodes >= 5:
-                return 50 + (episodes - 5) * 10  # 50 for 5 episodes, +10 per episode up to 100
-            return episodes * 10  # 10 points per episode up to 5
-        
-        # Calculate status score (0-100 scale)
-        status_scores = {
-            'Returning Series': 100,
-            'Ended': 75,
-            'Canceled': 25,
-            'In Production': 50,
-            'Pilot': 10,
-            'In Development': 5
-        }
-        
-        # Calculate scores for each show
-        valid_shows = valid_shows.copy()
-        valid_shows['season_score'] = valid_shows['tmdb_seasons'].apply(calculate_season_score)
-        valid_shows['episode_score'] = valid_shows['tmdb_total_episodes'].apply(calculate_episode_score)
-        valid_shows['status_score'] = valid_shows['tmdb_status'].map(status_scores).fillna(0)
-        
-        # Calculate weighted average (40% season, 40% episode, 20% status)
-        valid_shows['longevity_score'] = (
-            valid_shows['season_score'] * 0.4 +
-            valid_shows['episode_score'] * 0.4 +
-            valid_shows['status_score'] * 0.2
-        ) / 100  # Convert to 0-1 scale
-        
-        # Calculate average longevity score across all shows
-        avg_score = valid_shows['longevity_score'].mean()
-        
-        # Prepare score details
-        details = {
-            'avg_seasons': valid_shows['tmdb_seasons'].mean(),
-            'avg_episodes': valid_shows['tmdb_total_episodes'].mean(),
-            'status_distribution': valid_shows['tmdb_status'].value_counts().to_dict(),
-            'sample_size': sample_size
-        }
-        
-        return ComponentScore(
-            component='longevity',
-            score=avg_score,
-            sample_size=sample_size,
-            confidence=confidence,
-            details=details
-        )
-        
+        # Ensure field_manager is initialized (should be in __init__)
+        if not hasattr(self, 'field_manager') or self.field_manager is None:
+            st.error("Optimizer Critical Error: FieldManager is not initialized in CriteriaScorer. This may affect score calculations like longevity.")
+            # Depending on how critical, could return {} here or let individual calculators fail.
 
-    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[Optional[float]]:
-        """Batch calculate success rates for multiple criteria.
-        
-        Args:
-            criteria_list: List of criteria dictionaries
-            
-        Returns:
-            List of success rates in the same order as criteria_list, with None for missing data
-        """
-        results = []
-        for criteria in criteria_list:
+        calculators = [
+            SuccessScoreCalculator(component_name="success"),
+            AudienceScoreCalculator(component_name="audience"),
+            CriticsScoreCalculator(component_name="critics"),
+            LongevityScoreCalculator(component_name="longevity", field_manager=self.field_manager)
+        ]
+
+        for calculator in calculators:
             try:
-                shows, count = self._get_matching_shows(criteria)
-                if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                    success_rate = self._calculate_success_rate(shows)
-                    results.append(success_rate)  # This might be None if success_score is missing
+                score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
+                if score_component:  # Ensure a component score object was returned
+                    component_scores[calculator.component_name] = score_component
                 else:
-                    results.append(None)
+                    st.warning(
+                        f"Score calculation for component '{calculator.component_name}' did not return a score object. "
+                        "This component will be excluded."
+                    )
+            except ScoreCalculationError as e:
+                st.warning(
+                    f"Could not calculate score for component '{calculator.component_name}': {e}. "
+                    "This component will be excluded from the results."
+                )
             except Exception as e:
-                st.error(f"Error calculating success rate: {str(e)}")
-                results.append(None)
+                st.error(
+                    f"An unexpected error occurred while calculating score for component '{calculator.component_name}': {e}. "
+                    "This component will be excluded from the results."
+                )
+
+        if not component_scores:
+            st.warning("No component scores could be calculated for the given criteria after attempting all components.")
+            return {}
+
+        return component_scores
+    def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Optional[float]:
+        """Calculate the success rate for a set of shows.
+        
+        Args:
+            shows: DataFrame of shows
+            threshold: Success threshold (shows with score >= threshold are considered successful)
+            
+        Returns:
+            Success rate (0-1) or None if success_score is missing
+        """
+        # Use threshold from OptimizerConfig if not provided
+        if threshold is None:
+            from .optimizer_config import OptimizerConfig
+            threshold = OptimizerConfig.THRESHOLDS['success_threshold']
+        
+        if shows.empty:
+            return None
+        
+        if 'success_score' not in shows.columns:
+            st.warning("Optimizer Calculation Warning: Cannot calculate success rate. The 'success_score' column is missing from the input data for the current calculation.")
+            return None
+        
+        # Filter out shows with missing success scores AND shows with a score of 0
+        # Shows with a score of 0 are typically those that haven't aired yet or have unreliable data
+        shows_with_scores = shows[(shows['success_score'].notna()) & (shows['success_score'] > 0)]
+        
+        if len(shows_with_scores) == 0:
+            st.warning("Optimizer Calculation Warning: Cannot calculate success rate. No shows have valid 'success_score' data for the current calculation.")
+            return None
+        
+        # Get success score range and distribution
+        min_score = shows_with_scores['success_score'].min()
+        max_score = shows_with_scores['success_score'].max()
+        mean_score = shows_with_scores['success_score'].mean()
+        
+        # Normalize threshold if scores are on 0-100 scale
+        normalized_threshold = threshold
+        normalized_scores = shows_with_scores['success_score'].copy()
+        
+        # Check if scores need normalization (0-100 scale)
+        if max_score > 1.0:  # If scores are on 0-100 scale
+            normalized_threshold = threshold * 100
+        else:  # If scores are already on 0-1 scale but threshold is on 0-100 scale
+            if threshold > 1.0:
+                normalized_threshold = threshold / 100
+        
+        # Count successful shows (those with score >= threshold)
+        successful = shows_with_scores[shows_with_scores['success_score'] >= normalized_threshold]
+        success_count = len(successful)
+        total_count = len(shows_with_scores)
+        
+        success_rate = success_count / total_count
+        
+        return success_rate
+
+    @lru_cache(maxsize=32)
+    def calculate_criteria_impact(self, base_criteria: Dict[str, Any], field_name: Optional[str] = None) -> Dict[str, Dict[str, float]]:
+        """Calculate the impact of criteria values on success rate.
+        
+        Args:
+            base_criteria: The base criteria to compare against.
+            field_name: Optional name of the field to analyze. If None, analyzes all fields.
+            
+        Returns:
+            A dictionary mapping field names to dictionaries of option IDs to impact scores.
+        """
+        try:
+            # Get the field manager's array field mapping
+            array_field_mapping = self.field_manager.get_array_field_mapping()
+            array_fields = list(array_field_mapping.keys())
+            
+            # Get base success rate
+            base_shows, base_match_count = self._get_matching_shows(base_criteria)
+            
+            if base_shows.empty:
+                raise ValueError("Cannot calculate impact scores with no matching shows")
                 
-        return results
-    
+            if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
+                raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows). Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
+            
+            base_rate = self._calculate_success_rate(base_shows)
+            
+            if base_rate is None:
+                st.warning("WARNING: Unable to calculate base success rate - success_score data missing")
+                return {}
+            
+            if base_rate == 0:
+                raise ValueError("Base success rate is zero, cannot calculate meaningful impact scores.")
+            
+            impact_scores = {}
+            
+            # Determine which fields to process
+            fields_to_process = [field_name] if field_name else self.field_manager.FIELD_CONFIGS.keys()
+            
+            for current_field in fields_to_process:
+                # Skip fields already in base criteria
+                if current_field in base_criteria:
+                    continue
+                
+                is_array_field = current_field in array_fields
+                options = self.field_manager.get_options(current_field)
+                
+                # Prepare batch criteria for all options
+                batch_criteria = []
+                option_data = []
+                
+                for option in options:
+                    new_criteria = base_criteria.copy()
+                    if is_array_field:
+                        # Ensure option.id is treated as a list item for array fields
+                        new_criteria[current_field] = [option.id] if not isinstance(option.id, list) else option.id
+                    else:
+                        new_criteria[current_field] = option.id
+                    batch_criteria.append(new_criteria)
+                    option_data.append((option.id, option.name))
+                
+                # Batch calculate success rates
+                success_rates = self._batch_calculate_success_rates(batch_criteria)
+                
+                # Process results
+                field_impact = {}
+                
+                for i, criteria_set in enumerate(batch_criteria):
+                    option_id, option_name = option_data[i]
+                    rate = success_rates[i]
+                    
+                    if rate is not None:
+                        option_shows, match_count = self._get_matching_shows(criteria_set)
+                        impact = (rate - base_rate) / base_rate if base_rate != 0 else 0
+                        
+                        # option_id is guaranteed to be an int from FieldManager's FieldOption.id, which is hashable.
+                        # No conversion or special handling is needed for its use as a dictionary key.
+                        field_impact[option_id] = {"impact": impact, "sample_size": match_count, "option_name": option_name}
+                
+                if field_impact:
+                    impact_scores[current_field] = field_impact
+                    
+            if not impact_scores and fields_to_process:
+                # Only raise if we attempted to process fields but got no results.
+                # If fields_to_process was empty (e.g. field_name was already in base_criteria), this is not an error.
+                raise ValueError("Could not calculate any impact scores with the given criteria configuration.")
+                
+            return impact_scores
+
+        except ValueError as ve:
+            st.error(str(ve)) # Surface our specific ValueErrors
+            raise
+        except Exception as e:
+            st.error(f"Error calculating criteria impact: {str(e)}")
+            raise
+
+
+
     def get_criteria_confidence(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate confidence levels for criteria.
         
