@@ -278,7 +278,11 @@ class NetworkScoreCalculator:
                 network_criteria['network'] = int(network_id)
                 
                 # Get shows matching both criteria and network
-                matching_shows, count = self.criteria_scorer._get_matching_shows(network_criteria)
+                # Use the matching calculator if available, otherwise fall back to direct method
+                if hasattr(self.criteria_scorer, '_matching_calculator'):
+                    matching_shows, count = self.criteria_scorer._matching_calculator.get_matching_shows(network_criteria)
+                else:
+                    matching_shows, count = self.criteria_scorer._get_matching_shows(network_criteria)
                 
                 # Calculate compatibility score (0-1)
                 # Simple version: percentage of criteria that match the network's typical shows
@@ -286,7 +290,11 @@ class NetworkScoreCalculator:
                 
                 # Calculate success probability if we have enough shows
                 if not matching_shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                    success_rate = self.criteria_scorer._calculate_success_rate(matching_shows)
+                    # Use the matching calculator if available, otherwise fall back to direct method
+                    if hasattr(self.criteria_scorer, '_matching_calculator'):
+                        success_rate = self.criteria_scorer._matching_calculator.calculate_success_rate(matching_shows)
+                    else:
+                        success_rate = self.criteria_scorer._calculate_success_rate(matching_shows)
                     confidence = OptimizerConfig.get_confidence_level(count)
                 else:
                     success_rate = None

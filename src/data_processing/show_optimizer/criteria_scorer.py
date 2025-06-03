@@ -93,6 +93,10 @@ class CriteriaScorer:
             # Get success metrics from SuccessAnalyzer
             success_df = self.success_analyzer.fetch_success_data()
             
+            # Reset index if show_id is the index
+            if not success_df.empty and success_df.index.name == 'show_id':
+                success_df = success_df.reset_index()
+            
             # Define success metrics to merge from success_df
             # These are considered the source of truth if success_df is available.
             success_metrics_to_integrate = ['success_score', 'popcornmeter', 'tomatometer', 'has_rt']
