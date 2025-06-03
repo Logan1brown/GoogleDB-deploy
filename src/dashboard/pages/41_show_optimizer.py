@@ -202,9 +202,14 @@ def show():
                 
                 # Tab 3: Recommendations
                 with tab3:
-                    # Display recommendations directly without helper
-                    if hasattr(summary, 'recommendations') and summary.recommendations:
-                        recommendations = summary.recommendations
+                    # Display success factors if available
+                    if hasattr(summary, 'success_factors') and summary.success_factors:
+                        st.subheader("Success Factors")
+                        # Debug success factors
+                        st.write(f"DEBUG UI: Success factors count: {len(summary.success_factors)}")
+                        if len(summary.success_factors) > 0:
+                            st.write(f"DEBUG UI: First success factor: {summary.success_factors[0].__dict__}")
+                        render_success_factors(summary.success_factors)
                         
                         # Group by type
                         grouped = {

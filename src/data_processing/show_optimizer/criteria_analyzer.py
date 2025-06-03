@@ -133,9 +133,8 @@ class CriteriaAnalyzer:
         """
         return self.criteria_scorer.calculate_component_scores(criteria)
     
-    def identify_success_factors(self, criteria: Dict[str, Any], 
-                                limit: int = 5) -> List[SuccessFactor]:
-        """Identify the most important success factors for a show concept.
+    def identify_success_factors(self, criteria: Dict[str, Any], limit: int = 10) -> List[SuccessFactor]:
+        """Identify the factors that contribute most to success.
         
         Args:
             criteria: Criteria defining the show concept
@@ -144,19 +143,30 @@ class CriteriaAnalyzer:
         Returns:
             List of SuccessFactor objects sorted by impact
         """
-        import streamlit as st
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Convert to SuccessFactor objects
+        success_factors = []
         
         try:
             # Calculate criteria impact from CriteriaScorer
             impact_data = self.criteria_scorer.calculate_criteria_impact(criteria)
             
-            # Convert to SuccessFactor objects
-            success_factors = []
-            
+            # Process each criteria type
             for criteria_type, values in impact_data.items():
                 # Process at most 5 values per criteria type to reduce processing
                 processed_count = 0
-                for value_id, impact_data in values.items():
+                
+                # Convert any unhashable keys to strings first
+                hashable_values = {}
+                for k, v in values.items():
+                    if isinstance(k, (dict, list)):
+                        hashable_values[str(k)] = v
+                    else:
+                        hashable_values[k] = v
+                
+                for value_id, impact_data in hashable_values.items():
                     if processed_count >= 5:  # Limit processing per criteria type
                         break
                         
@@ -236,7 +246,7 @@ class CriteriaAnalyzer:
                         continue
         except Exception as e:
             # Only log the main error, not individual processing errors
-            st.write(f"DEBUG - Error identifying success factors: {str(e)}")
+            logger.error(f"Error identifying success factors: {e}")
             # Create a default success factor as fallback
             if 'genre' in criteria:
                 genre_id = criteria['genre']
@@ -257,7 +267,8 @@ class CriteriaAnalyzer:
                     criteria_name=genre_name,
                     impact_score=0.5,  # Default middle impact
                     confidence="low",
-                    sample_size=0
+                    sample_size=0,
+                    matching_titles=[]
                 )
                 success_factors = [default_factor]
         
