@@ -354,15 +354,15 @@ def render_success_factors(success_factors: List):
     # Create a dataframe for the factors
     factor_data = []
     for factor in success_factors:
-        # Format sample size for display
-        sample_size_display = f"Sample: {factor.sample_size}" if hasattr(factor, 'sample_size') and factor.sample_size > 0 else "Sample: Unknown"
+        # Format sample size for display - directly access sample_size attribute
+        sample_size_display = f"Sample: {factor.sample_size}" if factor.sample_size > 0 else "Sample: Unknown"
         
         factor_data.append({
             "Type": factor.criteria_type.replace("_", " ").title(),
             "Name": factor.criteria_name,
             "Impact": factor.impact_score,
             "Confidence": factor.confidence.capitalize(),
-            "Sample": factor.sample_size if hasattr(factor, 'sample_size') else 0,
+            "Sample": factor.sample_size,  # Directly access sample_size attribute
             "SampleDisplay": sample_size_display
         })
         
@@ -397,7 +397,7 @@ def render_success_factors(success_factors: List):
         
     # Display matching show titles in an expander
     for factor in success_factors:
-        if hasattr(factor, 'matching_titles') and factor.matching_titles:
+        if factor.matching_titles:  # Directly access matching_titles attribute
             with st.expander(f"Shows matching '{factor.criteria_name}' ({len(factor.matching_titles)} shows)"):
                 # Display titles in a scrollable container with fixed height
                 titles_html = "<div style='max-height: 300px; overflow-y: auto;'><ul>"

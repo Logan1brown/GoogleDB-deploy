@@ -220,7 +220,8 @@ def show():
                             "consider": []
                         }
                         
-                        for rec in recommendations:
+                        # Use summary.recommendations instead of undefined 'recommendations' variable
+                        for rec in summary.recommendations:
                             if hasattr(rec, 'recommendation_type') and rec.recommendation_type in grouped:
                                 grouped[rec.recommendation_type].append(rec)
                         
