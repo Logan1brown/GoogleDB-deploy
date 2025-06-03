@@ -41,6 +41,15 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['CriteriaScorer', 'ComponentScore', 'NetworkMatch', 'ScoreCalculationError']
 
+@dataclass
+class ComponentScore:
+    """Success score for a component (audience, critics, longevity)."""
+    component: str  # audience, critics, or longevity
+    score: float  # 0-1 score
+    sample_size: int
+    confidence: str  # none, low, medium, high
+    details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
+
 class ScoreCalculationError(Exception):
     """Base exception for score calculation errors."""
     pass
@@ -129,14 +138,6 @@ class NetworkMatch:
     sample_size: int  # Number of shows in the sample
     confidence: str  # none, low, medium, high
 
-
-@dataclass
-class ComponentScore:
-    """Success score for a component (audience, critics, longevity)."""
-    component: str  # audience, critics, or longevity
-    score: float  # 0-1 score
-    sample_size: int
-    confidence: str  # none, low, medium, high
     details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
 
 
