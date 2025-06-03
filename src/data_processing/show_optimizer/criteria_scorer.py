@@ -508,7 +508,7 @@ class CriteriaScorer:
         
         # Get matching shows first
         try:
-            matching_shows = self._get_matching_shows(criteria)
+            matching_shows, match_count = self._get_matching_shows(criteria)
             if matching_shows.empty:
                 st.error("No matching shows found for the given criteria")
                 raise ValueError("No matching shows found for the given criteria")
