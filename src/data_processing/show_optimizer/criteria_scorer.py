@@ -24,12 +24,13 @@ Key concepts:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple, Any, Union
+from typing import Dict, List, Optional, Set, Tuple, Any, Union, Callable
 import pandas as pd
 import numpy as np
 import logging
-from functools import lru_cache
+from functools import lru_cache, partial
 from datetime import datetime, timedelta
+from abc import ABC, abstractmethod
 
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
@@ -37,6 +38,85 @@ from .optimizer_config import OptimizerConfig
 from .field_manager import FieldManager
 
 logger = logging.getLogger(__name__)
+
+class ScoreCalculationError(Exception):
+    """Base exception for score calculation errors."""
+    pass
+
+class ScoreCalculator(ABC):
+    """Abstract base class for score calculations."""
+    
+    def __init__(self, component_name: str):
+        self.component_name = component_name
+    
+    @abstractmethod
+    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
+        """Calculate the component score."""
+        pass
+    
+    def _get_confidence(self, sample_size: int) -> str:
+        """Get confidence level based on sample size."""
+        return OptimizerConfig.get_confidence_level(sample_size)
+
+class SuccessScoreCalculator(ScoreCalculator):
+    """Calculate score based on success metrics."""
+    
+    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
+        if shows.empty:
+            raise ScoreCalculationError(f"Cannot calculate {self.component_name} score with empty shows DataFrame")
+        
+        # Filter shows with success metrics
+        valid_shows = shows[shows['success_score'].notna()]
+        sample_size = len(valid_shows)
+        
+        if sample_size == 0:
+            raise ScoreCalculationError(f"No shows with valid success_score data found for {self.component_name}")
+        
+        # Calculate metrics
+        avg_score = valid_shows['success_score'].mean()
+        confidence = self._get_confidence(sample_size)
+        
+        return ComponentScore(
+            component=self.component_name,
+            score=avg_score,
+            sample_size=sample_size,
+            confidence=confidence,
+            details={'success_score': avg_score}
+        )
+
+class AudienceScoreCalculator(ScoreCalculator):
+    """Calculate audience score."""
+    
+    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
+        if shows.empty:
+            raise ScoreCalculationError("Cannot calculate audience score with empty shows DataFrame")
+            
+        if 'popcornmeter' not in shows.columns:
+            logger.warning("popcornmeter column not found, falling back to success score")
+            return SuccessScoreCalculator('audience').calculate(shows)
+            
+        # Filter shows with audience metrics
+        valid_shows = shows[shows['popcornmeter'].notna()]
+        sample_size = len(valid_shows)
+        
+        if sample_size == 0:
+            logger.warning("No shows with valid popcornmeter data, falling back to success score")
+            return SuccessScoreCalculator('audience').calculate(shows)
+            
+        # Calculate metrics
+        avg_score = valid_shows['popcornmeter'].mean() / 100  # Normalize to 0-1
+        confidence = self._get_confidence(sample_size)
+        
+        return ComponentScore(
+            component='audience',
+            score=avg_score,
+            sample_size=sample_size,
+            confidence=confidence,
+            details={'popcornmeter': avg_score}
+        )
+
+# Similar classes for CriticsScoreCalculator and LongevityScoreCalculator would follow
+# ...
 
 
 @dataclass
@@ -87,105 +167,45 @@ class CriteriaScorer:
         self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
         
     def fetch_criteria_data(self, force_refresh: bool = False) -> pd.DataFrame:
-        """Fetch criteria data with success metrics.
+        """Fetch show criteria data from ShowsAnalyzer.
         
         Args:
             force_refresh: Whether to force a refresh of the data
             
         Returns:
-            DataFrame with criteria data and success metrics
+            DataFrame with show criteria data
+            
+        Raises:
+            ValueError: If data cannot be fetched or is invalid
         """
         import streamlit as st
         
-        # Check if we need to refresh the data
+        # Check cache first
         current_time = datetime.now()
-        if (self.criteria_data is None or 
-            force_refresh or 
-            self.last_update is None or 
-            (current_time - self.last_update).total_seconds() > self.cache_duration):
+        if not force_refresh and self.criteria_data is not None and \
+           self.last_update is not None and \
+           (current_time - self.last_update) < timedelta(seconds=self.cache_duration):
+            st.write("DEBUG: Using cached criteria data")
+            return self.criteria_data
             
-            st.write("DEBUG: Fetching fresh criteria data with success metrics")
-            
-            # Get show data from ShowsAnalyzer using fetch_comp_data
-            # This returns both the show data and reference data
-            comp_df, _ = self.shows_analyzer.fetch_comp_data(force=force_refresh)
+        st.write("DEBUG: Fetching fresh criteria data")
+        
+        try:
+            # Get show criteria data from ShowsAnalyzer
+            comp_df, reference_data = self.shows_analyzer.fetch_comp_data()
             
             if comp_df.empty:
-                st.error("DEBUG ERROR: Empty data returned from ShowsAnalyzer")
-                raise ValueError("No show data available from ShowsAnalyzer")
+                raise ValueError("No data returned from ShowsAnalyzer.fetch_comp_data()")
                 
-            # Create base criteria data
-            self.criteria_data = comp_df.copy()
+            # Update field manager with new reference data
+            self.field_manager = FieldManager(reference_data)
             
-            # Fetch success data from SuccessAnalyzer
-            st.write("DEBUG: Fetching success data from SuccessAnalyzer")
-            success_data = self.success_analyzer.fetch_success_data()
-            
-            if success_data.empty:
-                st.error("DEBUG ERROR: Empty success data returned from SuccessAnalyzer")
-                raise ValueError("No success data available from SuccessAnalyzer")
-            
-            st.write(f"DEBUG: SuccessAnalyzer returned data with {len(success_data)} rows")
-            st.write(f"DEBUG: SuccessAnalyzer data columns: {list(success_data.columns)}")
-            
-            # Check if show_id is in the columns
-            st.write(f"DEBUG: 'show_id' in columns: {'show_id' in success_data.columns}")
-            
-            if len(success_data) > 0:
-                st.write(f"DEBUG: Sample success score: {success_data['success_score'].iloc[0] if 'success_score' in success_data.columns else 'No success_score column'}")
-                st.write(f"DEBUG: Success score range: {success_data['success_score'].min() if 'success_score' in success_data.columns else 'N/A'} to {success_data['success_score'].max() if 'success_score' in success_data.columns else 'N/A'}")
-                st.write(f"DEBUG: Success score distribution: {success_data['success_score'].value_counts().head(3) if 'success_score' in success_data.columns else 'N/A'}")
-            
-            
-            # SuccessAnalyzer already provides all necessary success metrics
-            # Reset index to make show_id a column if it's the index
-            if success_data.index.name == 'show_id':
-                success_data = success_data.reset_index()
-            
-            # Ensure we have the required columns
-            required_columns = ['show_id', 'success_score']
-            missing_columns = [col for col in required_columns if col not in success_data.columns]
-            if missing_columns:
-                raise ValueError(f"Missing required columns from SuccessAnalyzer: {missing_columns}")
-            
-            # Select only the columns we need for the merge
-            metrics_columns = [
-                'show_id', 'success_score', 'tmdb_seasons', 
-                'tmdb_episodes', 'tmdb_status', 'tomatometer', 'popcornmeter'
-            ]
-            metrics_columns = [col for col in metrics_columns if col in success_data.columns]
-            
-            # Log the columns being used for merge
-            st.write(f"DEBUG: Merging with metrics columns: {metrics_columns}")
-            
-            # Perform the merge
-            self.criteria_data = pd.merge(
-                self.criteria_data,
-                success_data[metrics_columns],
-                left_on='id',
-                right_on='show_id',
-                how='left'
-            )
-            
-            # Drop the duplicate show_id column if it was created
-            if 'show_id' in self.criteria_data.columns and 'id' in self.criteria_data.columns:
-                self.criteria_data = self.criteria_data.drop('show_id', axis=1)
-            
-            st.write(f"DEBUG: Criteria data after merge: {len(self.criteria_data)} rows")
-            st.write(f"DEBUG: Merge success: {self.criteria_data['success_score'].notna().sum()} rows with success scores")
-            
-            # Log the merge results for each key column
-            for col in ['show_id', 'success_score', 'tmdb_seasons', 'tmdb_episodes', 'tmdb_status', 'tomatometer', 'popcornmeter']:
-                if col in self.criteria_data.columns:
-                    non_null_count = self.criteria_data[col].notna().sum()
-                    st.write(f"DEBUG: '{col}' column has {non_null_count} non-null values after merge")
-                    if non_null_count == 0:
-                        st.error(f"DEBUG ERROR: '{col}' column has all null values after merge")
-                else:
-                    st.error(f"DEBUG ERROR: '{col}' column missing from merged data")
-            
-            # Check for duplicate columns that might have been created during the merge
-            duplicate_cols = [col for col in self.criteria_data.columns if col.endswith('_orig') or col.endswith('_success')]
+            # Validate required columns
+            if 'id' not in comp_df.columns:
+                raise ValueError("Show ID column 'id' not found in criteria data")
+                
+            # Clean up any duplicate columns from merge
+            duplicate_cols = [col for col in comp_df.columns if col.endswith('_orig') or col.endswith('_success')]
             if duplicate_cols:
                 st.write(f"DEBUG WARNING: Duplicate columns created during merge: {duplicate_cols}")
                 # Clean up duplicate columns by keeping the non-null version
@@ -202,62 +222,61 @@ class CriteriaScorer:
                         processed_base_cols.add(base_col)
                         
                         # Only process if both versions exist
-                        if success_col in self.criteria_data.columns:
-                            # Keep the version with more non-null values
-                            orig_count = self.criteria_data[col].notna().sum()
-                            success_count = self.criteria_data[success_col].notna().sum()
-                            
-                            # Create consolidated column
-                            if success_count > 0:  # Prefer success data when available
-                                self.criteria_data[base_col] = self.criteria_data[success_col].fillna(self.criteria_data[col])
-                                st.write(f"DEBUG: Using '{success_col}' (filled with '{col}') for '{base_col}' ({success_count} success values, {orig_count} orig values)")
-                            else:
-                                self.criteria_data[base_col] = self.criteria_data[col]
-                                st.write(f"DEBUG: Using '{col}' for '{base_col}' ({orig_count} non-null values)")
-                            
-                            # Drop the duplicate columns
-                            self.criteria_data = self.criteria_data.drop([col, success_col], axis=1, errors='ignore')
-                
-                # Verify that all required columns exist after cleanup
-                for col in required_columns:
-                    if col not in self.criteria_data.columns:
-                        st.error(f"DEBUG ERROR: Required column '{col}' missing after duplicate cleanup")
-                        # Try to recover from suffix columns if they still exist
-                        orig_col = f"{col}_orig"
-                        success_col = f"{col}_success"
-                        
-                        if orig_col in self.criteria_data.columns:
-                            self.criteria_data[col] = self.criteria_data[orig_col]
-                            st.write(f"DEBUG: Recovered '{col}' from '{orig_col}'")
-                            self.criteria_data = self.criteria_data.drop([orig_col], axis=1, errors='ignore')
-                        elif success_col in self.criteria_data.columns:
-                            self.criteria_data[col] = self.criteria_data[success_col]
-                            st.write(f"DEBUG: Recovered '{col}' from '{success_col}'")
-                            self.criteria_data = self.criteria_data.drop([success_col], axis=1, errors='ignore')
+                        if success_col in comp_df.columns:
+                            # Keep the non-null version of the data
+                            comp_df[base_col] = comp_df[base_col].fillna(comp_df[success_col])
+                            comp_df = comp_df.drop(columns=[success_col])
+                        comp_df = comp_df.drop(columns=[col])
+            
+            # Verify that all required columns exist after cleanup
+            required_columns = ['id']  # Add other required columns as needed
+            for col in required_columns:
+                if col not in comp_df.columns:
+                    st.error(f"DEBUG ERROR: Required column '{col}' missing after duplicate cleanup")
+                    # Try to recover from suffix columns if they still exist
+                    orig_col = f"{col}_orig"
+                    success_col = f"{col}_success"
+                    
+                    if orig_col in comp_df.columns:
+                        comp_df[col] = comp_df[orig_col]
+                        st.write(f"DEBUG: Recovered '{col}' from '{orig_col}'")
+                        comp_df = comp_df.drop([orig_col], axis=1, errors='ignore')
+                    elif success_col in comp_df.columns:
+                        comp_df[col] = comp_df[success_col]
+                        st.write(f"DEBUG: Recovered '{col}' from '{success_col}'")
+                        comp_df = comp_df.drop([success_col], axis=1, errors='ignore')
             
             # Drop rows with missing success scores to make issues visible
-            missing_scores = self.criteria_data['success_score'].isna().sum()
-            if missing_scores > 0:
-                st.write(f"DEBUG: Dropping {missing_scores} shows with missing success scores")
-                self.criteria_data = self.criteria_data.dropna(subset=['success_score'])
-                
+            if 'success_score' in comp_df.columns:
+                missing_scores = comp_df['success_score'].isna().sum()
+                if missing_scores > 0:
+                    st.write(f"DEBUG: Dropping {missing_scores} shows with missing success scores")
+                    comp_df = comp_df.dropna(subset=['success_score'])
+            
             # Log the columns in the merged data
-            st.write(f"DEBUG: Merged criteria data columns: {list(self.criteria_data.columns)}")
-            st.write(f"DEBUG: Merged data has {len(self.criteria_data)} rows")
+            st.write(f"DEBUG: Merged criteria data columns: {list(comp_df.columns)}")
+            st.write(f"DEBUG: Merged data has {len(comp_df)} rows")
             
             # Check if we have the required metrics columns
             for col in ['popcornmeter', 'tomatometer']:
-                if col not in self.criteria_data.columns:
+                if col not in comp_df.columns:
                     st.write(f"DEBUG WARNING: '{col}' column missing from merged data")
                 else:
                     st.write(f"DEBUG: '{col}' column present in merged data")
-                    st.write(f"DEBUG: '{col}' non-null count: {self.criteria_data[col].notna().sum()}")
+                    st.write(f"DEBUG: '{col}' non-null count: {comp_df[col].notna().sum()}")
+            
+            # Store the data and update timestamp
+            self.criteria_data = comp_df
+            self.last_update = datetime.now()
             
             # Cache the criteria data
             self._criteria_data = self.criteria_data
             
-            # Update the last update timestamp
-            self.last_update = current_time
+            return self.criteria_data
+            
+        except Exception as e:
+            st.error(f"Error fetching criteria data: {str(e)}")
+            raise
         
         return self.criteria_data
     
@@ -440,109 +459,62 @@ class CriteriaScorer:
             st.error(f"Error calculating criteria impact: {str(e)}")
             raise
     
-    def calculate_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, ComponentScore]:
+    def calculate_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, 'ComponentScore']:
         """Calculate component scores for a set of criteria.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria to calculate scores for
             
         Returns:
             Dictionary mapping component names to ComponentScore objects
+            
+        Raises:
+            ValueError: If no component scores could be calculated
         """
         import streamlit as st
         
-        st.write("DEBUG: Starting calculate_component_scores")
-        
-        # Get matching shows
-        st.write("DEBUG: Getting matching shows for component scores")
-        matching_shows = self._get_matching_shows(criteria)
-        
-        if matching_shows.empty:
-            st.error("DEBUG ERROR: No matching shows found for the given criteria")
-            raise ValueError("No matching shows found for the given criteria")
-        
-        st.write(f"DEBUG: Found {len(matching_shows)} matching shows for component scores")
-        st.write(f"DEBUG: Matching shows columns: {list(matching_shows.columns)}")
-        
-        # Check for required success metrics columns
-        required_metrics = ['success_score']
-        audience_metrics = ['popcornmeter']
-        critics_metrics = ['tomatometer']
-        longevity_metrics = ['tmdb_seasons', 'tmdb_status']
-        
-        # Check which metrics are available
-        missing_required = [col for col in required_metrics if col not in matching_shows.columns]
-        missing_audience = [col for col in audience_metrics if col not in matching_shows.columns]
-        missing_critics = [col for col in critics_metrics if col not in matching_shows.columns]
-        missing_longevity = [col for col in longevity_metrics if col not in matching_shows.columns]
-        
-        # Log available metrics
-        st.write(f"DEBUG: Required metrics status: {['Missing: ' + m for m in missing_required] if missing_required else 'All available'}")
-        st.write(f"DEBUG: Audience metrics status: {['Missing: ' + m for m in missing_audience] if missing_audience else 'All available'}")
-        st.write(f"DEBUG: Critics metrics status: {['Missing: ' + m for m in missing_critics] if missing_critics else 'All available'}")
-        st.write(f"DEBUG: Longevity metrics status: {['Missing: ' + m for m in missing_longevity] if missing_longevity else 'All available'}")
-        
-        # Initialize component scores dictionary
-        component_scores = {}
-        
-        # Calculate each component score with individual error handling
-        # Audience score
+        # Get matching shows first
         try:
-            st.write("DEBUG: Calculating audience score")
-            audience_score = self._calculate_audience_score(matching_shows)
-            st.write(f"DEBUG: Audience score result: {audience_score}")
-            component_scores['audience'] = audience_score
-        except Exception as e:
-            st.error(f"DEBUG ERROR: Error calculating audience score: {str(e)}")
-            import traceback
-            st.error(f"DEBUG ERROR: Audience score traceback: {traceback.format_exc()}")
-            # Continue with other scores instead of failing completely
-        
-        # Critics score
-        try:
-            st.write("DEBUG: Calculating critics score")
-            critics_score = self._calculate_critics_score(matching_shows)
-            st.write(f"DEBUG: Critics score result: {critics_score}")
-            component_scores['critics'] = critics_score
-        except Exception as e:
-            st.error(f"DEBUG ERROR: Error calculating critics score: {str(e)}")
-            import traceback
-            st.error(f"DEBUG ERROR: Critics score traceback: {traceback.format_exc()}")
-            # Continue with other scores
-        
-        # Longevity score
-        try:
-            st.write("DEBUG: Calculating longevity score")
-            longevity_score = self._calculate_longevity_score(matching_shows)
-            st.write(f"DEBUG: Longevity score result: {longevity_score}")
-            component_scores['longevity'] = longevity_score
-        except Exception as e:
-            st.error(f"DEBUG ERROR: Error calculating longevity score: {str(e)}")
-            import traceback
-            st.error(f"DEBUG ERROR: Longevity score traceback: {traceback.format_exc()}")
-            # Continue with other scores
-        
-        # Check if we have at least one component score
-        if not component_scores:
-            st.error("DEBUG ERROR: Failed to calculate any component scores")
-            raise ValueError("Failed to calculate any component scores")
-        
-        # If we're missing any component scores but have success_score, create fallback scores
-        if 'success_score' in matching_shows.columns:
-            if 'audience' not in component_scores:
-                st.write("DEBUG: Creating fallback audience score from success_score")
-                component_scores['audience'] = self._calculate_audience_score_from_success(matching_shows)
+            matching_shows = self._get_matching_shows(criteria)
+            if matching_shows.empty:
+                st.error("No matching shows found for the given criteria")
+                raise ValueError("No matching shows found for the given criteria")
                 
-            if 'critics' not in component_scores:
-                st.write("DEBUG: Creating fallback critics score from success_score")
-                component_scores['critics'] = self._calculate_critics_score_from_success(matching_shows)
-                
-            if 'longevity' not in component_scores:
-                st.write("DEBUG: Creating fallback longevity score from success_score")
-                component_scores['longevity'] = self._calculate_longevity_score_from_success(matching_shows)
-        
-        st.write(f"DEBUG: Final component scores: {component_scores}")
-        return component_scores
+            component_scores = {}
+            
+            # Calculate each component score with individual error handling
+            for component in ['audience', 'critics', 'longevity']:
+                try:
+                    st.write(f"DEBUG: Calculating {component} score")
+                    score_method = getattr(self, f'_calculate_{component}_score')
+                    score = score_method(matching_shows)
+                    st.write(f"DEBUG: {component.capitalize()} score result: {score}")
+                    component_scores[component] = score
+                except Exception as e:
+                    st.error(f"DEBUG ERROR: Error calculating {component} score: {str(e)}")
+                    import traceback
+                    st.error(f"DEBUG ERROR: {component.capitalize()} score traceback: {traceback.format_exc()}")
+            
+            # Check if we have at least one component score
+            if not component_scores:
+                st.error("DEBUG ERROR: Failed to calculate any component scores")
+                raise ValueError("Failed to calculate any component scores")
+            
+            # If we're missing any component scores but have success_score, create fallback scores
+            if 'success_score' in matching_shows.columns:
+                for component in ['audience', 'critics', 'longevity']:
+                    if component not in component_scores:
+                        st.write(f"DEBUG: Creating fallback {component} score from success_score")
+                        fallback_method = getattr(self, f'_calculate_{component}_score_from_success', None)
+                        if fallback_method:
+                            component_scores[component] = fallback_method(matching_shows)
+            
+            st.write(f"DEBUG: Final component scores: {component_scores}")
+            return component_scores
+            
+        except Exception as e:
+            st.error(f"Error in calculate_component_scores: {str(e)}")
+            raise
     
     def _calculate_audience_score(self, shows: pd.DataFrame) -> ComponentScore:
         """Calculate audience score for a set of shows.
@@ -712,14 +684,17 @@ class CriteriaScorer:
         # Calculate confidence level
         confidence = OptimizerConfig.get_confidence_level(sample_size)
         
-        # Calculate average tomatometer score (normalized to 0-1)
-        avg_tomato = critics_shows['tomatometer'].mean() / 100
+        # Calculate average critics score (normalized to 0-1)
+        avg_score = critics_shows['tomatometer'].mean() / 100.0
         
-        # Calculate critics metrics if available
-        details = {'tomatometer': avg_tomato}
+        # Calculate basic critics details
+        details = {
+            'tomatometer': avg_score,
+            'sample_size': sample_size
+        }
         
         # Calculate overall critics score
-        score = avg_tomato
+        score = avg_score
         
         return ComponentScore(
             component='critics',
@@ -763,85 +738,49 @@ class CriteriaScorer:
         return ComponentScore(
             component='critics',
             score=score,
-            sample_size=sample_size,
-            confidence=confidence,
-            details=details
+            sample_size=len(shows),
+            confidence=OptimizerConfig.get_confidence_level(len(shows)),
+            details={'avg_score': avg_score}
         )
         
     def _calculate_longevity_score(self, shows: pd.DataFrame) -> ComponentScore:
         """Calculate longevity score for a set of shows.
         
         Args:
-            shows: DataFrame of shows
+            shows: DataFrame containing show data with required columns
             
         Returns:
             ComponentScore for longevity
         """
         import streamlit as st
         
-        if shows.empty:
-            st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_longevity_score")
-            raise ValueError("Cannot calculate longevity score with empty shows DataFrame")
-        
-        # Check required columns
-        required_columns = ['tmdb_seasons', 'tmdb_status']
+        required_columns = ['success_score']
         missing_columns = [col for col in required_columns if col not in shows.columns]
         
         if missing_columns:
             st.error(f"DEBUG ERROR: Missing columns for longevity calculation: {missing_columns}")
             st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
+            return self._calculate_longevity_score_from_success(shows)
             
-            # Try to use success_score as a fallback if available
-            if 'success_score' in shows.columns:
-                st.write("DEBUG: Using success_score as fallback for longevity score calculation")
-                return self._calculate_longevity_score_from_success(shows)
-            else:
-                raise ValueError(f"Missing required columns for longevity score calculation: {missing_columns}")
-        
-        # Filter shows with longevity metrics
-        longevity_shows = shows[shows['tmdb_seasons'].notna()]
+        # Filter shows with success metrics
+        longevity_shows = shows[shows['success_score'].notna()]
         sample_size = len(longevity_shows)
         
         if sample_size == 0:
-            st.error("DEBUG ERROR: No shows with valid tmdb_seasons data found")
-            # Try to use success_score as a fallback
-            if 'success_score' in shows.columns:
-                st.write("DEBUG: Using success_score as fallback for longevity score calculation")
-                return self._calculate_longevity_score_from_success(shows)
-            else:
-                raise ValueError("No shows with valid tmdb_seasons data available")
+            st.error("DEBUG ERROR: No shows with valid success_score data found")
+            return self._calculate_longevity_score_from_success(shows)
         
         # Calculate confidence level
         confidence = OptimizerConfig.get_confidence_level(sample_size)
         
-        # Calculate average seasons
-        avg_seasons = longevity_shows['tmdb_seasons'].mean()
+        # Use success_score as longevity score (assuming it's already normalized to 0-1)
+        avg_score = longevity_shows['success_score'].mean()
         
-        # Calculate renewal rate (shows with > 1 season)
-        renewal_rate = len(longevity_shows[longevity_shows['tmdb_seasons'] > 1]) / sample_size
+        # Calculate basic longevity details
+        details = {'success_score': avg_score}
         
-        # Calculate multi-season rate (shows with > 2 seasons)
-        multi_season_rate = len(longevity_shows[longevity_shows['tmdb_seasons'] > 2]) / sample_size
-        
-        # Calculate status distribution
-        status_counts = longevity_shows['tmdb_status'].value_counts(normalize=True).to_dict()
-        active_rate = status_counts.get('Returning Series', 0)
-        
-        # Calculate longevity details
-        details = {
-            'avg_seasons': avg_seasons / 10,  # Normalize to 0-1 (assuming 10 seasons is max)
-            'renewal_rate': renewal_rate,
-            'multi_season_rate': multi_season_rate,
-            'active_rate': active_rate
-        }
-        
-        # Calculate overall longevity score (weighted average of metrics)
-        score = (
-            0.3 * details['avg_seasons'] +
-            0.3 * details['renewal_rate'] +
-            0.2 * details['multi_season_rate'] +
-            0.2 * details['active_rate']
-        )
+        # Calculate overall longevity score
+        score = avg_score
         
         return ComponentScore(
             component='longevity',
@@ -889,191 +828,6 @@ class CriteriaScorer:
             confidence=confidence,
             details=details
         )
-    
-    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[float]:
-        """Batch calculate success rates for multiple criteria.
-        
-        Args:
-            criteria_list: List of criteria dictionaries
-            
-        Returns:
-            List of success rates in the same order as criteria_list
-        """
-        results = []
-        for criteria in criteria_list:
-            try:
-                shows, count = self._get_matching_shows(criteria)
-                if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                    results.append(self._calculate_success_rate(shows))
-                else:
-                    results.append(None)
-            except Exception as e:
-                import streamlit as st
-                st.error(f"Error calculating success rate: {str(e)}")
-                results.append(None)
-                
-        return results
-    
-    def _calculate_critics_score(self, shows: pd.DataFrame) -> ComponentScore:
-        """Calculate critics score for a set of shows.
-        
-        Args:
-            shows: DataFrame of shows
-            
-        Returns:
-            ComponentScore for critics
-        """
-        import streamlit as st
-        
-        # Filter shows with success metrics
-        critics_shows = shows[shows['success_score'].notna()]
-        sample_size = len(critics_shows)
-        
-        if sample_size == 0:
-            st.error("ERROR: No shows with valid success_score data found")
-            return self._calculate_critics_score_from_success(shows)
-        
-        # Calculate confidence level
-        confidence = OptimizerConfig.get_confidence_level(sample_size)
-        
-        # Use success_score as critics score (assuming it's already normalized to 0-1)
-        avg_score = critics_shows['success_score'].mean()
-        
-        # Calculate critics engagement metrics
-        details = {'success_score': avg_score}
-        
-        # Calculate overall critics score
-        score = avg_score
-        
-        return ComponentScore(
-            component='critics',
-            score=score,
-            sample_size=sample_size,
-            confidence=confidence,
-            details=details
-        )
-
-def _calculate_longevity_score(self, shows: pd.DataFrame) -> ComponentScore:
-    """Calculate longevity score for a set of shows.
-    
-    Args:
-        shows: DataFrame of shows
-        
-    Returns:
-        ComponentScore for longevity
-    """
-    import streamlit as st
-    
-    if shows.empty:
-        st.error("DEBUG ERROR: Empty shows DataFrame provided to _calculate_longevity_score")
-        raise ValueError("Cannot calculate longevity score with empty shows DataFrame")
-    
-    # Check required columns
-    required_columns = ['tmdb_seasons', 'tmdb_status']
-    missing_columns = [col for col in required_columns if col not in shows.columns]
-    
-    if missing_columns:
-        st.error(f"DEBUG ERROR: Missing columns for longevity calculation: {missing_columns}")
-        st.error("DEBUG ERROR: Available columns: " + str(list(shows.columns)))
-        
-        # Try to use success_score as a fallback if available
-        if 'success_score' in shows.columns:
-            st.write("DEBUG: Using success_score as fallback for longevity score calculation")
-            return self._calculate_longevity_score_from_success(shows)
-        else:
-            raise ValueError(f"Missing required columns for longevity score calculation: {missing_columns}")
-    
-    # Filter shows with longevity metrics
-    longevity_shows = shows[shows['tmdb_seasons'].notna()]
-    sample_size = len(longevity_shows)
-    
-    if sample_size == 0:
-        st.error("DEBUG ERROR: No shows with valid tmdb_seasons data found")
-        # Try to use success_score as a fallback
-        if 'success_score' in shows.columns:
-            st.write("DEBUG: Using success_score as fallback for longevity score calculation")
-            return self._calculate_longevity_score_from_success(shows)
-        else:
-            raise ValueError("No shows with valid tmdb_seasons data available")
-    
-    # Calculate confidence level
-    confidence = OptimizerConfig.get_confidence_level(sample_size)
-    
-    # Calculate average seasons
-    avg_seasons = longevity_shows['tmdb_seasons'].mean()
-    
-    # Calculate renewal rate (shows with > 1 season)
-    renewal_rate = len(longevity_shows[longevity_shows['tmdb_seasons'] > 1]) / sample_size
-    
-    # Calculate multi-season rate (shows with > 2 seasons)
-    multi_season_rate = len(longevity_shows[longevity_shows['tmdb_seasons'] > 2]) / sample_size
-    
-    # Calculate status distribution
-    status_counts = longevity_shows['tmdb_status'].value_counts(normalize=True).to_dict()
-    active_rate = status_counts.get('Returning Series', 0)
-    
-    # Calculate longevity details
-    details = {
-        'avg_seasons': avg_seasons / 10,  # Normalize to 0-1 (assuming 10 seasons is max)
-        'renewal_rate': renewal_rate,
-        'multi_season_rate': multi_season_rate,
-        'active_rate': active_rate
-    }
-    
-    # Calculate overall longevity score (weighted average of metrics)
-    score = (
-        0.3 * details['avg_seasons'] +
-        0.3 * details['renewal_rate'] +
-        0.2 * details['multi_season_rate'] +
-        0.2 * details['active_rate']
-    )
-    
-    return ComponentScore(
-        component='longevity',
-        score=score,
-        sample_size=sample_size,
-        confidence=confidence,
-        details=details
-    )
-
-def _calculate_longevity_score_from_success(self, shows: pd.DataFrame) -> ComponentScore:
-    """Calculate longevity score using success_score as a fallback.
-    
-    Args:
-        shows: DataFrame of shows
-        
-    Returns:
-        ComponentScore for longevity
-    """
-    import streamlit as st
-    
-    # Filter shows with success metrics
-    longevity_shows = shows[shows['success_score'].notna()]
-    sample_size = len(longevity_shows)
-    
-    if sample_size == 0:
-        st.error("DEBUG ERROR: No shows with valid success_score data found")
-        raise ValueError("No shows with valid success metrics available for longevity score")
-    
-    # Calculate confidence level
-    confidence = OptimizerConfig.get_confidence_level(sample_size)
-    
-    # Use success_score as longevity score (assuming it's already normalized to 0-1)
-    avg_score = longevity_shows['success_score'].mean()
-    
-    # Calculate basic longevity details
-    details = {'success_score': avg_score}
-    
-    # Calculate overall longevity score
-    score = avg_score
-    
-    return ComponentScore(
-        component='longevity',
-        score=score,
-        sample_size=sample_size,
-        confidence=confidence,
-        details=details
-    )
 
     def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[float]:
         """Batch calculate success rates for multiple criteria.
