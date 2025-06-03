@@ -39,6 +39,8 @@ from .field_manager import FieldManager
 
 logger = logging.getLogger(__name__)
 
+__all__ = ['CriteriaScorer', 'ComponentScore', 'NetworkMatch', 'ScoreCalculationError']
+
 class ScoreCalculationError(Exception):
     """Base exception for score calculation errors."""
     pass
