@@ -74,7 +74,9 @@ class SuccessScoreCalculator(ScoreCalculator):
         if 'success_score' not in shows.columns:
             raise ScoreCalculationError(f"success_score column not found in shows data for {self.component_name} score")
 
-        valid_shows = shows[shows['success_score'].notna()]
+        # Filter out shows with missing success scores AND shows with a score of 0
+        # Shows with a score of 0 are typically those that haven't aired yet or have unreliable data
+        valid_shows = shows[(shows['success_score'].notna()) & (shows['success_score'] > 0)]
         sample_size = len(valid_shows)
         
         if sample_size == 0:
