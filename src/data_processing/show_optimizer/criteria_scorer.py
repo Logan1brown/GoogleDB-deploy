@@ -64,10 +64,7 @@ class CriteriaScorer:
         # Create an instance and store it
         self._matching_calculator = MatchingCalculator(self)
         # Ensure it has access to the field_manager
-        if hasattr(self, 'field_manager'):
-            st.write("DEBUG: FieldManager is available for MatchingCalculator")
-        else:
-            st.error("DEBUG: FieldManager is NOT available for MatchingCalculator")
+        # (Field manager access check removed)
         
     def fetch_criteria_data(self, force_refresh=False):
         """Fetch criteria data for matching and scoring.
@@ -78,13 +75,13 @@ class CriteriaScorer:
         Returns:
             DataFrame of criteria data with success metrics
         """
-        st.write(f"DEBUG: fetch_criteria_data called with force_refresh={force_refresh}")
+        # Fetch criteria data with optional force refresh
         current_time = datetime.now()
         
         # Use cached data if available and not forcing refresh
         if not force_refresh and self.criteria_data is not None and self.last_update is not None:
             if (current_time - self.last_update) < timedelta(seconds=self.cache_duration):
-                st.write("DEBUG: Using cached criteria data")
+                # Using cached criteria data
                 return self.criteria_data
         
         try:
@@ -132,7 +129,7 @@ class CriteriaScorer:
                     cols_with_suffix = [col for col in comp_df.columns if col.endswith('_x') or col.endswith('_y')]
                     
                     if cols_with_suffix:
-                        st.write(f"DEBUG: Found columns with suffixes after merge: {cols_with_suffix}")
+                        # Found columns with suffixes that need fixing
                         # Fix any columns with _x and _y suffixes
                         cols_to_fix = [col[:-2] for col in comp_df.columns if col.endswith('_y')]
                         
@@ -149,7 +146,7 @@ class CriteriaScorer:
                     # Check for required component calculator columns
                     for col in ['popcornmeter', 'tomatometer']:
                         if col not in comp_df.columns:
-                            st.error(f"DEBUG: {col} is MISSING from merged data")
+                            pass  # Column is missing from merged data
                     
                     # Drop the redundant show_id column from the merge
                     if 'show_id' in comp_df.columns:
@@ -185,13 +182,7 @@ class CriteriaScorer:
             self.last_update = current_time
             
             # Debug output for success metrics
-            st.write(f"DEBUG: Final criteria data shape: {self.criteria_data.shape}")
-            st.write(f"DEBUG: Final criteria data columns: {list(self.criteria_data.columns)}")
-            if 'success_score' in self.criteria_data.columns:
-                st.write(f"DEBUG: success_score exists in final data")
-                st.write(f"DEBUG: success_score non-null count: {self.criteria_data['success_score'].notna().sum()}")
-            else:
-                st.write(f"DEBUG: success_score MISSING from final data")
+            # Final criteria data ready for use
             
             st.toast(f"Optimizer data refreshed. Shape: {self.criteria_data.shape}")
             return self.criteria_data
@@ -427,7 +418,7 @@ class CriteriaScorer:
             st.warning("No component scores could be calculated for the given criteria after attempting all components.")
             return {}
 
-        st.write(f"DEBUG: Final component scores: {list(component_scores.keys())}")
+        # Component scores calculation complete
         return component_scores
 
 
