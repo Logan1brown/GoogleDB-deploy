@@ -448,7 +448,8 @@ class CriteriaAnalyzer:
         matching_shows, match_count = self.criteria_scorer._get_matching_shows(criteria)
         
         if matching_shows.empty or match_count == 0:
-            return 0.0, 'none'
+            # Return None instead of 0.0 to indicate no data available
+            return None, 'none'
         
         # Calculate success rate
         success_rate = self.criteria_scorer._calculate_success_rate(matching_shows)
