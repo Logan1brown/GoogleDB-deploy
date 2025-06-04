@@ -198,7 +198,7 @@ def show():
                     st.subheader("Matching Shows")
                     
                     # Display matching shows with match level differentiation
-                    if hasattr(summary, 'matching_shows') and not summary.matching_shows.empty:
+                    if hasattr(summary, 'matching_shows') and summary.matching_shows is not None and not summary.matching_shows.empty:
                         # Get match level from confidence info if available
                         match_level = 1  # Default to exact match
                         if hasattr(summary, 'confidence_info') and summary.confidence_info:

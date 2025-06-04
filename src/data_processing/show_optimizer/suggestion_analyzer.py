@@ -67,7 +67,7 @@ class OptimizationSummary:
     match_level: int = 1  # Match level used (1-4, where 1 is highest)
     match_quality: float = 1.0  # Quality of the match (0-1)
     confidence_score: float = 1.0  # Confidence score (0-1)
-    matching_shows: List[str] = field(default_factory=list)  # List of matching show titles
+    matching_shows: Any = None  # DataFrame of matching shows (pandas DataFrame)
     match_count: int = 0  # Number of matching shows
 
 
@@ -334,11 +334,11 @@ class SuggestionAnalyzer:
                 component_scores=component_scores,
                 success_factors=success_factors,
                 recommendations=recommendations,
-                matching_titles=matching_titles,  # This is what the UI uses
+                matching_titles=matching_titles,  # List of titles
                 match_level=confidence_info.get('match_level', 0),
                 match_quality=confidence_info.get('match_quality', 0.0),
                 confidence_score=confidence_info.get('confidence_score', 0.0),
-                matching_shows=matching_titles,  # Use the same list for consistency
+                matching_shows=matching_shows,  # The actual DataFrame
                 match_count=match_count
             )
             
