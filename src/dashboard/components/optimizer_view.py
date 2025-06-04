@@ -184,22 +184,11 @@ class OptimizerView:
                 
                 # Do not force rerun - let the page flow handle rendering
             else:
-                # Check if we have a minimal valid summary with N/A values
-                if summary and hasattr(summary, 'component_scores') and summary.component_scores:
-                    # We have a summary with N/A values - display it with warnings
-                    st.warning("Analysis completed with limited data. Some metrics may show as N/A.")
-                    state['summary'] = summary
-                    state['results'] = True
-                    
-                    # Also update session state for compatibility
-                    st.session_state.optimizer_summary = summary
-                    st.session_state.optimizer_results = True
-                else:
-                    # No valid results were produced
-                    st.error("Analysis failed to produce results. Please try different criteria.")
-                    state['results'] = False
-                    if 'summary' in state:
-                        del state['summary']
+                # No valid results were produced
+                st.error("Analysis failed to produce results. Please try different criteria.")
+                state['results'] = False
+                if 'summary' in state:
+                    del state['summary']
                     
                     # Also update session state for compatibility
                     st.session_state.optimizer_results = False
