@@ -234,10 +234,10 @@ class ShowOptimizer:
                 
                 # Create placeholder component scores
                 component_scores = {
-                    'audience': ComponentScore(name="Audience Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                    'critics': ComponentScore(name="Critics Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                    'longevity': ComponentScore(name="Longevity", score=None, weight=0.25, confidence='none', description="N/A"),
-                    'completion': ComponentScore(name="Completion", score=None, weight=0.25, confidence='none', description="N/A")
+                    'audience': ComponentScore(component="audience", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                    'critics': ComponentScore(component="critics", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                    'longevity': ComponentScore(component="longevity", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                    'completion': ComponentScore(component="completion", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'})
                 }
                 
                 # Return a minimal valid summary
@@ -266,10 +266,10 @@ class ShowOptimizer:
             
             # Create placeholder component scores
             component_scores = {
-                'audience': ComponentScore(name="Audience Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                'critics': ComponentScore(name="Critics Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                'longevity': ComponentScore(name="Longevity", score=None, weight=0.25, confidence='none', description="N/A"),
-                'completion': ComponentScore(name="Completion", score=None, weight=0.25, confidence='none', description="N/A")
+                'audience': ComponentScore(component="audience", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                'critics': ComponentScore(component="critics", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                'longevity': ComponentScore(component="longevity", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                'completion': ComponentScore(component="completion", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'})
             }
             
             # Return a minimal valid summary

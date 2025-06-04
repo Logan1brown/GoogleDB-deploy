@@ -179,10 +179,10 @@ class SuggestionAnalyzer:
                 st.warning(f"Could not calculate component scores: {str(e)}")
                 # Create placeholder component scores with None values
                 component_scores = {
-                    'critics': ComponentScore(name="Critics Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                    'audience': ComponentScore(name="Audience Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                    'longevity': ComponentScore(name="Longevity", score=None, weight=0.25, confidence='none', description="N/A"),
-                    'completion': ComponentScore(name="Completion", score=None, weight=0.25, confidence='none', description="N/A")
+                    'critics': ComponentScore(component="critics", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                    'audience': ComponentScore(component="audience", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                    'longevity': ComponentScore(component="longevity", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                    'completion': ComponentScore(component="completion", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'})
                 }
             
             # Handle component scores gracefully
@@ -257,10 +257,10 @@ class SuggestionAnalyzer:
             
             # Create placeholder component scores
             component_scores = {
-                'critics': ComponentScore(name="Critics Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                'audience': ComponentScore(name="Audience Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                'longevity': ComponentScore(name="Longevity", score=None, weight=0.25, confidence='none', description="N/A"),
-                'completion': ComponentScore(name="Completion", score=None, weight=0.25, confidence='none', description="N/A")
+                'critics': ComponentScore(component="critics", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                'audience': ComponentScore(component="audience", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                'longevity': ComponentScore(component="longevity", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
+                'completion': ComponentScore(component="completion", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'})
             }
             
             # Return a minimal valid summary
