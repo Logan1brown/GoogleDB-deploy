@@ -206,13 +206,31 @@ def show():
                     
                     # Display matching titles from the summary object
                     if hasattr(summary, 'matching_titles') and summary.matching_titles:
-                        # Show sample size
-                        st.caption(f"Sample size: {len(summary.matching_titles)} shows")
+                        # Show sample size and match quality
+                        match_level = getattr(summary, 'match_level', 0)
+                        match_quality = getattr(summary, 'match_quality', 0.0)
                         
-                        # Display titles in a scrollable container
+                        if match_level == 1:
+                            st.caption(f"Sample size: {len(summary.matching_titles)} shows (exact matches)")
+                        else:
+                            st.caption(f"Sample size: {len(summary.matching_titles)} shows (flexible matches, level {match_level})")
+                        
+                        # Display titles in a scrollable container with color coding
                         titles_html = "<div style='max-height: 300px; overflow-y: auto;'><ul>"
                         for title in summary.matching_titles:
-                            titles_html += f"<li>{title}</li>"
+                            # Use different styling based on match level
+                            if match_level == 1:
+                                # Exact match - bold black
+                                titles_html += f"<li style='color: black; font-weight: bold;'>{title}</li>"
+                            elif match_level == 2:
+                                # Close match - normal black
+                                titles_html += f"<li style='color: black;'>{title}</li>"
+                            elif match_level == 3:
+                                # Partial match - dark gray
+                                titles_html += f"<li style='color: #555555;'>{title}</li>"
+                            else:
+                                # Minimal match - light gray
+                                titles_html += f"<li style='color: #888888;'>{title}</li>"
                         titles_html += "</ul></div>"
                         st.markdown(titles_html, unsafe_allow_html=True)
                     else:
@@ -224,18 +242,35 @@ def show():
                     if hasattr(summary, 'network_compatibility') and summary.network_compatibility:
                         networks = summary.network_compatibility
                         
+                        # Add a note about match level
+                        match_level = getattr(summary, 'match_level', 0)
+                        if match_level > 1:
+                            st.info(f"Network compatibility is based on flexible matching (level {match_level}). Results may vary with exact matches.")
+                        
                         # Create a dataframe for the networks
                         network_data = []
                         for network in networks:
+                            # Format the success probability and compatibility score for display
+                            success_prob = f"{network.success_probability:.0%}" if network.success_probability is not None else "N/A"
+                            compat_score = f"{network.compatibility_score:.0%}" if network.compatibility_score is not None else "N/A"
+                            
                             network_data.append({
                                 "Network": network.network_name,
-                                "Success Probability": network.success_probability,
-                                "Compatibility": network.compatibility_score,
+                                "Success Probability": success_prob,
+                                "Compatibility": compat_score,
                                 "Sample Size": network.sample_size
                             })
-                            
+                        
+                        # Sort by compatibility score (descending)
                         network_df = pd.DataFrame(network_data)
-                        st.dataframe(network_df)
+                        if not network_df.empty:
+                            st.write("Top networks for your concept:")
+                            st.dataframe(network_df)
+                            
+                            # Add explanation of what the scores mean
+                            st.caption("**Compatibility**: How well your concept aligns with the network's content strategy")
+                            st.caption("**Success Probability**: Estimated chance of success if your show airs on this network")
+                            st.caption("**Sample Size**: Number of similar shows used in this analysis")
                     elif hasattr(summary, 'top_networks') and summary.top_networks:
                         # Create a simple table of top networks
                         network_df = pd.DataFrame(summary.top_networks)
@@ -276,9 +311,17 @@ def show():
                         if grouped["replace"]:
                             st.subheader("Consider Replacing")
                             for rec in grouped["replace"][:3]:
-                                st.write(f"Replace **{rec.current_value}** with **{rec.suggested_name}**")
+                                # Get the human-readable name for the current value if available
+                                current_name = rec.current_value
+                                if hasattr(rec, 'current_name') and rec.current_name:
+                                    current_name = rec.current_name
+                                
+                                # Get the field name from the criteria type
+                                field_name = rec.criteria_type.replace('_', ' ').title()
+                                
+                                st.write(f"Replace **{field_name}**: '{current_name}' with '{rec.suggested_name}'")
                                 if hasattr(rec, 'impact_score'):
-                                    st.write(f"Impact: {rec.impact_score:.2f}")
+                                    st.write(f"Impact: +{rec.impact_score:.2f} (success probability)")
                                 st.write("---")
                         
                         if grouped["remove"]:

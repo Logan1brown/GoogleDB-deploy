@@ -46,6 +46,7 @@ class Recommendation:
     recommendation_type: str  # add, remove, replace, consider
     criteria_type: str        # e.g., "genre", "character_types"
     current_value: Any        # Current value (if any)
+    current_name: str = ""    # Display name for current value
     suggested_value: Any      # Suggested value
     suggested_name: str       # Display name for suggested value
     impact_score: float       # Expected impact on success (-1 to 1)
@@ -218,7 +219,23 @@ class SuggestionAnalyzer:
             match_level = confidence_info.get('match_level', 1)
             match_quality = confidence_info.get('match_quality', 0.0)
             confidence_score = confidence_info.get('confidence_score', 0.0)
-            confidence = confidence_info.get('confidence_level', 'none')
+            
+            # Set confidence based on match count
+            if match_count >= 30:
+                confidence = 'high'
+            elif match_count >= 15:
+                confidence = 'medium'
+            elif match_count >= 5:
+                confidence = 'low'
+            else:
+                confidence = 'none'
+                
+            logger.info(f"Setting confidence to {confidence} based on match_count={match_count}")
+            
+            # Override with confidence from confidence_info if available
+            if 'confidence_level' in confidence_info and confidence_info['confidence_level'] != 'none':
+                confidence = confidence_info.get('confidence_level')
+                logger.info(f"Overriding confidence with value from confidence_info: {confidence}")
                 
             # Get matching show titles (up to 100) to include in the summary
             matching_titles = []
@@ -426,11 +443,19 @@ class SuggestionAnalyzer:
                     if option.id == criteria[factor.criteria_type]:
                         current_name = option.name
                         break
+                
+                # Get the human-readable field name from the field manager
+                field_display_name = factor.criteria_type
+                if factor.criteria_type in field_manager.FIELD_CONFIGS:
+                    # Use the name from the field config
+                    field_config = field_manager.FIELD_CONFIGS[factor.criteria_type]
+                    field_display_name = field_config.name_field.replace('_', ' ').title()
                         
                 recommendation = Recommendation(
                     recommendation_type="replace",
                     criteria_type=factor.criteria_type,
                     current_value=criteria[factor.criteria_type],
+                    current_name=current_name,
                     suggested_value=factor.criteria_value,
                     suggested_name=factor.criteria_name,
                     impact_score=factor.impact_score,
