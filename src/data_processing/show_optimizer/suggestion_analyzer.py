@@ -62,6 +62,9 @@ class OptimizationSummary:
     recommendations: List[Recommendation]
     success_factors: List[SuccessFactor]
     matching_titles: List[str] = field(default_factory=list)  # Titles of shows matching all criteria
+    match_level: int = 1  # Match level used (1-4, where 1 is highest)
+    match_quality: float = 1.0  # Quality of the match (0-1)
+    confidence_score: float = 1.0  # Confidence score (0-1)
 
 
 class SuggestionAnalyzer:
@@ -96,11 +99,17 @@ class SuggestionAnalyzer:
             # Get top networks
             top_networks = self.criteria_analyzer.rank_networks_by_compatibility(criteria, limit=5)
             
-            # Get matching shows first
-            matching_shows, match_count = self.criteria_analyzer.criteria_scorer._get_matching_shows(criteria)
+            # Get matching shows with flexible matching
+            matching_shows, match_count, confidence_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(criteria, flexible=True)
             if matching_shows.empty:
                 logger.error("No matching shows found for the given criteria")
                 raise ValueError("No matching shows found for the given criteria")
+                
+            # Extract confidence information
+            match_level = confidence_info.get('match_level', 1)
+            match_quality = confidence_info.get('match_quality', 0.0)
+            confidence_score = confidence_info.get('confidence_score', 0.0)
+            confidence = confidence_info.get('confidence_level', 'none')
                 
             # Get matching show titles (up to 100) to include in the summary
             matching_titles = []
@@ -132,9 +141,9 @@ class SuggestionAnalyzer:
             success_factors = self.criteria_analyzer.identify_success_factors(criteria, limit=5)
             
             # Generate recommendations
-            recommendations = self.generate_recommendations(criteria, success_factors, top_networks)
+            recommendations = self.generate_recommendations(criteria, success_factors, top_networks, matching_shows, confidence_info)
             
-            # Create summary
+            # Create summary with enhanced confidence information
             summary = OptimizationSummary(
                 overall_success_probability=success_probability,
                 confidence=confidence,
@@ -142,7 +151,10 @@ class SuggestionAnalyzer:
                 component_scores=component_scores,
                 recommendations=recommendations,
                 success_factors=success_factors,
-                matching_titles=matching_titles
+                matching_titles=matching_titles,
+                match_level=match_level,
+                match_quality=match_quality,
+                confidence_score=confidence_score
             )
             return summary
                 
@@ -152,13 +164,17 @@ class SuggestionAnalyzer:
     
     def generate_recommendations(self, criteria: Dict[str, Any], 
                                success_factors: List[SuccessFactor],
-                               top_networks: List[NetworkMatch]) -> List[Recommendation]:
+                               top_networks: List[NetworkMatch],
+                               matching_shows: pd.DataFrame,
+                               confidence_info: Dict[str, Any]) -> List[Recommendation]:
         """Generate recommendations for optimizing a show concept.
         
         Args:
             criteria: Dictionary of criteria
             success_factors: List of success factors
             top_networks: List of top matching networks
+            matching_shows: DataFrame of matching shows
+            confidence_info: Dictionary of confidence information
             
         Returns:
             List of Recommendation objects
@@ -178,19 +194,36 @@ class SuggestionAnalyzer:
         conflict_recs = self._recommend_conflict_resolutions(criteria)
         recommendations.extend(conflict_recs)
         
-        # Analyze complementary criteria
-        complementary_recs = self._recommend_complementary_criteria(criteria)
-        recommendations.extend(complementary_recs)
+        # Identify limiting criteria that restrict match quality
+        if confidence_info.get('match_level', 1) > 1:
+            limiting_criteria_recs = self._identify_limiting_criteria(criteria, matching_shows, confidence_info)
+            recommendations.extend(limiting_criteria_recs)
+        
+        # Analyze successful patterns in the matched shows
+        pattern_recs = self._analyze_successful_patterns(criteria, matching_shows)
+        recommendations.extend(pattern_recs)
+        
+        # Generate fallback recommendations if needed
+        # Only do this if we don't have enough high-quality recommendations already
+        if len(recommendations) < OptimizerConfig.SUGGESTIONS['max_suggestions']:
+            fallback_recs = self._generate_fallback_recommendations(criteria, matching_shows, confidence_info)
+            recommendations.extend(fallback_recs)
         
         # Sort by impact score (absolute value, as negative impacts are also important)
         recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
         
+        # Limit to max suggestions
+        max_suggestions = OptimizerConfig.SUGGESTIONS['max_suggestions']
+        if len(recommendations) > max_suggestions:
+            recommendations = recommendations[:max_suggestions]
+            
         return recommendations
     
     def _recommend_missing_criteria(self, criteria: Dict[str, Any], 
                                   success_factors: List[SuccessFactor]) -> List[Recommendation]:
         """Recommend high-impact criteria that are missing from the concept.
         
+{{ ... }}
         Args:
             criteria: Dictionary of criteria
             success_factors: List of success factors
@@ -382,55 +415,512 @@ class SuggestionAnalyzer:
         return recommendations
     
     def _recommend_complementary_criteria(self, criteria: Dict[str, Any]) -> List[Recommendation]:
-        """Recommend complementary criteria that work well with existing criteria.
+        """Recommend complementary criteria that work well with existing criteria based on data analysis.
         
         Args:
             criteria: Dictionary of criteria
             
         Returns:
-            List of Recommendation objects
+            List of Recommendation objects with data-driven complementary criteria
+        """
+        # Get matching shows with flexible matching
+        matching_shows, match_count, confidence_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(
+            criteria, flexible=True)
+            
+        if matching_shows.empty or match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
+            return []
+            
+        recommendations = []
+        
+        # Get successful shows from the matching set
+        success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
+        successful_shows = matching_shows[matching_shows['success_score'] >= success_threshold].copy()
+        
+        if len(successful_shows) < 5:  # Need at least a few successful shows for analysis
+            return []
+            
+        # Analyze criteria that appear frequently in successful shows but aren't in the input criteria
+        for criteria_type in OptimizerConfig.CRITERIA_IMPORTANCE:
+            # Skip criteria already specified by the user
+            if criteria_type in criteria:
+                continue
+                
+            # Skip criteria not present in the dataset
+            if criteria_type not in successful_shows.columns:
+                continue
+                
+            # Count occurrences of each value for this criteria type
+            value_counts = successful_shows[criteria_type].value_counts(normalize=True)
+            
+            # Find values that appear in at least 30% of successful shows
+            common_values = value_counts[value_counts >= 0.3]
+            
+            for value, frequency in common_values.items():
+                if pd.isna(value) or value == '':
+                    continue
+                    
+                # Calculate impact score based on frequency and criteria importance
+                importance_weight = 1.0
+                if criteria_type in OptimizerConfig.CRITERIA_IMPORTANCE:
+                    importance = OptimizerConfig.CRITERIA_IMPORTANCE[criteria_type]
+                    importance_weight = OptimizerConfig.IMPORTANCE_WEIGHTS.get(importance, 1.0)
+                    
+                impact_score = frequency * importance_weight * 0.1  # Scale to reasonable impact score
+                
+                # Skip low-impact recommendations
+                if impact_score < OptimizerConfig.SUGGESTIONS['minimum_impact']:
+                    continue
+                    
+                # Get the name of the criteria value
+                value_name = self._get_criteria_name(criteria_type, value)
+                
+                # Create the recommendation
+                recommendation = Recommendation(
+                    recommendation_type="add",
+                    criteria_type=criteria_type,
+                    current_value=None,
+                    suggested_value=value,
+                    suggested_name=value_name,
+                    impact_score=impact_score,
+                    confidence=confidence_info.get('confidence_level', 'medium'),
+                    explanation=f"'{value_name}' appears in {frequency:.0%} of successful shows with similar criteria. "
+                               f"Adding this could improve success probability by approximately {impact_score:.0%}."
+                )
+                recommendations.append(recommendation)
+        
+        return recommendations
+    
+    def _identify_limiting_criteria(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, 
+                               confidence_info: Dict[str, Any]) -> List[Recommendation]:
+        """Identify criteria that are limiting match quality and suggest alternatives.
+        
+        Args:
+            criteria: Dictionary of criteria
+            matching_shows: DataFrame of matching shows
+            confidence_info: Dictionary with confidence metrics
+            
+        Returns:
+            List of Recommendation objects with suggestions to improve match quality
+        """
+        recommendations = []
+        match_level = confidence_info.get('match_level', 1)
+        
+        # Only run this analysis if we're not at match level 1 (perfect match)
+        if match_level == 1:
+            return []
+            
+        # For each criterion, try removing it and see if match quality improves
+        for criteria_type, criteria_value in criteria.items():
+            # Skip non-content criteria or essential criteria that can't be relaxed
+            if criteria_type not in OptimizerConfig.CRITERIA_IMPORTANCE:
+                continue
+                
+            importance = OptimizerConfig.CRITERIA_IMPORTANCE.get(criteria_type)
+            if importance == 'essential':
+                continue
+                
+            # Create a copy of criteria without this criterion
+            test_criteria = {k: v for k, v in criteria.items() if k != criteria_type}
+            
+            # Get matching shows without this criterion
+            test_matches, test_count, test_confidence = self.criteria_analyzer.criteria_scorer._get_matching_shows(
+                test_criteria, flexible=True)
+                
+            # If removing this criterion improves match level or significantly increases sample size
+            if (test_confidence.get('match_level', match_level) < match_level or 
+                    test_count > len(matching_shows) * 2):  # At least double the sample size
+                    
+                # Get the name of the criterion for the explanation
+                if isinstance(criteria_value, list):
+                    criteria_names = [self._get_criteria_name(criteria_type, v) for v in criteria_value]
+                    criteria_name = ", ".join(criteria_names)
+                else:
+                    criteria_name = self._get_criteria_name(criteria_type, criteria_value)
+                    
+                # Calculate impact score based on how much the match improves
+                impact_score = 0.1  # Base impact
+                if test_confidence.get('match_level', match_level) < match_level:
+                    impact_score += 0.1  # Additional impact for improving match level
+                
+                # Add impact based on sample size increase
+                sample_increase_factor = test_count / max(1, len(matching_shows))
+                if sample_increase_factor > 1:
+                    impact_score += min(0.2, (sample_increase_factor - 1) * 0.1)  # Cap at 0.2
+                    
+                # Create recommendation
+                recommendation = Recommendation(
+                    recommendation_type="relax",
+                    criteria_type=criteria_type,
+                    current_value=criteria_value,
+                    suggested_value=None,  # No specific alternative, just suggesting to relax this criterion
+                    suggested_name=criteria_name,
+                    impact_score=impact_score,
+                    confidence=test_confidence.get('confidence_level', 'medium'),
+                    explanation=f"Relaxing the '{criteria_name}' requirement would significantly improve match quality "
+                               f"and increase the sample size from {len(matching_shows)} to {test_count} shows."
+                )
+                recommendations.append(recommendation)
+        
+        return recommendations
+    
+    def _analyze_successful_patterns(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[Recommendation]:
+        """Analyze successful patterns in matching shows and generate recommendations.
+        
+        Args:
+            criteria: Dictionary of criteria
+            matching_shows: DataFrame of matching shows
+            
+        Returns:
+            List of Recommendation objects based on successful patterns
+        """
+        if matching_shows.empty or len(matching_shows) < OptimizerConfig.CONFIDENCE['minimum_sample']:
+            return []
+            
+        recommendations = []
+        
+        # Get successful shows from the matching set
+        success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
+        successful_shows = matching_shows[matching_shows['success_score'] >= success_threshold].copy()
+        
+        if len(successful_shows) < 5:  # Need at least a few successful shows for analysis
+            return []
+            
+        # Analyze patterns in successful shows
+        # 1. Look for common combinations of criteria
+        for criteria_type in OptimizerConfig.CRITERIA_IMPORTANCE:
+            # Skip criteria not present in the dataset
+            if criteria_type not in successful_shows.columns:
+                continue
+                
+            # If this criteria is already specified by the user
+            if criteria_type in criteria:
+                current_value = criteria[criteria_type]
+                
+                # Check if current value is among the most successful values
+                value_success = {}
+                for value in successful_shows[criteria_type].unique():
+                    if pd.isna(value) or value == '':
+                        continue
+                        
+                    # Calculate average success score for shows with this value
+                    shows_with_value = successful_shows[successful_shows[criteria_type] == value]
+                    avg_success = shows_with_value['success_score'].mean()
+                    value_success[value] = avg_success
+                    
+                # Sort values by success score
+                sorted_values = sorted(value_success.items(), key=lambda x: x[1], reverse=True)
+                
+                # If current value is not in top 3 most successful values, suggest alternatives
+                top_values = [v[0] for v in sorted_values[:3]]
+                if current_value not in top_values and len(top_values) > 0:
+                    # Get the top value
+                    top_value = top_values[0]
+                    top_success = value_success[top_value]
+                    
+                    # Calculate impact score based on success difference
+                    current_success = value_success.get(current_value, 0)
+                    impact_score = (top_success - current_success) * 0.5  # Scale to reasonable impact score
+                    
+                    # Skip low-impact recommendations
+                    if impact_score < OptimizerConfig.SUGGESTIONS['minimum_impact']:
+                        continue
+                        
+                    # Get names
+                    current_name = self._get_criteria_name(criteria_type, current_value)
+                    suggested_name = self._get_criteria_name(criteria_type, top_value)
+                    
+                    # Create recommendation
+                    recommendation = Recommendation(
+                        recommendation_type="change",
+                        criteria_type=criteria_type,
+                        current_value=current_value,
+                        suggested_value=top_value,
+                        suggested_name=suggested_name,
+                        impact_score=impact_score,
+                        confidence="high",
+                        explanation=f"Shows with '{suggested_name}' have a {top_success:.0%} success rate compared to "
+                                   f"{current_success:.0%} for shows with '{current_name}'. Consider changing this criterion."
+                    )
+                    recommendations.append(recommendation)
+        
+        # 2. Look for criteria combinations that appear together frequently in successful shows
+        # This is a more complex analysis that would require examining co-occurrence patterns
+        # For now, we'll implement a simplified version that looks at pairs of criteria
+        
+        # Focus on criteria types that are important but not yet specified by the user
+        important_criteria = [c for c in OptimizerConfig.CRITERIA_IMPORTANCE 
+                             if OptimizerConfig.CRITERIA_IMPORTANCE[c] in ['high', 'medium'] 
+                             and c not in criteria 
+                             and c in successful_shows.columns]
+                             
+        # For each criteria in the user's input, look for common pairings in successful shows
+        for user_criteria_type, user_criteria_value in criteria.items():
+            # Skip if not a content criterion or not in the dataset
+            if user_criteria_type not in OptimizerConfig.CRITERIA_IMPORTANCE or user_criteria_type not in successful_shows.columns:
+                continue
+                
+            # For each important criteria not yet specified
+            for target_criteria_type in important_criteria:
+                # Skip self-pairings
+                if target_criteria_type == user_criteria_type:
+                    continue
+                    
+                # Get shows that match the user's criteria for this type
+                matching_value_shows = successful_shows[successful_shows[user_criteria_type] == user_criteria_value]
+                
+                if len(matching_value_shows) < 3:  # Need at least a few matching shows
+                    continue
+                    
+                # Count occurrences of each value for the target criteria type
+                value_counts = matching_value_shows[target_criteria_type].value_counts(normalize=True)
+                
+                # Find values that appear in at least 40% of matching shows (higher threshold for pairings)
+                common_values = value_counts[value_counts >= 0.4]
+                
+                for value, frequency in common_values.items():
+                    if pd.isna(value) or value == '':
+                        continue
+                        
+                    # Calculate impact score based on frequency and criteria importance
+                    importance = OptimizerConfig.CRITERIA_IMPORTANCE[target_criteria_type]
+                    importance_weight = OptimizerConfig.IMPORTANCE_WEIGHTS.get(importance, 1.0)
+                    impact_score = frequency * importance_weight * 0.15  # Higher impact for strong pairings
+                    
+                    # Skip low-impact recommendations
+                    if impact_score < OptimizerConfig.SUGGESTIONS['minimum_impact']:
+                        continue
+                        
+                    # Get names
+                    user_criteria_name = self._get_criteria_name(user_criteria_type, user_criteria_value)
+                    target_value_name = self._get_criteria_name(target_criteria_type, value)
+                    
+                    # Create recommendation
+                    recommendation = Recommendation(
+                        recommendation_type="add",
+                        criteria_type=target_criteria_type,
+                        current_value=None,
+                        suggested_value=value,
+                        suggested_name=target_value_name,
+                        impact_score=impact_score,
+                        confidence="high",
+                        explanation=f"'{target_value_name}' appears in {frequency:.0%} of successful shows with '{user_criteria_name}'. "
+                                   f"This combination has a strong success pattern."
+                    )
+                    recommendations.append(recommendation)
+        
+        return recommendations
+    
+    def _get_relaxed_criteria(self, criteria: Dict[str, Any], relaxation_tier: str) -> List[Dict[str, Any]]:
+        """Generate sets of relaxed criteria by removing criteria of the specified importance tier.
+        
+        Args:
+            criteria: Dictionary of criteria to relax
+            relaxation_tier: Importance tier to relax ('secondary', 'primary', 'core')
+            
+        Returns:
+            List of dictionaries with relaxed criteria sets
+        """
+        # Find criteria that belong to the specified relaxation tier
+        relaxable_criteria = []
+        for criteria_type, criteria_value in criteria.items():
+            # Skip if criteria type is not in the importance mapping
+            if criteria_type not in OptimizerConfig.CRITERIA_IMPORTANCE:
+                continue
+                
+            # Get the importance level of this criterion
+            importance = OptimizerConfig.CRITERIA_IMPORTANCE[criteria_type]
+            
+            # Add to relaxable list if it matches the tier and is not essential
+            if importance == relaxation_tier and importance != 'essential':
+                relaxable_criteria.append(criteria_type)
+        
+        # If no relaxable criteria found, return empty list
+        if not relaxable_criteria:
+            return []
+            
+        # Limit the number of criteria to relax based on config
+        max_to_relax = min(len(relaxable_criteria), 
+                          OptimizerConfig.FALLBACK_SYSTEM['relaxation']['max_criteria_to_relax'])
+        
+        # Generate relaxed criteria sets by removing one criterion at a time
+        relaxed_criteria_sets = []
+        
+        # First try relaxing individual criteria
+        for criteria_type in relaxable_criteria:
+            # Create a copy without this criterion
+            relaxed = {k: v for k, v in criteria.items() if k != criteria_type}
+            relaxed_criteria_sets.append({
+                'criteria': relaxed,
+                'relaxed_type': criteria_type,
+                'relaxed_value': criteria[criteria_type],
+                'relaxed_name': self._get_criteria_name(criteria_type, criteria[criteria_type])
+            })
+            
+        # If allowed to relax more than one criterion and we have enough criteria,
+        # try combinations of two criteria to relax
+        if max_to_relax >= 2 and len(relaxable_criteria) >= 2:
+            for i, type1 in enumerate(relaxable_criteria):
+                for type2 in relaxable_criteria[i+1:]:
+                    # Create a copy without these two criteria
+                    relaxed = {k: v for k, v in criteria.items() if k != type1 and k != type2}
+                    relaxed_criteria_sets.append({
+                        'criteria': relaxed,
+                        'relaxed_type': f"{type1},{type2}",
+                        'relaxed_value': f"{criteria[type1]},{criteria[type2]}",
+                        'relaxed_name': f"{self._get_criteria_name(type1, criteria[type1])} and "
+                                      f"{self._get_criteria_name(type2, criteria[type2])}"
+                    })
+        
+        return relaxed_criteria_sets
+    
+    def _calculate_relevance_score(self, original_criteria: Dict[str, Any], matched_show: pd.Series) -> float:
+        """Calculate a weighted relevance score for a show based on how well it matches the original criteria.
+        
+        Args:
+            original_criteria: Dictionary of original criteria
+            matched_show: Series representing a show from the database
+            
+        Returns:
+            Relevance score between 0 and 1
+        """
+        total_weight = 0
+        weighted_score = 0
+        
+        # Get the weight multipliers from config
+        weight_multipliers = OptimizerConfig.FALLBACK_SYSTEM['relevance']['weight_multipliers']
+        
+        # For each criterion in the original criteria
+        for criteria_type, criteria_value in original_criteria.items():
+            # Skip if criteria type is not in the importance mapping
+            if criteria_type not in OptimizerConfig.CRITERIA_IMPORTANCE:
+                continue
+                
+            # Get the importance level and base weight for this criterion
+            importance = OptimizerConfig.CRITERIA_IMPORTANCE[criteria_type]
+            base_weight = OptimizerConfig.IMPORTANCE_WEIGHTS.get(importance, 1.0)
+            
+            # Apply the weight multiplier based on importance
+            weight = base_weight * weight_multipliers.get(importance, 1.0)
+            total_weight += weight
+            
+            # Check if the show matches this criterion
+            if criteria_type in matched_show:
+                # For list-type fields (e.g., genres, plot_elements)
+                if isinstance(matched_show[criteria_type], list) or isinstance(matched_show[criteria_type], np.ndarray):
+                    if criteria_value in matched_show[criteria_type]:
+                        weighted_score += weight
+                # For scalar fields
+                elif matched_show[criteria_type] == criteria_value:
+                    weighted_score += weight
+        
+        # Calculate final relevance score
+        if total_weight > 0:
+            return weighted_score / total_weight
+        else:
+            return 0.0
+    
+    def _generate_fallback_recommendations(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, 
+                                         confidence_info: Dict[str, Any]) -> List[Recommendation]:
+        """Generate fallback recommendations when strict matching yields insufficient results.
+        
+        This method implements a tiered relaxation strategy combined with weighted relevance scoring:
+        1. First tries relaxing secondary criteria
+        2. If needed, relaxes primary criteria
+        3. As a last resort, relaxes core criteria (never relaxes essential criteria)
+        
+        For each relaxation tier, it evaluates the quality of matches using weighted relevance scoring.
+        
+        Args:
+            criteria: Dictionary of original criteria
+            matching_shows: DataFrame of matching shows (may be empty or have few matches)
+            confidence_info: Dictionary with confidence metrics
+            
+        Returns:
+            List of Recommendation objects with fallback suggestions
         """
         recommendations = []
         
-        # This would require analyzing combinations of criteria to identify complementary pairs
-        # For now, we'll implement a simplified version that looks for known complementary pairs
+        # Check if fallback is needed based on match count and confidence
+        match_count = len(matching_shows)
+        min_matches = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_matches_before_fallback']
+        min_confidence = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_confidence_before_fallback']
+        confidence_level = confidence_info.get('confidence_level', 'none')
         
-        # Example: If we have "sci-fi" genre, recommend "futuristic" setting
-        if 'genre' in criteria:
-            genre_ids = criteria['genre'] if isinstance(criteria['genre'], list) else [criteria['genre']]
+        # Define confidence level hierarchy for comparison
+        confidence_levels = ['none', 'very_low', 'low', 'medium', 'high']
+        
+        # If we have enough matches and confidence is high enough, no fallback needed
+        if match_count >= min_matches and confidence_levels.index(confidence_level) >= confidence_levels.index(min_confidence):
+            return []
             
-            for genre_id in genre_ids:
-                # Check for complementary criteria from OptimizerConfig
-                complementary = OptimizerConfig.COMPLEMENTARY_CRITERIA.get('genre', {}).get(str(genre_id), [])
+        # Get relaxation tiers from config
+        relaxation_tiers = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['relaxation_tiers']
+        
+        # Try each relaxation tier in order
+        for relaxation_tier in relaxation_tiers:
+            # Get sets of relaxed criteria for this tier
+            relaxed_criteria_sets = self._get_relaxed_criteria(criteria, relaxation_tier)
+            
+            # If no relaxable criteria in this tier, continue to next tier
+            if not relaxed_criteria_sets:
+                continue
                 
-                for comp in complementary:
-                    comp_type = comp['criteria_type']
-                    comp_value = comp['criteria_value']
-                    comp_impact = comp['impact_score']
+            # Try each relaxed criteria set
+            for relaxed_set in relaxed_criteria_sets:
+                relaxed_criteria = relaxed_set['criteria']
+                relaxed_type = relaxed_set['relaxed_type']
+                relaxed_name = relaxed_set['relaxed_name']
+                
+                # Get matching shows with relaxed criteria
+                relaxed_matches, relaxed_count, relaxed_confidence = self.criteria_analyzer.criteria_scorer._get_matching_shows(
+                    relaxed_criteria, flexible=True)
                     
-                    # Skip if this criteria is already included
-                    if comp_type in criteria:
-                        current_value = criteria[comp_type]
-                        if isinstance(current_value, list) and comp_value in current_value:
-                            continue
-                        if current_value == comp_value:
-                            continue
+                # Check if relaxation improved the situation significantly
+                if relaxed_count >= match_count * OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_sample_increase_factor']:
+                    # Calculate relevance scores for the new matches
+                    relevance_scores = []
+                    for _, show in relaxed_matches.iterrows():
+                        score = self._calculate_relevance_score(criteria, show)
+                        relevance_scores.append(score)
                     
-                    # Get names
-                    genre_name = self._get_criteria_name('genre', genre_id)
-                    comp_name = self._get_criteria_name(comp_type, comp_value)
+                    # Add relevance scores to the DataFrame
+                    relaxed_matches['relevance_score'] = relevance_scores
                     
-                    recommendation = Recommendation(
-                        recommendation_type="add",
-                        criteria_type=comp_type,
-                        current_value=criteria.get(comp_type),
-                        suggested_value=comp_value,
-                        suggested_name=comp_name,
-                        impact_score=comp_impact,
-                        confidence="medium",
-                        explanation=f"'{comp_name}' works well with '{genre_name}' and could improve success probability by approximately {comp_impact:.0%}."
-                    )
-                    recommendations.append(recommendation)
+                    # Filter by minimum relevance score
+                    min_relevance = OptimizerConfig.FALLBACK_SYSTEM['relevance']['min_relevance_score']
+                    relevant_matches = relaxed_matches[relaxed_matches['relevance_score'] >= min_relevance]
+                    
+                    # If we have relevant matches, create a recommendation
+                    if not relevant_matches.empty:
+                        # Calculate average success probability of relevant matches
+                        avg_success = relevant_matches['success_score'].mean() if 'success_score' in relevant_matches.columns else 0.5
+                        
+                        # Calculate impact score based on sample size increase and relevance
+                        sample_increase_factor = len(relevant_matches) / max(1, len(matching_shows))
+                        avg_relevance = relevant_matches['relevance_score'].mean()
+                        impact_score = (sample_increase_factor - 1) * avg_relevance * avg_success
+                        
+                        # Create recommendation
+                        recommendation = Recommendation(
+                            recommendation_type="fallback",
+                            criteria_type=relaxed_type,
+                            current_value=None,
+                            suggested_value=None,
+                            suggested_name=f"Relax '{relaxed_name}' requirement",
+                            impact_score=impact_score,
+                            confidence=relaxed_confidence.get('confidence_level', 'low'),
+                            explanation=f"Relaxing the '{relaxed_name}' requirement would increase the sample size "
+                                       f"from {match_count} to {len(relevant_matches)} shows with an average relevance "
+                                       f"score of {avg_relevance:.2f} and success probability of {avg_success:.2f}."
+                        )
+                        recommendations.append(recommendation)
+                        
+                        # If we found a good recommendation in this tier, no need to try more tiers
+                        if impact_score > OptimizerConfig.SUGGESTIONS['high_impact_threshold']:
+                            return recommendations
+        
+        # Sort by impact score
+        recommendations.sort(key=lambda x: x.impact_score, reverse=True)
         
         return recommendations
     

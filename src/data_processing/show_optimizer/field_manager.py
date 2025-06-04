@@ -422,6 +422,42 @@ class FieldManager:
             'studios': 'studios'       # This one doesn't have _ids suffix
         }
         
+    def get_criteria_importance(self, field_name: str) -> str:
+        """Get the importance level of a criteria field.
+        
+        Args:
+            field_name: Name of the field
+            
+        Returns:
+            Importance level: 'essential', 'core', 'primary', or 'secondary'
+        """
+        # Access the CRITERIA_IMPORTANCE dictionary from OptimizerConfig
+        criteria_importance = getattr(OptimizerConfig, 'CRITERIA_IMPORTANCE', {})
+        return criteria_importance.get(field_name, 'secondary')
+    
+    def classify_criteria_by_importance(self, criteria: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """Classify criteria by their importance levels.
+        
+        Args:
+            criteria: Dictionary of criteria
+            
+        Returns:
+            Dictionary with keys 'essential', 'core', 'primary', 'secondary',
+            each containing a dictionary of criteria at that importance level
+        """
+        classified = {
+            'essential': {},
+            'core': {},
+            'primary': {},
+            'secondary': {}
+        }
+        
+        for field_name, value in criteria.items():
+            importance = self.get_criteria_importance(field_name)
+            classified[importance][field_name] = value
+            
+        return classified
+    
     def match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame) -> Tuple[pd.DataFrame, int]:
         """Match shows against criteria.
         
@@ -434,18 +470,12 @@ class FieldManager:
         """
         import streamlit as st
         
-        # Debug output
-        # Match shows based on criteria
-        
         # Start with all shows
         matches = data.copy()
         
         # Separate array fields from scalar fields
         scalar_fields = {}
         array_fields = {}
-        
-        # Log available columns for debugging
-        # Debug output removed to reduce verbosity
         
         for field_name, value in criteria.items():
             if isinstance(value, list):
@@ -459,13 +489,8 @@ class FieldManager:
         # Define standard mapping for array fields to their column names
         array_field_mapping = self.get_array_field_mapping()
         
-        # Also create a reverse mapping for debugging purposes
-        column_to_field_mapping = {v: k for k, v in array_field_mapping.items()}
-        
         # Process array fields (these require apply functions)
         for field_name, value in array_fields.items():
-            import streamlit as st
-            
             # Use our standard mapping if available
             if field_name in array_field_mapping:
                 field_column = array_field_mapping[field_name]
@@ -515,8 +540,6 @@ class FieldManager:
                         lambda x: isinstance(x, list) and value in x)
                 else:
                     # If the column isn't storing lists, use standard equality check
-                    # Column doesn't contain list values, using direct equality
-                    # Just use direct equality - safer than trying to parse strings as lists
                     mask = matches[field_column] == value
                     
             # Apply filter
@@ -524,30 +547,19 @@ class FieldManager:
         
         # Process scalar fields (these can use vectorized operations)
         for field_id, value in scalar_fields.items():
-            # Process scalar field
-            
             # Check if field exists in data
             if field_id not in matches.columns:
-                # Field not found in data columns
                 continue
                 
-            # Check unique values for this field
-            unique_values = matches[field_id].unique()
-            # Check unique values for field
-            
             if isinstance(value, list):
                 # Multiple values: any show with any of the values matches
                 mask = matches[field_id].isin(value)
-                # Using .isin() for list value
             else:
                 # Single value: exact match
                 mask = matches[field_id] == value
-                # Using equality for single value
                 
             # Apply filter
-            matches_before = len(matches)
             matches = matches[mask]
-            # Update matches after filtering
             
         # Matching complete
         return matches, len(matches)

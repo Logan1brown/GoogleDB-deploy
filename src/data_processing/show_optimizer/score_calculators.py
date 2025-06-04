@@ -26,10 +26,10 @@ class NetworkMatch:
     """Network match information with success metrics."""
     network_id: int
     network_name: str
-    compatibility_score: float  # 0-1 score of how well the network matches criteria
-    success_probability: float  # 0-1 probability of success on this network
+    compatibility_score: Optional[float]  # 0-1 score of how well the network matches criteria, None if N/A
+    success_probability: Optional[float]  # 0-1 probability of success on this network, None if N/A
     sample_size: int  # Number of shows in the sample
-    confidence: str  # none, low, medium, high
+    confidence: str = 'none'  # Confidence level (none, very_low, low, medium, high)
     details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
 
 
@@ -281,17 +281,29 @@ class NetworkScoreCalculator:
                 
                 # Get shows matching both criteria and network
                 # Use the matching calculator if available, otherwise fall back to direct method
+                confidence_info = {
+                    'level': 'none',
+                    'score': 0.0,
+                    'match_quality': 0.0,
+                    'sample_size': 0,
+                    'match_level': 1
+                }
+                
                 if hasattr(self.criteria_scorer, '_matching_calculator'):
                     # First ensure we have criteria data with success metrics
                     if self.criteria_scorer._matching_calculator._criteria_data is None:
                         self.criteria_scorer._matching_calculator._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
-                    matching_shows, count = self.criteria_scorer._matching_calculator.get_matching_shows(network_criteria)
+                    # Use flexible matching to get best possible results
+                    matching_shows, count, confidence_info = self.criteria_scorer._matching_calculator.get_matching_shows(network_criteria, flexible=True)
                 else:
+                    # Fall back to original implementation
                     matching_shows, count = self.criteria_scorer._get_matching_shows(network_criteria)
+                    confidence_info['sample_size'] = count
+                    confidence_info['level'] = OptimizerConfig.get_confidence_level(count, 1)
                 
                 # Calculate compatibility score (0-1)
-                # Simple version: percentage of criteria that match the network's typical shows
-                compatibility_score = 0.5  # Default medium compatibility
+                # Use match quality from confidence info if available, no fallback
+                compatibility_score = confidence_info.get('match_quality', None)  # No default, will be None if missing
                 
                 # Calculate success probability if we have enough shows
                 if not matching_shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
@@ -307,10 +319,10 @@ class NetworkScoreCalculator:
                     
                     # Use the matching calculator if available, otherwise fall back to direct method
                     if hasattr(self.criteria_scorer, '_matching_calculator'):
-                        success_rate = self.criteria_scorer._matching_calculator.calculate_success_rate(matching_shows)
+                        success_rate, confidence_info = self.criteria_scorer._matching_calculator.calculate_success_rate(matching_shows, confidence_info=confidence_info)
                     else:
                         success_rate = self.criteria_scorer._calculate_success_rate(matching_shows)
-                    confidence = OptimizerConfig.get_confidence_level(count)
+                    confidence = confidence_info.get('level', OptimizerConfig.get_confidence_level(count, confidence_info.get('match_level', 1)))
                 else:
                     success_rate = None
                     confidence = 'none'
@@ -320,12 +332,15 @@ class NetworkScoreCalculator:
                     network_id=int(network_id),
                     network_name=network_name,
                     compatibility_score=compatibility_score,
-                    success_probability=success_rate if success_rate is not None else 0.0,
+                    success_probability=success_rate if success_rate is not None else None,  # Use None instead of 0.0
                     sample_size=count if not matching_shows.empty else 0,
                     confidence=confidence,
                     details={
-                        'criteria': network_criteria,
-                        'matching_shows': count if not matching_shows.empty else 0
+                        'criteria': criteria,
+                        'network_criteria': network_criteria,
+                        'confidence_info': confidence_info,
+                        'match_level': confidence_info.get('match_level', 1),
+                        'match_quality': confidence_info.get('match_quality', None)  # No default
                     }
                 )
                 
@@ -352,34 +367,125 @@ class MatchingCalculator:
         """
         self.criteria_scorer = criteria_scorer
         self._criteria_data = None  # Cache for criteria data
-    
-    def get_matching_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
-        """Get shows matching the given criteria.
+        
+    def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
+        """Get a subset of criteria for a specific match level.
+        
+        Match levels:
+        1 - All criteria (strict matching)
+        2 - All but one secondary criterion
+        3 - Core and primary criteria only
+        4 - Only essential and core criteria
         
         Args:
             criteria: Dictionary of criteria
+            match_level: Match level (1-4)
             
         Returns:
-            Tuple of (DataFrame of matching shows with success metrics, count of matches)
+            Dictionary of criteria for the specified match level
         """
-        # Add debug output
-        # Get matching shows for the given criteria
+        # If match level is 1, use all criteria
+        if match_level == 1:
+            return criteria.copy()
+            
+        # Classify criteria by importance
+        classified = self.criteria_scorer.field_manager.classify_criteria_by_importance(criteria)
+        
+        # For match level 4, use only essential and core criteria
+        if match_level == 4:
+            result = {}
+            result.update(classified['essential'])
+            result.update(classified['core'])
+            return result
+            
+        # For match level 3, use essential, core, and primary criteria
+        if match_level == 3:
+            result = {}
+            result.update(classified['essential'])
+            result.update(classified['core'])
+            result.update(classified['primary'])
+            return result
+            
+        # For match level 2, use all criteria except one secondary criterion (if any)
+        if match_level == 2 and classified['secondary']:
+            result = {}
+            result.update(classified['essential'])
+            result.update(classified['core'])
+            result.update(classified['primary'])
+            
+            # Add all but one secondary criterion
+            secondary_items = list(classified['secondary'].items())
+            for i, (field, value) in enumerate(secondary_items):
+                if i < len(secondary_items) - 1:  # Skip the last one
+                    result[field] = value
+            return result
+        
+        # Default to all criteria if match level is invalid or no secondary criteria for level 2
+        return criteria.copy()
+        
+    def calculate_match_confidence(self, shows: pd.DataFrame, match_level: int, criteria: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate confidence metrics for a match result.
+        
+        Args:
+            shows: DataFrame of matched shows
+            match_level: Match level used (1-4)
+            criteria: Original criteria dictionary
+            
+        Returns:
+            Dictionary with confidence metrics:
+            - level: Confidence level string ('none', 'very_low', 'low', 'medium', 'high')
+            - score: Confidence score (0-1)
+            - match_quality: Quality of the match based on match level (0-1)
+            - sample_size: Number of shows in the sample
+        """
+        # Get sample size
+        sample_size = len(shows)
+        
+        # Calculate criteria coverage
+        total_criteria = len(OptimizerConfig.CRITERIA_IMPORTANCE)
+        criteria_count = len(criteria)
+        
+        # Calculate match quality based on match level
+        match_quality = OptimizerConfig.MATCH_LEVELS.get(match_level, {}).get('min_quality', 0.3)
+        
+        # Calculate confidence score using OptimizerConfig
+        confidence_score = OptimizerConfig.calculate_confidence_score(
+            sample_size, criteria_count, total_criteria, match_level)
+        
+        # Get confidence level string
+        confidence_level = OptimizerConfig.get_confidence_level(sample_size, match_level)
+        
+        return {
+            'level': confidence_level,
+            'score': confidence_score,
+            'match_quality': match_quality,
+            'sample_size': sample_size,
+            'match_level': match_level,
+            'match_level_name': OptimizerConfig.MATCH_LEVELS.get(match_level, {}).get('name', f'Level {match_level}')
+        }
+    
+    def get_matching_shows(self, criteria: Dict[str, Any], flexible: bool = True) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
+        """Get shows matching the given criteria, with optional flexible matching.
+        
+        Args:
+            criteria: Dictionary of criteria
+            flexible: Whether to use flexible matching (try different match levels)
+            
+        Returns:
+            Tuple of (DataFrame of matching shows with success metrics, count of matches, confidence info)
+        """
+        import streamlit as st
         
         # Get criteria data, only force refresh if we don't have it yet
         if self._criteria_data is None:
-            # No cached criteria data, fetching fresh data
             data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
             self._criteria_data = data
         else:
-            # Using cached criteria data
             data = self._criteria_data
         
         if data.empty:
             st.error("Empty criteria data from fetch_criteria_data")
             raise ValueError("No criteria data available")
-            
-        # Debug output for data shape and columns
-        # Criteria data ready for matching
         
         # Get array fields and mapping from field_manager
         array_field_mapping = self.criteria_scorer.field_manager.get_array_field_mapping()
@@ -388,150 +494,224 @@ class MatchingCalculator:
         # Clean up criteria - remove None or empty values to make matching more lenient
         clean_criteria = {}
         
-        # Debug output for array fields
-        # Process array fields from field manager
-        
         for field_name, value in criteria.items():
             # Skip None values and empty lists
             if value is None:
-                # Skip field with None value
                 continue
             if isinstance(value, list) and len(value) == 0:
-                # Skip field with empty list
                 continue
             
             # Handle array fields
             if field_name in array_fields:
-                # Handle array field
                 # Make sure array field values are always lists
                 if not isinstance(value, list):
                     clean_criteria[field_name] = [value]
-                    # Convert scalar value to list for array field
                 else:
                     clean_criteria[field_name] = value
-                    # Value is already a list
             else:
                 # Don't map field names here - let FieldManager handle it
                 # This prevents double mapping (e.g., network -> network_id -> network_id_id)
                 clean_criteria[field_name] = value
-                # Add scalar field to clean criteria
-        
-        # Clean criteria ready for matching
-        
         
         # If we have no valid criteria after cleaning, return all shows
         if not clean_criteria:
-            st.info("No specific criteria provided after cleaning; proceeding with all available shows for matching.")
-            return data, len(data)
+            confidence_info = {
+                'level': 'high',
+                'score': 1.0,
+                'match_quality': 1.0,
+                'sample_size': len(data),
+                'match_level': 1,
+                'match_level_name': 'All shows (no criteria)'
+            }
+            return data, len(data), confidence_info
         
-        # Use FieldManager to match shows against criteria
-        try:
-            # Prepare for matching with clean criteria
-            
-            matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(clean_criteria, data)
-            
-            # Matching complete
-            
-            if matched_shows.empty:
-                # No matches found for criteria
-                # Return empty DataFrame with zero matches
-                # The calling code should handle this appropriately
-                return matched_shows, 0
-            
-            # Verify that success_score is present in the matched shows
-            if 'success_score' not in matched_shows.columns:
-                # success_score column missing from matched shows
-                # Try to merge success_score from original data
-                if 'success_score' in data.columns and 'id' in matched_shows.columns and 'id' in data.columns:
-                    # Attempt to merge success_score from original data
-                    matched_shows = matched_shows.merge(data[['id', 'success_score']], on='id', how='left')
-            
-            # Matching process complete
-            
-            return matched_shows, match_count
-        except Exception as e:
-            # Return empty DataFrame with zero matches
-            # The calling code should handle this appropriately
-            st.error(f"Optimizer Error: An error occurred during show matching. Criteria attempted: {clean_criteria}. Details: {e}")
-            return pd.DataFrame(), 0
+        # If flexible matching is disabled, just do a regular match
+        if not flexible:
+            try:
+                matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(clean_criteria, data)
+                
+                # Ensure success_score is present
+                if not matched_shows.empty and 'success_score' not in matched_shows.columns:
+                    if 'success_score' in data.columns and 'id' in matched_shows.columns and 'id' in data.columns:
+                        matched_shows = matched_shows.merge(data[['id', 'success_score']], on='id', how='left')
+                
+                confidence_info = self.calculate_match_confidence(matched_shows, 1, clean_criteria)
+                return matched_shows, match_count, confidence_info
+            except Exception as e:
+                st.error(f"Optimizer Error: An error occurred during show matching. Details: {e}")
+                return pd.DataFrame(), 0, {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0, 'match_level': 0}
+        
+        # Flexible matching - try different match levels
+        min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample']
+        best_match = None
+        best_count = 0
+        best_level = 0
+        confidence_info = {}
+        
+        # Try each match level, starting with the strictest (level 1)
+        for level in range(1, 5):
+            try:
+                # Get criteria for this match level
+                level_criteria = self.get_criteria_for_match_level(clean_criteria, level)
+                
+                # Skip if we have no criteria at this level
+                if not level_criteria:
+                    continue
+                
+                # Match shows using the level-specific criteria
+                matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(level_criteria, data)
+                
+                # Calculate confidence metrics for this match
+                level_confidence = self.calculate_match_confidence(matched_shows, level, clean_criteria)
+                
+                # If this is our first match or better than previous, keep it
+                if best_match is None or match_count >= min_sample_size and best_count < min_sample_size:
+                    best_match = matched_shows
+                    best_count = match_count
+                    best_level = level
+                    confidence_info = level_confidence
+                    
+                    # If we have enough matches at this level, stop here
+                    if match_count >= min_sample_size:
+                        break
+                
+            except Exception as e:
+                st.warning(f"Match level {level} failed: {e}")
+                continue
+        
+        # If we found no matches at any level, return empty
+        if best_match is None:
+            return pd.DataFrame(), 0, {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0, 'match_level': 0}
+        
+        # Ensure success_score is present in the matched shows
+        if 'success_score' not in best_match.columns:
+            if 'success_score' in data.columns and 'id' in best_match.columns and 'id' in data.columns:
+                best_match = best_match.merge(data[['id', 'success_score']], on='id', how='left')
+        
+        return best_match, best_count, confidence_info
     
-    def calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Optional[float]:
-        """Calculate the success rate for a set of shows.
+    def calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, 
+                               confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
+        """Calculate the success rate for a set of shows with confidence information.
         
         Args:
             shows: DataFrame of shows
             threshold: Success threshold (shows with score >= threshold are considered successful)
-            
+            confidence_info: Optional confidence information from flexible matching
+                
         Returns:
-            Success rate (0-1) or None if success_score is missing
+            Tuple of (success_rate, confidence_info)
+            - success_rate: Success rate (0-1) or None if success_score is missing
+            - confidence_info: Dictionary with confidence metrics
         """
-        # Use threshold from OptimizerConfig if not provided
-        if threshold is None:
-            threshold = OptimizerConfig.THRESHOLDS['success_threshold']
-        
+        # Initialize confidence info if not provided
+        if confidence_info is None:
+            confidence_info = {
+                'level': 'medium',
+                'score': 0.5,
+                'match_quality': 1.0,
+                'sample_size': len(shows) if not shows.empty else 0,
+                'match_level': 1,
+                'match_level_name': 'Standard match'
+            }
+                
+        # Check if we have shows to analyze
         if shows.empty:
-            return None
-        
-        # Ensure we have success_score column
+            # No shows to analyze
+            confidence_info['success_rate'] = None
+            confidence_info['success_count'] = 0
+            confidence_info['total_count'] = 0
+            return None, confidence_info
+                
+        # Check if success_score is present
         if 'success_score' not in shows.columns:
-            # Try to use existing criteria data if we don't have success_score
-            if self._criteria_data is None:
-                try:
-                    self._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
-                except Exception as e:
-                    st.error(f"Error fetching criteria data: {e}")
-            
-            # If we have criteria data with success_score, merge it with shows
+            # success_score column missing from shows
+            # Try to get it from criteria_data if available
             if self._criteria_data is not None and 'success_score' in self._criteria_data.columns:
-                # Merge success_score from criteria_data into shows
-                shows = shows.merge(self._criteria_data[['id', 'success_score']], on='id', how='left')
+                # We have criteria_data with success_score, try to merge
+                if 'id' in shows.columns and 'id' in self._criteria_data.columns:
+                    # Merge success_score from criteria_data
+                    shows = shows.merge(self._criteria_data[['id', 'success_score']], on='id', how='left')
+                else:
+                    # Can't merge, no common key
+                    confidence_info['success_rate'] = None
+                    confidence_info['success_count'] = 0
+                    confidence_info['total_count'] = 0
+                    return None, confidence_info
+            else:
+                # No criteria_data or no success_score in criteria_data
+                confidence_info['success_rate'] = None
+                confidence_info['success_count'] = 0
+                confidence_info['total_count'] = 0
+                return None, confidence_info
+                
+        # Check again if success_score is present after potential merge
+        if 'success_score' not in shows.columns:
+            # Still missing success_score
+            confidence_info['success_rate'] = None
+            confidence_info['success_count'] = 0
+            confidence_info['total_count'] = 0
+            return None, confidence_info
+                
+        # Filter out shows with zero or missing success scores
+        valid_shows = shows[shows['success_score'].notna() & (shows['success_score'] > 0)]
             
-            # Check again if we have success_score
-            if 'success_score' not in shows.columns:
-                st.warning("Optimizer Calculation Warning: Cannot calculate success rate. The 'success_score' column is missing from the input data for the current calculation.")
-                return None
+        if valid_shows.empty:
+            # No valid shows after filtering
+            confidence_info['success_rate'] = 0.0
+            confidence_info['success_count'] = 0
+            confidence_info['total_count'] = 0
+            return 0.0, confidence_info
         
-        # Filter out shows with missing success scores AND shows with a score of 0
-        # Shows with a score of 0 are typically those that haven't aired yet or have unreliable data
-        shows_with_scores = shows[(shows['success_score'].notna()) & (shows['success_score'] > 0)]
-        
-        if len(shows_with_scores) == 0:
-            st.warning("Optimizer Calculation Warning: Cannot calculate success rate. No shows have valid 'success_score' data for the current calculation.")
-            return None
+        # Use default threshold if none provided
+        if threshold is None:
+            threshold = OptimizerConfig.PERFORMANCE['success_threshold']
         
         # Get success score range and distribution
-        min_score = shows_with_scores['success_score'].min()
-        max_score = shows_with_scores['success_score'].max()
-        mean_score = shows_with_scores['success_score'].mean()
+        min_score = valid_shows['success_score'].min()
+        max_score = valid_shows['success_score'].max()
+        mean_score = valid_shows['success_score'].mean()
         
         # Normalize threshold if scores are on 0-100 scale
         normalized_threshold = threshold
-        normalized_scores = shows_with_scores['success_score'].copy()
         
         # Check if scores need normalization (0-100 scale)
         if max_score > 1.0:  # If scores are on 0-100 scale
             normalized_threshold = threshold * 100
-        else:  # If scores are already on 0-1 scale but threshold is on 0-100 scale
-            if threshold > 1.0:
-                normalized_threshold = threshold / 100
+        elif threshold > 1.0:  # If scores are already on 0-1 scale but threshold is on 0-100 scale
+            normalized_threshold = threshold / 100
         
         # Count successful shows (those with score >= threshold)
-        successful = shows_with_scores[shows_with_scores['success_score'] >= normalized_threshold]
+        successful = valid_shows[valid_shows['success_score'] >= normalized_threshold]
         success_count = len(successful)
-        total_count = len(shows_with_scores)
+        total_count = len(valid_shows)
         
-        success_rate = success_count / total_count
+        success_rate = success_count / total_count if total_count > 0 else 0.0
         
-        return success_rate
-    
-    def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[Optional[float]]:
-        """Batch calculate success rates for multiple criteria.
+        # Update confidence info with success metrics
+        confidence_info['success_rate'] = success_rate
+        confidence_info['success_count'] = success_count
+        confidence_info['total_count'] = total_count
+        confidence_info['min_score'] = float(min_score)
+        confidence_info['max_score'] = float(max_score)
+        confidence_info['mean_score'] = float(mean_score)
+        
+        # Adjust confidence based on sample size
+        if total_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
+            confidence_info['level'] = 'low'
+            confidence_info['score'] *= 0.7  # Reduce confidence for small samples
+        
+        return success_rate, confidence_info
+
+    def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], flexible: bool = True) -> List[Tuple[Optional[float], Dict[str, Any]]]:
+        """Batch calculate success rates for multiple criteria with confidence information.
         
         Args:
             criteria_list: List of criteria dictionaries
+            flexible: Whether to use flexible matching (try different match levels)
             
         Returns:
-            List of success rates in the same order as criteria_list, with None for missing data
+            List of tuples (success_rate, confidence_info) in the same order as criteria_list
         """
         # Ensure we have criteria data with success metrics, but don't force refresh
         if self._criteria_data is None:
@@ -543,19 +723,28 @@ class MatchingCalculator:
         results = []
         for criteria in criteria_list:
             try:
-                shows, count = self.get_matching_shows(criteria)
-                if not shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                    # If success_score is not in shows, try to merge it from criteria_data
-                    if 'success_score' not in shows.columns and self._criteria_data is not None:
-                        if 'success_score' in self._criteria_data.columns:
-                            shows = shows.merge(self._criteria_data[['id', 'success_score']], on='id', how='left')
-                    
-                    success_rate = self.calculate_success_rate(shows)
-                    results.append(success_rate)  # This might be None if success_score is missing
-                else:
-                    results.append(None)
-            except Exception as e:
-                st.error(f"Error calculating success rate: {str(e)}")
-                results.append(None)
+                # Get matching shows with flexible matching
+                shows, count, confidence_info = self.get_matching_shows(criteria, flexible=flexible)
                 
+                # Calculate success rate with confidence information
+                success_rate, confidence_info = self.calculate_success_rate(shows, confidence_info=confidence_info)
+                
+                # Add the result with confidence info
+                results.append((success_rate, confidence_info))
+            except Exception as e:
+                st.warning(f"Error calculating success rate for criteria: {e}")
+                # Return None with basic confidence info for errors
+                error_confidence = {
+                    'level': 'none',
+                    'score': 0.0,
+                    'match_quality': 0.0,
+                    'sample_size': 0,
+                    'match_level': 0,
+                    'success_rate': None,
+                    'success_count': 0,
+                    'total_count': 0,
+                    'error': str(e)
+                }
+                results.append((None, error_confidence))
+        
         return results

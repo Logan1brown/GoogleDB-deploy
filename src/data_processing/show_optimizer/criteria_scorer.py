@@ -177,42 +177,47 @@ class CriteriaScorer:
             st.error("An unexpected error occurred in the Optimizer while fetching data.")  # Cloud visible error
             raise
         
-    def _get_matching_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
-        """Get shows matching the given criteria.
+    def _get_matching_shows(self, criteria: Dict[str, Any], flexible: bool = True) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
+        """Get shows matching the given criteria with flexible matching support.
         
         Args:
             criteria: Dictionary of criteria
+            flexible: Whether to use flexible matching (try different match levels)
             
         Returns:
-            Tuple of (DataFrame of matching shows with success metrics, count of matches)
+            Tuple of (DataFrame of matching shows, count of matches, confidence info)
         """
         # Delegate to the MatchingCalculator
-        return self._matching_calculator.get_matching_shows(criteria)
-    def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Optional[float]:
-        """Calculate the success rate for a set of shows.
+        return self._matching_calculator.get_matching_shows(criteria, flexible=flexible)
+    def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
+        """Calculate the success rate for a set of shows with confidence information.
         
         Args:
             shows: DataFrame of shows
             threshold: Success threshold (shows with score >= threshold are considered successful)
+            confidence_info: Optional confidence information from flexible matching
             
         Returns:
-            Success rate (0-1) or None if success_score is missing
+            Tuple of (success_rate, confidence_info)
+            - success_rate: Success rate (0-1) or None if success_score is missing
+            - confidence_info: Dictionary with confidence metrics
         """
         # Delegate to the MatchingCalculator
-        return self._matching_calculator.calculate_success_rate(shows, threshold)
+        return self._matching_calculator.calculate_success_rate(shows, threshold, confidence_info)
 
    
-    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]]) -> List[Optional[float]]:
-        """Batch calculate success rates for multiple criteria.
+    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], flexible: bool = True) -> List[Tuple[Optional[float], Dict[str, Any]]]:
+        """Batch calculate success rates for multiple criteria with confidence information.
         
         Args:
             criteria_list: List of criteria dictionaries
+            flexible: Whether to use flexible matching (try different match levels)
             
         Returns:
-            List of success rates in the same order as criteria_list, with None for missing data
+            List of tuples (success_rate, confidence_info) in the same order as criteria_list
         """
         # Delegate to the MatchingCalculator
-        return self._matching_calculator.batch_calculate_success_rates(criteria_list)
+        return self._matching_calculator.batch_calculate_success_rates(criteria_list, flexible=flexible)
     
     @lru_cache(maxsize=32)
     def calculate_criteria_impact(self, base_criteria: Dict[str, Any], field_name: Optional[str] = None) -> Dict[str, Dict[str, float]]:

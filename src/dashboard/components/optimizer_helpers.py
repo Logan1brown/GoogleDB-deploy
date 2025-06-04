@@ -420,15 +420,23 @@ def render_network_compatibility(networks: List):
     # Create a dataframe for the networks
     network_data = []
     for network in networks:
+        # Format None values as N/A for display
+        success_prob = "N/A" if network.success_probability is None else network.success_probability
+        compatibility = "N/A" if network.compatibility_score is None else network.compatibility_score
+        
         network_data.append({
             "Network": network.network_name,
-            "Success Probability": network.success_probability,
-            "Compatibility": network.compatibility_score,
+            "Success Probability": success_prob,
+            "Compatibility": compatibility,
             "Sample Size": network.sample_size,
             "Confidence": network.confidence.capitalize()
         })
         
     network_df = pd.DataFrame(network_data)
+    
+    # Convert string 'N/A' values to actual None for proper display
+    for col in ['Success Probability', 'Compatibility']:
+        network_df[col] = network_df[col].apply(lambda x: None if x == 'N/A' else x)
     
     # Display as a table
     st.dataframe(
@@ -438,13 +446,15 @@ def render_network_compatibility(networks: List):
                 "Success Probability",
                 format="%.0f%%",
                 min_value=0,
-                max_value=1
+                max_value=1,
+                help="Success probability based on historical data. N/A indicates insufficient data."
             ),
             "Compatibility": st.column_config.ProgressColumn(
                 "Compatibility",
                 format="%.0f%%",
                 min_value=0,
-                max_value=1
+                max_value=1,
+                help="How well the network matches your criteria. N/A indicates insufficient matching data."
             )
         },
         hide_index=True

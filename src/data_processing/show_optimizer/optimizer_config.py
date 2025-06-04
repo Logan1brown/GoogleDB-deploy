@@ -57,21 +57,169 @@ class OptimizerConfig:
         }
     }
     
+    # Criteria importance classification for flexible matching
+    CRITERIA_IMPORTANCE = {
+        # Essential criteria (must match for any meaningful analysis)
+        'genre': 'essential',
+        
+        # Core criteria (strongly influence show identity)
+        'subgenres': 'core',        # Refined genre classification
+        'plot_elements': 'core',    # Fundamental to show identity 
+        'character_types': 'core',  # Key character archetypes 
+        'source_type': 'core',      # Original material source 
+        
+        # Primary criteria (important but can be relaxed if needed)
+        'tone': 'primary',             # Show's emotional tone 
+        'thematic_elements': 'primary', # Important themes and messages
+        'location_setting': 'primary', # Geographic setting 
+        'time_setting': 'primary',    # Time period setting 
+        
+        # Secondary criteria (contextual factors, less critical for matching)
+        'network': 'secondary',         # Distribution channel
+        'studios': 'secondary',         # Production companies
+        'team_members': 'secondary',    # Creative talent
+        'order_type': 'secondary'       # How show was ordered/developed
+    }
+    
+    # Importance category weights for flexible matching
+    IMPORTANCE_WEIGHTS = {
+        'essential': 10.0, # Essential remains highest
+        'core': 7.0,       # 7x secondary weight
+        'primary': 3.5,    # 3.5x secondary weight
+        'secondary': 1.0   # Base weight
+    }
+    
+    # Match level definitions and confidence mapping
+    MATCH_LEVELS = {
+        1: {
+            'name': 'All criteria matched',
+            'confidence': 'high',
+            'min_quality': 0.9
+        },
+        2: {
+            'name': 'All but one secondary criterion matched',
+            'confidence': 'medium',
+            'min_quality': 0.7
+        },
+        3: {
+            'name': 'Core and primary criteria matched',
+            'confidence': 'low',
+            'min_quality': 0.5
+        },
+        4: {
+            'name': 'Only core criteria matched',
+            'confidence': 'very_low',
+            'min_quality': 0.3
+        }
+    }
+    
     # Confidence thresholds for sample sizes
     CONFIDENCE = {
-        'minimum_sample': 1,           # Minimum shows needed for any analysis
+        'minimum_sample': 5,           # Minimum shows needed for any analysis
         'low_confidence': 10,          # Below this is low confidence
         'medium_confidence': 25,       # Below this is medium confidence
         'high_confidence': 50,         # Above this is high confidence
-        'degradation_factor': 0.9      # Factor to reduce confidence per missing criteria
+        'degradation_factor': 0.9,     # Factor to reduce confidence per missing criteria
+        'match_level_factor': {        # Confidence adjustment factors by match level
+            1: 1.0,                    # No reduction for level 1 (all criteria)
+            2: 0.9,                    # 10% reduction for level 2 (all but one secondary)
+            3: 0.7,                    # 30% reduction for level 3 (core + primary)
+            4: 0.5                     # 50% reduction for level 4 (core only)
+        }
     }
     
     # Performance settings
     PERFORMANCE = {
         'cache_duration': 3600,        # Cache duration in seconds (1 hour)
+        'success_threshold': 0.6,      # Default threshold for success rate calculation
+        'min_criteria_coverage': 0.5,  # Minimum criteria coverage for valid analysis
+        'min_confidence_score': 0.3,   # Minimum confidence score for valid results
         'max_cached_combinations': 100, # Maximum number of cached criteria combinations
         'incremental_threshold': 0.7    # Threshold for incremental vs full recalculation
     }
+    
+    @classmethod
+    def calculate_confidence_score(cls, sample_size: int, criteria_count: int, total_criteria: int, match_level: int) -> float:
+        """Calculate a confidence score based on sample size, criteria coverage, and match level.
+        
+        Args:
+            sample_size: Number of shows in the sample
+            criteria_count: Number of criteria used in the match
+            total_criteria: Total number of available criteria
+            match_level: Match level used (1-4)
+            
+        Returns:
+            Confidence score between 0 and 1
+        """
+        # Base confidence from sample size
+        if sample_size <= cls.CONFIDENCE['minimum_sample']:
+            base_confidence = 0.1
+        elif sample_size <= cls.CONFIDENCE['low_confidence']:
+            base_confidence = 0.3
+        elif sample_size <= cls.CONFIDENCE['medium_confidence']:
+            base_confidence = 0.6
+        elif sample_size <= cls.CONFIDENCE['high_confidence']:
+            base_confidence = 0.8
+        else:
+            base_confidence = 1.0
+            
+        # Adjust for criteria coverage
+        criteria_coverage = criteria_count / total_criteria if total_criteria > 0 else 0
+        coverage_factor = max(criteria_coverage, cls.PERFORMANCE['min_criteria_coverage'])
+        
+        # Adjust for match level degradation
+        match_level_factor = cls.CONFIDENCE['match_level_factor'].get(match_level, 0.5)
+        
+        # Calculate final confidence score
+        confidence_score = base_confidence * coverage_factor * match_level_factor
+        
+        return min(1.0, max(0.1, confidence_score))  # Clamp between 0.1 and 1.0
+    
+    @classmethod
+    def get_confidence_level(cls, sample_size: int, match_level: int) -> str:
+        """Get a confidence level string based on sample size and match level.
+        
+        Args:
+            sample_size: Number of shows in the sample
+            match_level: Match level used (1-4)
+            
+        Returns:
+            Confidence level string ('none', 'very_low', 'low', 'medium', 'high')
+        """
+        if sample_size < cls.CONFIDENCE['minimum_sample']:
+            return 'none'
+            
+        # Base level from sample size
+        if sample_size < cls.CONFIDENCE['low_confidence']:
+            base_level = 'very_low'
+        elif sample_size < cls.CONFIDENCE['medium_confidence']:
+            base_level = 'low'
+        elif sample_size < cls.CONFIDENCE['high_confidence']:
+            base_level = 'medium'
+        else:
+            base_level = 'high'
+            
+        # Adjust for match level
+        if match_level == 1:
+            # No adjustment for level 1
+            return base_level
+        elif match_level == 2:
+            # Reduce by one level for level 2
+            if base_level == 'high':
+                return 'medium'
+            elif base_level == 'medium':
+                return 'low'
+            else:
+                return 'very_low'
+        elif match_level == 3:
+            # Reduce by two levels for level 3
+            if base_level == 'high':
+                return 'low'
+            else:
+                return 'very_low'
+        else:  # match_level == 4 or higher
+            # Always very_low for level 4+
+            return 'very_low'
     
     # Suggestion impact settings
     SUGGESTIONS = {
@@ -79,6 +227,34 @@ class OptimizerConfig:
         'high_impact_threshold': 0.15, # Threshold for high impact suggestions (15%)
         'max_suggestions': 5,          # Maximum suggestions to return
         'network_specific_ratio': 0.6   # Ratio of network-specific to general suggestions
+    }
+    
+    # Fallback recommendation system settings
+    FALLBACK_SYSTEM = {
+        # Criteria relaxation settings
+        'relaxation': {
+            'min_matches_before_fallback': 10,  # Minimum matches needed before fallback is triggered
+            'min_confidence_before_fallback': 'low',  # Minimum confidence level before fallback is triggered
+            'relaxation_tiers': [
+                'secondary',  # First relax secondary criteria
+                'primary',    # Then primary criteria if needed
+                'core'        # Only relax core criteria as last resort (never relax essential)
+            ],
+            'max_criteria_to_relax': 2,  # Maximum criteria to relax in a single tier
+            'min_sample_increase_factor': 2.0  # Minimum factor by which sample size must increase to justify relaxation
+        },
+        
+        # Weighted relevance scoring
+        'relevance': {
+            'min_relevance_score': 0.5,  # Minimum relevance score for inclusion in results
+            'high_relevance_threshold': 0.8,  # Threshold for high relevance
+            'weight_multipliers': {  # Multipliers for importance categories in relevance scoring
+                'essential': 1.0,  # Essential criteria always fully weighted
+                'core': 0.9,      # Core criteria slightly reduced
+                'primary': 0.7,   # Primary criteria moderately reduced
+                'secondary': 0.5  # Secondary criteria significantly reduced
+            }
+        }
     }
     
     # Threshold values for various comparisons
@@ -151,33 +327,46 @@ class OptimizerConfig:
         return cls.SCORING_WEIGHTS['components'].get(component_name, 0)
     
     @classmethod
-    def get_confidence_level(cls, sample_size: int) -> str:
-        """Get the confidence level based on sample size.
+    def get_confidence_level(cls, sample_size: int, match_level: int = 1) -> str:
+        """Get the confidence level based on sample size and match level.
         
         Args:
             sample_size: Number of samples in the analysis
+            match_level: Match level used (1-4, where 1 is highest)
             
         Returns:
-            Confidence level as string: 'none', 'low', 'medium', or 'high'
+            Confidence level as string: 'none', 'very_low', 'low', 'medium', or 'high'
         """
         if sample_size < cls.CONFIDENCE['minimum_sample']:
             return 'none'
-        elif sample_size < cls.CONFIDENCE['low_confidence']:
+            
+        # Adjust thresholds based on match level
+        level_factor = cls.CONFIDENCE['match_level_factor'].get(match_level, 0.5)
+        adjusted_low = cls.CONFIDENCE['low_confidence'] / level_factor
+        adjusted_medium = cls.CONFIDENCE['medium_confidence'] / level_factor
+        adjusted_high = cls.CONFIDENCE['high_confidence'] / level_factor
+        
+        if match_level >= 4:  # Core criteria only - add very_low confidence level
+            if sample_size < adjusted_low:
+                return 'very_low'
+                
+        if sample_size < adjusted_low:
             return 'low'
-        elif sample_size < cls.CONFIDENCE['medium_confidence']:
+        elif sample_size < adjusted_medium:
             return 'medium'
         else:
             return 'high'
     
     @classmethod
     def calculate_confidence_score(cls, sample_size: int, criteria_count: int, 
-                               total_criteria: int) -> float:
-        """Calculate a confidence score (0-1) based on sample size and criteria completeness.
+                               total_criteria: int, match_level: int = 1) -> float:
+        """Calculate a confidence score (0-1) based on sample size, criteria completeness, and match level.
         
         Args:
             sample_size: Number of samples in the analysis
             criteria_count: Number of criteria specified
             total_criteria: Total number of possible criteria
+            match_level: Match level used (1-4, where 1 is highest)
             
         Returns:
             Confidence score between 0 and 1
@@ -198,5 +387,8 @@ class OptimizerConfig:
             missing_criteria = total_criteria - criteria_count
             for _ in range(missing_criteria):
                 criteria_factor *= cls.CONFIDENCE['degradation_factor']
+        
+        # Apply match level adjustment
+        match_level_factor = cls.CONFIDENCE['match_level_factor'].get(match_level, 0.5)
                 
-        return base_confidence * criteria_factor
+        return base_confidence * criteria_factor * match_level_factor
