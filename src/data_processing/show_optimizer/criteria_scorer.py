@@ -329,7 +329,7 @@ class CriteriaScorer:
 
         try:
             # Get matching shows and ensure they have all required columns for scoring
-            matching_shows, match_count = self._get_matching_shows(criteria)
+            matching_shows, match_count, confidence_info = self._get_matching_shows(criteria)
             
             # Log the number of matching shows found
             st.write(f"Found {match_count} matching shows")
