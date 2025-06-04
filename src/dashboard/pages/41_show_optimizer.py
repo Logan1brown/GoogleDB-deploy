@@ -102,8 +102,9 @@ def show():
             st.session_state.optimizer_criteria = state['criteria'].copy()
             
             # Run the analysis with the updated criteria
-            if state['criteria']:
-                optimizer_view._run_analysis(state)
+            # Always run the analysis, even if criteria is empty
+            # This ensures the UI updates when criteria are deselected
+            optimizer_view._run_analysis(state)
         
         # Render criteria sections using helper functions
         render_content_criteria(state, update_criteria_and_analyze)
@@ -115,8 +116,8 @@ def show():
         st.session_state.optimizer_criteria = criteria.copy()
         
         # Run analysis automatically when criteria changes
-        if criteria:
-            optimizer_view._run_analysis(state)
+        # Always run the analysis, even if criteria is empty
+        optimizer_view._run_analysis(state)
     
     # If we have results, render tabs in the second column
     with col2:
