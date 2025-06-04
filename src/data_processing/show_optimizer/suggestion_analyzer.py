@@ -111,7 +111,19 @@ class SuggestionAnalyzer:
                 top_networks = []
             
             # Get matching shows with flexible matching
-            matching_shows, match_count, confidence_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(criteria, flexible=True)
+            try:
+                matching_shows, match_count, confidence_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(criteria, flexible=True)
+            except Exception as e:
+                st.warning(f"Could not find matching shows: {str(e)}")
+                matching_shows = pd.DataFrame(columns=['title', 'success_score', 'popcornmeter', 'tomatometer', 
+                                                 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'])
+                match_count = 0
+                confidence_info = {
+                    'match_level': 0,
+                    'match_quality': 0.0,
+                    'confidence_score': 0.0,
+                    'relaxed_criteria': []
+                }
             if matching_shows.empty:
                 st.warning("No matching shows found for the given criteria - using fallback recommendations")
                 # Create empty DataFrame with necessary columns for downstream processing
@@ -139,8 +151,18 @@ class SuggestionAnalyzer:
                 if len(matching_titles) > 100:
                     matching_titles = matching_titles[:100]
                 
-            # Get component scores
-            component_scores = self.criteria_analyzer.analyze_components(criteria)
+            # Calculate component scores
+            try:
+                component_scores = self.criteria_analyzer.criteria_scorer.calculate_component_scores(criteria, matching_shows)
+            except Exception as e:
+                st.warning(f"Could not calculate component scores: {str(e)}")
+                # Create placeholder component scores with None values
+                component_scores = [
+                    ComponentScore(name="Critics Rating", score=None, weight=0.25, confidence='none', description="N/A"),
+                    ComponentScore(name="Audience Rating", score=None, weight=0.25, confidence='none', description="N/A"),
+                    ComponentScore(name="Longevity", score=None, weight=0.25, confidence='none', description="N/A"),
+                    ComponentScore(name="Completion", score=None, weight=0.25, confidence='none', description="N/A")
+                ]
             
             # Handle component scores gracefully
             import streamlit as st
