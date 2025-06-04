@@ -127,10 +127,11 @@ class SuggestionAnalyzer:
             # Get matching shows with flexible matching
             try:
                 matching_shows, match_count, confidence_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(criteria, flexible=True)
+                logger.info(f"Found {match_count} matching shows with flexible matching at level {confidence_info.get('match_level', 0)}")
             except Exception as e:
-                st.warning(f"Could not find matching shows: {str(e)}")
+                logger.warning(f"Could not find matching shows: {str(e)}")
                 matching_shows = pd.DataFrame(columns=['title', 'success_score', 'popcornmeter', 'tomatometer', 
-                                                 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'])
+                                                  'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'])
                 match_count = 0
                 confidence_info = {
                     'match_level': 0,
@@ -138,18 +139,40 @@ class SuggestionAnalyzer:
                     'confidence_score': 0.0,
                     'relaxed_criteria': []
                 }
+                
+            # Handle empty result case - use fallback recommendations
             if matching_shows.empty:
-                st.warning("No matching shows found for the given criteria - using fallback recommendations")
-                # Create empty DataFrame with necessary columns for downstream processing
-                matching_shows = pd.DataFrame(columns=['title', 'success_score', 'popcornmeter', 'tomatometer', 
-                                                    'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'])
-                match_count = 0
-                confidence_info = {
-                    'match_level': 0,
-                    'match_quality': 0.0,
-                    'confidence_score': 0.0,
-                    'confidence_level': 'none'
-                }
+                logger.warning("No matching shows found for the given criteria - using fallback recommendations")
+                
+                # Try to get some general shows for recommendations
+                try:
+                    # Create minimal criteria with just the genre if available
+                    minimal_criteria = {}
+                    if 'genre' in criteria:
+                        minimal_criteria['genre'] = criteria['genre']
+                    
+                    # If we have minimal criteria, try to get some matches
+                    if minimal_criteria:
+                        fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
+                        if not fallback_shows.empty:
+                            matching_shows = fallback_shows
+                            match_count = fallback_count
+                            confidence_info = fallback_info
+                            logger.info(f"Using fallback with minimal criteria: found {match_count} shows")
+                except Exception as e:
+                    logger.warning(f"Fallback matching attempt failed: {str(e)}")
+                
+                # If still empty, create empty DataFrame with necessary columns
+                if matching_shows.empty:
+                    matching_shows = pd.DataFrame(columns=['title', 'success_score', 'popcornmeter', 'tomatometer', 
+                                                        'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'])
+                    match_count = 0
+                    confidence_info = {
+                        'match_level': 0,
+                        'match_quality': 0.0,
+                        'confidence_score': 0.0,
+                        'confidence_level': 'none'
+                    }
                 
             # Extract confidence information
             match_level = confidence_info.get('match_level', 1)
