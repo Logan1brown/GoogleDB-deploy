@@ -198,6 +198,12 @@ def show():
                     st.subheader("Matching Shows")
                     st.write("Shows matching all selected criteria:")
                     
+                    # Debug logging for matching titles
+                    st.write(f"Debug: Has matching_titles attribute: {hasattr(summary, 'matching_titles')}")
+                    if hasattr(summary, 'matching_titles'):
+                        st.write(f"Debug: matching_titles length: {len(summary.matching_titles)}")
+                        st.write(f"Debug: First few titles: {summary.matching_titles[:3] if summary.matching_titles else 'None'}")
+                    
                     # Display matching titles from the summary object
                     if hasattr(summary, 'matching_titles') and summary.matching_titles:
                         # Show sample size

@@ -224,6 +224,7 @@ class SuggestionAnalyzer:
             matching_titles = []
             if 'title' in matching_shows.columns:
                 matching_titles = matching_shows['title'].tolist()
+                logger.info(f"Found {len(matching_titles)} matching titles: {matching_titles[:5]}...")
                 # Limit to 100 titles
                 if len(matching_titles) > 100:
                     matching_titles = matching_titles[:100]
