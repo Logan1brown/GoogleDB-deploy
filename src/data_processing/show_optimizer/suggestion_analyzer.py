@@ -111,7 +111,7 @@ class SuggestionAnalyzer:
                         # Normal case
                         success_probability, confidence = result
                 else:
-                    st.warning(f"Unexpected result format from get_overall_success_rate: {result}")
+                    logger.warning(f"Unexpected result format from get_overall_success_rate: {result}")
                     success_probability, confidence = None, 'none'
             except Exception as e:
                 st.warning(f"Could not calculate success probability: {str(e)}")
@@ -232,8 +232,7 @@ class SuggestionAnalyzer:
             return summary
                 
         except Exception as e:
-            import streamlit as st
-            st.warning(f"Error in analyze_show_concept: {str(e)}")
+            # Log the error but don't try to use streamlit here
             logger.error(f"Error in analyze_show_concept: {e}", exc_info=True)
             
             # Create placeholder component scores
@@ -244,8 +243,8 @@ class SuggestionAnalyzer:
                 'completion': ComponentScore(component="completion", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'})
             }
             
-            # Return a minimal valid summary
-            st.write("Debug: Creating fallback OptimizationSummary in exception handler")
+            # Return a minimal valid summary without using streamlit
+            logger.info("Creating fallback OptimizationSummary in exception handler")
             return OptimizationSummary(
                 overall_success_probability=None,
                 confidence='none',
