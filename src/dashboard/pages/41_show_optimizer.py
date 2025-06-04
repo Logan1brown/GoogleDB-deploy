@@ -222,22 +222,41 @@ def show():
                         }
                         match_level_name = match_level_names.get(match_level, "Flexible Match")
                         
-                        # Add a color legend
-                        st.write(f"Found {sample_size} shows with similar criteria ({match_level_name})")
+                        # Get match counts by level from confidence info
+                        match_counts_by_level = {}
+                        if hasattr(summary, 'confidence_info') and summary.confidence_info:
+                            match_counts_by_level = summary.confidence_info.get('match_counts_by_level', {})
                         
-                        # Add debug info about match level
-                        st.write(f"Match level: {match_level} - {match_level_name}")
+                        # Create a summary of match levels
+                        match_level_summary = []
+                        for level in range(1, 5):
+                            if level in match_counts_by_level and match_counts_by_level[level] > 0:
+                                level_name = match_level_names.get(level, f"Level {level}")
+                                count = match_counts_by_level[level]
+                                match_level_summary.append(f"{count} {level_name}")
                         
-                        # Display the first 10 shows with color coding based on match level
-                        for i, (_, show) in enumerate(summary.matching_shows.head(10).iterrows()):
-                            if i >= 10:
+                        # Display the match level distribution
+                        if match_level_summary:
+                            st.write(f"Found {sample_size} shows: {', '.join(match_level_summary)}")
+                        else:
+                            st.write(f"Found {sample_size} shows with similar criteria ({match_level_name})")
+                        
+                        # Add legend for the colors
+                        st.write("**Bold** = Exact match, Normal = Close match, Grey = Partial match")
+                        
+                        # Display up to 100 shows with color coding based on individual match level
+                        for i, (_, show) in enumerate(summary.matching_shows.head(100).iterrows()):
+                            if i >= 100:
                                 break
                                 
                             title = show.get('title', 'Unknown Title')
-                            color = match_level_colors.get(match_level, "#000000")
                             
-                            # Use consistent color based on match level
-                            if match_level == 1:
+                            # Get this show's individual match level
+                            show_match_level = show.get('match_level', match_level)  # Fall back to global match level if not present
+                            color = match_level_colors.get(show_match_level, "#000000")
+                            
+                            # Format based on this show's match level
+                            if show_match_level == 1:
                                 # Exact match - bold black
                                 st.markdown(f"**{title}**")
                             else:

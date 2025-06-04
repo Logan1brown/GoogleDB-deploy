@@ -234,6 +234,17 @@ class SuggestionAnalyzer:
                     logger.warning(f"Fallback matching attempt failed: {str(e)}")
                     logger.error(f"Fallback matching exception details", exc_info=True)
                 
+                # Use the best fallback result if we found one
+                if best_fallback['criteria_used'] is not None and best_fallback['count'] > 0:
+                    matching_shows = best_fallback['shows']
+                    match_count = best_fallback['count']
+                    confidence_info = best_fallback['confidence']
+                    logger.info(f"Using best fallback with {best_fallback['criteria_used']}: found {match_count} shows with match level {confidence_info.get('match_level', 'unknown')}")
+                    
+                    # Make sure we're using the right match level for fallbacks
+                    if 'match_level' not in confidence_info or confidence_info['match_level'] < 2:
+                        confidence_info['match_level'] = 3  # At least level 3 for fallbacks
+                
                 # If still empty, create empty DataFrame with necessary columns
                 if matching_shows.empty:
                     matching_shows = pd.DataFrame(columns=['title', 'success_score', 'popcornmeter', 'tomatometer', 

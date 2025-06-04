@@ -489,14 +489,17 @@ class MatchingCalculator:
         }
     
     def get_matching_shows(self, criteria: Dict[str, Any], flexible: bool = True) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
-        """Get shows matching the given criteria, with optional flexible matching.
+        """Get shows matching the given criteria with flexible matching support.
         
         Args:
             criteria: Dictionary of criteria
-            flexible: Whether to use flexible matching (try different match levels)
+            flexible: Whether to use flexible matching
             
         Returns:
-            Tuple of (DataFrame of matching shows with success metrics, count of matches, confidence info)
+            Tuple of (matching_shows, match_count, confidence_info)
+            - matching_shows: DataFrame of matching shows with 'match_level' column
+            - match_count: Total number of matching shows
+            - confidence_info: Dictionary with confidence metrics and match level counts
         """
         import streamlit as st
         
@@ -567,8 +570,10 @@ class MatchingCalculator:
         
         # Flexible matching - try different match levels
         min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample']
-        best_match = None
-        best_count = 0
+        # Collect matches from all levels
+        all_matches = {}
+        match_counts = {}
+        total_count = 0
         best_level = 0
         confidence_info = {}
         
@@ -596,36 +601,60 @@ class MatchingCalculator:
                 matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(level_criteria, data)
                 logger.info(f"Match level {level} found {match_count} shows")
                 
+                # Store these matches with their level
+                if not matched_shows.empty:
+                    # Add a match_level column to identify the source level
+                    matched_shows['match_level'] = level
+                    all_matches[level] = matched_shows
+                    match_counts[level] = match_count
+                    total_count += match_count
+                
                 # Calculate confidence metrics for this match
                 level_confidence = self.calculate_match_confidence(matched_shows, level, clean_criteria)
                 
-                # If this is our first match or we have enough matches at this level
-                if best_match is None or (match_count >= min_sample_size and (best_count < min_sample_size or level < best_level)):
-                    best_match = matched_shows
-                    best_count = match_count
+                # Track the best level for confidence info
+                # We'll use the best level that has at least min_sample_size matches
+                if match_count >= min_sample_size and (best_level == 0 or level < best_level):
                     best_level = level
                     confidence_info = level_confidence
-                    logger.info(f"Setting best match to level {level} with {match_count} shows")
-                    
-                    # If we have enough matches at level 1 (exact match), stop here
-                    if match_count >= min_sample_size and level == 1:
-                        logger.info("Found sufficient exact matches, stopping search")
-                        break
+                    logger.info(f"Setting best confidence level to {level} with {match_count} shows")
+                
+                # If we have no confidence info yet but have some matches, use this level
+                if not confidence_info and match_count > 0:
+                    confidence_info = level_confidence
+                    best_level = level
+                    logger.info(f"Setting initial confidence level to {level} with {match_count} shows")
+                
+                # We always continue to collect all match levels, but we can skip if we have enough exact matches
+                if level == 1 and match_count >= 100:
+                    logger.info(f"Found {match_count} exact matches (level 1), which is enough to fill display. Skipping other levels.")
+                    break
                 
             except Exception as e:
                 st.warning(f"Match level {level} failed: {e}")
                 continue
         
         # If we found no matches at any level, return empty
-        if best_match is None:
+        if not all_matches:
             return pd.DataFrame(), 0, {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0, 'match_level': 0}
         
-        # Ensure success_score is present in the matched shows
-        if 'success_score' not in best_match.columns:
-            if 'success_score' in data.columns and 'id' in best_match.columns and 'id' in data.columns:
-                best_match = best_match.merge(data[['id', 'success_score']], on='id', how='left')
+        # Combine matches from all levels in priority order (level 1 first, then 2, etc.)
+        combined_matches = pd.DataFrame()
+        for level in range(1, 5):
+            if level in all_matches:
+                # Append matches from this level
+                combined_matches = pd.concat([combined_matches, all_matches[level]], ignore_index=True)
         
-        return best_match, best_count, confidence_info
+        # Ensure success_score is present in the combined matches
+        if 'success_score' not in combined_matches.columns:
+            if 'success_score' in data.columns and 'id' in combined_matches.columns and 'id' in data.columns:
+                combined_matches = combined_matches.merge(data[['id', 'success_score']], on='id', how='left')
+        
+        # Update confidence info with match counts by level
+        confidence_info['match_counts_by_level'] = match_counts
+        confidence_info['total_matches'] = total_count
+        
+        return combined_matches, total_count, confidence_info
     
     def calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, 
                                confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
