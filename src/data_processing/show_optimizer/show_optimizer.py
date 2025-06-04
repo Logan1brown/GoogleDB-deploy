@@ -221,16 +221,18 @@ class ShowOptimizer:
             
             # Analyze concept
             try:
+                logger.info(f"ShowOptimizer: Analyzing concept with normalized criteria: {normalized_criteria}")
                 result = self.suggestion_analyzer.analyze_show_concept(normalized_criteria)
+                logger.info(f"ShowOptimizer: Analysis completed successfully, returning result")
                 return result
             except Exception as inner_e:
-                import streamlit as st
-                st.warning(f"Some analysis components failed: {str(inner_e)}")
-                logger.warning(f"Error in analyze_show_concept: {str(inner_e)}", exc_info=True)
+                logger.error(f"ShowOptimizer: Error in analyze_show_concept: {str(inner_e)}", exc_info=True)
                 
                 # Create a minimal valid summary instead of returning None
                 from src.data_processing.show_optimizer.suggestion_analyzer import OptimizationSummary, NetworkMatch, Recommendation, SuccessFactor
                 from src.data_processing.show_optimizer.score_calculators import ComponentScore
+                
+                logger.info("ShowOptimizer: Creating fallback OptimizationSummary with placeholder components")
                 
                 # Create placeholder component scores
                 component_scores = {
@@ -241,6 +243,7 @@ class ShowOptimizer:
                 }
                 
                 # Return a minimal valid summary
+                logger.info("ShowOptimizer: Returning fallback OptimizationSummary")
                 return OptimizationSummary(
                     overall_success_probability=None,
                     confidence='none',

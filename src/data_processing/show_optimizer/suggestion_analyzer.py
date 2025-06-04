@@ -99,22 +99,28 @@ class SuggestionAnalyzer:
         try:
             # Get overall success probability
             try:
+                logger.info(f"Analyzing show concept with criteria: {criteria}")
                 result = self.criteria_analyzer.get_overall_success_rate(criteria)
+                logger.info(f"Got result from get_overall_success_rate: {result}")
                 
                 # Handle the case where result is a tuple with a tuple as first element
                 if isinstance(result, tuple) and len(result) == 2:
                     if isinstance(result[0], tuple) and len(result[0]) == 2:
                         # Extract just the success rate from the nested tuple
                         success_probability = result[0][0]
+                        confidence_info = result[0][1]
                         confidence = result[1]
+                        logger.info(f"Extracted nested tuple: success_probability={success_probability}, confidence={confidence}")
                     else:
                         # Normal case
                         success_probability, confidence = result
+                        logger.info(f"Extracted normal tuple: success_probability={success_probability}, confidence={confidence}")
                 else:
                     logger.warning(f"Unexpected result format from get_overall_success_rate: {result}")
                     success_probability, confidence = None, 'none'
             except Exception as e:
-                st.warning(f"Could not calculate success probability: {str(e)}")
+                logger.warning(f"Could not calculate success probability: {str(e)}")
+                logger.error(f"Could not calculate success probability: {e}", exc_info=True)
                 success_probability, confidence = None, 'none'
             
             # Get top networks
@@ -144,23 +150,57 @@ class SuggestionAnalyzer:
             if matching_shows.empty:
                 logger.warning("No matching shows found for the given criteria - using fallback recommendations")
                 
-                # Try to get some general shows for recommendations
+                # Try a series of progressively more relaxed criteria for fallback matching
                 try:
-                    # Create minimal criteria with just the genre if available
-                    minimal_criteria = {}
+                    # Start with just the genre if available
                     if 'genre' in criteria:
-                        minimal_criteria['genre'] = criteria['genre']
-                    
-                    # If we have minimal criteria, try to get some matches
-                    if minimal_criteria:
+                        minimal_criteria = {'genre': criteria['genre']}
+                        logger.info(f"Attempting fallback matching with genre only: {minimal_criteria}")
+                        
                         fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
+                        logger.info(f"Genre-only fallback result: found {fallback_count} shows at match level {fallback_info.get('match_level', 0)}")
+                        
                         if not fallback_shows.empty:
                             matching_shows = fallback_shows
                             match_count = fallback_count
                             confidence_info = fallback_info
-                            logger.info(f"Using fallback with minimal criteria: found {match_count} shows")
+                            logger.info(f"Using genre-only fallback: found {match_count} shows")
+                    
+                    # If still no matches and we have source_type, try that
+                    if matching_shows.empty and 'source_type' in criteria:
+                        minimal_criteria = {'source_type': criteria['source_type']}
+                        logger.info(f"Attempting fallback matching with source_type only: {minimal_criteria}")
+                        
+                        fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
+                        logger.info(f"Source-type-only fallback result: found {fallback_count} shows")
+                        
+                        if not fallback_shows.empty:
+                            matching_shows = fallback_shows
+                            match_count = fallback_count
+                            confidence_info = fallback_info
+                            logger.info(f"Using source-type-only fallback: found {match_count} shows")
+                    
+                    # If still no matches, try character_types if available
+                    if matching_shows.empty and 'character_types' in criteria:
+                        minimal_criteria = {'character_types': criteria['character_types']}
+                        logger.info(f"Attempting fallback matching with character_types only: {minimal_criteria}")
+                        
+                        fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
+                        logger.info(f"Character-types-only fallback result: found {fallback_count} shows")
+                        
+                        if not fallback_shows.empty:
+                            matching_shows = fallback_shows
+                            match_count = fallback_count
+                            confidence_info = fallback_info
+                            logger.info(f"Using character-types-only fallback: found {match_count} shows")
+                            
+                    # If we still have no matches, log the failure
+                    if matching_shows.empty:
+                        logger.warning("All fallback matching attempts returned empty results")
+                        
                 except Exception as e:
                     logger.warning(f"Fallback matching attempt failed: {str(e)}")
+                    logger.error(f"Fallback matching exception details", exc_info=True)
                 
                 # If still empty, create empty DataFrame with necessary columns
                 if matching_shows.empty:
