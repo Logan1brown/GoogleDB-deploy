@@ -95,6 +95,8 @@ class SuggestionAnalyzer:
             OptimizationSummary with success probability, recommendations, etc.
         """
         # Start analysis with the given criteria
+        import streamlit as st
+        st.write(f"Debug: SuggestionAnalyzer - Starting analysis with criteria: {criteria}")
         try:
             # Get overall success probability
             try:
