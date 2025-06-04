@@ -116,11 +116,8 @@ class CriteriaScorer:
                     columns_to_merge = ['show_id', 'success_score', 'popcornmeter', 'tomatometer', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
                     available_columns = [col for col in columns_to_merge if col in success_df.columns]
                     
-                    # Identify overlapping columns to avoid _x and _y suffixes
-                    common_columns = set(comp_df.columns).intersection(set(success_df.columns)) - {'show_id'}
-                    if common_columns:
-                        # Drop overlapping columns from comp_df before merge to avoid _x/_y suffixes
-                        comp_df = comp_df.drop(columns=list(common_columns))
+                    # Handle columns that might cause suffix issues
+                    # Instead of dropping columns, we'll rename them after the merge
                     
                     # Merge success metrics into comp_df
                     comp_df = pd.merge(
@@ -128,8 +125,14 @@ class CriteriaScorer:
                         success_df[available_columns],
                         left_on='id',
                         right_on='show_id',
-                        how='left'
+                        how='left',
+                        suffixes=('_to_drop', '')
                     )
+                    
+                    # Remove columns with _to_drop suffix
+                    drop_cols = [col for col in comp_df.columns if col.endswith('_to_drop')]
+                    if drop_cols:
+                        comp_df = comp_df.drop(columns=drop_cols)
                     
                     # Check for required component calculator columns
                     for col in ['popcornmeter', 'tomatometer']:
