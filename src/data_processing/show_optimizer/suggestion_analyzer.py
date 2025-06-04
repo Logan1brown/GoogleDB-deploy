@@ -96,14 +96,10 @@ class SuggestionAnalyzer:
             OptimizationSummary with success probability, recommendations, etc.
         """
         # Start analysis with the given criteria
-        import streamlit as st
-        st.write(f"Debug: SuggestionAnalyzer - Starting analysis with criteria: {criteria}")
         try:
             # Get overall success probability
             try:
-                st.write("Debug: About to call get_overall_success_rate")
                 result = self.criteria_analyzer.get_overall_success_rate(criteria)
-                st.write(f"Debug: Got result from get_overall_success_rate: {result}")
                 
                 # Handle the case where result is a tuple with a tuple as first element
                 if isinstance(result, tuple) and len(result) == 2:
@@ -111,18 +107,15 @@ class SuggestionAnalyzer:
                         # Extract just the success rate from the nested tuple
                         success_probability = result[0][0]
                         confidence = result[1]
-                        st.write(f"Debug: Extracted success_probability: {success_probability}, confidence: {confidence}")
                     else:
                         # Normal case
                         success_probability, confidence = result
-                        st.write(f"Debug: Normal case - success_probability: {success_probability}, confidence: {confidence}")
                 else:
                     st.warning(f"Unexpected result format from get_overall_success_rate: {result}")
                     success_probability, confidence = None, 'none'
             except Exception as e:
                 st.warning(f"Could not calculate success probability: {str(e)}")
                 success_probability, confidence = None, 'none'
-                st.write("Debug: Using fallback success_probability: None, confidence: none")
             
             # Get top networks
             try:
@@ -216,19 +209,6 @@ class SuggestionAnalyzer:
             recommendations = self.generate_recommendations(criteria, success_factors, top_networks, matching_shows, confidence_info)
             
             # Create and return the optimization summary
-            st.write("Debug: Creating OptimizationSummary with:")
-            st.write(f"  - success_probability: {success_probability}")
-            st.write(f"  - confidence: {confidence}")
-            st.write(f"  - top_networks: {len(top_networks) if top_networks else 0} networks")
-            st.write(f"  - component_scores: {list(component_scores.keys()) if component_scores else 'None'}")
-            st.write(f"  - success_factors: {len(success_factors) if success_factors else 0} factors")
-            st.write(f"  - recommendations: {len(recommendations) if recommendations else 0} recommendations")
-            st.write(f"  - matching_titles: {len(matching_titles) if matching_titles else 0} titles")
-            st.write(f"  - match_level: {confidence_info.get('match_level', 0)}")
-            st.write(f"  - match_quality: {confidence_info.get('match_quality', 0.0)}")
-            st.write(f"  - confidence_score: {confidence_info.get('confidence_score', 0.0)}")
-            st.write(f"  - matching_shows: {len(matching_shows) if not matching_shows.empty else 0} shows")
-            st.write(f"  - match_count: {match_count}")
             
             # Convert pandas DataFrame to list of strings for matching_shows
             matching_show_list = matching_shows['title'].tolist() if not matching_shows.empty else []

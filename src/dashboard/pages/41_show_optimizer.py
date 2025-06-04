@@ -142,7 +142,11 @@ def show():
                     with metric_col1:
                         if hasattr(summary, 'overall_success_probability'):
                             probability = summary.overall_success_probability
-                            st.metric("Success Probability", f"{probability:.0%}")
+                            if probability is not None:
+                                st.metric("Success Probability", f"{probability:.0%}")
+                            else:
+                                st.metric("Success Probability", "N/A")
+                                
                             if hasattr(summary, 'confidence'):
                                 st.caption(f"Confidence: {summary.confidence.capitalize()}")
                         else:
@@ -152,9 +156,13 @@ def show():
                         if hasattr(summary, 'component_scores') and summary.component_scores and "audience" in summary.component_scores:
                             audience_score = summary.component_scores["audience"]
                             if hasattr(audience_score, 'score'):
-                                st.metric("Audience Appeal", f"{audience_score.score:.0%}")
-                                if hasattr(audience_score, 'sample_size'):
-                                    st.caption(f"Sample size: {audience_score.sample_size} shows")
+                                if audience_score.score is not None:
+                                    st.metric("Audience Appeal", f"{audience_score.score:.0%}")
+                                    if hasattr(audience_score, 'sample_size'):
+                                        st.caption(f"Sample size: {audience_score.sample_size} shows")
+                                else:
+                                    st.metric("Audience Appeal", "N/A")
+                                    st.caption("Insufficient data")
                             else:
                                 st.error("Audience score object missing 'score' attribute")
                     
@@ -162,9 +170,13 @@ def show():
                         if hasattr(summary, 'component_scores') and summary.component_scores and "critics" in summary.component_scores:
                             critics_score = summary.component_scores["critics"]
                             if hasattr(critics_score, 'score'):
-                                st.metric("Critics Score", f"{critics_score.score:.0%}")
-                                if hasattr(critics_score, 'sample_size'):
-                                    st.caption(f"Sample size: {critics_score.sample_size} shows")
+                                if critics_score.score is not None:
+                                    st.metric("Critics Score", f"{critics_score.score:.0%}")
+                                    if hasattr(critics_score, 'sample_size'):
+                                        st.caption(f"Sample size: {critics_score.sample_size} shows")
+                                else:
+                                    st.metric("Critics Score", "N/A")
+                                    st.caption("Insufficient data")
                             else:
                                 st.error("Critics score object missing 'score' attribute")
                     
@@ -172,9 +184,13 @@ def show():
                         if hasattr(summary, 'component_scores') and summary.component_scores and "longevity" in summary.component_scores:
                             longevity_score = summary.component_scores["longevity"]
                             if hasattr(longevity_score, 'score'):
-                                st.metric("Longevity Score", f"{longevity_score.score:.0%}")
-                                if hasattr(longevity_score, 'sample_size'):
-                                    st.caption(f"Sample size: {longevity_score.sample_size} shows")
+                                if longevity_score.score is not None:
+                                    st.metric("Longevity Score", f"{longevity_score.score:.0%}")
+                                    if hasattr(longevity_score, 'sample_size'):
+                                        st.caption(f"Sample size: {longevity_score.sample_size} shows")
+                                else:
+                                    st.metric("Longevity Score", "N/A")
+                                    st.caption("Insufficient data")
                             else:
                                 st.error("Longevity score object missing 'score' attribute")
                     
