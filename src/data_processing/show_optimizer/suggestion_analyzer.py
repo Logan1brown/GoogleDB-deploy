@@ -158,13 +158,11 @@ class SuggestionAnalyzer:
             original_confidence_info = confidence_info.copy() if isinstance(confidence_info, dict) else {}
             
             # If we have some exact matches but not enough for reliable analysis, get additional matches to supplement
-            min_sample_size = 5  # Minimum number of shows needed for reliable analysis
+            min_sample_size = self.criteria_analyzer.config.CONFIDENCE['minimum_sample']  # Use config value
             need_supplemental = original_match_count > 0 and original_match_count < min_sample_size
             
             # If no matches found or insufficient matches, try fallback with minimal criteria
             if original_matches.empty or need_supplemental:
-                logger.warning(f"Found {original_match_count} exact matches - supplementing with additional shows")
-                
                 # Try with just genre to get supplemental matches
                 supplemental_matches = pd.DataFrame()
                 supplemental_count = 0
@@ -176,22 +174,23 @@ class SuggestionAnalyzer:
                         minimal_criteria = {'genre': criteria['genre']}
                         genre_shows, genre_count, genre_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
                         
-                        # Mark these as genre-only matches (level 3 - partial match)
+                        # Mark these as supplemental matches with appropriate match level
+                        # Level 3 means "Core and primary criteria matched" according to OptimizerConfig
+                        # For genre-only matches, we should use level 4 ("Only core criteria matched")
                         if not genre_shows.empty and 'match_level' in genre_shows.columns:
-                            # Set all to level 3 (partial match) to indicate they're genre-only matches
-                            genre_shows['match_level'] = 3
+                            # Set all to level 4 to indicate they're genre-only matches
+                            genre_shows['match_level'] = 4
                         elif not genre_shows.empty:
                             # Add match_level column if it doesn't exist
-                            genre_shows['match_level'] = 3
-                        
-                        logger.info(f"Genre supplemental search found {genre_count} shows")
+                            genre_shows['match_level'] = 4
                         
                         supplemental_matches = genre_shows
                         supplemental_count = genre_count
                         supplemental_info = genre_info
-                        supplemental_info['match_level'] = 3  # Mark as partial match
+                        supplemental_info['match_level'] = 4  # Mark as minimal match (core criteria only)
                 except Exception as e:
-                    logger.warning(f"Supplemental matching attempt with genre failed: {str(e)}")
+                    # Silently handle the error - we can't use logger in deployed app
+                    pass
                 
                 # If we have original matches, combine them with supplemental matches
                 if not original_matches.empty and not supplemental_matches.empty:
@@ -203,7 +202,7 @@ class SuggestionAnalyzer:
                         if 'match_level' not in original_matches.columns:
                             original_matches['match_level'] = 1  # Mark as exact match
                         if 'match_level' not in supplemental_matches.columns:
-                            supplemental_matches['match_level'] = 3  # Mark as partial match
+                            supplemental_matches['match_level'] = 4  # Mark as minimal match (core criteria only)
                         common_columns.append('match_level')
                     
                     # Filter supplemental matches to remove any that are already in original_matches
@@ -219,8 +218,6 @@ class SuggestionAnalyzer:
                     # Combine the matches, with original matches first
                     combined_matches = pd.concat([original_matches[common_columns], supplemental_matches[common_columns]], ignore_index=True)
                     combined_count = len(combined_matches)
-                    
-                    logger.info(f"Combined {original_match_count} exact matches with {len(supplemental_matches)} supplemental matches for a total of {combined_count} shows")
                     
                     # Use the combined results
                     matching_shows = combined_matches
@@ -238,18 +235,17 @@ class SuggestionAnalyzer:
                             match_counts_by_level[level] = level_count
                     
                     confidence_info['match_counts_by_level'] = match_counts_by_level
-                    logger.info(f"Match counts by level: {match_counts_by_level}")
                     
                 elif not supplemental_matches.empty:
                     # If we had no original matches, just use the supplemental matches
                     matching_shows = supplemental_matches
                     match_count = supplemental_count
                     confidence_info = supplemental_info
-                    logger.info(f"Using {match_count} supplemental matches with match level {confidence_info.get('match_level', 'unknown')}")
                 
                 # If still empty, create empty DataFrame with necessary columns
                 if matching_shows.empty:
-                    logger.warning("No matches found even with fallback criteria")
+                    # No matches found even with fallback criteria
+                    pass
                     matching_shows = pd.DataFrame(columns=['title', 'success_score', 'popcornmeter', 'tomatometer', 
                                                          'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'match_level'])
                     match_count = 0
@@ -355,12 +351,6 @@ class SuggestionAnalyzer:
                     count = len(matching_shows[matching_shows['match_level'] == level])
                     if count > 0:
                         match_counts_by_level[level] = count
-                logger.info(f"Match counts by level: {match_counts_by_level}")
-            
-            # Log the matching titles for debugging
-            logger.info(f"Creating OptimizationSummary with {len(matching_titles)} matching titles")
-            if matching_titles:
-                logger.info(f"Sample titles: {matching_titles[:5]}")
             
             summary = OptimizationSummary(
                 overall_success_probability=success_probability,
@@ -379,11 +369,10 @@ class SuggestionAnalyzer:
                 confidence_info=confidence_info
             )
             
-            st.write(f"Debug: Created summary: {type(summary)}")
             return summary
         except Exception as e:
-            # Log the error but don't try to use streamlit here
-            logger.error(f"Error in analyze_show_concept: {e}", exc_info=True)
+            # Silently handle the error - we can't use logger in deployed app
+            pass
             
             # Create placeholder component scores
             component_scores = {
