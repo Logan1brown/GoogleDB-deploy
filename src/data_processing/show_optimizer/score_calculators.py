@@ -498,7 +498,7 @@ class MatchingCalculator:
         Returns:
             Tuple of (matching_shows, match_count, confidence_info)
             - matching_shows: DataFrame of matching shows with 'match_level' column
-            - match_count: Total number of matching shows
+            - match_count: Total number of matching shows across all levels
             - confidence_info: Dictionary with confidence metrics and match level counts
         """
         import streamlit as st
@@ -570,10 +570,9 @@ class MatchingCalculator:
         
         # Flexible matching - try different match levels
         min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample']
-        # Collect matches from all levels
-        all_matches = {}
+        # We'll collect matches from all levels
+        all_matches_by_level = {}
         match_counts = {}
-        total_count = 0
         best_level = 0
         confidence_info = {}
         
@@ -584,6 +583,7 @@ class MatchingCalculator:
         # Log the criteria we're trying to match
         logger.info(f"Attempting to match criteria: {clean_criteria}")
         
+        # First, collect matches from all levels
         for level in range(1, 5):
             try:
                 # Get criteria for this match level
@@ -605,9 +605,8 @@ class MatchingCalculator:
                 if not matched_shows.empty:
                     # Add a match_level column to identify the source level
                     matched_shows['match_level'] = level
-                    all_matches[level] = matched_shows
+                    all_matches_by_level[level] = matched_shows
                     match_counts[level] = match_count
-                    total_count += match_count
                 
                 # Calculate confidence metrics for this match
                 level_confidence = self.calculate_match_confidence(matched_shows, level, clean_criteria)
@@ -625,36 +624,83 @@ class MatchingCalculator:
                     best_level = level
                     logger.info(f"Setting initial confidence level to {level} with {match_count} shows")
                 
-                # We always continue to collect all match levels, but we can skip if we have enough exact matches
+                # If we have enough exact matches, we can skip other levels
                 if level == 1 and match_count >= 100:
                     logger.info(f"Found {match_count} exact matches (level 1), which is enough to fill display. Skipping other levels.")
                     break
-                
+                    
             except Exception as e:
+                logger.warning(f"Match level {level} failed: {e}")
                 st.warning(f"Match level {level} failed: {e}")
                 continue
         
         # If we found no matches at any level, return empty
-        if not all_matches:
+        if not all_matches_by_level:
             return pd.DataFrame(), 0, {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0, 'match_level': 0}
         
-        # Combine matches from all levels in priority order (level 1 first, then 2, etc.)
-        combined_matches = pd.DataFrame()
-        for level in range(1, 5):
-            if level in all_matches:
-                # Append matches from this level
-                combined_matches = pd.concat([combined_matches, all_matches[level]], ignore_index=True)
+        # Create a prioritized list of shows, filling up to 100 slots
+        # Start with level 1 (exact matches), then level 2, etc.
+        prioritized_shows = pd.DataFrame()
+        total_shows = 0
+        max_shows = 100  # Maximum number of shows to display
         
-        # Ensure success_score is present in the combined matches
-        if 'success_score' not in combined_matches.columns:
-            if 'success_score' in data.columns and 'id' in combined_matches.columns and 'id' in data.columns:
-                combined_matches = combined_matches.merge(data[['id', 'success_score']], on='id', how='left')
+        # Track which shows we've already included (by ID or title)
+        seen_shows = set()
+        
+        # Process each match level in priority order
+        for level in range(1, 5):
+            if level in all_matches_by_level and not all_matches_by_level[level].empty:
+                df = all_matches_by_level[level]
+                
+                # Deduplicate based on ID or title
+                if 'id' in df.columns:
+                    # Filter out shows we've already seen by ID
+                    new_shows = df[~df['id'].isin(seen_shows)]
+                    if not new_shows.empty:
+                        # Update our tracking set with these IDs
+                        seen_shows.update(new_shows['id'].tolist())
+                elif 'title' in df.columns:
+                    # Filter out shows we've already seen by title
+                    new_shows = df[~df['title'].isin(seen_shows)]
+                    if not new_shows.empty:
+                        # Update our tracking set with these titles
+                        seen_shows.update(new_shows['title'].tolist())
+                else:
+                    # No way to deduplicate, just use all shows
+                    new_shows = df
+                
+                # Calculate how many more shows we can add
+                slots_remaining = max_shows - total_shows
+                
+                if slots_remaining <= 0:
+                    # We've already filled all slots
+                    break
+                    
+                # Take only as many shows as we have slots for
+                if len(new_shows) > slots_remaining:
+                    new_shows = new_shows.head(slots_remaining)
+                
+                # Add these shows to our prioritized list
+                prioritized_shows = pd.concat([prioritized_shows, new_shows], ignore_index=True)
+                total_shows += len(new_shows)
+                
+                logger.info(f"Added {len(new_shows)} shows from match level {level}. Total now: {total_shows}/{max_shows}")
+                
+                # If we've filled all slots, we're done
+                if total_shows >= max_shows:
+                    break
+        
+        # Ensure success_score is present in the prioritized shows
+        if 'success_score' not in prioritized_shows.columns:
+            if 'success_score' in data.columns and 'id' in prioritized_shows.columns and 'id' in data.columns:
+                prioritized_shows = prioritized_shows.merge(data[['id', 'success_score']], on='id', how='left')
         
         # Update confidence info with match counts by level
         confidence_info['match_counts_by_level'] = match_counts
-        confidence_info['total_matches'] = total_count
+        confidence_info['total_matches'] = sum(match_counts.values()) if match_counts else 0
         
-        return combined_matches, total_count, confidence_info
+        # Return the prioritized shows, total count across all levels, and confidence info
+        return prioritized_shows, sum(match_counts.values()) if match_counts else 0, confidence_info
     
     def calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, 
                                confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
