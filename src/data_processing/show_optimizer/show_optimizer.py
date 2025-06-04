@@ -221,10 +221,7 @@ class ShowOptimizer:
             
             # Analyze concept
             try:
-                import streamlit as st
-                st.write(f"Debug: ShowOptimizer - Analyzing with criteria: {normalized_criteria}")
                 result = self.suggestion_analyzer.analyze_show_concept(normalized_criteria)
-                st.write(f"Debug: ShowOptimizer - Analysis complete, result type: {type(result)}")
                 return result
             except Exception as inner_e:
                 import streamlit as st
