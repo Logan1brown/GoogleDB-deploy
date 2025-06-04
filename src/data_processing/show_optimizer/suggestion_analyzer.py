@@ -101,8 +101,23 @@ class SuggestionAnalyzer:
             # Get overall success probability
             try:
                 st.write("Debug: About to call get_overall_success_rate")
-                success_probability, confidence = self.criteria_analyzer.get_overall_success_rate(criteria)
-                st.write(f"Debug: Got success_probability: {success_probability}, confidence: {confidence}")
+                result = self.criteria_analyzer.get_overall_success_rate(criteria)
+                st.write(f"Debug: Got result from get_overall_success_rate: {result}")
+                
+                # Handle the case where result is a tuple with a tuple as first element
+                if isinstance(result, tuple) and len(result) == 2:
+                    if isinstance(result[0], tuple) and len(result[0]) == 2:
+                        # Extract just the success rate from the nested tuple
+                        success_probability = result[0][0]
+                        confidence = result[1]
+                        st.write(f"Debug: Extracted success_probability: {success_probability}, confidence: {confidence}")
+                    else:
+                        # Normal case
+                        success_probability, confidence = result
+                        st.write(f"Debug: Normal case - success_probability: {success_probability}, confidence: {confidence}")
+                else:
+                    st.warning(f"Unexpected result format from get_overall_success_rate: {result}")
+                    success_probability, confidence = None, 'none'
             except Exception as e:
                 st.warning(f"Could not calculate success probability: {str(e)}")
                 success_probability, confidence = None, 'none'
@@ -199,19 +214,37 @@ class SuggestionAnalyzer:
             # Generate recommendations
             recommendations = self.generate_recommendations(criteria, success_factors, top_networks, matching_shows, confidence_info)
             
-            # Create summary with enhanced confidence information
+            # Create and return the optimization summary
+            st.write("Debug: Creating OptimizationSummary with:")
+            st.write(f"  - success_probability: {success_probability}")
+            st.write(f"  - confidence: {confidence}")
+            st.write(f"  - top_networks: {len(top_networks) if top_networks else 0} networks")
+            st.write(f"  - component_scores: {list(component_scores.keys()) if component_scores else 'None'}")
+            st.write(f"  - success_factors: {len(success_factors) if success_factors else 0} factors")
+            st.write(f"  - recommendations: {len(recommendations) if recommendations else 0} recommendations")
+            st.write(f"  - matching_titles: {len(matching_titles) if matching_titles else 0} titles")
+            st.write(f"  - match_level: {confidence_info.get('match_level', 0)}")
+            st.write(f"  - match_quality: {confidence_info.get('match_quality', 0.0)}")
+            st.write(f"  - confidence_score: {confidence_info.get('confidence_score', 0.0)}")
+            st.write(f"  - matching_shows: {len(matching_shows) if not matching_shows.empty else 0} shows")
+            st.write(f"  - match_count: {match_count}")
+            
             summary = OptimizationSummary(
                 overall_success_probability=success_probability,
                 confidence=confidence,
                 top_networks=top_networks,
                 component_scores=component_scores,
-                recommendations=recommendations,
                 success_factors=success_factors,
+                recommendations=recommendations,
                 matching_titles=matching_titles,
-                match_level=match_level,
-                match_quality=match_quality,
-                confidence_score=confidence_score
+                match_level=confidence_info.get('match_level', 0),
+                match_quality=confidence_info.get('match_quality', 0.0),
+                confidence_score=confidence_info.get('confidence_score', 0.0),
+                matching_shows=matching_shows,
+                match_count=match_count
             )
+            
+            st.write(f"Debug: Created summary: {type(summary)}")
             return summary
                 
         except Exception as e:
