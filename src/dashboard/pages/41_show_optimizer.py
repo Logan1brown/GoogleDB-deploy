@@ -196,43 +196,53 @@ def show():
                     
                     # Display matching show titles
                     st.subheader("Matching Shows")
-                    st.write("Shows matching all selected criteria:")
                     
-                    # Debug logging for matching titles
-                    st.write(f"Debug: Has matching_titles attribute: {hasattr(summary, 'matching_titles')}")
-                    if hasattr(summary, 'matching_titles'):
-                        st.write(f"Debug: matching_titles length: {len(summary.matching_titles)}")
-                        st.write(f"Debug: First few titles: {summary.matching_titles[:3] if summary.matching_titles else 'None'}")
-                    
-                    # Display matching titles from the summary object
-                    if hasattr(summary, 'matching_titles') and summary.matching_titles:
-                        # Show sample size and match quality
-                        match_level = getattr(summary, 'match_level', 0)
-                        match_quality = getattr(summary, 'match_quality', 0.0)
+                    # Display matching shows with match level differentiation
+                    if hasattr(summary, 'matching_shows') and not summary.matching_shows.empty:
+                        # Get match level from confidence info if available
+                        match_level = 1  # Default to exact match
+                        if hasattr(summary, 'confidence_info') and summary.confidence_info:
+                            match_level = summary.confidence_info.get('match_level', 1)
                         
-                        if match_level == 1:
-                            st.caption(f"Sample size: {len(summary.matching_titles)} shows (exact matches)")
-                        else:
-                            st.caption(f"Sample size: {len(summary.matching_titles)} shows (flexible matches, level {match_level})")
+                        # Display sample size and match level
+                        sample_size = len(summary.matching_shows)
                         
-                        # Display titles in a scrollable container with color coding
-                        titles_html = "<div style='max-height: 300px; overflow-y: auto;'><ul>"
-                        for title in summary.matching_titles:
-                            # Use different styling based on match level
+                        # Define match level names and colors
+                        match_level_names = {
+                            1: "Exact Match",
+                            2: "Close Match",
+                            3: "Partial Match",
+                            4: "Minimal Match"
+                        }
+                        match_level_colors = {
+                            1: "#000000",  # Bold black
+                            2: "#333333",  # Normal black
+                            3: "#666666",  # Dark gray
+                            4: "#999999"   # Light gray
+                        }
+                        match_level_name = match_level_names.get(match_level, "Flexible Match")
+                        
+                        # Add a color legend
+                        st.write(f"Found {sample_size} shows with similar criteria ({match_level_name})")
+                        
+                        # Add debug info about match level
+                        st.write(f"Match level: {match_level} - {match_level_name}")
+                        
+                        # Display the first 10 shows with color coding based on match level
+                        for i, (_, show) in enumerate(summary.matching_shows.head(10).iterrows()):
+                            if i >= 10:
+                                break
+                                
+                            title = show.get('title', 'Unknown Title')
+                            color = match_level_colors.get(match_level, "#000000")
+                            
+                            # Use consistent color based on match level
                             if match_level == 1:
                                 # Exact match - bold black
-                                titles_html += f"<li style='color: black; font-weight: bold;'>{title}</li>"
-                            elif match_level == 2:
-                                # Close match - normal black
-                                titles_html += f"<li style='color: black;'>{title}</li>"
-                            elif match_level == 3:
-                                # Partial match - dark gray
-                                titles_html += f"<li style='color: #555555;'>{title}</li>"
+                                st.markdown(f"**{title}**")
                             else:
-                                # Minimal match - light gray
-                                titles_html += f"<li style='color: #888888;'>{title}</li>"
-                        titles_html += "</ul></div>"
-                        st.markdown(titles_html, unsafe_allow_html=True)
+                                # Other match levels - use appropriate color
+                                st.markdown(f"<span style='color: {color};'>{title}</span>", unsafe_allow_html=True)
                     else:
                         st.info("No matching shows available for the selected criteria.")
                 

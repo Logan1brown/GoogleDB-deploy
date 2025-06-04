@@ -134,71 +134,102 @@ class SuggestionAnalyzer:
             # Get matching shows with flexible matching
             try:
                 matching_shows, match_count, confidence_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(criteria, flexible=True)
-                logger.info(f"Found {match_count} matching shows with flexible matching at level {confidence_info.get('match_level', 0)}")
+                logger.info(f"Found {match_count} matching shows with confidence level {confidence_info.get('level', 'unknown')}")
+                logger.info(f"Match level: {confidence_info.get('match_level', 'unknown')}")
+                
+                # Log the first few matching titles for debugging
+                if not matching_shows.empty and 'title' in matching_shows.columns:
+                    matching_titles = matching_shows['title'].tolist()
+                    logger.info(f"First few matching titles: {matching_titles[:5]}")
+                else:
+                    logger.info("No matching titles found or 'title' column missing")
+                    
             except Exception as e:
                 logger.warning(f"Could not find matching shows: {str(e)}")
-                matching_shows = pd.DataFrame(columns=['title', 'success_score', 'popcornmeter', 'tomatometer', 
-                                                  'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'])
+                matching_shows = pd.DataFrame()
                 match_count = 0
-                confidence_info = {
-                    'match_level': 0,
-                    'match_quality': 0.0,
-                    'confidence_score': 0.0,
-                    'relaxed_criteria': []
+                confidence_info = {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0, 'match_level': 4}
+            
+            # If no matches found or insufficient matches, try fallback with minimal criteria
+            min_sample_size = 5  # Minimum number of shows needed for reliable analysis
+            
+            if matching_shows.empty or match_count < min_sample_size:
+                logger.warning(f"Insufficient matching shows found ({match_count}) - using fallback recommendations")
+                
+                # Track the best fallback result
+                best_fallback = {
+                    'shows': matching_shows,
+                    'count': match_count,
+                    'confidence': confidence_info,
+                    'criteria_used': 'original' if not matching_shows.empty else None
                 }
                 
-            # Handle empty result case - use fallback recommendations
-            if matching_shows.empty:
-                logger.warning("No matching shows found for the given criteria - using fallback recommendations")
-                
-                # Try a series of progressively more relaxed criteria for fallback matching
                 try:
-                    # Start with just the genre if available
+                    # First fallback: Try with just genre
                     if 'genre' in criteria:
                         minimal_criteria = {'genre': criteria['genre']}
-                        logger.info(f"Attempting fallback matching with genre only: {minimal_criteria}")
-                        
                         fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
-                        logger.info(f"Genre-only fallback result: found {fallback_count} shows at match level {fallback_info.get('match_level', 0)}")
                         
-                        if not fallback_shows.empty:
-                            matching_shows = fallback_shows
-                            match_count = fallback_count
-                            confidence_info = fallback_info
-                            logger.info(f"Using genre-only fallback: found {match_count} shows")
-                    
-                    # If still no matches and we have source_type, try that
-                    if matching_shows.empty and 'source_type' in criteria:
+                        # Update fallback info to indicate this is a genre-only match
+                        if 'match_level' in fallback_info:
+                            fallback_info['match_level'] = max(fallback_info['match_level'], 3)  # At least level 3 (partial match)
+                        
+                        logger.info(f"Genre fallback found {fallback_count} shows with match level {fallback_info.get('match_level', 'unknown')}")
+                        
+                        # Keep this result if it's better than what we have
+                        if fallback_count > best_fallback['count']:
+                            best_fallback = {
+                                'shows': fallback_shows,
+                                'count': fallback_count,
+                                'confidence': fallback_info,
+                                'criteria_used': 'genre'
+                            }
+                except Exception as e:
+                    logger.warning(f"Fallback matching attempt with genre failed: {str(e)}")
+                
+                # Second fallback: Try with source_type
+                try:
+                    if 'source_type' in criteria:
                         minimal_criteria = {'source_type': criteria['source_type']}
-                        logger.info(f"Attempting fallback matching with source_type only: {minimal_criteria}")
-                        
                         fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
-                        logger.info(f"Source-type-only fallback result: found {fallback_count} shows")
                         
-                        if not fallback_shows.empty:
-                            matching_shows = fallback_shows
-                            match_count = fallback_count
-                            confidence_info = fallback_info
-                            logger.info(f"Using source-type-only fallback: found {match_count} shows")
-                    
-                    # If still no matches, try character_types if available
-                    if matching_shows.empty and 'character_types' in criteria:
+                        # Update fallback info to indicate this is a source_type-only match
+                        if 'match_level' in fallback_info:
+                            fallback_info['match_level'] = max(fallback_info['match_level'], 3)  # At least level 3 (partial match)
+                        
+                        logger.info(f"Source type fallback found {fallback_count} shows with match level {fallback_info.get('match_level', 'unknown')}")
+                        
+                        # Keep this result if it's better than what we have
+                        if fallback_count > best_fallback['count']:
+                            best_fallback = {
+                                'shows': fallback_shows,
+                                'count': fallback_count,
+                                'confidence': fallback_info,
+                                'criteria_used': 'source_type'
+                            }
+                except Exception as e:
+                    logger.warning(f"Fallback matching attempt with source_type failed: {str(e)}")
+                
+                # Third fallback: Try with character_types
+                try:
+                    if 'character_types' in criteria and criteria['character_types']:
                         minimal_criteria = {'character_types': criteria['character_types']}
-                        logger.info(f"Attempting fallback matching with character_types only: {minimal_criteria}")
-                        
                         fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
-                        logger.info(f"Character-types-only fallback result: found {fallback_count} shows")
                         
-                        if not fallback_shows.empty:
-                            matching_shows = fallback_shows
-                            match_count = fallback_count
-                            confidence_info = fallback_info
-                            logger.info(f"Using character-types-only fallback: found {match_count} shows")
-                            
-                    # If we still have no matches, log the failure
-                    if matching_shows.empty:
-                        logger.warning("All fallback matching attempts returned empty results")
+                        # Update fallback info to indicate this is a character_types-only match
+                        if 'match_level' in fallback_info:
+                            fallback_info['match_level'] = max(fallback_info['match_level'], 3)  # At least level 3 (partial match)
                         
+                        logger.info(f"Character types fallback found {fallback_count} shows with match level {fallback_info.get('match_level', 'unknown')}")
+                        
+                        # Keep this result if it's better than what we have
+                        if fallback_count > best_fallback['count']:
+                            best_fallback = {
+                                'shows': fallback_shows,
+                                'count': fallback_count,
+                                'confidence': fallback_info,
+                                'criteria_used': 'character_types'
+                            }
                 except Exception as e:
                     logger.warning(f"Fallback matching attempt failed: {str(e)}")
                     logger.error(f"Fallback matching exception details", exc_info=True)

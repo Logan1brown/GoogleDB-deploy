@@ -573,6 +573,12 @@ class MatchingCalculator:
         confidence_info = {}
         
         # Try each match level, starting with the strictest (level 1)
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Log the criteria we're trying to match
+        logger.info(f"Attempting to match criteria: {clean_criteria}")
+        
         for level in range(1, 5):
             try:
                 # Get criteria for this match level
@@ -580,23 +586,30 @@ class MatchingCalculator:
                 
                 # Skip if we have no criteria at this level
                 if not level_criteria:
+                    logger.info(f"No criteria for match level {level}, skipping")
                     continue
+                
+                # Log what criteria we're using for this level
+                logger.info(f"Match level {level} using criteria: {level_criteria}")
                 
                 # Match shows using the level-specific criteria
                 matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(level_criteria, data)
+                logger.info(f"Match level {level} found {match_count} shows")
                 
                 # Calculate confidence metrics for this match
                 level_confidence = self.calculate_match_confidence(matched_shows, level, clean_criteria)
                 
-                # If this is our first match or better than previous, keep it
-                if best_match is None or match_count >= min_sample_size and best_count < min_sample_size:
+                # If this is our first match or we have enough matches at this level
+                if best_match is None or (match_count >= min_sample_size and (best_count < min_sample_size or level < best_level)):
                     best_match = matched_shows
                     best_count = match_count
                     best_level = level
                     confidence_info = level_confidence
+                    logger.info(f"Setting best match to level {level} with {match_count} shows")
                     
-                    # If we have enough matches at this level, stop here
-                    if match_count >= min_sample_size:
+                    # If we have enough matches at level 1 (exact match), stop here
+                    if match_count >= min_sample_size and level == 1:
+                        logger.info("Found sufficient exact matches, stopping search")
                         break
                 
             except Exception as e:
