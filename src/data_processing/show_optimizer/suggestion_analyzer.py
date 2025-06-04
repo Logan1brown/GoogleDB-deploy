@@ -229,6 +229,9 @@ class SuggestionAnalyzer:
             st.write(f"  - matching_shows: {len(matching_shows) if not matching_shows.empty else 0} shows")
             st.write(f"  - match_count: {match_count}")
             
+            # Convert pandas DataFrame to list of strings for matching_shows
+            matching_show_list = matching_shows['title'].tolist() if not matching_shows.empty else []
+            
             summary = OptimizationSummary(
                 overall_success_probability=success_probability,
                 confidence=confidence,
@@ -240,7 +243,7 @@ class SuggestionAnalyzer:
                 match_level=confidence_info.get('match_level', 0),
                 match_quality=confidence_info.get('match_quality', 0.0),
                 confidence_score=confidence_info.get('confidence_score', 0.0),
-                matching_shows=matching_shows,
+                matching_shows=matching_show_list,
                 match_count=match_count
             )
             
@@ -248,8 +251,34 @@ class SuggestionAnalyzer:
             return summary
                 
         except Exception as e:
+            import streamlit as st
+            st.warning(f"Error in analyze_show_concept: {str(e)}")
             logger.error(f"Error in analyze_show_concept: {e}", exc_info=True)
-            return None
+            
+            # Create placeholder component scores
+            component_scores = {
+                'critics': ComponentScore(name="Critics Rating", score=None, weight=0.25, confidence='none', description="N/A"),
+                'audience': ComponentScore(name="Audience Rating", score=None, weight=0.25, confidence='none', description="N/A"),
+                'longevity': ComponentScore(name="Longevity", score=None, weight=0.25, confidence='none', description="N/A"),
+                'completion': ComponentScore(name="Completion", score=None, weight=0.25, confidence='none', description="N/A")
+            }
+            
+            # Return a minimal valid summary
+            st.write("Debug: Creating fallback OptimizationSummary in exception handler")
+            return OptimizationSummary(
+                overall_success_probability=None,
+                confidence='none',
+                top_networks=[],
+                component_scores=component_scores,
+                success_factors=[],
+                recommendations=[],
+                matching_titles=[],
+                match_level=0,
+                match_quality=0.0,
+                confidence_score=0.0,
+                matching_shows=[],
+                match_count=0
+            )
     
     def generate_recommendations(self, criteria: Dict[str, Any], 
                                success_factors: List[SuccessFactor],
