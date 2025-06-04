@@ -102,8 +102,17 @@ class SuggestionAnalyzer:
             # Get matching shows with flexible matching
             matching_shows, match_count, confidence_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(criteria, flexible=True)
             if matching_shows.empty:
-                logger.error("No matching shows found for the given criteria")
-                raise ValueError("No matching shows found for the given criteria")
+                st.warning("No matching shows found for the given criteria - using fallback recommendations")
+                # Create empty DataFrame with necessary columns for downstream processing
+                matching_shows = pd.DataFrame(columns=['title', 'success_score', 'popcornmeter', 'tomatometer', 
+                                                    'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'])
+                match_count = 0
+                confidence_info = {
+                    'match_level': 0,
+                    'match_quality': 0.0,
+                    'confidence_score': 0.0,
+                    'confidence_level': 'none'
+                }
                 
             # Extract confidence information
             match_level = confidence_info.get('match_level', 1)
@@ -122,20 +131,28 @@ class SuggestionAnalyzer:
             # Get component scores
             component_scores = self.criteria_analyzer.analyze_components(criteria)
             
-            # Verify component scores are valid
+            # Handle component scores gracefully
             import streamlit as st
             if not component_scores:
-                st.error("No component scores available for analysis")
-                # Matching shows found but no component scores could be calculated
-                raise ValueError("No component scores available for analysis")
+                st.warning("No component scores available for analysis - using N/A values")
+                # Create empty component scores dictionary with None values
+                component_scores = {}
                 
-            # Check that all expected component scores are present
+            # Check for missing component scores and add placeholders
             expected_components = ['audience', 'critics', 'longevity']
             missing_components = [comp for comp in expected_components if comp not in component_scores]
             
             if missing_components:
-                # Some component scores are missing
-                raise ValueError(f"Missing required component scores: {missing_components}")
+                st.warning(f"Some component scores are missing and will be shown as N/A: {missing_components}")
+                # Add placeholder component scores for missing components
+                for comp in missing_components:
+                    component_scores[comp] = ComponentScore(
+                        component=comp,
+                        score=None,  # None will be displayed as N/A
+                        sample_size=0,
+                        confidence='none',
+                        details={'status': 'insufficient_data'}
+                    )
             
             # Get success factors
             success_factors = self.criteria_analyzer.identify_success_factors(criteria, limit=5)

@@ -37,7 +37,7 @@ class NetworkMatch:
 class ComponentScore:
     """Success score for a component (audience, critics, longevity)."""
     component: str  # audience, critics, or longevity
-    score: float  # 0-1 score
+    score: Optional[float]  # 0-1 score, None if N/A
     sample_size: int
     confidence: str  # none, low, medium, high
     details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
@@ -131,16 +131,40 @@ class CriticsScoreCalculator(ScoreCalculator):
 
     def calculate(self, shows: pd.DataFrame) -> ComponentScore:
         if shows.empty:
-            raise ScoreCalculationError(f"Cannot calculate {self.component_name} score with empty shows DataFrame")
+            # Return a default score with very low confidence instead of raising an error
+            st.warning(f"No shows available for {self.component_name} score calculation")
+            return ComponentScore(
+                component=self.component_name,
+                score=0.5,  # Neutral score
+                sample_size=0,
+                confidence='none',
+                details={'warning': 'No shows available', 'sample_size': 0}
+            )
             
         if 'tomatometer' not in shows.columns:
-            raise ScoreCalculationError(f"tomatometer column not found in shows data for {self.component_name} score. Available columns: {list(shows.columns)}")
+            # Return a default score with very low confidence instead of raising an error
+            st.warning(f"tomatometer column not found for {self.component_name} score calculation")
+            return ComponentScore(
+                component=self.component_name,
+                score=0.5,  # Neutral score
+                sample_size=0,
+                confidence='none',
+                details={'warning': 'Missing tomatometer data', 'sample_size': 0}
+            )
             
         valid_shows = shows[shows['tomatometer'].notna()]
         sample_size = len(valid_shows)
         
         if sample_size == 0:
-            raise ScoreCalculationError(f"No shows with valid tomatometer data found for {self.component_name} score")
+            # Return a default score with very low confidence instead of raising an error
+            st.warning(f"No shows with valid tomatometer data found for {self.component_name} score")
+            return ComponentScore(
+                component=self.component_name,
+                score=0.5,  # Neutral score
+                sample_size=0,
+                confidence='none',
+                details={'warning': 'No valid tomatometer data', 'sample_size': 0}
+            )
             
         avg_score = valid_shows['tomatometer'].mean() / 100.0  # Normalize to 0-1
         confidence = self._get_confidence(sample_size)

@@ -381,26 +381,46 @@ class CriteriaScorer:
         for calculator in calculators:
             try:
                 # Check if required columns for this calculator are present
+                missing_data = False
                 if calculator.component_name == 'success' and 'success_score' not in matching_shows.columns:
-                    st.error(f"Missing success_score column for {calculator.component_name} calculator")
+                    st.warning(f"Missing success_score column for {calculator.component_name} calculator - will display N/A")
+                    missing_data = True
                 elif calculator.component_name == 'audience' and 'popcornmeter' not in matching_shows.columns:
-                    st.error(f"Missing popcornmeter column for {calculator.component_name} calculator")
+                    st.warning(f"Missing popcornmeter column for {calculator.component_name} calculator - will display N/A")
+                    missing_data = True
                 elif calculator.component_name == 'critics' and 'tomatometer' not in matching_shows.columns:
-                    st.error(f"Missing tomatometer column for {calculator.component_name} calculator")
+                    st.warning(f"Missing tomatometer column for {calculator.component_name} calculator - will display N/A")
+                    missing_data = True
                 elif calculator.component_name == 'longevity':
                     missing = [col for col in ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'] if col not in matching_shows.columns]
                     if missing:
-                        st.error(f"Missing {missing} columns for {calculator.component_name} calculator")
+                        st.warning(f"Missing {missing} columns for {calculator.component_name} calculator - will display N/A")
+                        missing_data = True
                 
-                # Calculate the component score
-                score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
-                if score_component:  # Ensure a component score object was returned
-                    component_scores[calculator.component_name] = score_component
+                if missing_data:
+                    # Create a placeholder component score with None value
+                    component_scores[calculator.component_name] = ComponentScore(
+                        component=calculator.component_name,
+                        score=None,  # None will be displayed as N/A
+                        sample_size=0,
+                        confidence='none',
+                        details={'status': 'insufficient_data'}
+                    )
+                else:
+                    # Calculate the component score
+                    score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
+                    if score_component:  # Ensure a component score object was returned
+                        component_scores[calculator.component_name] = score_component
             except Exception as e:
-                st.error(f"Failed to calculate {calculator.component_name} score: {str(e)}")
-                # Print stack trace for debugging
-                import traceback
-                st.error(f"Stack trace: {traceback.format_exc()}")
+                st.warning(f"Failed to calculate {calculator.component_name} score: {str(e)} - will display N/A")
+                # Create a placeholder component score with None value
+                component_scores[calculator.component_name] = ComponentScore(
+                    component=calculator.component_name,
+                    score=None,  # None will be displayed as N/A
+                    sample_size=0,
+                    confidence='none',
+                    details={'status': 'calculation_error', 'error': str(e)}
+                )
 
         if not component_scores:
             st.warning("No component scores could be calculated for the given criteria after attempting all components.")
