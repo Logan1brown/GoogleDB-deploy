@@ -97,10 +97,18 @@ class SuggestionAnalyzer:
         # Start analysis with the given criteria
         try:
             # Get overall success probability
-            success_probability, confidence = self.criteria_analyzer.get_overall_success_rate(criteria)
+            try:
+                success_probability, confidence = self.criteria_analyzer.get_overall_success_rate(criteria)
+            except Exception as e:
+                st.warning(f"Could not calculate success probability: {str(e)}")
+                success_probability, confidence = None, 'none'
             
             # Get top networks
-            top_networks = self.criteria_analyzer.rank_networks_by_compatibility(criteria, limit=5)
+            try:
+                top_networks = self.criteria_analyzer.rank_networks_by_compatibility(criteria, limit=5)
+            except Exception as e:
+                st.warning(f"Could not calculate network compatibility: {str(e)}")
+                top_networks = []
             
             # Get matching shows with flexible matching
             matching_shows, match_count, confidence_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(criteria, flexible=True)
