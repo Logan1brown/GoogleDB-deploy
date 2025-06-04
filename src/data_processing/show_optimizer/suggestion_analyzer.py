@@ -274,8 +274,10 @@ class SuggestionAnalyzer:
             
             # Create and return the optimization summary
             
-            # Convert pandas DataFrame to list of strings for matching_shows
-            matching_show_list = matching_shows['title'].tolist() if not matching_shows.empty else []
+            # Log the matching titles for debugging
+            logger.info(f"Creating OptimizationSummary with {len(matching_titles)} matching titles")
+            if matching_titles:
+                logger.info(f"Sample titles: {matching_titles[:5]}")
             
             summary = OptimizationSummary(
                 overall_success_probability=success_probability,
@@ -284,11 +286,11 @@ class SuggestionAnalyzer:
                 component_scores=component_scores,
                 success_factors=success_factors,
                 recommendations=recommendations,
-                matching_titles=matching_titles,
+                matching_titles=matching_titles,  # This is what the UI uses
                 match_level=confidence_info.get('match_level', 0),
                 match_quality=confidence_info.get('match_quality', 0.0),
                 confidence_score=confidence_info.get('confidence_score', 0.0),
-                matching_shows=matching_show_list,
+                matching_shows=matching_titles,  # Use the same list for consistency
                 match_count=match_count
             )
             
