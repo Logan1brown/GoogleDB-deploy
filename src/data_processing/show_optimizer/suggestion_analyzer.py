@@ -95,8 +95,6 @@ class SuggestionAnalyzer:
             OptimizationSummary with success probability, recommendations, etc.
         """
         # Start analysis with the given criteria
-        import streamlit as st
-        st.write(f"Debug: SuggestionAnalyzer - Starting analysis with criteria: {criteria}")
         try:
             # Get overall success probability
             try:
@@ -155,16 +153,17 @@ class SuggestionAnalyzer:
                 
             # Calculate component scores
             try:
-                component_scores = self.criteria_analyzer.criteria_scorer.calculate_component_scores(criteria, matching_shows)
+                # Get component scores from the criteria analyzer
+                component_scores = self.criteria_analyzer.analyze_components(criteria)
             except Exception as e:
                 st.warning(f"Could not calculate component scores: {str(e)}")
                 # Create placeholder component scores with None values
-                component_scores = [
-                    ComponentScore(name="Critics Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                    ComponentScore(name="Audience Rating", score=None, weight=0.25, confidence='none', description="N/A"),
-                    ComponentScore(name="Longevity", score=None, weight=0.25, confidence='none', description="N/A"),
-                    ComponentScore(name="Completion", score=None, weight=0.25, confidence='none', description="N/A")
-                ]
+                component_scores = {
+                    'critics': ComponentScore(name="Critics Rating", score=None, weight=0.25, confidence='none', description="N/A"),
+                    'audience': ComponentScore(name="Audience Rating", score=None, weight=0.25, confidence='none', description="N/A"),
+                    'longevity': ComponentScore(name="Longevity", score=None, weight=0.25, confidence='none', description="N/A"),
+                    'completion': ComponentScore(name="Completion", score=None, weight=0.25, confidence='none', description="N/A")
+                }
             
             # Handle component scores gracefully
             import streamlit as st

@@ -445,7 +445,7 @@ class CriteriaAnalyzer:
             Tuple of (success_rate, confidence)
         """
         # Get matching shows and count
-        matching_shows, match_count = self.criteria_scorer._get_matching_shows(criteria)
+        matching_shows, match_count, confidence_info = self.criteria_scorer._get_matching_shows(criteria)
         
         if matching_shows.empty or match_count == 0:
             # Return None instead of 0.0 to indicate no data available

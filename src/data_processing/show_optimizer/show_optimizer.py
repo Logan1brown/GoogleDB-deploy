@@ -221,10 +221,7 @@ class ShowOptimizer:
             
             # Analyze concept
             try:
-                import streamlit as st
-                st.write(f"Debug: ShowOptimizer - About to call analyze_show_concept")
                 result = self.suggestion_analyzer.analyze_show_concept(normalized_criteria)
-                st.write(f"Debug: ShowOptimizer - Got result from analyze_show_concept: {type(result)}")
                 return result
             except Exception as inner_e:
                 import streamlit as st
@@ -232,8 +229,6 @@ class ShowOptimizer:
                 logger.warning(f"Error in analyze_show_concept: {str(inner_e)}", exc_info=True)
                 
                 # Create a minimal valid summary instead of returning None
-                import streamlit as st
-                st.write("Debug: Creating minimal valid summary in inner exception handler")
                 from src.data_processing.show_optimizer.suggestion_analyzer import OptimizationSummary, NetworkMatch, Recommendation, SuccessFactor
                 from src.data_processing.show_optimizer.score_calculators import ComponentScore
                 
