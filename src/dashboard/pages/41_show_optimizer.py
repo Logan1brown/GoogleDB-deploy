@@ -281,7 +281,19 @@ def show():
                         if 'character_types' in state.get('criteria', {}) and state['criteria']['character_types']:
                             char_types = state['criteria']['character_types']
                             if char_types:
-                                st.info(f"Shows are matched based on character types: {', '.join(char_types)}. "
+                                # Convert character types to strings before joining
+                                char_types_str = [str(ct) for ct in char_types]
+                                
+                                # Look up character type names if possible
+                                char_type_names = []
+                                if 'field_options' in state and 'character_types' in state['field_options']:
+                                    # Create a mapping of ID to name
+                                    ct_map = {opt.id: opt.name for opt in state['field_options']['character_types']}
+                                    char_type_names = [ct_map.get(int(ct), f"Type {ct}") for ct in char_types_str]
+                                
+                                # Use names if available, otherwise use IDs
+                                display_types = char_type_names if char_type_names else char_types_str
+                                st.info(f"Shows are matched based on character types: {', '.join(display_types)}. "
                                        f"Only exact matches (bold) are guaranteed to have these character types.")
 
                         
