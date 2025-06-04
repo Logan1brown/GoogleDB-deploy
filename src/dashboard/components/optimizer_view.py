@@ -162,6 +162,13 @@ class OptimizerView:
                         # Run the actual analysis
                         summary = self.optimizer.analyze_concept(normalized_criteria)
                         
+                        # Debug info
+                        st.write(f"Debug: Summary type: {type(summary)}")
+                        if summary:
+                            st.write(f"Debug: Has component_scores: {hasattr(summary, 'component_scores')}")
+                            if hasattr(summary, 'component_scores'):
+                                st.write(f"Debug: Component scores: {summary.component_scores}")
+                        
                         # Analysis complete
                         
                     except Exception as e:
