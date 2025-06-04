@@ -116,8 +116,11 @@ class CriteriaScorer:
                     columns_to_merge = ['show_id', 'success_score', 'popcornmeter', 'tomatometer', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
                     available_columns = [col for col in columns_to_merge if col in success_df.columns]
                     
-                    st.write(f"DEBUG: Available columns in success_df: {list(success_df.columns)}")
-                    st.write(f"DEBUG: Columns being merged: {available_columns}")
+                    # Identify overlapping columns to avoid _x and _y suffixes
+                    common_columns = set(comp_df.columns).intersection(set(success_df.columns)) - {'show_id'}
+                    if common_columns:
+                        # Drop overlapping columns from comp_df before merge to avoid _x/_y suffixes
+                        comp_df = comp_df.drop(columns=list(common_columns))
                     
                     # Merge success metrics into comp_df
                     comp_df = pd.merge(
@@ -128,14 +131,9 @@ class CriteriaScorer:
                         how='left'
                     )
                     
-                    # Debug output for merged columns
-                    st.write(f"DEBUG: Columns after merging success data: {list(comp_df.columns)}")
-                    
                     # Check for required component calculator columns
                     for col in ['popcornmeter', 'tomatometer']:
-                        if col in comp_df.columns:
-                            st.write(f"DEBUG: {col} is present in merged data")
-                        else:
+                        if col not in comp_df.columns:
                             st.error(f"DEBUG: {col} is MISSING from merged data")
                     
                     # Drop the redundant show_id column from the merge
@@ -339,9 +337,8 @@ class CriteriaScorer:
             # Get matching shows and ensure they have all required columns for scoring
             matching_shows, match_count = self._get_matching_shows(criteria)
             
-            # Debug output to help diagnose issues
-            st.write(f"DEBUG: Matching shows found: {match_count}")
-            st.write(f"DEBUG: Columns in matching_shows: {list(matching_shows.columns)}")
+            # Log the number of matching shows found
+            st.write(f"Found {match_count} matching shows")
 
             if matching_shows.empty:
                 st.warning(f"No matching shows found for criteria: {criteria}. Cannot calculate component scores.")
@@ -389,39 +386,27 @@ class CriteriaScorer:
         # Calculate scores for each component
         for calculator in calculators:
             try:
-                st.write(f"DEBUG: Calculating {calculator.component_name} score")
-                
                 # Check if required columns for this calculator are present
                 if calculator.component_name == 'success' and 'success_score' not in matching_shows.columns:
-                    st.error(f"DEBUG: success_score column missing for {calculator.component_name} calculator")
+                    st.error(f"Missing success_score column for {calculator.component_name} calculator")
                 elif calculator.component_name == 'audience' and 'popcornmeter' not in matching_shows.columns:
-                    st.error(f"DEBUG: popcornmeter column missing for {calculator.component_name} calculator")
+                    st.error(f"Missing popcornmeter column for {calculator.component_name} calculator")
                 elif calculator.component_name == 'critics' and 'tomatometer' not in matching_shows.columns:
-                    st.error(f"DEBUG: tomatometer column missing for {calculator.component_name} calculator")
+                    st.error(f"Missing tomatometer column for {calculator.component_name} calculator")
                 elif calculator.component_name == 'longevity':
                     missing = [col for col in ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'] if col not in matching_shows.columns]
                     if missing:
-                        st.error(f"DEBUG: {missing} columns missing for {calculator.component_name} calculator")
+                        st.error(f"Missing {missing} columns for {calculator.component_name} calculator")
                 
                 # Calculate the component score
                 score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
                 if score_component:  # Ensure a component score object was returned
                     component_scores[calculator.component_name] = score_component
-                    st.write(f"DEBUG: Successfully calculated {calculator.component_name} score: {score_component.score:.2f}")
-                    st.write(f"DEBUG: {calculator.component_name} sample size: {score_component.sample_size}")
             except Exception as e:
                 st.error(f"Failed to calculate {calculator.component_name} score: {str(e)}")
                 # Print stack trace for debugging
                 import traceback
-                st.error(f"DEBUG: Stack trace: {traceback.format_exc()}")
-                
-                # Check for null values in required columns
-                if calculator.component_name == 'success' and 'success_score' in matching_shows.columns:
-                    st.write(f"DEBUG: success_score null count: {matching_shows['success_score'].isna().sum()}")
-                elif calculator.component_name == 'audience' and 'popcornmeter' in matching_shows.columns:
-                    st.write(f"DEBUG: popcornmeter null count: {matching_shows['popcornmeter'].isna().sum()}")
-                elif calculator.component_name == 'critics' and 'tomatometer' in matching_shows.columns:
-                    st.write(f"DEBUG: tomatometer null count: {matching_shows['tomatometer'].isna().sum()}")
+                st.error(f"Stack trace: {traceback.format_exc()}")
 
         if not component_scores:
             st.warning("No component scores could be calculated for the given criteria after attempting all components.")
