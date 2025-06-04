@@ -245,23 +245,50 @@ def show():
                         st.write("**Bold** = Exact match, Normal = Close match, Grey = Partial match")
                         
                         # Display up to 100 shows with color coding based on individual match level
-                        for i, (_, show) in enumerate(summary.matching_shows.head(100).iterrows()):
-                            if i >= 100:
-                                break
+                        # First, ensure we have a DataFrame with unique shows
+                        if 'title' in summary.matching_shows.columns:
+                            # Debug the dataframe structure
+                            st.write(f"Debug: DataFrame has {len(summary.matching_shows)} rows with columns: {', '.join(summary.matching_shows.columns)}")
+                            
+                            # Get unique titles to avoid duplicates
+                            seen_titles = set()
+                            unique_shows = []
+                            
+                            # Process shows in order (they should already be prioritized by match level)
+                            for _, show in summary.matching_shows.iterrows():
+                                title = show.get('title', 'Unknown Title')
                                 
-                            title = show.get('title', 'Unknown Title')
+                                # Skip if we've already seen this title
+                                if title in seen_titles:
+                                    continue
+                                    
+                                seen_titles.add(title)
+                                unique_shows.append(show)
+                                
+                                # Stop if we've reached 100 shows
+                                if len(unique_shows) >= 100:
+                                    break
                             
-                            # Get this show's individual match level
-                            show_match_level = show.get('match_level', match_level)  # Fall back to global match level if not present
-                            color = match_level_colors.get(show_match_level, "#000000")
+                            # Display the unique shows
+                            st.write(f"Displaying {len(unique_shows)} unique shows")
                             
-                            # Format based on this show's match level
-                            if show_match_level == 1:
-                                # Exact match - bold black
-                                st.markdown(f"**{title}**")
-                            else:
-                                # Other match levels - use appropriate color
-                                st.markdown(f"<span style='color: {color};'>{title}</span>", unsafe_allow_html=True)
+                            for show in unique_shows:
+                                title = show.get('title', 'Unknown Title')
+                                
+                                # Get this show's individual match level
+                                show_match_level = show.get('match_level', match_level)  # Fall back to global match level if not present
+                                color = match_level_colors.get(show_match_level, "#000000")
+                                
+                                # Format based on this show's match level
+                                if show_match_level == 1:
+                                    # Exact match - bold black
+                                    st.markdown(f"**{title}**")
+                                elif show_match_level == 2:
+                                    # Close match - normal black
+                                    st.markdown(title)
+                                else:
+                                    # Other match levels - use appropriate color
+                                    st.markdown(f"<span style='color: {color};'>{title}</span>", unsafe_allow_html=True)
                     else:
                         st.info("No matching shows available for the selected criteria.")
                 
