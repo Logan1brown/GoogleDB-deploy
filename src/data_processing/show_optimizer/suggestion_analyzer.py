@@ -395,7 +395,7 @@ class SuggestionAnalyzer:
                 match_level=0,
                 match_quality=0.0,
                 confidence_score=0.0,
-                matching_shows=[],
+                matching_shows=pd.DataFrame(),
                 match_count=0,
                 match_counts_by_level={},
                 confidence_info={}
