@@ -148,7 +148,7 @@ class CriteriaScorer:
             if 'success_score' in comp_df.columns and not self._normalization_performed:
                 # Check if any non-NaN scores are > 1, indicating a 0-100 scale
                 if comp_df['success_score'].notna().any() and (comp_df.loc[comp_df['success_score'].notna(), 'success_score'] > 1).any():
-                    st.info("Data Normalization: 'success_score' was detected on a 0-100 scale and has been normalized to 0-1.")
+                    # Normalize silently without showing a message
                     comp_df['success_score'] = comp_df['success_score'] / 100.0
                     self._normalization_performed = True  # Mark normalization as performed
             
@@ -167,7 +167,7 @@ class CriteriaScorer:
             # Debug output for success metrics
             # Final criteria data ready for use
             
-            st.toast(f"Optimizer data refreshed. Shape: {self.criteria_data.shape}")
+            # Return criteria data without showing toast message
             return self.criteria_data
             
         except ValueError as ve:

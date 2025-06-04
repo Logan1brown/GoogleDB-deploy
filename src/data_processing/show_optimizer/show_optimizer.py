@@ -224,11 +224,65 @@ class ShowOptimizer:
                 result = self.suggestion_analyzer.analyze_show_concept(normalized_criteria)
                 return result
             except Exception as inner_e:
-                logger.error(f"Error in analyze_show_concept: {str(inner_e)}", exc_info=True)
-                return None
+                import streamlit as st
+                st.warning(f"Some analysis components failed: {str(inner_e)}")
+                logger.warning(f"Error in analyze_show_concept: {str(inner_e)}", exc_info=True)
+                
+                # Create a minimal valid summary instead of returning None
+                from src.data_processing.show_optimizer.models import OptimizationSummary
+                from src.data_processing.show_optimizer.score_calculators import ComponentScore
+                
+                # Create placeholder component scores
+                component_scores = {
+                    'audience': ComponentScore(component='audience', score=None, sample_size=0, confidence='none', details={'status': 'error'}),
+                    'critics': ComponentScore(component='critics', score=None, sample_size=0, confidence='none', details={'status': 'error'}),
+                    'longevity': ComponentScore(component='longevity', score=None, sample_size=0, confidence='none', details={'status': 'error'})
+                }
+                
+                # Return a minimal valid summary
+                return OptimizationSummary(
+                    overall_success_probability=None,
+                    confidence='none',
+                    top_networks=[],
+                    component_scores=component_scores,
+                    success_factors=[],
+                    recommendations=[],
+                    matching_shows=[],
+                    match_count=0,
+                    match_level=0,
+                    match_quality=0.0,
+                    confidence_score=0.0
+                )
         except Exception as e:
-            logger.error(f"Error analyzing concept: {e}", exc_info=True)
-            return None
+            import streamlit as st
+            st.warning(f"Analysis encountered an error: {str(e)}")
+            logger.warning(f"Error analyzing concept: {e}", exc_info=True)
+            
+            # Create a minimal valid summary instead of returning None
+            from src.data_processing.show_optimizer.models import OptimizationSummary
+            from src.data_processing.show_optimizer.score_calculators import ComponentScore
+            
+            # Create placeholder component scores
+            component_scores = {
+                'audience': ComponentScore(component='audience', score=None, sample_size=0, confidence='none', details={'status': 'error'}),
+                'critics': ComponentScore(component='critics', score=None, sample_size=0, confidence='none', details={'status': 'error'}),
+                'longevity': ComponentScore(component='longevity', score=None, sample_size=0, confidence='none', details={'status': 'error'})
+            }
+            
+            # Return a minimal valid summary
+            return OptimizationSummary(
+                overall_success_probability=None,
+                confidence='none',
+                top_networks=[],
+                component_scores=component_scores,
+                success_factors=[],
+                recommendations=[],
+                matching_shows=[],
+                match_count=0,
+                match_level=0,
+                match_quality=0.0,
+                confidence_score=0.0
+            )
     
     def get_network_tiers(self, criteria: Dict[str, Any], 
                         min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:

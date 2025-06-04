@@ -55,7 +55,7 @@ class Recommendation:
 @dataclass
 class OptimizationSummary:
     """Summary of optimization recommendations."""
-    overall_success_probability: float
+    overall_success_probability: Optional[float]  # Can be None when data is insufficient
     confidence: str
     top_networks: List[NetworkMatch]
     component_scores: Dict[str, ComponentScore]
@@ -65,6 +65,8 @@ class OptimizationSummary:
     match_level: int = 1  # Match level used (1-4, where 1 is highest)
     match_quality: float = 1.0  # Quality of the match (0-1)
     confidence_score: float = 1.0  # Confidence score (0-1)
+    matching_shows: List[str] = field(default_factory=list)  # List of matching show titles
+    match_count: int = 0  # Number of matching shows
 
 
 class SuggestionAnalyzer:
