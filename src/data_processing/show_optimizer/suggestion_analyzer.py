@@ -27,6 +27,7 @@ from typing import Dict, List, Optional, Set, Tuple, Any, Union
 import pandas as pd
 import numpy as np
 import logging
+import streamlit as st
 from functools import lru_cache
 from datetime import datetime, timedelta
 
@@ -421,7 +422,20 @@ class SuggestionAnalyzer:
         for criteria_type in network_rates.keys():
             # Create a criteria dict with just this one criteria
             single_criteria = {criteria_type: criteria[criteria_type]}
-            rate, _ = self.criteria_analyzer.get_overall_success_rate(single_criteria)
+            result = self.criteria_analyzer.get_overall_success_rate(single_criteria)
+            
+            # Handle the case where result is a tuple with a tuple as first element
+            if isinstance(result, tuple) and len(result) == 2:
+                if isinstance(result[0], tuple) and len(result[0]) == 2:
+                    # Extract just the success rate from the nested tuple
+                    rate = result[0][0]
+                else:
+                    # Normal case
+                    rate, _ = result
+            else:
+                # Fallback
+                rate = None
+                
             overall_rates[criteria_type] = rate
         
         # Find criteria where network rate differs significantly from overall rate
