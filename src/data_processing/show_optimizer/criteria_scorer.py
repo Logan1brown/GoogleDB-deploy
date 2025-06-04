@@ -103,17 +103,16 @@ class CriteriaScorer:
                 success_df = success_df.reset_index()
             
             # Define success metrics to merge from success_df
-            # Include all required columns for component calculators
-            success_metrics_to_integrate = ['success_score', 'popcornmeter', 'tomatometer', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
-            
-            # Determine which metrics are available in success_df
-            available_metrics_in_success_df = []
+            # Exclude tmdb_seasons and tmdb_status which already exist in comp_df
+            # to avoid column conflicts during merge
+            success_metrics_to_include = ['success_score', 'popcornmeter', 'tomatometer', 'tmdb_total_episodes']
             
             # Merge success metrics if available
             if not success_df.empty:
                 try:
-                    # Include all necessary columns for component calculators
-                    columns_to_merge = ['show_id', 'success_score', 'popcornmeter', 'tomatometer', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
+                    # Only include non-conflicting columns to avoid suffix issues
+                    # Always include show_id for the join
+                    columns_to_merge = ['show_id'] + success_metrics_to_include
                     available_columns = [col for col in columns_to_merge if col in success_df.columns]
                     
                     # Handle columns that might cause suffix issues
@@ -128,19 +127,24 @@ class CriteriaScorer:
                         how='left'
                     )
                     
-                    # Fix columns with _x and _y suffixes
-                    # First, create a list of columns we need to fix
-                    cols_to_fix = [col[:-2] for col in comp_df.columns if col.endswith('_y')]
+                    # Since we're only merging non-conflicting columns, we shouldn't have _x/_y suffixes
+                    # But just in case, check for any columns with suffixes and fix them
+                    cols_with_suffix = [col for col in comp_df.columns if col.endswith('_x') or col.endswith('_y')]
                     
-                    # For each column that needs fixing
-                    for base_col in cols_to_fix:
-                        # Keep the _y version (from success_df) and remove the _x version
-                        if f'{base_col}_y' in comp_df.columns:
-                            # Drop the _x version if it exists
-                            if f'{base_col}_x' in comp_df.columns:
-                                comp_df = comp_df.drop(columns=[f'{base_col}_x'])
-                            # Rename the _y version to the base name
-                            comp_df = comp_df.rename(columns={f'{base_col}_y': base_col})
+                    if cols_with_suffix:
+                        st.write(f"DEBUG: Found columns with suffixes after merge: {cols_with_suffix}")
+                        # Fix any columns with _x and _y suffixes
+                        cols_to_fix = [col[:-2] for col in comp_df.columns if col.endswith('_y')]
+                        
+                        # For each column that needs fixing
+                        for base_col in cols_to_fix:
+                            # Keep the _y version (from success_df) and remove the _x version
+                            if f'{base_col}_y' in comp_df.columns:
+                                # Drop the _x version if it exists
+                                if f'{base_col}_x' in comp_df.columns:
+                                    comp_df = comp_df.drop(columns=[f'{base_col}_x'])
+                                # Rename the _y version to the base name
+                                comp_df = comp_df.rename(columns={f'{base_col}_y': base_col})
                     
                     # Check for required component calculator columns
                     for col in ['popcornmeter', 'tomatometer']:
