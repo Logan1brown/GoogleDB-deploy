@@ -221,7 +221,10 @@ def show():
                         
                         # Get match counts by level if available
                         match_counts_by_level = {}
-                        if hasattr(summary, 'match_counts_by_level'):
+                        if hasattr(summary, 'confidence_info') and isinstance(summary.confidence_info, dict) and 'match_counts_by_level' in summary.confidence_info:
+                            # Get match counts from confidence_info if available
+                            match_counts_by_level = summary.confidence_info['match_counts_by_level']
+                        elif hasattr(summary, 'match_counts_by_level'):
                             match_counts_by_level = summary.match_counts_by_level
                         elif 'match_level' in summary.matching_shows.columns:
                             # Calculate counts from the DataFrame
@@ -252,15 +255,27 @@ def show():
                                 count = match_counts_by_level[level]
                                 match_level_summary.append(f"{count} {level_name}")
                         
-                        if match_level_summary:
+                        # Display match counts with clearer explanation
+                        exact_match_count = match_counts_by_level.get(1, 0)
+                        
+                        if exact_match_count > 0 and exact_match_count < sample_size:
+                            # We have both exact and supplemental matches
+                            st.write(f"Found {exact_match_count} exact matches plus {sample_size - exact_match_count} supplemental matches")
+                            if exact_match_count < 5:
+                                st.info(f"Found only {exact_match_count} exact matches, so supplemental matches were added to provide better analysis.")
+                        elif match_level_summary:
                             st.write(f"Found {sample_size} shows: {', '.join(match_level_summary)}")
                         else:
                             st.write(f"Found {sample_size} shows with similar criteria ({match_level_name})")
                         
                         # Add legend for the colors with clearer explanation
-                        st.write("**Bold** = Exact match (matches ALL criteria including character types)")
+                        st.write("**Bold** = Exact match (matches ALL selected criteria including character types)")
                         st.write("Normal = Close match (matches most criteria)")
-                        st.write("Grey = Partial match (matches core criteria only)")
+                        st.write("Grey = Supplemental match (matches core criteria only)")
+                        
+                        # Add note about supplemental matches if needed
+                        if exact_match_count > 0 and exact_match_count < sample_size:
+                            st.write("Note: Supplemental matches may not include all selected criteria but help provide a more robust analysis.")
                         
                         # Add explanation about character types if they're in the criteria
                         if 'character_types' in state.get('criteria', {}) and state['criteria']['character_types']:
@@ -308,22 +323,41 @@ def show():
                             
                             st.write(f"Shows by match level: {level_counts}")
                             
-                            # Display each show with appropriate formatting
+                            # Sort shows by match level to ensure exact matches appear first
+                            unique_shows.sort(key=lambda x: x.get('match_level', 4))
+                            
+                            # Group shows by match level for better display
+                            shows_by_level = {}
                             for show in unique_shows:
-                                title = show.get('title', 'Unknown Title')
-                                show_match_level = show.get('match_level', match_level)
-                                color = match_level_colors.get(show_match_level, "#000000")
+                                level = show.get('match_level', match_level)
+                                if level not in shows_by_level:
+                                    shows_by_level[level] = []
+                                shows_by_level[level].append(show)
+                            
+                            # Display shows grouped by match level
+                            for level in sorted(shows_by_level.keys()):
+                                shows = shows_by_level[level]
+                                color = match_level_colors.get(level, "#000000")
                                 
-                                # Format based on match level
-                                if show_match_level == 1:
-                                    # Exact match - bold black
-                                    st.markdown(f"**{title}**")
-                                elif show_match_level == 2:
-                                    # Close match - normal black
-                                    st.markdown(title)
-                                else:
-                                    # Other match levels - use appropriate color
-                                    st.markdown(f"<span style='color: {color};'>{title}</span>", unsafe_allow_html=True)
+                                # Add a separator between match levels if there are multiple levels
+                                if len(shows_by_level) > 1 and level > 1 and level in match_level_names:
+                                    st.write(f"---")
+                                    st.write(f"**{match_level_names[level]} Shows ({len(shows)})**")
+                                
+                                # Display each show with appropriate formatting
+                                for show in shows:
+                                    title = show.get('title', 'Unknown Title')
+                                    
+                                    # Format based on match level
+                                    if level == 1:
+                                        # Exact match - bold black
+                                        st.markdown(f"**{title}**")
+                                    elif level == 2:
+                                        # Close match - normal black
+                                        st.markdown(title)
+                                    else:
+                                        # Other match levels - use appropriate color
+                                        st.markdown(f"<span style='color: {color};'>{title}</span>", unsafe_allow_html=True)
                     else:
                         st.info("No matching shows available for the selected criteria.")
                 

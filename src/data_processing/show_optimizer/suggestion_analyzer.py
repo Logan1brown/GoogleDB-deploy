@@ -69,6 +69,8 @@ class OptimizationSummary:
     confidence_score: float = 1.0  # Confidence score (0-1)
     matching_shows: Any = None  # DataFrame of matching shows (pandas DataFrame)
     match_count: int = 0  # Number of matching shows
+    match_counts_by_level: Dict[int, int] = field(default_factory=dict)  # Count of shows by match level
+    confidence_info: Dict[str, Any] = field(default_factory=dict)  # Detailed confidence information
 
 
 class SuggestionAnalyzer:
@@ -150,100 +152,113 @@ class SuggestionAnalyzer:
                 match_count = 0
                 confidence_info = {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0, 'match_level': 4}
             
-            # If no matches found or insufficient matches, try fallback with minimal criteria
-            min_sample_size = 5  # Minimum number of shows needed for reliable analysis
+            # Store the original exact matches even if there are insufficient matches
+            original_matches = matching_shows.copy() if not matching_shows.empty else pd.DataFrame()
+            original_match_count = match_count
+            original_confidence_info = confidence_info.copy() if isinstance(confidence_info, dict) else {}
             
-            if matching_shows.empty or match_count < min_sample_size:
-                logger.warning(f"Insufficient matching shows found ({match_count}) - using fallback recommendations")
+            # If we have some exact matches but not enough for reliable analysis, get additional matches to supplement
+            min_sample_size = 5  # Minimum number of shows needed for reliable analysis
+            need_supplemental = original_match_count > 0 and original_match_count < min_sample_size
+            
+            # If no matches found or insufficient matches, try fallback with minimal criteria
+            if original_matches.empty or need_supplemental:
+                logger.warning(f"Found {original_match_count} exact matches - supplementing with additional shows")
                 
-                # Track the best fallback result
-                best_fallback = {
-                    'shows': matching_shows,
-                    'count': match_count,
-                    'confidence': confidence_info,
-                    'criteria_used': 'original' if not matching_shows.empty else None
-                }
+                # Try with just genre to get supplemental matches
+                supplemental_matches = pd.DataFrame()
+                supplemental_count = 0
+                supplemental_info = {}
                 
                 try:
-                    # First fallback: Try with just genre
+                    # First try with just genre
                     if 'genre' in criteria:
                         minimal_criteria = {'genre': criteria['genre']}
-                        fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
+                        genre_shows, genre_count, genre_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
                         
-                        # Update fallback info to indicate this is a genre-only match
-                        if 'match_level' in fallback_info:
-                            fallback_info['match_level'] = max(fallback_info['match_level'], 3)  # At least level 3 (partial match)
+                        # Mark these as genre-only matches (level 3 - partial match)
+                        if not genre_shows.empty and 'match_level' in genre_shows.columns:
+                            # Set all to level 3 (partial match) to indicate they're genre-only matches
+                            genre_shows['match_level'] = 3
+                        elif not genre_shows.empty:
+                            # Add match_level column if it doesn't exist
+                            genre_shows['match_level'] = 3
                         
-                        logger.info(f"Genre fallback found {fallback_count} shows with match level {fallback_info.get('match_level', 'unknown')}")
+                        logger.info(f"Genre supplemental search found {genre_count} shows")
                         
-                        # Keep this result if it's better than what we have
-                        if fallback_count > best_fallback['count']:
-                            best_fallback = {
-                                'shows': fallback_shows,
-                                'count': fallback_count,
-                                'confidence': fallback_info,
-                                'criteria_used': 'genre'
-                            }
+                        supplemental_matches = genre_shows
+                        supplemental_count = genre_count
+                        supplemental_info = genre_info
+                        supplemental_info['match_level'] = 3  # Mark as partial match
                 except Exception as e:
-                    logger.warning(f"Fallback matching attempt with genre failed: {str(e)}")
+                    logger.warning(f"Supplemental matching attempt with genre failed: {str(e)}")
                 
-                # Second fallback: Try with source_type
-                try:
-                    if 'source_type' in criteria:
-                        minimal_criteria = {'source_type': criteria['source_type']}
-                        fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
-                        
-                        # Update fallback info to indicate this is a source_type-only match
-                        if 'match_level' in fallback_info:
-                            fallback_info['match_level'] = max(fallback_info['match_level'], 3)  # At least level 3 (partial match)
-                        
-                        logger.info(f"Source type fallback found {fallback_count} shows with match level {fallback_info.get('match_level', 'unknown')}")
-                        
-                        # Keep this result if it's better than what we have
-                        if fallback_count > best_fallback['count']:
-                            best_fallback = {
-                                'shows': fallback_shows,
-                                'count': fallback_count,
-                                'confidence': fallback_info,
-                                'criteria_used': 'source_type'
-                            }
-                except Exception as e:
-                    logger.warning(f"Fallback matching attempt with source_type failed: {str(e)}")
-                
-                # Third fallback: Try with character_types
-                try:
-                    if 'character_types' in criteria and criteria['character_types']:
-                        minimal_criteria = {'character_types': criteria['character_types']}
-                        fallback_shows, fallback_count, fallback_info = self.criteria_analyzer.criteria_scorer._get_matching_shows(minimal_criteria, flexible=True)
-                        
-                        # Update fallback info to indicate this is a character_types-only match
-                        if 'match_level' in fallback_info:
-                            fallback_info['match_level'] = max(fallback_info['match_level'], 3)  # At least level 3 (partial match)
-                        
-                        logger.info(f"Character types fallback found {fallback_count} shows with match level {fallback_info.get('match_level', 'unknown')}")
-                        
-                        # Keep this result if it's better than what we have
-                        if fallback_count > best_fallback['count']:
-                            best_fallback = {
-                                'shows': fallback_shows,
-                                'count': fallback_count,
-                                'confidence': fallback_info,
-                                'criteria_used': 'character_types'
-                            }
-                except Exception as e:
-                    logger.warning(f"Fallback matching attempt failed: {str(e)}")
-                    logger.error(f"Fallback matching exception details", exc_info=True)
-                
-                # Use the best fallback result if we found one
-                if best_fallback['criteria_used'] is not None and best_fallback['count'] > 0:
-                    matching_shows = best_fallback['shows']
-                    match_count = best_fallback['count']
-                    confidence_info = best_fallback['confidence']
-                    logger.info(f"Using best fallback with {best_fallback['criteria_used']}: found {match_count} shows with match level {confidence_info.get('match_level', 'unknown')}")
+                # If we have original matches, combine them with supplemental matches
+                if not original_matches.empty and not supplemental_matches.empty:
+                    # Ensure both DataFrames have the same columns
+                    common_columns = list(set(original_matches.columns).intersection(set(supplemental_matches.columns)))
                     
-                    # Make sure we're using the right match level for fallbacks
-                    if 'match_level' not in confidence_info or confidence_info['match_level'] < 2:
-                        confidence_info['match_level'] = 3  # At least level 3 for fallbacks
+                    # Make sure match_level is included
+                    if 'match_level' not in common_columns:
+                        if 'match_level' not in original_matches.columns:
+                            original_matches['match_level'] = 1  # Mark as exact match
+                        if 'match_level' not in supplemental_matches.columns:
+                            supplemental_matches['match_level'] = 3  # Mark as partial match
+                        common_columns.append('match_level')
+                    
+                    # Filter supplemental matches to remove any that are already in original_matches
+                    if 'id' in common_columns:
+                        # Filter by ID if available
+                        original_ids = set(original_matches['id'].tolist())
+                        supplemental_matches = supplemental_matches[~supplemental_matches['id'].isin(original_ids)]
+                    elif 'title' in common_columns:
+                        # Filter by title if ID not available
+                        original_titles = set(original_matches['title'].tolist())
+                        supplemental_matches = supplemental_matches[~supplemental_matches['title'].isin(original_titles)]
+                    
+                    # Combine the matches, with original matches first
+                    combined_matches = pd.concat([original_matches[common_columns], supplemental_matches[common_columns]], ignore_index=True)
+                    combined_count = len(combined_matches)
+                    
+                    logger.info(f"Combined {original_match_count} exact matches with {len(supplemental_matches)} supplemental matches for a total of {combined_count} shows")
+                    
+                    # Use the combined results
+                    matching_shows = combined_matches
+                    match_count = combined_count
+                    
+                    # Update confidence info to reflect the combined matches
+                    confidence_info = original_confidence_info.copy()
+                    confidence_info['sample_size'] = combined_count
+                    
+                    # Create a record of match counts by level for the UI
+                    match_counts_by_level = {}
+                    for level in range(1, 5):
+                        level_count = len(matching_shows[matching_shows['match_level'] == level])
+                        if level_count > 0:
+                            match_counts_by_level[level] = level_count
+                    
+                    confidence_info['match_counts_by_level'] = match_counts_by_level
+                    logger.info(f"Match counts by level: {match_counts_by_level}")
+                    
+                elif not supplemental_matches.empty:
+                    # If we had no original matches, just use the supplemental matches
+                    matching_shows = supplemental_matches
+                    match_count = supplemental_count
+                    confidence_info = supplemental_info
+                    logger.info(f"Using {match_count} supplemental matches with match level {confidence_info.get('match_level', 'unknown')}")
+                
+                # If still empty, create empty DataFrame with necessary columns
+                if matching_shows.empty:
+                    logger.warning("No matches found even with fallback criteria")
+                    matching_shows = pd.DataFrame(columns=['title', 'success_score', 'popcornmeter', 'tomatometer', 
+                                                         'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'match_level'])
+                    match_count = 0
+                    confidence_info = {
+                        'match_level': 0,
+                        'match_quality': 0.0,
+                        'confidence_score': 0.0,
+                        'confidence_level': 'none'
+                    }
                 
                 # If still empty, create empty DataFrame with necessary columns
                 if matching_shows.empty:
@@ -333,6 +348,15 @@ class SuggestionAnalyzer:
             
             # Create and return the optimization summary
             
+            # Calculate match counts by level
+            match_counts_by_level = {}
+            if not matching_shows.empty and 'match_level' in matching_shows.columns:
+                for level in range(1, 5):
+                    count = len(matching_shows[matching_shows['match_level'] == level])
+                    if count > 0:
+                        match_counts_by_level[level] = count
+                logger.info(f"Match counts by level: {match_counts_by_level}")
+            
             # Log the matching titles for debugging
             logger.info(f"Creating OptimizationSummary with {len(matching_titles)} matching titles")
             if matching_titles:
@@ -343,19 +367,20 @@ class SuggestionAnalyzer:
                 confidence=confidence,
                 top_networks=top_networks,
                 component_scores=component_scores,
-                success_factors=success_factors,
                 recommendations=recommendations,
+                success_factors=success_factors,
                 matching_titles=matching_titles,  # List of titles
                 match_level=confidence_info.get('match_level', 0),
                 match_quality=confidence_info.get('match_quality', 0.0),
                 confidence_score=confidence_info.get('confidence_score', 0.0),
                 matching_shows=matching_shows,  # The actual DataFrame
-                match_count=match_count
+                match_count=match_count,
+                match_counts_by_level=match_counts_by_level,
+                confidence_info=confidence_info
             )
             
             st.write(f"Debug: Created summary: {type(summary)}")
             return summary
-                
         except Exception as e:
             # Log the error but don't try to use streamlit here
             logger.error(f"Error in analyze_show_concept: {e}", exc_info=True)
@@ -382,7 +407,9 @@ class SuggestionAnalyzer:
                 match_quality=0.0,
                 confidence_score=0.0,
                 matching_shows=[],
-                match_count=0
+                match_count=0,
+                match_counts_by_level={},
+                confidence_info={}
             )
     
     def generate_recommendations(self, criteria: Dict[str, Any], 
