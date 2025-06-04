@@ -46,12 +46,12 @@ class Recommendation:
     recommendation_type: str  # add, remove, replace, consider
     criteria_type: str        # e.g., "genre", "character_types"
     current_value: Any        # Current value (if any)
-    current_name: str = ""    # Display name for current value
     suggested_value: Any      # Suggested value
     suggested_name: str       # Display name for suggested value
     impact_score: float       # Expected impact on success (-1 to 1)
     confidence: str           # none, low, medium, high
     explanation: str          # Human-readable explanation
+    current_name: str = ""    # Display name for current value
     
     
 @dataclass
