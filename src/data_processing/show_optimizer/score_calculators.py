@@ -461,6 +461,7 @@ class MatchingCalculator:
             - score: Confidence score (0-1)
             - match_quality: Quality of the match based on match level (0-1)
             - sample_size: Number of shows in the sample
+            - actual_match_level: The actual match level based on criteria validation
         """
         # Get sample size
         sample_size = len(shows)
@@ -479,13 +480,86 @@ class MatchingCalculator:
         # Get confidence level string
         confidence_level = OptimizerConfig.get_confidence_level(sample_size, match_level)
         
+        # Validate the actual match level by checking if all criteria are truly matched
+        # This is especially important for array fields like character_types
+        actual_match_level = match_level
+        
+        # For logging purposes
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Only perform validation if we have shows and claiming exact match (level 1)
+        if not shows.empty and match_level == 1:
+            # Get array field mapping to check array fields properly
+            array_field_mapping = self.criteria_scorer.field_manager.get_array_field_mapping()
+            
+            # Check each criterion to see if it's actually matched
+            for field_name, value in criteria.items():
+                # Skip empty criteria
+                if value is None or (isinstance(value, list) and not value):
+                    continue
+                    
+                # Handle array fields differently
+                if isinstance(value, list):
+                    # Get the correct column name for this field
+                    if field_name in array_field_mapping:
+                        field_column = array_field_mapping[field_name]
+                    elif f"{field_name}_ids" in shows.columns:
+                        field_column = f"{field_name}_ids"
+                    else:
+                        field_column = field_name
+                        
+                    # Check if this column exists in the data
+                    if field_column not in shows.columns:
+                        logger.warning(f"Field '{field_column}' not found in shows data")
+                        actual_match_level = 2  # Downgrade to level 2 if field is missing
+                        continue
+                        
+                    # Sample the first row to check data format
+                    sample = shows[field_column].iloc[0] if not shows.empty else None
+                    
+                    # Check if all shows actually match this array criterion
+                    value_set = set(value)
+                    if isinstance(sample, list):
+                        # For each show, check if any of the criteria values match
+                        all_match = shows[field_column].apply(
+                            lambda x: isinstance(x, list) and bool(value_set.intersection(x))
+                        ).all()
+                    else:
+                        # If not stored as lists, check if any match the values
+                        all_match = shows[field_column].isin(value).any(axis=0)
+                        
+                    # If not all shows match this criterion, downgrade the match level
+                    if not all_match:
+                        logger.info(f"Not all shows match array criterion '{field_name}', downgrading match level")
+                        actual_match_level = 2  # Downgrade to level 2
+                        break
+                        
+                # Handle scalar fields
+                else:
+                    # Determine the actual column name
+                    field_id = f"{field_name}_id" if f"{field_name}_id" in shows.columns else field_name
+                    
+                    # Check if this column exists in the data
+                    if field_id not in shows.columns:
+                        logger.warning(f"Field '{field_id}' not found in shows data")
+                        actual_match_level = 2  # Downgrade to level 2 if field is missing
+                        continue
+                        
+                    # Check if all shows match this scalar criterion
+                    if not (shows[field_id] == value).all():
+                        logger.info(f"Not all shows match scalar criterion '{field_name}', downgrading match level")
+                        actual_match_level = 2  # Downgrade to level 2
+                        break
+        
         return {
             'level': confidence_level,
             'score': confidence_score,
             'match_quality': match_quality,
             'sample_size': sample_size,
-            'match_level': match_level,
-            'match_level_name': OptimizerConfig.MATCH_LEVELS.get(match_level, {}).get('name', f'Level {match_level}')
+            'match_level': actual_match_level,  # Use the validated match level
+            'original_match_level': match_level,  # Keep track of the original level
+            'match_level_name': OptimizerConfig.MATCH_LEVELS.get(actual_match_level, {}).get('name', f'Level {actual_match_level}')
         }
     
     def get_matching_shows(self, criteria: Dict[str, Any], flexible: bool = True) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
@@ -647,27 +721,59 @@ class MatchingCalculator:
         # Track which shows we've already included (by ID or title)
         seen_shows = set()
         
+        # Debug the match counts by level
+        logger.info(f"Match counts by level: {match_counts}")
+        for level_num, level_df in all_matches_by_level.items():
+            logger.info(f"Level {level_num} has {len(level_df)} shows with columns: {list(level_df.columns)}")
+        
         # Process each match level in priority order
         for level in range(1, 5):
             if level in all_matches_by_level and not all_matches_by_level[level].empty:
                 df = all_matches_by_level[level]
+                logger.info(f"Processing level {level} with {len(df)} shows")
+                
+                # Validate the match level for each show to ensure accuracy
+                # This is especially important for array fields like character_types
+                if level == 1:  # Only validate exact matches (level 1)
+                    # Calculate actual match level for each show
+                    confidence_info = self.calculate_match_confidence(df, level, clean_criteria)
+                    actual_match_level = confidence_info.get('match_level', level)
+                    
+                    # If the actual match level is different from the claimed level,
+                    # update the match_level column in the DataFrame
+                    if actual_match_level != level:
+                        logger.info(f"Updating match level from {level} to {actual_match_level} for some shows")
+                        df['match_level'] = actual_match_level
+                        
+                        # Move these shows to their correct level bucket
+                        if actual_match_level not in all_matches_by_level:
+                            all_matches_by_level[actual_match_level] = df
+                        else:
+                            all_matches_by_level[actual_match_level] = pd.concat(
+                                [all_matches_by_level[actual_match_level], df], ignore_index=True)
+                        
+                        # Skip these shows at the current level since they've been moved
+                        continue
                 
                 # Deduplicate based on ID or title
                 if 'id' in df.columns:
                     # Filter out shows we've already seen by ID
                     new_shows = df[~df['id'].isin(seen_shows)]
+                    logger.info(f"After ID deduplication: {len(new_shows)} shows remain")
                     if not new_shows.empty:
                         # Update our tracking set with these IDs
                         seen_shows.update(new_shows['id'].tolist())
                 elif 'title' in df.columns:
                     # Filter out shows we've already seen by title
                     new_shows = df[~df['title'].isin(seen_shows)]
+                    logger.info(f"After title deduplication: {len(new_shows)} shows remain")
                     if not new_shows.empty:
                         # Update our tracking set with these titles
                         seen_shows.update(new_shows['title'].tolist())
                 else:
                     # No way to deduplicate, just use all shows
                     new_shows = df
+                    logger.info("No ID or title column for deduplication, using all shows")
                 
                 # Calculate how many more shows we can add
                 slots_remaining = max_shows - total_shows

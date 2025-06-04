@@ -347,6 +347,66 @@ class CriteriaScorer:
                 )
                 return {}
                 
+            # Log the match level information from confidence_info
+            if confidence_info and 'match_level' in confidence_info:
+                actual_match_level = confidence_info.get('match_level')
+                original_match_level = confidence_info.get('original_match_level', actual_match_level)
+                
+                if actual_match_level != original_match_level:
+                    st.write(f"Note: Match level was adjusted from {original_match_level} to {actual_match_level} based on criteria validation")
+                    
+                # If we have array fields like character_types in our criteria, make sure they're properly matched
+                # This helps ensure component scores are calculated based on shows that actually match the criteria
+                array_fields = [field for field, value in criteria.items() if isinstance(value, list) and value]
+                if array_fields and actual_match_level > 1:
+                    st.write(f"Note: Some array criteria like {', '.join(array_fields)} may be relaxed in match level {actual_match_level}")
+            else:
+                st.write("Warning: No match level information available in confidence data")
+                
+            # Ensure we're using the right data columns for component score calculation
+            # This is especially important for shows that have been filtered by character types
+            required_columns = {
+                'success': ['success_score'],
+                'audience': ['popcornmeter'],
+                'critics': ['tomatometer'],
+                'longevity': ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
+            }
+            
+            # Check for missing columns and log them
+            missing_columns = {}
+            for component, columns in required_columns.items():
+                missing = [col for col in columns if col not in matching_shows.columns]
+                if missing:
+                    missing_columns[component] = missing
+            
+            if missing_columns:
+                st.warning(f"Missing columns for component score calculation: {missing_columns}")
+                
+                # Try to get these columns from the criteria data if possible
+                if hasattr(self, 'criteria_data') and self.criteria_data is not None and not self.criteria_data.empty:
+                    # Get the IDs of the matching shows
+                    if 'id' in matching_shows.columns:
+                        matching_ids = matching_shows['id'].tolist()
+                        
+                        # Filter criteria data to only include matching shows
+                        filtered_criteria_data = self.criteria_data[self.criteria_data['id'].isin(matching_ids)]
+                        
+                        # Merge the missing columns from criteria_data into matching_shows
+                        for component, missing_cols in missing_columns.items():
+                            for col in missing_cols:
+                                if col in filtered_criteria_data.columns:
+                                    matching_shows[col] = matching_shows['id'].map(
+                                        filtered_criteria_data.set_index('id')[col]
+                                    )
+                                    st.write(f"Recovered missing column: {col} for component {component}")
+            
+            # Now check again for any remaining missing columns
+            for component, columns in required_columns.items():
+                missing = [col for col in columns if col not in matching_shows.columns]
+                if missing:
+                    st.warning(f"Still missing columns for {component} score calculation after recovery attempt: {missing}")
+
+                
             # Ensure all required columns are present in the data
             required_columns = {
                 'success': ['success_score'],

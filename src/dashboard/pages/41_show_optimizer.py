@@ -199,12 +199,9 @@ def show():
                     
                     # Display matching shows with match level differentiation
                     if hasattr(summary, 'matching_shows') and summary.matching_shows is not None and not summary.matching_shows.empty:
-                        # Get match level from confidence info if available
-                        match_level = 1  # Default to exact match
-                        if hasattr(summary, 'confidence_info') and summary.confidence_info:
-                            match_level = summary.confidence_info.get('match_level', 1)
-                        
-                        # Display sample size and match level
+                        # Get match level information
+                        match_level = getattr(summary, 'match_level', 1)
+                        match_level_name = getattr(summary, 'match_level_name', 'Exact Match')
                         sample_size = len(summary.matching_shows)
                         
                         # Define match level names and colors
@@ -212,20 +209,40 @@ def show():
                             1: "Exact Match",
                             2: "Close Match",
                             3: "Partial Match",
-                            4: "Minimal Match"
+                            4: "Loose Match"
                         }
-                        match_level_colors = {
-                            1: "#000000",  # Bold black
-                            2: "#333333",  # Normal black
-                            3: "#666666",  # Dark gray
-                            4: "#999999"   # Light gray
-                        }
-                        match_level_name = match_level_names.get(match_level, "Flexible Match")
                         
-                        # Get match counts by level from confidence info
+                        match_level_colors = {
+                            1: "#000000",  # Black for exact match
+                            2: "#000000",  # Black for close match
+                            3: "#666666",  # Grey for partial match
+                            4: "#999999"   # Light grey for loose match
+                        }
+                        
+                        # Get match counts by level if available
                         match_counts_by_level = {}
+                        if hasattr(summary, 'match_counts_by_level'):
+                            match_counts_by_level = summary.match_counts_by_level
+                        elif 'match_level' in summary.matching_shows.columns:
+                            # Calculate counts from the DataFrame
+                            for level in range(1, 5):
+                                count = len(summary.matching_shows[summary.matching_shows['match_level'] == level])
+                                if count > 0:
+                                    match_counts_by_level[level] = count
+                        
+                        # Check if we have confidence_info with validation details
                         if hasattr(summary, 'confidence_info') and summary.confidence_info:
-                            match_counts_by_level = summary.confidence_info.get('match_counts_by_level', {})
+                            confidence_info = summary.confidence_info
+                            if 'original_match_level' in confidence_info and 'match_level' in confidence_info:
+                                original_level = confidence_info['original_match_level']
+                                actual_level = confidence_info['match_level']
+                                
+                                if original_level != actual_level and original_level == 1:
+                                    # Show a warning that some shows were downgraded from exact match
+                                    st.warning(
+                                        "Some shows were initially categorized as exact matches but were downgraded "
+                                        "because they didn't match all selected criteria (like character types)."
+                                    )
                         
                         # Create a summary of match levels
                         match_level_summary = []
@@ -235,51 +252,69 @@ def show():
                                 count = match_counts_by_level[level]
                                 match_level_summary.append(f"{count} {level_name}")
                         
-                        # Display the match level distribution
                         if match_level_summary:
                             st.write(f"Found {sample_size} shows: {', '.join(match_level_summary)}")
                         else:
                             st.write(f"Found {sample_size} shows with similar criteria ({match_level_name})")
                         
-                        # Add legend for the colors
-                        st.write("**Bold** = Exact match, Normal = Close match, Grey = Partial match")
+                        # Add legend for the colors with clearer explanation
+                        st.write("**Bold** = Exact match (matches ALL criteria including character types)")
+                        st.write("Normal = Close match (matches most criteria)")
+                        st.write("Grey = Partial match (matches core criteria only)")
                         
-                        # Display up to 100 shows with color coding based on individual match level
-                        # First, ensure we have a DataFrame with unique shows
+                        # Add explanation about character types if they're in the criteria
+                        if 'character_types' in state.get('criteria', {}) and state['criteria']['character_types']:
+                            char_types = state['criteria']['character_types']
+                            if char_types:
+                                st.info(f"Shows are matched based on character types: {', '.join(char_types)}. "
+                                       f"Only exact matches (bold) are guaranteed to have these character types.")
+
+                        
                         if 'title' in summary.matching_shows.columns:
-                            # Debug the dataframe structure
-                            st.write(f"Debug: DataFrame has {len(summary.matching_shows)} rows with columns: {', '.join(summary.matching_shows.columns)}")
                             
-                            # Get unique titles to avoid duplicates
-                            seen_titles = set()
-                            unique_shows = []
+                            # Create a list of unique shows by title
+                            # First, convert to records for easier manipulation
+                            show_records = summary.matching_shows.to_dict('records')
                             
-                            # Process shows in order (they should already be prioritized by match level)
-                            for _, show in summary.matching_shows.iterrows():
+                            # Use a dictionary to keep track of the best match level for each title
+                            unique_shows_by_title = {}
+                            
+                            # Process each show
+                            for show in show_records:
                                 title = show.get('title', 'Unknown Title')
+                                current_level = show.get('match_level', match_level)
                                 
-                                # Skip if we've already seen this title
-                                if title in seen_titles:
-                                    continue
-                                    
-                                seen_titles.add(title)
-                                unique_shows.append(show)
-                                
-                                # Stop if we've reached 100 shows
-                                if len(unique_shows) >= 100:
-                                    break
+                                # If we haven't seen this title before, or this match level is better
+                                if title not in unique_shows_by_title or current_level < unique_shows_by_title[title]['match_level']:
+                                    unique_shows_by_title[title] = show
+                            
+                            # Convert back to a list of unique shows
+                            unique_shows = list(unique_shows_by_title.values())
+                            
+                            # Sort by match level (1 first, then 2, etc.)
+                            unique_shows.sort(key=lambda x: x.get('match_level', match_level))
+                            
+                            # Limit to 100 shows
+                            unique_shows = unique_shows[:100]
                             
                             # Display the unique shows
                             st.write(f"Displaying {len(unique_shows)} unique shows")
                             
+                            # Count shows by match level for verification
+                            level_counts = {}
+                            for show in unique_shows:
+                                level = show.get('match_level', match_level)
+                                level_counts[level] = level_counts.get(level, 0) + 1
+                            
+                            st.write(f"Shows by match level: {level_counts}")
+                            
+                            # Display each show with appropriate formatting
                             for show in unique_shows:
                                 title = show.get('title', 'Unknown Title')
-                                
-                                # Get this show's individual match level
-                                show_match_level = show.get('match_level', match_level)  # Fall back to global match level if not present
+                                show_match_level = show.get('match_level', match_level)
                                 color = match_level_colors.get(show_match_level, "#000000")
                                 
-                                # Format based on this show's match level
+                                # Format based on match level
                                 if show_match_level == 1:
                                     # Exact match - bold black
                                     st.markdown(f"**{title}**")
