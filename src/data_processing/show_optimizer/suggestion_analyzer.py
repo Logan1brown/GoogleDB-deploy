@@ -95,13 +95,18 @@ class SuggestionAnalyzer:
             OptimizationSummary with success probability, recommendations, etc.
         """
         # Start analysis with the given criteria
+        import streamlit as st
+        st.write(f"Debug: SuggestionAnalyzer - Starting analysis with criteria: {criteria}")
         try:
             # Get overall success probability
             try:
+                st.write("Debug: About to call get_overall_success_rate")
                 success_probability, confidence = self.criteria_analyzer.get_overall_success_rate(criteria)
+                st.write(f"Debug: Got success_probability: {success_probability}, confidence: {confidence}")
             except Exception as e:
                 st.warning(f"Could not calculate success probability: {str(e)}")
                 success_probability, confidence = None, 'none'
+                st.write("Debug: Using fallback success_probability: None, confidence: none")
             
             # Get top networks
             try:
