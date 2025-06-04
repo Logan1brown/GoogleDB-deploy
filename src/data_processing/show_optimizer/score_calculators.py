@@ -361,15 +361,15 @@ class MatchingCalculator:
             Tuple of (DataFrame of matching shows with success metrics, count of matches)
         """
         # Add debug output
-        st.write(f"DEBUG: MatchingCalculator.get_matching_shows called with criteria: {criteria}")
+        # Get matching shows for the given criteria
         
         # Get criteria data, only force refresh if we don't have it yet
         if self._criteria_data is None:
-            st.write("DEBUG: No cached criteria data, fetching fresh data")
+            # No cached criteria data, fetching fresh data
             data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
             self._criteria_data = data
         else:
-            st.write("DEBUG: Using cached criteria data")
+            # Using cached criteria data
             data = self._criteria_data
         
         if data.empty:
@@ -377,12 +377,7 @@ class MatchingCalculator:
             raise ValueError("No criteria data available")
             
         # Debug output for data shape and columns
-        st.write(f"DEBUG: Criteria data shape: {data.shape}")
-        st.write(f"DEBUG: Criteria data columns: {list(data.columns)}")
-        if 'success_score' in data.columns:
-            st.write(f"DEBUG: success_score exists in data")
-        else:
-            st.write(f"DEBUG: success_score MISSING from data")
+        # Criteria data ready for matching
         
         # Get array fields and mapping from field_manager
         array_field_mapping = self.criteria_scorer.field_manager.get_array_field_mapping()
@@ -392,34 +387,34 @@ class MatchingCalculator:
         clean_criteria = {}
         
         # Debug output for array fields
-        st.write(f"DEBUG: Array fields from field_manager: {array_fields}")
+        # Process array fields from field manager
         
         for field_name, value in criteria.items():
             # Skip None values and empty lists
             if value is None:
-                st.write(f"DEBUG: Skipping {field_name} with None value")
+                # Skip field with None value
                 continue
             if isinstance(value, list) and len(value) == 0:
-                st.write(f"DEBUG: Skipping {field_name} with empty list")
+                # Skip field with empty list
                 continue
             
             # Handle array fields
             if field_name in array_fields:
-                st.write(f"DEBUG: {field_name} is an array field")
+                # Handle array field
                 # Make sure array field values are always lists
                 if not isinstance(value, list):
                     clean_criteria[field_name] = [value]
-                    st.write(f"DEBUG: Converting {field_name} value {value} to list: {[value]}")
+                    # Convert scalar value to list for array field
                 else:
                     clean_criteria[field_name] = value
-                    st.write(f"DEBUG: Keeping {field_name} as list: {value}")
+                    # Value is already a list
             else:
                 # Don't map field names here - let FieldManager handle it
                 # This prevents double mapping (e.g., network -> network_id -> network_id_id)
                 clean_criteria[field_name] = value
-                st.write(f"DEBUG: Added scalar field {field_name} with value {value}")
+                # Add scalar field to clean criteria
         
-        st.write(f"DEBUG: Final clean criteria: {clean_criteria}")
+        # Clean criteria ready for matching
         
         
         # If we have no valid criteria after cleaning, return all shows
@@ -429,31 +424,27 @@ class MatchingCalculator:
         
         # Use FieldManager to match shows against criteria
         try:
-            st.write(f"DEBUG: Before matching - clean_criteria: {clean_criteria}")
-            st.write(f"DEBUG: Before matching - data shape: {data.shape}")
+            # Prepare for matching with clean criteria
             
             matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(clean_criteria, data)
             
-            st.write(f"DEBUG: After matching - matched_shows shape: {matched_shows.shape}")
-            st.write(f"DEBUG: After matching - match_count: {match_count}")
+            # Matching complete
             
             if matched_shows.empty:
-                st.error(f"DEBUG: No matches found for criteria: {clean_criteria}")
+                # No matches found for criteria
                 # Return empty DataFrame with zero matches
                 # The calling code should handle this appropriately
                 return matched_shows, 0
             
             # Verify that success_score is present in the matched shows
             if 'success_score' not in matched_shows.columns:
-                st.error("DEBUG: success_score column missing from matched shows")
+                # success_score column missing from matched shows
                 # Try to merge success_score from original data
                 if 'success_score' in data.columns and 'id' in matched_shows.columns and 'id' in data.columns:
-                    st.write("DEBUG: Attempting to merge success_score from original data")
+                    # Attempt to merge success_score from original data
                     matched_shows = matched_shows.merge(data[['id', 'success_score']], on='id', how='left')
             
-            st.write(f"DEBUG: Final matched_shows columns: {list(matched_shows.columns)}")
-            if 'success_score' in matched_shows.columns:
-                st.write(f"DEBUG: success_score non-null count: {matched_shows['success_score'].notna().sum()}")
+            # Matching process complete
             
             return matched_shows, match_count
         except Exception as e:

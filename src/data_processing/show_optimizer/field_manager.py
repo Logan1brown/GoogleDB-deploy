@@ -435,8 +435,7 @@ class FieldManager:
         import streamlit as st
         
         # Debug output
-        st.write(f"DEBUG: FieldManager.match_shows called with criteria: {criteria}")
-        st.write(f"DEBUG: Input data shape: {data.shape}")
+        # Match shows based on criteria
         
         # Start with all shows
         matches = data.copy()
@@ -516,7 +515,7 @@ class FieldManager:
                         lambda x: isinstance(x, list) and value in x)
                 else:
                     # If the column isn't storing lists, use standard equality check
-                    st.write(f"DEBUG: Column '{field_column}' doesn't contain list values for single value, using direct equality")
+                    # Column doesn't contain list values, using direct equality
                     # Just use direct equality - safer than trying to parse strings as lists
                     mask = matches[field_column] == value
                     
@@ -525,30 +524,30 @@ class FieldManager:
         
         # Process scalar fields (these can use vectorized operations)
         for field_id, value in scalar_fields.items():
-            st.write(f"DEBUG: Processing scalar field '{field_id}' with value {value}")
+            # Process scalar field
             
             # Check if field exists in data
             if field_id not in matches.columns:
-                st.write(f"DEBUG: Field '{field_id}' not found in data columns")
+                # Field not found in data columns
                 continue
                 
             # Check unique values for this field
             unique_values = matches[field_id].unique()
-            st.write(f"DEBUG: Unique values for '{field_id}': {unique_values[:10]}{'...' if len(unique_values) > 10 else ''}")
+            # Check unique values for field
             
             if isinstance(value, list):
                 # Multiple values: any show with any of the values matches
                 mask = matches[field_id].isin(value)
-                st.write(f"DEBUG: Using .isin() for list value, matches found: {mask.sum()}")
+                # Using .isin() for list value
             else:
                 # Single value: exact match
                 mask = matches[field_id] == value
-                st.write(f"DEBUG: Using == for single value, matches found: {mask.sum()}")
+                # Using equality for single value
                 
             # Apply filter
             matches_before = len(matches)
             matches = matches[mask]
-            st.write(f"DEBUG: After filtering on '{field_id}', matches reduced from {matches_before} to {len(matches)}")
+            # Update matches after filtering
             
-        st.write(f"DEBUG: Final match count: {len(matches)}")
+        # Matching complete
         return matches, len(matches)

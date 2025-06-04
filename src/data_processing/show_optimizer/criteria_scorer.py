@@ -124,24 +124,7 @@ class CriteriaScorer:
                         how='left'
                     )
                     
-                    # Since we're only merging non-conflicting columns, we shouldn't have _x/_y suffixes
-                    # But just in case, check for any columns with suffixes and fix them
-                    cols_with_suffix = [col for col in comp_df.columns if col.endswith('_x') or col.endswith('_y')]
-                    
-                    if cols_with_suffix:
-                        # Found columns with suffixes that need fixing
-                        # Fix any columns with _x and _y suffixes
-                        cols_to_fix = [col[:-2] for col in comp_df.columns if col.endswith('_y')]
-                        
-                        # For each column that needs fixing
-                        for base_col in cols_to_fix:
-                            # Keep the _y version (from success_df) and remove the _x version
-                            if f'{base_col}_y' in comp_df.columns:
-                                # Drop the _x version if it exists
-                                if f'{base_col}_x' in comp_df.columns:
-                                    comp_df = comp_df.drop(columns=[f'{base_col}_x'])
-                                # Rename the _y version to the base name
-                                comp_df = comp_df.rename(columns={f'{base_col}_y': base_col})
+                    # With our selective column approach, we shouldn't have any suffix issues
                     
                     # Check for required component calculator columns
                     for col in ['popcornmeter', 'tomatometer']:

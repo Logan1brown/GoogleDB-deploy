@@ -117,7 +117,7 @@ class SuggestionAnalyzer:
             import streamlit as st
             if not component_scores:
                 st.error("No component scores available for analysis")
-                st.write(f"DEBUG: Matching shows: {match_count}, but no component scores could be calculated")
+                # Matching shows found but no component scores could be calculated
                 raise ValueError("No component scores available for analysis")
                 
             # Check that all expected component scores are present
@@ -125,9 +125,7 @@ class SuggestionAnalyzer:
             missing_components = [comp for comp in expected_components if comp not in component_scores]
             
             if missing_components:
-                st.write(f"DEBUG: Missing component scores: {missing_components}")
-                st.write(f"DEBUG: Available component scores: {list(component_scores.keys())}")
-                st.write(f"DEBUG: Matching shows columns: {list(matching_shows.columns)}")
+                # Some component scores are missing
                 raise ValueError(f"Missing required component scores: {missing_components}")
             
             # Get success factors

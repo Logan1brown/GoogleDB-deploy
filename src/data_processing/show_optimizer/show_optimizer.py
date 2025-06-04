@@ -158,9 +158,9 @@ class ShowOptimizer:
         # Try to validate with error handling
         try:
             # The field_manager.validate_criteria returns a list of error strings, not a tuple
-            st.write("DEBUG - Calling field_manager.validate_criteria")
+            # Validate criteria using field manager
             validation_errors = self.field_manager.validate_criteria(criteria)
-            st.write(f"DEBUG - Validation errors: {validation_errors}")
+            # Check for validation errors
             
             # Convert the list of errors to the expected format
             error_dict = {}
@@ -171,7 +171,7 @@ class ShowOptimizer:
             # Return a copy of the criteria and the error dictionary
             return criteria.copy(), error_dict
         except Exception as e:
-            st.write(f"DEBUG - Error validating criteria: {str(e)}")
+            # Error occurred during criteria validation
             logger.error(f"Error validating criteria: {e}", exc_info=True)
             return {}, {"error": f"Error validating criteria: {str(e)}"}
         
