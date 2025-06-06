@@ -34,30 +34,23 @@ from datetime import datetime, timedelta
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .optimizer_config import OptimizerConfig
-from .criteria_scorer import CriteriaScorer, NetworkMatch, ComponentScore
+from .criteria_scorer import CriteriaScorer, ComponentScore
+from .network_analyzer import NetworkAnalyzer, NetworkTier, NetworkMatch
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class NetworkTier:
-    """A tier of networks with similar compatibility."""
-    tier_name: str  # e.g., "Excellent Match", "Good Match", "Fair Match"
-    networks: List[NetworkMatch]
-    min_score: float
-    max_score: float
 
 
 @dataclass
 class SuccessFactor:
     """A success factor identified from analysis."""
     criteria_type: str  # e.g., "genre", "character_types"
-    criteria_value: int  # ID of the value
+    criteria_value: Any  # ID of the value
     criteria_name: str   # Display name
     impact_score: float  # Impact on success (-1 to 1)
     confidence: str      # none, low, medium, high
-    sample_size: int
+    sample_size: int = 0
     matching_titles: List[str] = field(default_factory=list)  # List of show titles matching this criteria
+
 
 
 class CriteriaAnalyzer:
@@ -73,11 +66,12 @@ class CriteriaAnalyzer:
         self.shows_analyzer = shows_analyzer
         self.success_analyzer = success_analyzer
         self.criteria_scorer = CriteriaScorer(shows_analyzer, success_analyzer)
+        self.network_analyzer = NetworkAnalyzer(self.criteria_scorer)
         self.last_analysis = None
         self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
         
     def find_matching_networks(self, criteria: Dict[str, Any], 
-                              min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:
+                               min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:
         """Find networks matching the given criteria, grouped into tiers.
         
         Args:
@@ -87,40 +81,15 @@ class CriteriaAnalyzer:
         Returns:
             Dictionary mapping tier names to lists of NetworkMatch objects
         """
-        # Get network matches from CriteriaScorer
-        network_matches = self.criteria_scorer.calculate_network_scores(str(criteria))
+        # Delegate to NetworkAnalyzer
+        network_tiers = self.network_analyzer.get_network_tiers(criteria, min_confidence)
         
-        # Filter by confidence
-        confidence_levels = {'none': 0, 'low': 1, 'medium': 2, 'high': 3}
-        min_confidence_level = confidence_levels.get(min_confidence, 0)
-        
-        filtered_matches = [
-            match for match in network_matches
-            if confidence_levels.get(match.confidence, 0) >= min_confidence_level
-        ]
-        
-        if not filtered_matches:
-            return {}
-        
-        # Define tier thresholds from OptimizerConfig
-        tier_thresholds = OptimizerConfig.NETWORK_TIERS
-        
-        # Group networks into tiers
-        tiers = {}
-        for tier_name, threshold in tier_thresholds.items():
-            tier_matches = [
-                match for match in filtered_matches
-                if match.success_probability >= threshold
-            ]
+        # Convert NetworkTier objects to lists of NetworkMatch objects for backward compatibility
+        result = {}
+        for tier_name, tier in network_tiers.items():
+            result[tier_name] = tier.networks
             
-            # Remove networks already in higher tiers
-            for existing_tier in tiers.values():
-                tier_matches = [m for m in tier_matches if m not in existing_tier]
-                
-            if tier_matches:
-                tiers[tier_name] = tier_matches
-        
-        return tiers
+        return result
     
     def analyze_components(self, criteria: Dict[str, Any]) -> Dict[str, ComponentScore]:
         """Analyze components (audience, critics, longevity) for the given criteria.
@@ -289,14 +258,8 @@ class CriteriaAnalyzer:
         Returns:
             List of NetworkMatch objects sorted by compatibility score
         """
-        # Get network matches from CriteriaScorer
-        network_matches = self.criteria_scorer.calculate_network_scores(str(criteria))
-        
-        # Sort by compatibility score
-        network_matches.sort(key=lambda x: x.compatibility_score, reverse=True)
-        
-        # Return top networks
-        return network_matches[:limit]
+        # Delegate to NetworkAnalyzer
+        return self.network_analyzer.rank_networks_by_compatibility(criteria, limit)
     
     def analyze_criteria_confidence(self, criteria: Dict[str, Any]) -> Dict[str, str]:
         """Analyze confidence levels for each criteria.
@@ -310,7 +273,7 @@ class CriteriaAnalyzer:
         return self.criteria_scorer.get_criteria_confidence(criteria)
     
     def get_network_specific_success_rates(self, criteria: Dict[str, Any], 
-                                         network_id: int) -> Dict[str, float]:
+                                          network_id: int) -> Dict[str, Any]:
         """Get network-specific success rates for each criteria.
         
         Args:
@@ -318,122 +281,10 @@ class CriteriaAnalyzer:
             network_id: ID of the network to analyze
             
         Returns:
-            Dictionary mapping criteria names to success rates
+            Dictionary mapping criteria names to success rate information
         """
-        # Fetch criteria data
-        data = self.criteria_scorer.fetch_criteria_data()
-        if data.empty:
-            return {}
-        
-        # Filter to this network
-        network_data = data[data['network_id'] == network_id]
-        if network_data.empty:
-            return {}
-        
-        # Calculate success rates for each criteria
-        success_rates = {}
-        
-        for field_name, value in criteria.items():
-            if field_name not in self.criteria_scorer.field_manager.FIELD_CONFIGS:
-                continue
-                
-            config = self.criteria_scorer.field_manager.FIELD_CONFIGS[field_name]
-            
-            # Filter shows with this criteria
-            if config.is_array:
-                # Use the same array field mapping as in match_shows
-                array_field_mapping = self.criteria_scorer.field_manager.get_array_field_mapping()
-                
-                # Get the correct column name for this field
-                if field_name in array_field_mapping:
-                    field_id = array_field_mapping[field_name]
-                else:
-                    # If not in mapping, skip this field
-                    import streamlit as st
-                    st.error(f"ERROR: Field '{field_name}' not found in array field mapping")
-                    success_rates[field_name] = 0.0
-                    continue
-                
-                # Check if the column exists in the DataFrame
-                if field_id not in network_data.columns:
-                    import streamlit as st
-                    st.error(f"ERROR: Column '{field_id}' for field '{field_name}' not found in data")
-                    success_rates[field_name] = 0.0
-                    continue
-                
-                # Check data format (list or scalar)
-                sample = network_data[field_id].iloc[0] if not network_data.empty else None
-                
-                if isinstance(value, list):
-                    # Multiple values
-                    value_set = set(value)
-                    if isinstance(sample, list):
-                        # If column contains lists, use intersection
-                        matching_shows = network_data[network_data[field_id].apply(
-                            lambda x: isinstance(x, list) and bool(value_set.intersection(x))
-                        )]
-                    else:
-                        # If column doesn't contain lists, use isin
-                        matching_shows = network_data[network_data[field_id].isin(value)]
-                else:
-                    # Single value
-                    if isinstance(sample, list):
-                        # If column contains lists, check if value is in list
-                        matching_shows = network_data[network_data[field_id].apply(
-                            lambda x: isinstance(x, list) and value in x
-                        )]
-                    else:
-                        # If column doesn't contain lists, use equality
-                        matching_shows = network_data[network_data[field_id] == value]
-            else:
-                # Scalar field
-                field_id = f"{field_name}_id" if f"{field_name}_id" in network_data.columns else field_name
-                if isinstance(value, list):
-                    matching_shows = network_data[network_data[field_id].isin(value)]
-                else:
-                    matching_shows = network_data[network_data[field_id] == value]
-            
-            # Calculate success rate and sample size
-            if not matching_shows.empty:
-                # Calculate success rate using threshold from OptimizerConfig
-                from .optimizer_config import OptimizerConfig
-                success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
-                success_count = matching_shows[matching_shows['success_score'] >= success_threshold].shape[0]
-                total_count = matching_shows.shape[0]
-                
-                # Get matching show titles (up to 100)
-                matching_titles = []
-                if 'title' in matching_shows.columns:
-                    matching_titles = matching_shows['title'].tolist()
-                    # Limit to 100 titles
-                    if len(matching_titles) > 100:
-                        matching_titles = matching_titles[:100]
-                
-                if total_count > 0:
-                    success_rate = success_count / total_count
-                    success_rates[field_name] = {
-                        'rate': success_rate,
-                        'sample_size': total_count,
-                        'has_data': True,
-                        'matching_titles': matching_titles
-                    }
-                else:
-                    success_rates[field_name] = {
-                        'rate': None,
-                        'sample_size': 0,
-                        'has_data': False,
-                        'matching_titles': []
-                    }
-            else:
-                # No matching shows
-                success_rates[field_name] = {
-                    'rate': None,
-                    'sample_size': 0,
-                    'has_data': False,
-                    'matching_titles': []
-                }
-        
-        return success_rates
+        # Delegate to NetworkAnalyzer
+        return self.network_analyzer.get_network_specific_success_rates(criteria, network_id)
     
     def get_overall_success_rate(self, criteria: Dict[str, Any]) -> Tuple[float, str]:
         """Calculate the overall success rate for the given criteria.

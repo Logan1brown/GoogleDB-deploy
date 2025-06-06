@@ -1,16 +1,20 @@
 """Field management for Show Optimizer.
 
-This module handles field options, validation, and show matching for the Show Optimizer.
-It builds on patterns from CompAnalyzer's FieldManager but adds:
-- Progressive validation for partial criteria sets
-- Incremental show matching for real-time feedback
+This module handles field options, validation, and field mapping for the Show Optimizer.
+It serves as the single authority for field mapping and validation in the system.
+
+Key responsibilities:
+- Field name mapping (e.g., 'network' to 'network_id')
+- Field type identification (scalar vs array)
+- Field value validation
+- Field option management
 - Sample size tracking for confidence indicators
 
 Key components:
 - FieldConfig: Configuration for a field (table, id field, name field)
 - FieldOption: A single option for a field with ID and display name
 - FieldValidation: Validation rules for a field
-- FieldManager: Main class that manages field options and matching
+- FieldManager: Main class that manages field options and mapping
 """
 
 from dataclasses import dataclass, field
@@ -59,7 +63,11 @@ class FieldValidation:
 
 
 class FieldManager:
-    """Manages field options, validation, and show matching for Show Optimizer."""
+    """Manages field options, validation, and field mapping for Show Optimizer.
+    
+    This class serves as the single authority for field mapping and validation in the system.
+    It provides methods for mapping field names, determining field types, and validating field values.
+    """
     
     # Field configuration mapping
     FIELD_CONFIGS = {
@@ -422,6 +430,35 @@ class FieldManager:
             'studios': 'studios'       # This one doesn't have _ids suffix
         }
         
+    def get_field_column_name(self, field_name: str, data_columns: List[str]) -> Optional[str]:
+        """Get the actual column name for a field in a DataFrame.
+        
+        This method checks multiple possible column names and returns the first one
+        that exists in the provided data_columns list.
+        
+        Args:
+            field_name: Field name to get column name for
+            data_columns: List of available columns in the DataFrame
+            
+        Returns:
+            Column name if found, None otherwise
+        """
+        # First try the mapped name
+        mapped_name = self.map_field_name(field_name)
+        if mapped_name in data_columns:
+            return mapped_name
+            
+        # Then try the original name
+        if field_name in data_columns:
+            return field_name
+            
+        # For array fields, try with _ids suffix
+        if self.get_field_type(field_name) == 'array' and f"{field_name}_ids" in data_columns:
+            return f"{field_name}_ids"
+            
+        # If we get here, the field doesn't exist in the data
+        return None
+        
     def get_criteria_importance(self, field_name: str) -> str:
         """Get the importance level of a criteria field.
         
@@ -458,108 +495,128 @@ class FieldManager:
             
         return classified
     
-    def match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame) -> Tuple[pd.DataFrame, int]:
-        """Match shows against criteria.
+    # Field mapping methods
+    
+    def map_field_name(self, field_name: str, data_columns: List[str] = None) -> str:
+        """Map a field name to its corresponding column name in the DataFrame.
+        
+        This is the central method for field name mapping in the system.
+        It handles the conversion of user-facing field names to database column names.
         
         Args:
-            criteria: Dictionary of criteria
-            data: DataFrame of shows
+            field_name: Field name to map
+            data_columns: Optional list of available columns to validate against
             
         Returns:
-            Tuple of (matched_shows, match_count)
+            Mapped column name for the field
         """
-        import streamlit as st
-        
-        # Start with all shows
-        matches = data.copy()
-        
-        # Separate array fields from scalar fields
-        scalar_fields = {}
-        array_fields = {}
-        
-        for field_name, value in criteria.items():
-            if isinstance(value, list):
-                array_fields[field_name] = value
-                logger.debug(f"Identified array field '{field_name}' with value {value}")
-            else:
-                # For scalar fields, determine the actual column name
-                field_id = f"{field_name}_id" if f"{field_name}_id" in matches.columns else field_name
-                scalar_fields[field_id] = value
-        
-        # Define standard mapping for array fields to their column names
+        # Special case for array fields which have a standard mapping
         array_field_mapping = self.get_array_field_mapping()
+        if field_name in array_field_mapping:
+            mapped_name = array_field_mapping[field_name]
+            if data_columns is None or mapped_name in data_columns:
+                return mapped_name
         
-        # Process array fields (these require apply functions)
-        for field_name, value in array_fields.items():
-            # Use our standard mapping if available
-            if field_name in array_field_mapping:
-                field_column = array_field_mapping[field_name]
-            # Otherwise, try to determine the column name dynamically
-            else:
-                # First check if the field exists directly
-                if field_name in matches.columns:
-                    field_column = field_name
-                # Then try with _ids suffix which is common in the database
-                elif f"{field_name}_ids" in matches.columns:
-                    field_column = f"{field_name}_ids"
-                # If neither exists, log an error and skip this field
-                else:
-                    logger.error(f"Field '{field_name}' not found in data columns")
-                    continue
-            
-            # Verify the mapped column exists
-            if field_column not in matches.columns:
-                logger.error(f"Mapped field '{field_column}' not found in data columns")
-                continue
-                    
-            if isinstance(value, list):
-                # Multiple values: any show containing any of the values matches
-                # Use vectorized operations where possible
-                value_set = set(value)  # Convert to set for faster lookups
-                
-                # Check if the column contains lists or is itself a list
-                sample = matches[field_column].iloc[0] if not matches.empty else None
-                
-                # Handle different data formats
-                if isinstance(sample, list):
-                    # If the column contains lists, use list intersection
-                    mask = matches[field_column].apply(
-                        lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
-                else:
-                    # If the column isn't storing lists, use standard filtering
-                    mask = matches[field_column].isin(value)
-            else:
-                # Single value: any show containing the value matches
-                # Check if the column contains lists or is itself a list
-                sample = matches[field_column].iloc[0] if not matches.empty else None
-                
-                # Handle different data formats
-                if isinstance(sample, list):
-                    # If the column contains lists, check if value is in the list
-                    mask = matches[field_column].apply(
-                        lambda x: isinstance(x, list) and value in x)
-                else:
-                    # If the column isn't storing lists, use standard equality check
-                    mask = matches[field_column] == value
-                    
-            # Apply filter
-            matches = matches[mask]
+        # For scalar fields, try with _id suffix which is common in the database
+        if field_name not in array_field_mapping:
+            field_id = f"{field_name}_id"
+            if data_columns is None or field_id in data_columns:
+                return field_id
         
-        # Process scalar fields (these can use vectorized operations)
-        for field_id, value in scalar_fields.items():
-            # Check if field exists in data
-            if field_id not in matches.columns:
-                continue
-                
-            if isinstance(value, list):
-                # Multiple values: any show with any of the values matches
-                mask = matches[field_id].isin(value)
-            else:
-                # Single value: exact match
-                mask = matches[field_id] == value
-                
-            # Apply filter
-            matches = matches[mask]
+        # If no special mapping or the mapped field doesn't exist in data_columns,
+        # return the original field name
+        return field_name
+    
+    def get_field_type(self, field_name: str) -> str:
+        """Get the type of a field (scalar or array).
+        
+        Args:
+            field_name: Field name to get type for
             
-        # Matching complete
-        return matches, len(matches)
+        Returns:
+            'array' if field is an array field, 'scalar' otherwise
+        """
+        # Check if field is in FIELD_CONFIGS and is marked as array
+        if field_name in self.FIELD_CONFIGS and self.FIELD_CONFIGS[field_name].is_array:
+            return 'array'
+        
+        # Check if field is in array_field_mapping
+        array_field_mapping = self.get_array_field_mapping()
+        if field_name in array_field_mapping:
+            return 'array'
+            
+        # Default to scalar
+        return 'scalar'
+    
+    def validate_field_name(self, field_name: str) -> bool:
+        """Validate if a field name is recognized by the system.
+        
+        Args:
+            field_name: Field name to validate
+            
+        Returns:
+            True if field name is valid, False otherwise
+        """
+        # Check if field is in FIELD_CONFIGS
+        if field_name in self.FIELD_CONFIGS:
+            return True
+            
+        # Check if field is in array_field_mapping
+        array_field_mapping = self.get_array_field_mapping()
+        if field_name in array_field_mapping:
+            return True
+            
+        return False
+    
+    def validate_field_value(self, field_name: str, value: Any) -> Tuple[bool, str]:
+        """Validate a field value against validation rules.
+        
+        Args:
+            field_name: Field name to validate value for
+            value: Value to validate
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+            - is_valid: True if value is valid, False otherwise
+            - error_message: Error message if value is invalid, empty string otherwise
+        """
+        # Check if field has validation rules
+        if field_name not in self.FIELD_VALIDATIONS:
+            return True, ""
+            
+        validation = self.FIELD_VALIDATIONS[field_name]
+        field_type = self.get_field_type(field_name)
+        
+        # Check for None or empty values
+        if value is None:
+            if validation.required:
+                return False, f"{field_name} is required"
+            return True, ""
+            
+        # Handle array fields
+        if field_type == 'array':
+            # Ensure value is a list
+            if not isinstance(value, list):
+                value = [value]
+                
+            # Check array size constraints
+            if validation.min_values > 0 and len(value) < validation.min_values:
+                return False, f"{field_name} requires at least {validation.min_values} values"
+                
+            if validation.max_values > 0 and len(value) > validation.max_values:
+                return False, f"{field_name} allows at most {validation.max_values} values"
+                
+            # Check allowed values
+            if validation.allowed_values is not None:
+                for v in value:
+                    if v not in validation.allowed_values:
+                        return False, f"{v} is not a valid value for {field_name}"
+        else:  # Handle scalar fields
+            # Check allowed values
+            if validation.allowed_values is not None and value not in validation.allowed_values:
+                return False, f"{value} is not a valid value for {field_name}"
+                
+        # Check dependencies
+        # Note: This would typically be checked at a higher level when all criteria are available
+        
+        return True, ""

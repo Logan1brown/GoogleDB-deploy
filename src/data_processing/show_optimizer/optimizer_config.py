@@ -30,6 +30,9 @@ from typing import Dict, Any
 class OptimizerConfig:
     """Configuration for Show Optimizer scoring and analysis."""
     
+    # Maximum number of results to return from matcher
+    MAX_RESULTS = 100
+    
     # Scoring weights for different criteria
     SCORING_WEIGHTS = {
         'criteria': {

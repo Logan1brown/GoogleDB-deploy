@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
 from .optimizer_config import OptimizerConfig
+from .optimizer_matcher import Matcher
 
 __all__ = [
     'ComponentScore',
@@ -391,6 +392,7 @@ class MatchingCalculator:
         """
         self.criteria_scorer = criteria_scorer
         self._criteria_data = None  # Cache for criteria data
+        self.matcher = Matcher(self.criteria_scorer.field_manager)
         
     def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
         """Get a subset of criteria for a specific match level.
@@ -629,7 +631,7 @@ class MatchingCalculator:
         # If flexible matching is disabled, just do a regular match
         if not flexible:
             try:
-                matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(clean_criteria, data)
+                matched_shows, match_count = self.matcher._match_shows(clean_criteria, data)
                 
                 # Ensure success_score is present
                 if not matched_shows.empty and 'success_score' not in matched_shows.columns:
@@ -672,7 +674,7 @@ class MatchingCalculator:
                 logger.info(f"Match level {level} using criteria: {level_criteria}")
                 
                 # Match shows using the level-specific criteria
-                matched_shows, match_count = self.criteria_scorer.field_manager.match_shows(level_criteria, data)
+                matched_shows, match_count = self.matcher._match_shows(level_criteria, data)
                 logger.info(f"Match level {level} found {match_count} shows")
                 
                 # Store these matches with their level
