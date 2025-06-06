@@ -248,6 +248,91 @@ class Matcher:
             st.write("No better fallback matches found, using original matches")
             return matched_shows, confidence_info
     
+    def find_network_matches(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> List[Dict[str, Any]]:
+        """Find shows matching criteria for each available network.
+        
+        This method:
+        1. Gets all unique networks from the data
+        2. For each network, adds the network ID to the criteria
+        3. Uses flexible matching to find shows matching both criteria and network
+        4. Returns match results for each network with confidence information
+        
+        Args:
+            criteria: Base criteria to match against
+            data: DataFrame of shows to match against (uses cached data if None)
+            
+        Returns:
+            List of dictionaries with network information and matching results
+        """
+        # Use cached data if none provided
+        if data is None:
+            if self._criteria_data is None:
+                st.error("No criteria data available and none provided for network matching")
+                return []
+            data = self._criteria_data
+        
+        # Extract all unique networks from the data
+        try:
+            networks = data[['network_id', 'network_name']].drop_duplicates().dropna()
+            
+            # Prepare results list
+            results = []
+            
+            # For each network, find matching shows
+            for _, network in networks.iterrows():
+                network_id = network['network_id']
+                network_name = network['network_name']
+                
+                # Skip if network_id is not valid
+                if pd.isna(network_id) or pd.isna(network_name):
+                    continue
+                    
+                # Create network-specific criteria
+                network_criteria = criteria.copy()
+                network_criteria['network'] = int(network_id)
+                
+                # Use flexible matching to get best possible results
+                try:
+                    matching_shows, confidence_info = self.find_matches(
+                        network_criteria, 
+                        data=data, 
+                        min_sample_size=OptimizerConfig.CONFIDENCE['minimum_sample']
+                    )
+                    
+                    # Store the results
+                    results.append({
+                        'network_id': int(network_id),
+                        'network_name': network_name,
+                        'matching_shows': matching_shows,
+                        'sample_size': confidence_info.get('sample_size', 0),
+                        'confidence_info': confidence_info,
+                        'match_quality': confidence_info.get('match_quality', 0.0)
+                    })
+                    
+                except Exception as e:
+                    st.error(f"Error matching network {network_name} (ID: {network_id}): {str(e)}")
+                    # Add empty result to maintain network in results
+                    results.append({
+                        'network_id': int(network_id),
+                        'network_name': network_name,
+                        'matching_shows': pd.DataFrame(),
+                        'sample_size': 0,
+                        'confidence_info': {
+                            'level': 'none',
+                            'score': 0.0,
+                            'match_quality': 0.0,
+                            'sample_size': 0,
+                            'match_level': 0
+                        },
+                        'match_quality': 0.0
+                    })
+            
+            return results
+            
+        except Exception as e:
+            st.error(f"Error in network matching: {str(e)}")
+            return []
+    
     def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int]:
         """Match shows based on criteria.
         

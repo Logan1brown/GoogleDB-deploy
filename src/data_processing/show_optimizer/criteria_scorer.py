@@ -1,11 +1,11 @@
-"""CriteriaScorer: Calculates success rates for show criteria based on historical data.
+"""CriteriaScorer: Calculates component scores for shows based on provided data.
 
-Integrates with SuccessAnalyzer for metrics and provides data to CriteriaAnalyzer.
-Handles success scoring, network analysis, and component weighting with caching.
+Responsible for calculating various component scores (success, audience, critics, longevity)
+based on integrated data provided by orchestrator components.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Callable
 import pandas as pd
 import numpy as np
 import ast
@@ -14,8 +14,6 @@ import time
 from functools import lru_cache
 from datetime import datetime, timedelta
 
-from ..analyze_shows import ShowsAnalyzer
-from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
 from .optimizer_config import OptimizerConfig
 from .score_calculators import ComponentScore, ScoreCalculationError, NetworkMatch, NetworkScoreCalculator
@@ -33,316 +31,136 @@ __all__ = ['CriteriaScorer', 'ComponentScore', 'ScoreCalculationError']
 
 
 class CriteriaScorer:
-    """Calculates raw success scores for show criteria."""
+    """Calculates component scores for show criteria based on provided data.
     
-    def __init__(self, shows_analyzer: ShowsAnalyzer, success_analyzer: SuccessAnalyzer):
+    This class is responsible for calculating various component scores including success,
+    audience, critics, and longevity scores. It delegates the actual score calculations to
+    specialized calculator classes while providing orchestration and result aggregation.
+    """
+    
+    def __init__(self, field_manager: FieldManager):
         """Initialize the criteria scorer.
         
         Args:
-            shows_analyzer: ShowsAnalyzer instance for show data
-            success_analyzer: SuccessAnalyzer instance for success metrics
+            field_manager: FieldManager instance for field mapping and validation
         """
-        self.shows_analyzer = shows_analyzer
-        self.success_analyzer = success_analyzer
-        self.criteria_data = None
-        self.last_update = None
-        self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
-        self._normalization_performed = False  # Track if normalization has been performed
+        self.field_manager = field_manager
         
-        # Get reference data from ShowsAnalyzer using fetch_comp_data
-        try:
-            comp_df, reference_data = shows_analyzer.fetch_comp_data()
-            self.field_manager = FieldManager(reference_data)
-        except Exception as e:
-            st.error(f"Optimizer Initialization Error: Could not initialize FieldManager due to: {e}. Some features may not work correctly or data may be incomplete.")
-            # Initialize with empty reference data as fallback
-            self.field_manager = FieldManager({})
-        
-        # Initialize matcher directly
-        try:
-            from .optimizer_matcher import Matcher
-            self.matcher = Matcher(self.field_manager)
-            
-            # Set criteria data if available
-            if comp_df is not None and not comp_df.empty:
-                self.matcher.set_criteria_data(comp_df)
-                
-            st.write("Matcher initialized successfully")
-        except Exception as e:
-            st.error(f"Could not initialize Matcher: {str(e)}")
-            self.matcher = None
-            
-        # For backward compatibility, try to initialize MatchingCalculator
-        # but don't fail if it's not available
-        try:
-            # Import here to avoid circular imports
-            from .score_calculators import MatchingCalculator
-            self._matching_calculator = MatchingCalculator(self)
-            st.write("MatchingCalculator initialized for backward compatibility")
-        except Exception as e:
-            st.warning(f"MatchingCalculator not available: {str(e)}")
-            self._matching_calculator = None
-        
-    def fetch_criteria_data(self, force_refresh=False):
-        """Fetch criteria data for matching and scoring.
-        
-        Args:
-            force_refresh: Force refresh of data, ignoring cache
-            
-        Returns:
-            DataFrame of criteria data with success metrics
-        """
-        # Fetch criteria data with optional force refresh
-        current_time = datetime.now()
-        
-        # Use cached data if available and not forcing refresh
-        if not force_refresh and self.criteria_data is not None and self.last_update is not None:
-            if (current_time - self.last_update) < timedelta(seconds=self.cache_duration):
-                # Using cached criteria data
-                return self.criteria_data
-        
-        try:
-            # Get show criteria data from ShowsAnalyzer
-            comp_df, reference_data = self.shows_analyzer.fetch_comp_data()
-            
-            if comp_df.empty:
-                st.error("CRITICAL: No base data returned from ShowsAnalyzer for CriteriaScorer. Optimizer cannot function.")
-                raise ValueError("No data returned from ShowsAnalyzer.fetch_comp_data()")
-            
-            # Get success metrics from SuccessAnalyzer
-            success_df = self.success_analyzer.fetch_success_data()
-            
-            # Reset index if show_id is the index
-            if not success_df.empty and success_df.index.name == 'show_id':
-                success_df = success_df.reset_index()
-            
-            # Define success metrics to merge from success_df
-            # Exclude tmdb_seasons and tmdb_status which already exist in comp_df
-            # to avoid column conflicts during merge
-            success_metrics_to_include = ['success_score', 'popcornmeter', 'tomatometer', 'tmdb_total_episodes']
-            
-            # Merge success metrics if available
-            if not success_df.empty:
-                try:
-                    # Only include non-conflicting columns to avoid suffix issues
-                    # Always include show_id for the join
-                    columns_to_merge = ['show_id'] + success_metrics_to_include
-                    available_columns = [col for col in columns_to_merge if col in success_df.columns]
-                    
-                    # Handle columns that might cause suffix issues
-                    # Instead of dropping columns, we'll rename them after the merge
-                    
-                    # Merge success metrics into comp_df
-                    comp_df = pd.merge(
-                        comp_df,
-                        success_df[available_columns],
-                        left_on='id',
-                        right_on='show_id',
-                        how='left'
-                    )
-                    
-                    # With our selective column approach, we shouldn't have any suffix issues
-                    
-                    # Check for required component calculator columns
-                    for col in ['popcornmeter', 'tomatometer']:
-                        if col not in comp_df.columns:
-                            pass  # Column is missing from merged data
-                    
-                    # Drop the redundant show_id column from the merge
-                    if 'show_id' in comp_df.columns:
-                        comp_df = comp_df.drop(columns=['show_id'])
-                    
-                except Exception as e:
-                    st.error(f"Optimizer Data Error: Failed to merge success metrics. Details: {e}")
-            
-            elif success_df.empty:
-                st.warning("Optimizer Data Note: Success metrics data is currently empty. Scores and analyses will not include these metrics.")
-            else:  # success_df not empty, but available_metrics_in_success_df is empty
-                st.warning(f"Optimizer Data Note: Key success metrics ({success_metrics_to_integrate}) were not found in the available success data. Scores and analyses will not include these specific metrics.")
-            
-            # Normalize success_score to 0-1 range if it exists and is on 0-100 scale
-            # Only perform normalization if it hasn't been done already
-            if 'success_score' in comp_df.columns and not self._normalization_performed:
-                # Check if any non-NaN scores are > 1, indicating a 0-100 scale
-                if comp_df['success_score'].notna().any() and (comp_df.loc[comp_df['success_score'].notna(), 'success_score'] > 1).any():
-                    # Normalize silently without showing a message
-                    comp_df['success_score'] = comp_df['success_score'] / 100.0
-                    self._normalization_performed = True  # Mark normalization as performed
-            
-            # Update field manager with new reference data
-            self.field_manager = FieldManager(reference_data)
-            
-            # Validate required columns
-            if 'id' not in comp_df.columns:
-                st.error("CRITICAL: Show ID column 'id' not found in criteria data after processing. Optimizer cannot function.")
-                raise ValueError("Show ID column 'id' not found in criteria data")
-            
-            # Update cache
-            self.criteria_data = comp_df
-            self.last_update = current_time
-            
-            # Debug output for success metrics
-            # Final criteria data ready for use
-            
-            # Return criteria data without showing toast message
-            return self.criteria_data
-            
-        except ValueError as ve:
-            st.error(f"Data Error in Optimizer: {str(ve)}")  # Cloud visible error
-            raise
-        except Exception as e:
-            st.error("An unexpected error occurred in the Optimizer while fetching data.")  # Cloud visible error
-            raise
-        
-    def _get_matching_shows(self, criteria: Dict[str, Any], flexible: bool = True) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
-        """Get shows matching the given criteria with flexible matching support.
-        
-        Args:
-            criteria: Dictionary of criteria
-            flexible: Whether to use flexible matching (try different match levels)
-            
-        Returns:
-            Tuple of (DataFrame of matching shows, count of matches, confidence info)
-        """
-        # Ensure we have criteria data
-        if self.criteria_data is None or self.criteria_data.empty:
-            self.fetch_criteria_data()
-            
-        if self.criteria_data is None or self.criteria_data.empty:
-            st.error("No criteria data available for matching")
-            return pd.DataFrame(), 0, {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0}
-        
-        # Use the matcher from network_analyzer if available
-        if hasattr(self, '_matching_calculator') and self._matching_calculator is not None:
-            # Ensure matcher has the latest criteria data
-            self._matching_calculator.matcher.set_criteria_data(self.criteria_data)
-            return self._matching_calculator.get_matching_shows(criteria, flexible=flexible)
-        
-        # If no matcher is available, use the network_analyzer's matcher directly
-        try:
-            from .optimizer_matcher import Matcher
-            matcher = Matcher(self.field_manager)
-            matcher.set_criteria_data(self.criteria_data)
-            
-            # Find matches with the matcher
-            matched_shows, match_info = matcher.find_matches(criteria, self.criteria_data)
-            
-            # Return in the expected format
-            return matched_shows, len(matched_shows), match_info
-            
-        except Exception as e:
-            st.error(f"Error matching shows: {str(e)}")
-            return pd.DataFrame(), 0, {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0}
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
         """Calculate the success rate for a set of shows with confidence information.
         
+        Delegates success rate calculation to the SuccessScoreCalculator.
+        
         Args:
             shows: DataFrame of shows
-            threshold: Success threshold (shows with score >= threshold are considered successful)
-            confidence_info: Optional confidence information from flexible matching
+            threshold: Optional success threshold
+            confidence_info: Optional confidence information
             
         Returns:
-            Tuple of (success_rate, confidence_info)
-            - success_rate: Success rate (0-1) or None if success_score is missing
-            - confidence_info: Dictionary with confidence metrics
+            Tuple of success rate and confidence information
         """
-        # Use the matching calculator if available
-        if hasattr(self, '_matching_calculator') and self._matching_calculator is not None:
-            return self._matching_calculator.calculate_success_rate(shows, threshold, confidence_info)
+        if shows is None or shows.empty:
+            if confidence_info is None:
+                confidence_info = {'level': 'none', 'score': 0.0}
+            return None, confidence_info
         
-        # If no matching calculator is available, calculate success rate directly
-        if shows.empty:
-            st.warning("Cannot calculate success rate with empty shows DataFrame")
-            return None, {'confidence': 'none', 'sample_size': 0}
-            
-        # Validate that we have success_score column
-        if 'success_score' not in shows.columns:
-            st.warning("success_score column not found in shows DataFrame")
-            return None, {'confidence': 'none', 'sample_size': 0}
-            
-        # Get sample size
-        sample_size = len(shows)
+        # Delegate to SuccessScoreCalculator
+        calculator = SuccessScoreCalculator()
         
-        # Use default threshold if none provided
+        # Use the calculator's validate_and_prepare_data method
+        is_valid, validated_data, validation_info = calculator.validate_and_prepare_data(
+            shows, 
+            required_columns=['success_score'],
+            optional_columns=[],
+            data_column='success_score'
+        )
+        
+        if not is_valid or validated_data is None or validated_data.empty:
+            if confidence_info is None:
+                confidence_info = {'level': 'none', 'score': 0.0, 'error': validation_info.get('error', 'Unknown error')}
+            else:
+                confidence_info['error'] = validation_info.get('error', 'Unknown error')
+            return None, confidence_info
+        
+        # Use the provided threshold or default from config
         if threshold is None:
             threshold = OptimizerConfig.SUCCESS['threshold']
-            
-        # Calculate success rate
-        success_count = shows[shows['success_score'] >= threshold].shape[0]
-        success_rate = success_count / sample_size if sample_size > 0 else 0
         
-        # Calculate confidence level based on sample size
-        if sample_size < OptimizerConfig.CONFIDENCE['minimum_sample']:
-            confidence_level = 'very_low'
-        elif sample_size < OptimizerConfig.CONFIDENCE['low_threshold']:
-            confidence_level = 'low'
-        elif sample_size < OptimizerConfig.CONFIDENCE['medium_threshold']:
-            confidence_level = 'medium'
-        else:
-            confidence_level = 'high'
-            
-        # Create or update confidence info
+        # Let the calculator handle the actual calculation
+        component_score = calculator.calculate(validated_data, threshold=threshold)
+        
+        if component_score is None:
+            if confidence_info is None:
+                confidence_info = {'level': 'none', 'score': 0.0, 'error': 'Failed to calculate success score'}
+            else:
+                confidence_info['error'] = 'Failed to calculate success score'
+            return None, confidence_info
+        
+        # Extract success rate and metadata from component score
+        success_rate = component_score.value
+        
+        # Update confidence information
         if confidence_info is None:
             confidence_info = {}
-            
-        confidence_info.update({
-            'confidence': confidence_level,
-            'sample_size': sample_size,
-            'success_count': success_count,
-            'threshold': threshold
-        })
+        
+        # Merge metadata from component score into confidence info
+        for key, value in component_score.metadata.items():
+            confidence_info[key] = value
         
         return success_rate, confidence_info
 
    
-    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], flexible: bool = True) -> List[Tuple[Optional[float], Dict[str, Any]]]:
-        """Batch calculate success rates for multiple criteria with confidence information.
+    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: List[pd.DataFrame]) -> List[Optional[float]]:
+        """Calculate success rates for a batch of criteria using provided matching shows.
         
         Args:
             criteria_list: List of criteria dictionaries
-            flexible: Whether to use flexible matching (try different match levels)
+            matching_shows_list: List of DataFrames containing shows matching each criteria
             
         Returns:
-            List of tuples (success_rate, confidence_info) in the same order as criteria_list
+            List of success rates (one for each criteria/matching shows pair)
         """
-        # Use the matching calculator if available
-        if hasattr(self, '_matching_calculator') and self._matching_calculator is not None:
-            return self._matching_calculator.batch_calculate_success_rates(criteria_list, flexible=flexible)
+        if len(criteria_list) != len(matching_shows_list):
+            st.error(f"Mismatch between criteria list ({len(criteria_list)}) and matching shows list ({len(matching_shows_list)})")
+            return [None] * len(criteria_list)
             
-        # If no matching calculator is available, calculate success rates directly
         results = []
         
-        # Validate input
-        if not criteria_list:
-            st.warning("Empty criteria list provided for batch success rate calculation")
-            return []
-            
-        # Process each criteria set
-        for criteria in criteria_list:
+        # Create a single SuccessScoreCalculator instance to reuse
+        calculator = SuccessScoreCalculator()
+        
+        for i, (criteria, matching_shows) in enumerate(zip(criteria_list, matching_shows_list)):
             try:
-                # Get matching shows
-                shows, match_count, confidence_info = self._get_matching_shows(criteria, flexible=flexible)
-                
-                # Calculate success rate
-                if shows.empty or match_count == 0:
-                    results.append((None, {'confidence': 'none', 'sample_size': 0}))
+                if matching_shows is None or matching_shows.empty:
+                    results.append(None)
                     continue
                     
-                success_rate, confidence_info = self._calculate_success_rate(shows, confidence_info=confidence_info)
-                results.append((success_rate, confidence_info))
+                # Use the calculator to calculate the success rate
+                component_score = calculator.calculate(matching_shows)
                 
+                if component_score is None:
+                    results.append(None)
+                else:
+                    # Extract just the success rate value
+                    results.append(component_score.value)
+                    
             except Exception as e:
-                st.error(f"Error calculating success rate for criteria: {str(e)}")
-                results.append((None, {'confidence': 'none', 'sample_size': 0, 'error': str(e)}))
+                st.error(f"Error calculating success rate for criteria {criteria}: {str(e)}")
+                results.append(None)
                 
         return results
     
     @lru_cache(maxsize=32)
-    def calculate_criteria_impact(self, base_criteria: Dict[str, Any], field_name: Optional[str] = None) -> Dict[str, Dict[str, float]]:
-        """Calculate the impact of criteria values on success rate.
+    def calculate_criteria_impact(self, base_criteria: Dict[str, Any], base_matching_shows: pd.DataFrame, option_matching_shows_map: Dict[str, Dict[int, pd.DataFrame]] = None, field_name: Optional[str] = None) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        """
+        Calculate the impact of criteria values on success rate.
         
         Args:
             base_criteria: The base criteria to compare against.
+            base_matching_shows: DataFrame of shows matching the base criteria.
+            option_matching_shows_map: Optional mapping of field names to option IDs to matching shows.
+                If provided, these pre-matched shows will be used for impact calculation.
+                If not provided, impact scores cannot be calculated.
             field_name: Optional name of the field to analyze. If None, analyzes all fields.
             
         Returns:
@@ -353,23 +171,21 @@ class CriteriaScorer:
             array_field_mapping = self.field_manager.get_array_field_mapping()
             array_fields = list(array_field_mapping.keys())
             
-            # Get base success rate
-            base_shows, base_match_count = self._get_matching_shows(base_criteria)
+            # Use the provided base matching shows
+            base_match_count = len(base_matching_shows) if not base_matching_shows.empty else 0
             
-            if base_shows.empty:
+            if base_matching_shows.empty:
                 raise ValueError("Cannot calculate impact scores with no matching shows")
                 
             if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
                 raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows). Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
             
-            base_rate = self._calculate_success_rate(base_shows)
+            # Calculate base success rate using the provided shows
+            base_rate, _ = self._calculate_success_rate(base_matching_shows)
             
             if base_rate is None:
                 st.warning("WARNING: Unable to calculate base success rate - success_score data missing")
                 return {}
-            
-            if base_rate == 0:
-                raise ValueError("Base success rate is zero, cannot calculate meaningful impact scores.")
             
             impact_scores = {}
             
@@ -398,31 +214,48 @@ class CriteriaScorer:
                     batch_criteria.append(new_criteria)
                     option_data.append((option.id, option.name))
                 
-                # Batch calculate success rates
-                success_rates = self._batch_calculate_success_rates(batch_criteria)
-                
-                # Process results
+                # Process each option using the provided option_matching_shows_map
                 field_impact = {}
                 
-                for i, criteria_set in enumerate(batch_criteria):
-                    option_id, option_name = option_data[i]
-                    rate = success_rates[i]
+                if option_matching_shows_map and current_field in option_matching_shows_map:
+                    field_options_map = option_matching_shows_map[current_field]
                     
-                    if rate is not None:
-                        option_shows, match_count = self._get_matching_shows(criteria_set)
-                        impact = (rate - base_rate) / base_rate if base_rate != 0 else 0
+                    for i, (option_id, option_name) in enumerate(option_data):
+                        # Skip if we don't have matching shows for this option
+                        if option_id not in field_options_map:
+                            continue
+                            
+                        option_shows = field_options_map[option_id]
                         
-                        # option_id is guaranteed to be an int from FieldManager's FieldOption.id, which is hashable.
-                        # No conversion or special handling is needed for its use as a dictionary key.
-                        field_impact[option_id] = {"impact": impact, "sample_size": match_count, "option_name": option_name}
+                        if option_shows is None or option_shows.empty:
+                            continue
+                            
+                        # Calculate success rate for this option
+                        option_rate, option_confidence = self._calculate_success_rate(option_shows)
+                        
+                        if option_rate is not None:
+                            match_count = len(option_shows)
+                            impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
+                            
+                            field_impact[option_id] = {
+                                "impact": impact, 
+                                "sample_size": match_count, 
+                                "option_name": option_name,
+                                "success_rate": option_rate
+                            }
                 
                 if field_impact:
                     impact_scores[current_field] = field_impact
                     
             if not impact_scores and fields_to_process:
-                # Only raise if we attempted to process fields but got no results.
-                # If fields_to_process was empty (e.g. field_name was already in base_criteria), this is not an error.
-                raise ValueError("Could not calculate any impact scores with the given criteria configuration.")
+                # Check if option_matching_shows_map was provided
+                if option_matching_shows_map is None:
+                    st.error("Cannot calculate impact scores: option_matching_shows_map is required but was not provided.")
+                    return {}
+                else:
+                    # Only raise if we attempted to process fields but got no results
+                    # If fields_to_process was empty (e.g. field_name was already in base_criteria), this is not an error
+                    raise ValueError("Could not calculate any impact scores with the given criteria configuration.")
                 
             return impact_scores
 
@@ -433,40 +266,33 @@ class CriteriaScorer:
             st.error(f"Error calculating criteria impact: {str(e)}")
             raise
     
-    def calculate_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, ComponentScore]:
+    def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any]) -> Dict[str, ComponentScore]:
         """
-        Calculate component scores for a set of criteria.
-
+        Calculate component scores for the given criteria using provided matched shows.
+        
         Args:
-            criteria: Dictionary of criteria to calculate scores for
-
+            criteria: Dictionary of criteria
+            matching_shows: DataFrame of shows matching the criteria
+            confidence_info: Confidence information from matching
+            
         Returns:
             Dictionary mapping component names to ComponentScore objects
         """
         component_scores: Dict[str, ComponentScore] = {}
 
         try:
-            # Get matching shows and ensure they have all required columns for scoring
-            matching_shows, match_count, confidence_info = self._get_matching_shows(criteria)
-            
-            # Log the number of matching shows found
-            st.write(f"Found {match_count} matching shows")
-
-            if matching_shows.empty:
+            # First check if we have any matching shows
+            if matching_shows is None or matching_shows.empty:
                 st.warning(f"No matching shows found for criteria: {criteria}. Cannot calculate component scores.")
                 return {}
-
+            
+            # Calculate match count
+            match_count = len(matching_shows)
+            st.write(f"Calculating scores using {match_count} matched shows")
+            
             # Using general minimum_sample from OptimizerConfig
             if match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
                 st.warning(
-                    f"Insufficient sample size ({match_count}) for criteria: {criteria} "
-                    f"to calculate reliable component scores. "
-                    f"Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}"
-                )
-                return {}
-                
-            # Log the match level information from confidence_info
-            if confidence_info and 'match_level' in confidence_info:
                 actual_match_level = confidence_info.get('match_level')
                 original_match_level = confidence_info.get('original_match_level', actual_match_level)
                 
@@ -499,45 +325,9 @@ class CriteriaScorer:
             
             if missing_columns:
                 st.warning(f"Missing columns for component score calculation: {missing_columns}")
+                st.write("Continuing with available data. Individual calculators will handle missing data validation.")
                 
-                # Try to get these columns from the criteria data if possible
-                if hasattr(self, 'criteria_data') and self.criteria_data is not None and not self.criteria_data.empty:
-                    # Get the IDs of the matching shows
-                    if 'id' in matching_shows.columns:
-                        matching_ids = matching_shows['id'].tolist()
-                        
-                        # Filter criteria data to only include matching shows
-                        filtered_criteria_data = self.criteria_data[self.criteria_data['id'].isin(matching_ids)]
-                        
-                        # Merge the missing columns from criteria_data into matching_shows
-                        for component, missing_cols in missing_columns.items():
-                            for col in missing_cols:
-                                if col in filtered_criteria_data.columns:
-                                    matching_shows[col] = matching_shows['id'].map(
-                                        filtered_criteria_data.set_index('id')[col]
-                                    )
-                                    st.write(f"Recovered missing column: {col} for component {component}")
-            
-            # Now check again for any remaining missing columns
-            for component, columns in required_columns.items():
-                missing = [col for col in columns if col not in matching_shows.columns]
-                if missing:
-                    st.warning(f"Still missing columns for {component} score calculation after recovery attempt: {missing}")
-
-                
-            # Ensure all required columns are present in the data
-            required_columns = {
-                'success': ['success_score'],
-                'audience': ['popcornmeter'],
-                'critics': ['tomatometer'],
-                'longevity': ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
-            }
-            
-            # Check if we have all required columns and log any missing ones
-            for component, columns in required_columns.items():
-                missing = [col for col in columns if col not in matching_shows.columns]
-                if missing:
-                    st.warning(f"Missing columns for {component} score calculation: {missing}")
+                # Proceed with available data - score calculators will handle validation
 
         except Exception as e:
             st.error(f"Optimizer Error: Failed to get matching shows for component score calculation. Criteria: {criteria}. Details: {e}")
@@ -547,7 +337,7 @@ class CriteriaScorer:
         if not hasattr(self, 'field_manager') or self.field_manager is None:
             st.error("Optimizer Critical Error: FieldManager is not initialized in CriteriaScorer. This may affect score calculations.")
 
-        # Initialize the calculators
+        # Initialize and use calculators for each component
         calculators = [
             SuccessScoreCalculator(),
             AudienceScoreCalculator(),
@@ -558,37 +348,9 @@ class CriteriaScorer:
         # Calculate scores for each component
         for calculator in calculators:
             try:
-                # Check if required columns for this calculator are present
-                missing_data = False
-                if calculator.component_name == 'success' and 'success_score' not in matching_shows.columns:
-                    st.warning(f"Missing success_score column for {calculator.component_name} calculator - will display N/A")
-                    missing_data = True
-                elif calculator.component_name == 'audience' and 'popcornmeter' not in matching_shows.columns:
-                    st.warning(f"Missing popcornmeter column for {calculator.component_name} calculator - will display N/A")
-                    missing_data = True
-                elif calculator.component_name == 'critics' and 'tomatometer' not in matching_shows.columns:
-                    st.warning(f"Missing tomatometer column for {calculator.component_name} calculator - will display N/A")
-                    missing_data = True
-                elif calculator.component_name == 'longevity':
-                    missing = [col for col in ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status'] if col not in matching_shows.columns]
-                    if missing:
-                        st.warning(f"Missing {missing} columns for {calculator.component_name} calculator - will display N/A")
-                        missing_data = True
-                
-                if missing_data:
-                    # Create a placeholder component score with None value
-                    component_scores[calculator.component_name] = ComponentScore(
-                        component=calculator.component_name,
-                        score=None,  # None will be displayed as N/A
-                        sample_size=0,
-                        confidence='none',
-                        details={'status': 'insufficient_data'}
-                    )
-                else:
-                    # Calculate the component score
-                    score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
-                    if score_component:  # Ensure a component score object was returned
-                        component_scores[calculator.component_name] = score_component
+                score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
+                if score_component:  # Ensure a component score object was returned
+                    component_scores[calculator.component_name] = score_component
             except Exception as e:
                 st.warning(f"Failed to calculate {calculator.component_name} score: {str(e)} - will display N/A")
                 # Create a placeholder component score with None value
@@ -632,16 +394,22 @@ class CriteriaScorer:
         """
         return self.field_manager.calculate_confidence(criteria)
         
-    def calculate_network_scores(self, criteria_str: str) -> List[NetworkMatch]:
+    def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: Optional[pd.DataFrame] = None) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         
         Args:
-            criteria_str: String representation of criteria dictionary
+            criteria: Dictionary of criteria
+            matching_shows: Optional pre-matched shows DataFrame. If provided, skips the matching step.
             
         Returns:
             List of NetworkMatch objects with compatibility and success scores
         """
-        # Use the NetworkScoreCalculator to calculate network scores
+        criteria_str = str(criteria) if isinstance(criteria, dict) else criteria
+        
         if not hasattr(self, '_network_calculator'):
             self._network_calculator = NetworkScoreCalculator(self)
+            
+        if matching_shows is not None and hasattr(self._network_calculator, 'set_matching_shows'):
+            self._network_calculator.set_matching_shows(matching_shows)
+            
         return self._network_calculator.calculate_network_scores(criteria_str)

@@ -97,7 +97,7 @@ class ConceptAnalyzer:
                     match_counts_by_level[level] = count
         
         # Step 2: Calculate success probability
-        success_probability, confidence = self._calculate_success_probability(criteria)
+        success_probability, confidence = self._calculate_success_probability(criteria, matching_shows)
         
         # Step 3: Find top networks
         top_networks = self._find_top_networks(criteria)
@@ -185,7 +185,7 @@ class ConceptAnalyzer:
                 'confidence_level': 'none'
             }
     
-    def _calculate_success_probability(self, matching_shows: pd.DataFrame) -> Tuple[Optional[float], str]:
+    def _calculate_success_probability(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> Tuple[Optional[float], str]:
         """Calculate the success probability based on matching shows.
         
         Args:
@@ -232,8 +232,11 @@ class ConceptAnalyzer:
         try:
             st.write("Finding top networks...")
             
-            # Use CriteriaScorer to analyze network compatibility
-            network_matches = self.criteria_scorer.get_network_matches(criteria)
+            # Get the matching shows that were already found
+            matching_shows, confidence_info = self._find_matching_shows(criteria)
+            
+            # Use CriteriaScorer to analyze network compatibility with the already matched shows
+            network_matches = self.criteria_scorer.calculate_network_scores(criteria, matching_shows)
             
             # Take top 5
             top_networks = network_matches[:5] if network_matches else []
@@ -257,8 +260,13 @@ class ConceptAnalyzer:
         try:
             st.write("Analyzing component scores...")
             
-            # Use CriteriaScorer to calculate component scores
-            component_scores = self.criteria_scorer.calculate_component_scores(criteria)
+            # Get the matching shows that were already found
+            matching_shows, confidence_info = self._find_matching_shows(criteria)
+            
+            # Use CriteriaScorer to calculate component scores with the already matched shows
+            component_scores = self.criteria_scorer.calculate_component_scores(
+                criteria, matching_shows, confidence_info
+            )
             
             if component_scores:
                 st.write(f"Analyzed scores for {len(component_scores)} components")

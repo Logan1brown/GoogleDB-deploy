@@ -269,42 +269,65 @@ class OptimizerConfig:
         'success_threshold': 0.6        # Threshold for considering a show successful (60%)
     }
     
-    # Complementary criteria that work well together
-    COMPLEMENTARY_CRITERIA = {
-        'genre': {
-            # Comedy
-            '3': [
-                {'criteria_type': 'tone', 'criteria_value': 1, 'impact_score': 0.1, 'name': 'Light-hearted'},
-                {'criteria_type': 'plot_elements', 'criteria_value': 12, 'impact_score': 0.08, 'name': 'Fish Out of Water'},
-                {'criteria_type': 'character_types', 'criteria_value': 5, 'impact_score': 0.07, 'name': 'Quirky Ensemble'}
-            ],
-            # Crime
-            '4': [
-                {'criteria_type': 'tone', 'criteria_value': 3, 'impact_score': 0.12, 'name': 'Gritty'},
-                {'criteria_type': 'plot_elements', 'criteria_value': 3, 'impact_score': 0.09, 'name': 'Investigation'},
-                {'criteria_type': 'character_types', 'criteria_value': 2, 'impact_score': 0.08, 'name': 'Troubled Detective'}
-            ],
-            # Drama
-            '6': [
-                {'criteria_type': 'tone', 'criteria_value': 5, 'impact_score': 0.11, 'name': 'Emotional'},
-                {'criteria_type': 'thematic_elements', 'criteria_value': 7, 'impact_score': 0.09, 'name': 'Family Dynamics'},
-                {'criteria_type': 'character_types', 'criteria_value': 8, 'impact_score': 0.08, 'name': 'Complex Protagonist'}
-            ]
+    # Longevity scoring configuration
+    LONGEVITY_SCORING = {
+        # Status scores for different show statuses
+        'status_scores': {
+            'Returning Series': 100, 
+            'Ended': 75, 
+            'Canceled': 25,
+            'In Production': 50, 
+            'Pilot': 10, 
+            'In Development': 5
         },
-        'tone': {
-            # Light-hearted
-            '1': [
-                {'criteria_type': 'genre', 'criteria_value': 3, 'impact_score': 0.1, 'name': 'Comedy'},
-                {'criteria_type': 'plot_elements', 'criteria_value': 12, 'impact_score': 0.08, 'name': 'Fish Out of Water'}
-            ],
-            # Gritty
-            '3': [
-                {'criteria_type': 'genre', 'criteria_value': 4, 'impact_score': 0.12, 'name': 'Crime'},
-                {'criteria_type': 'plot_elements', 'criteria_value': 3, 'impact_score': 0.09, 'name': 'Investigation'}
-            ]
+        # Component weights for calculating overall longevity score
+        'component_weights': {
+            'seasons': 0.4,
+            'episodes': 0.4,
+            'status': 0.2
+        },
+        # Season scoring parameters
+        'season_scoring': {
+            'base_score_per_season': 25,     # Score per season for first 2 seasons
+            'bonus_threshold': 2,            # Seasons needed before bonus points
+            'bonus_base': 50,                # Base score after reaching bonus threshold
+            'bonus_per_season': 10,          # Additional points per season after threshold
+            'max_score': 100                 # Maximum possible score
+        },
+        # Episode scoring parameters
+        'episode_scoring': {
+            'high_threshold': 10,            # Episodes needed for maximum score
+            'medium_threshold': 5,           # Episodes needed for medium score
+            'high_score': 100,              # Score for high threshold
+            'medium_base': 50,              # Base score for medium threshold
+            'medium_per_episode': 10,       # Points per episode above medium threshold
+            'base_score_per_episode': 10    # Score per episode below medium threshold
         }
     }
     
+    # Score normalization factors
+    SCORE_NORMALIZATION = {
+        'popcornmeter': 100.0,  # Divide by this to normalize to 0-1 scale
+        'tomatometer': 100.0,   # Divide by this to normalize to 0-1 scale
+        'success_filter_min': 0.0  # Minimum value for success score to be considered valid
+    }
+    
+    # Required and optional columns for score calculations
+    REQUIRED_COLUMNS = {
+        'base': ['show_id', 'title'],  # Basic identification fields required by all calculators
+        'success': [],  # No additional required columns beyond base
+        'audience': [],  # No additional required columns beyond base
+        'critics': [],   # No additional required columns beyond base
+        'longevity': []  # No additional required columns beyond base
+    }
+    
+    OPTIONAL_COLUMNS = {
+        'success': ['success_score'],
+        'audience': ['popcornmeter', 'popcornmeter_count'],
+        'critics': ['tomatometer'],
+        'longevity': ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
+    }
+
     @classmethod
     def get_criteria_weight(cls, criteria_name: str) -> float:
         """Get the weight for a specific criteria.
