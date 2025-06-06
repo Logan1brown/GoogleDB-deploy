@@ -96,6 +96,110 @@ class ShowsAnalyzer:
             raise
 
     @st.cache_data(ttl=3600)
+    def fetch_optimizer_data(_self) -> pd.DataFrame:
+        """Fetch data needed for the Show Optimizer.
+        
+        This method fetches show data specifically for the Show Optimizer component.
+        It is kept separate from fetch_comp_data() to maintain decoupling between
+        different application features.
+        
+        Returns:
+            DataFrame containing show data for optimization
+        """
+        try:
+            # Get Supabase client with service key for full access
+            supabase = get_client(use_service_key=True)
+            
+            if supabase is None:
+                st.error("Supabase client not initialized. Check your environment variables.")
+                return pd.DataFrame()
+                
+            # Fetch comparison data
+            st.write("Fetching show data for optimization...")
+            comp_data = supabase.table(_self.VIEWS['comp']).select('*').execute()
+            
+            if not hasattr(comp_data, 'data') or not comp_data.data:
+                st.error(f"No data returned from {_self.VIEWS['comp']} view")
+                return pd.DataFrame()
+                
+            comp_df = pd.DataFrame(comp_data.data)
+            
+            # Convert array fields to Python lists
+            array_fields = ['subgenres', 'character_type_ids', 'plot_element_ids', 
+                          'thematic_element_ids', 'studios', 'team_member_ids', 'team_member_names']
+            for field in array_fields:
+                if field in comp_df.columns:
+                    comp_df[field] = comp_df[field].apply(_self.convert_to_list)
+                    
+            # Ensure description field is present and handled
+            if 'description' not in comp_df.columns:
+                st.warning("Description field missing from show data")
+            else:
+                # Replace None with empty string for consistency
+                comp_df['description'] = comp_df['description'].fillna('')
+            
+            return comp_df
+            
+        except Exception as e:
+            st.error(f"Error fetching show data for optimization: {str(e)}")
+            return pd.DataFrame()
+            
+    @st.cache_data(ttl=3600)
+    def get_reference_data(_self) -> Dict[str, pd.DataFrame]:
+        """Get reference data for the Show Optimizer.
+        
+        This method fetches reference data (genres, networks, etc.) specifically for
+        the Show Optimizer component.
+        
+        Returns:
+            Dictionary mapping reference table names to their DataFrames
+        """
+        try:
+            # Get Supabase client with service key for full access
+            supabase = get_client(use_service_key=True)
+            
+            if supabase is None:
+                st.error("Supabase client not initialized. Check your environment variables.")
+                return {}
+                
+            # Fetch reference tables
+            st.write("Fetching reference data for optimization...")
+            reference_data = {}
+            for ref_name, table_name in _self.REFERENCE_TABLES.items():
+                # For studio_list, only get actual studios (not production companies)
+                if table_name == 'studio_list':
+                    ref_data = supabase.table(table_name).select('*').eq('type', 'Studio').execute()
+                else:
+                    ref_data = supabase.table(table_name).select('*').execute()
+                    
+                if not hasattr(ref_data, 'data') or not ref_data.data:
+                    st.warning(f"No data returned from {table_name}")
+                    continue
+                    
+                # Special handling for different tables
+                if table_name == 'genre_list':
+                    # For genre_list table, we need to handle both genre and subgenres
+                    df = pd.DataFrame(ref_data.data)
+                    # For primary genre, only include rows where category='Main'
+                    if ref_name == 'genre':
+                        df = df[df['category'] == 'Main']
+                    reference_data[ref_name] = df
+                elif table_name == 'api_show_comp_data':
+                    # For team members, use the comp data we already fetched
+                    # We'll fetch this separately to avoid circular dependencies
+                    comp_data = supabase.table(_self.VIEWS['comp']).select('*').execute()
+                    if hasattr(comp_data, 'data') and comp_data.data:
+                        comp_df = pd.DataFrame(comp_data.data)
+                        reference_data[ref_name] = comp_df
+                else:
+                    reference_data[ref_name] = pd.DataFrame(ref_data.data)
+            
+            return reference_data
+            
+        except Exception as e:
+            st.error(f"Error fetching reference data for optimization: {str(e)}")
+            return {}
+    
     def fetch_comp_data(_self, force: bool = False) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """Fetch data needed for show comparisons.
         

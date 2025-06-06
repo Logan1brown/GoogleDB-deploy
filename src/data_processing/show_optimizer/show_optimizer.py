@@ -24,9 +24,9 @@ Key responsibilities:
    - Handle partial criteria sets
 """
 
-from typing import Dict, List, Optional, Set, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple, Any
 import pandas as pd
-import logging
+
 from datetime import datetime, timedelta
 import streamlit as st
 
@@ -38,11 +38,11 @@ from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer, NetworkMatch, ComponentScore
-from .criteria_analyzer import CriteriaAnalyzer, SuccessFactor
+from .criteria_analyzer import SuccessFactor
 from .suggestion_analyzer import SuggestionAnalyzer, Recommendation, OptimizationSummary
 from .optimizer_config import OptimizerConfig
 
-logger = logging.getLogger(__name__)
+
 
 
 class ShowOptimizer:
@@ -52,9 +52,8 @@ class ShowOptimizer:
     integrating various specialized components to analyze show concepts, provide
     recommendations, and calculate success metrics.
     
-    The ShowOptimizer uses a ConceptAnalyzer as its primary analysis engine with
-    fallbacks to legacy components during the transition period. It implements
-    centralized data fetching and caching for performance optimization.
+    The ShowOptimizer uses a ConceptAnalyzer as its primary analysis engine.
+    It implements centralized data fetching and caching for performance optimization.
     """
     
     def __init__(self):
@@ -65,17 +64,14 @@ class ShowOptimizer:
         the initialize() method which is called when needed.
         """
         # Core analyzers - these are initialized immediately
-        self.shows_analyzer = ShowsAnalyzer()
-        self.success_analyzer = SuccessAnalyzer(self.shows_analyzer)
+        self.shows_analyzer = None
+        self.success_analyzer = None
         
-        # Component attributes - initialized during initialize()
+        # Primary components
         self.field_manager = None
         self.criteria_scorer = None
         self.network_analyzer = None
         self.concept_analyzer = None
-        
-        # Legacy components (to be removed after transition)
-        self.criteria_analyzer = None
         self.suggestion_analyzer = None
         
         # State tracking
@@ -115,7 +111,7 @@ class ShowOptimizer:
                 st.write("Fetching and integrating show data...")
                 
                 # Get show data
-                shows_df = self.shows_analyzer.get_shows_data()
+                shows_df = self.shows_analyzer.fetch_optimizer_data()
                 if shows_df.empty:
                     st.error("No show data available")
                     return {}
@@ -163,7 +159,7 @@ class ShowOptimizer:
             return {}
             
     def initialize(self, force_refresh: bool = False) -> bool:
-        """Initialize all components.
+        """Initialize all components and analyzers.
         
         This method initializes all required components for the show optimizer,
         including the field manager, criteria scorer, and concept analyzer.
@@ -191,17 +187,31 @@ class ShowOptimizer:
                     st.error("Failed to fetch and integrate data")
                     return False
                 
-                # Initialize components
-                self.criteria_scorer = CriteriaScorer(self.shows_analyzer, self.success_analyzer)
-                self.field_manager = self.criteria_scorer.field_manager  # Share the same field manager
+                # Initialize analyzers
+                self.shows_analyzer = ShowsAnalyzer()
+                self.success_analyzer = SuccessAnalyzer()
                 
-                # Initialize new components
+                # Initialize field manager
+                reference_data = self.shows_analyzer.get_reference_data()
+                self.field_manager = FieldManager(reference_data)
+                
+                # Initialize criteria scorer
+                self.criteria_scorer = CriteriaScorer(self.field_manager)
                 self.network_analyzer = self.criteria_scorer.network_analyzer  # Share the network analyzer
-                self.concept_analyzer = ConceptAnalyzer(self.shows_analyzer, self.success_analyzer)
                 
-                # Legacy components (to be removed after transition)
-                self.criteria_analyzer = CriteriaAnalyzer(self.shows_analyzer, self.success_analyzer)
-                self.suggestion_analyzer = SuggestionAnalyzer(self.shows_analyzer, self.success_analyzer)
+                # Initialize concept analyzer with all required components
+                self.concept_analyzer = ConceptAnalyzer(
+                    shows_analyzer=self.shows_analyzer,
+                    success_analyzer=self.success_analyzer,
+                    matcher=self.network_analyzer.matcher,  # Use the matcher from network analyzer
+                    field_manager=self.field_manager,
+                    criteria_scorer=self.criteria_scorer
+                )
+                
+                # Initialize suggestion analyzer for formatting results
+                self.suggestion_analyzer = SuggestionAnalyzer(self.criteria_scorer, self.concept_analyzer)
+                
+
                 
                 self.initialized = True
                 self.last_update = current_time
@@ -255,17 +265,17 @@ class ShowOptimizer:
                 
                 # If still None after re-initialization, return empty list
                 if self.field_manager is None:
-                    logger.error("Field manager still None after forced re-initialization")
+                    st.error("Field manager still None after forced re-initialization")
                     return []
             except Exception as e:
-                logger.error(f"Error during re-initialization: {e}", exc_info=True)
+                st.error(f"Error during re-initialization: {e}")
                 return []
         
         # Try to get options with error handling
         try:
             return self.field_manager.get_options(field_name)
         except Exception as e:
-            logger.error(f"Error getting options for {field_name}: {e}", exc_info=True)
+            st.error(f"Error getting options for {field_name}: {e}")
             return []
     
     def validate_criteria(self, criteria: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str]]:
@@ -280,11 +290,11 @@ class ShowOptimizer:
         import streamlit as st
         
         if not self.initialized and not self.initialize():
-            logger.warning("ShowOptimizer not initialized when validating criteria")
+            st.warning("ShowOptimizer not initialized when validating criteria")
             return {}, {"error": "Show Optimizer not initialized. Please try refreshing the page."}
             
         if self.field_manager is None:
-            logger.error("Field manager is None when trying to validate criteria")
+            st.error("Field manager is None when trying to validate criteria")
             # Force a re-initialization attempt
             try:
                 # Try to initialize again with force_refresh=True
@@ -292,10 +302,10 @@ class ShowOptimizer:
                 
                 # If still None after re-initialization, return error
                 if self.field_manager is None:
-                    logger.error("Field manager still None after forced re-initialization")
+                    st.error("Field manager still None after forced re-initialization")
                     return {}, {"error": "Unable to initialize field manager. This may be due to database connection issues."}
             except Exception as e:
-                logger.error(f"Error during re-initialization: {e}", exc_info=True)
+                st.error(f"Error during re-initialization: {e}")
                 return {}, {"error": f"Error initializing components: {str(e)}"}
         
         # Try to validate with error handling
@@ -315,16 +325,24 @@ class ShowOptimizer:
             return criteria.copy(), error_dict
         except Exception as e:
             # Error occurred during criteria validation
-            logger.error(f"Error validating criteria: {e}", exc_info=True)
+            st.error(f"Error validating criteria: {e}")
             return {}, {"error": f"Error validating criteria: {str(e)}"}
         
     
     def match_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
         """Match shows based on criteria.
         
-        This method matches shows from the integrated data based on the provided criteria.
-        It uses the field manager to perform the matching and returns the matching shows
-        along with the total number of matches.
+        This method retrieves matching shows from the integrated data based on the provided criteria.
+        The actual matching is performed by the Matcher class (in optimizer_matcher.py), which is
+        accessed through the field_manager. The field_manager provides field mapping and validation
+        but the actual matching logic is in the Matcher._match_shows method.
+        
+        The method follows a consistent pattern:
+        1. Ensure initialization
+        2. Check component availability
+        3. Fetch integrated data
+        4. Call field_manager.match_shows which uses the Matcher class
+        5. Handle errors and provide appropriate feedback
         
         Args:
             criteria: Dictionary of criteria for matching shows
@@ -332,23 +350,24 @@ class ShowOptimizer:
         Returns:
             Tuple of (matching_shows_dataframe, total_matches_count)
         """
+        # Step 1: Ensure initialization
         if not self._ensure_initialized():
             st.error("Failed to initialize Show Optimizer components for matching")
             return pd.DataFrame(), 0
             
+        # Step 2: Check component availability
         if self.field_manager is None:
             st.error("Field manager is not initialized")
             return pd.DataFrame(), 0
             
-        # Get integrated data
+        # Step 3: Fetch integrated data
         try:
-            # Use our integrated data instead of fetching it again
             integrated_data = self.fetch_and_integrate_data()
             if not integrated_data or 'shows' not in integrated_data or integrated_data['shows'].empty:
                 st.error("No show data available for matching")
                 return pd.DataFrame(), 0
                 
-            # Use the field manager to match shows
+            # Step 4: Perform matching using field manager
             st.write("Matching shows based on criteria...")
             matching_shows, total_matches = self.field_manager.match_shows(criteria, integrated_data['shows'])
             
@@ -445,27 +464,48 @@ class ShowOptimizer:
     def analyze_concept(self, criteria: Dict[str, Any]) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
         
+        This is the primary method for analyzing a show concept. It uses the
+        ConceptAnalyzer as the main orchestrator to analyze the concept and
+        generate recommendations, success factors, and other metrics.
+        
+        The method follows a consistent pattern:
+        1. Ensure initialization
+        2. Check component availability
+        3. Prepare analysis context (normalize criteria and fetch data)
+        4. Perform analysis using ConceptAnalyzer
+        5. Format results using SuggestionAnalyzer
+        6. Handle errors and provide fallback responses
+        
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria for the show concept
             
         Returns:
-            OptimizationSummary with success probability, recommendations, etc.
+            OptimizationSummary containing analysis results or error information
         """
         try:
+            # Step 1: Ensure initialization
             if not self._ensure_initialized():
                 return self._create_fallback_summary("Initialization failed")
+                
+            # Step 2: Check component availability
             if self.concept_analyzer is None or self.suggestion_analyzer is None:
                 st.error("Required analyzer components are not initialized")
                 return self._create_fallback_summary("Missing required components")
+                
+            # Step 3: Prepare analysis context
             normalized_criteria, integrated_data, success = self._prepare_analysis_context(criteria)
             if not success:
                 return self._create_fallback_summary("No show data available")
+                
+            # Step 4: Perform analysis
             st.write("Analyzing show concept...")
             try:
                 analysis_result = self.concept_analyzer.analyze_concept(
                     criteria=normalized_criteria,
                     integrated_data=integrated_data
                 )
+                
+                # Step 5: Format results using SuggestionAnalyzer
                 if analysis_result:
                     formatted_result = self.suggestion_analyzer.format_optimization_summary(analysis_result)
                     st.write("Analysis completed successfully")
@@ -473,9 +513,11 @@ class ShowOptimizer:
                 else:
                     st.warning("Analysis produced no results")
                     return self._create_fallback_summary("No analysis results")
+                    
             except Exception as analysis_error:
                 st.error(f"Error during concept analysis: {str(analysis_error)}")
                 return self._create_fallback_summary(f"Analysis error: {str(analysis_error)}")
+                
         except Exception as e:
             st.error(f"Unexpected error in analyze_concept: {str(e)}")
             return self._create_fallback_summary(f"Unexpected error: {str(e)}")
@@ -499,8 +541,8 @@ class ShowOptimizer:
             return {}
             
         # Check if required components are initialized
-        if self.network_analyzer is None and self.criteria_analyzer is None:
-            st.error("Network analysis components are not initialized")
+        if self.network_analyzer is None:
+            st.error("Network analyzer component is not initialized")
             return {}
             
         try:
@@ -518,16 +560,12 @@ class ShowOptimizer:
             
             st.write("Analyzing network tiers...")
             
-            # Use network_analyzer if available, otherwise fall back to criteria_analyzer
-            if self.network_analyzer is not None:
-                network_tiers = self.network_analyzer.get_network_tiers(
-                    criteria=normalized_criteria,
-                    integrated_data=integrated_data,
-                    min_confidence=min_confidence
-                )
-            else:
-                # Legacy fallback
-                network_tiers = self.criteria_analyzer.find_matching_networks(normalized_criteria, min_confidence)
+            # Use network_analyzer to get network tiers
+            network_tiers = self.network_analyzer.get_network_tiers(
+                criteria=normalized_criteria,
+                integrated_data=integrated_data,
+                min_confidence=min_confidence
+            )
                 
             return network_tiers
         except Exception as e:
@@ -553,8 +591,8 @@ class ShowOptimizer:
             return []
             
         # Check if required components are initialized
-        if self.concept_analyzer is None and self.criteria_analyzer is None:
-            st.error("Success factor analysis components are not initialized")
+        if self.concept_analyzer is None:
+            st.error("Concept analyzer component is not initialized")
             return []
             
         try:
@@ -572,16 +610,12 @@ class ShowOptimizer:
             
             st.write("Analyzing success factors...")
             
-            # Use concept_analyzer if available, otherwise fall back to criteria_analyzer
-            if self.concept_analyzer is not None:
-                success_factors = self.concept_analyzer.identify_success_factors(
-                    criteria=normalized_criteria,
-                    integrated_data=integrated_data,
-                    limit=limit
-                )
-            else:
-                # Legacy fallback
-                success_factors = self.criteria_analyzer.identify_success_factors(normalized_criteria, limit)
+            # Use concept_analyzer to identify success factors
+            success_factors = self.concept_analyzer.identify_success_factors(
+                criteria=normalized_criteria,
+                integrated_data=integrated_data,
+                limit=limit
+            )
                 
             return success_factors
         except Exception as e:
@@ -605,8 +639,8 @@ class ShowOptimizer:
             return []
             
         # Check if required components are initialized
-        if self.concept_analyzer is None and self.suggestion_analyzer is None:
-            st.error("Recommendation components are not initialized")
+        if self.concept_analyzer is None:
+            st.error("Concept analyzer component is not initialized")
             return []
             
         try:
@@ -624,30 +658,21 @@ class ShowOptimizer:
             
             st.write("Generating recommendations...")
             
-            # Use concept_analyzer if available, otherwise use legacy approach
-            if self.concept_analyzer is not None and self.suggestion_analyzer is not None:
-                # Get success factors and network compatibility from concept_analyzer
-                success_factors = self.concept_analyzer.identify_success_factors(
-                    criteria=normalized_criteria,
-                    integrated_data=integrated_data
-                )
-                
-                top_networks = self.concept_analyzer.get_network_compatibility(
-                    criteria=normalized_criteria,
-                    integrated_data=integrated_data
-                )
-                
-                # Generate recommendations using suggestion_analyzer
-                recommendations = self.suggestion_analyzer.generate_recommendations(
-                    normalized_criteria, success_factors, top_networks
-                )
-            else:
-                # Legacy fallback
-                success_factors = self.criteria_analyzer.identify_success_factors(normalized_criteria)
-                top_networks = self.criteria_analyzer.rank_networks_by_compatibility(normalized_criteria)
-                recommendations = self.suggestion_analyzer.generate_recommendations(
-                    normalized_criteria, success_factors, top_networks
-                )
+            # Get success factors and network compatibility from concept_analyzer
+            success_factors = self.concept_analyzer.identify_success_factors(
+                criteria=normalized_criteria,
+                integrated_data=integrated_data
+            )
+            
+            top_networks = self.concept_analyzer.get_network_compatibility(
+                criteria=normalized_criteria,
+                integrated_data=integrated_data
+            )
+            
+            # Generate recommendations using concept_analyzer
+            recommendations = self.concept_analyzer.generate_recommendations(
+                normalized_criteria, success_factors, top_networks
+            )
                 
             return recommendations
         except Exception as e:
@@ -671,8 +696,8 @@ class ShowOptimizer:
             return {}
             
         # Check if required components are initialized
-        if self.concept_analyzer is None and self.criteria_analyzer is None:
-            st.error("Component scoring components are not initialized")
+        if self.concept_analyzer is None:
+            st.error("Concept analyzer component is not initialized")
             return {}
             
         try:
@@ -690,15 +715,11 @@ class ShowOptimizer:
             
             st.write("Calculating component scores...")
             
-            # Use concept_analyzer if available, otherwise fall back to criteria_analyzer
-            if self.concept_analyzer is not None:
-                component_scores = self.concept_analyzer.analyze_components(
-                    criteria=normalized_criteria,
-                    integrated_data=integrated_data
-                )
-            else:
-                # Legacy fallback
-                component_scores = self.criteria_analyzer.analyze_components(normalized_criteria)
+            # Use concept_analyzer to analyze components
+            component_scores = self.concept_analyzer.analyze_components(
+                criteria=normalized_criteria,
+                integrated_data=integrated_data
+            )
                 
             return component_scores
         except Exception as e:
@@ -722,8 +743,8 @@ class ShowOptimizer:
             return 0.0, 'none'
             
         # Check if required components are initialized
-        if self.concept_analyzer is None and self.criteria_analyzer is None:
-            st.error("Success rate calculation components are not initialized")
+        if self.concept_analyzer is None:
+            st.error("Concept analyzer component is not initialized")
             return 0.0, 'none'
             
         try:
@@ -741,15 +762,11 @@ class ShowOptimizer:
             
             st.write("Calculating overall success rate...")
             
-            # Use concept_analyzer if available, otherwise fall back to criteria_analyzer
-            if self.concept_analyzer is not None:
-                success_rate, confidence = self.concept_analyzer.calculate_success_rate(
-                    criteria=normalized_criteria,
-                    integrated_data=integrated_data
-                )
-            else:
-                # Legacy fallback
-                success_rate, confidence = self.criteria_analyzer.get_overall_success_rate(normalized_criteria)
+            # Use concept_analyzer to calculate success rate
+            success_rate, confidence = self.concept_analyzer.calculate_success_rate(
+                criteria=normalized_criteria,
+                integrated_data=integrated_data
+            )
                 
             return success_rate, confidence
         except Exception as e:
