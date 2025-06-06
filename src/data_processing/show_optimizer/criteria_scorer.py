@@ -58,13 +58,30 @@ class CriteriaScorer:
             # Initialize with empty reference data as fallback
             self.field_manager = FieldManager({})
         
-        # Initialize the matching calculator after field_manager is set up
-        # Import here to avoid circular imports
-        from .score_calculators import MatchingCalculator
-        # Create an instance and store it
-        self._matching_calculator = MatchingCalculator(self)
-        # Ensure it has access to the field_manager
-        # (Field manager access check removed)
+        # Initialize matcher directly
+        try:
+            from .optimizer_matcher import Matcher
+            self.matcher = Matcher(self.field_manager)
+            
+            # Set criteria data if available
+            if comp_df is not None and not comp_df.empty:
+                self.matcher.set_criteria_data(comp_df)
+                
+            st.write("Matcher initialized successfully")
+        except Exception as e:
+            st.error(f"Could not initialize Matcher: {str(e)}")
+            self.matcher = None
+            
+        # For backward compatibility, try to initialize MatchingCalculator
+        # but don't fail if it's not available
+        try:
+            # Import here to avoid circular imports
+            from .score_calculators import MatchingCalculator
+            self._matching_calculator = MatchingCalculator(self)
+            st.write("MatchingCalculator initialized for backward compatibility")
+        except Exception as e:
+            st.warning(f"MatchingCalculator not available: {str(e)}")
+            self._matching_calculator = None
         
     def fetch_criteria_data(self, force_refresh=False):
         """Fetch criteria data for matching and scoring.
@@ -187,8 +204,35 @@ class CriteriaScorer:
         Returns:
             Tuple of (DataFrame of matching shows, count of matches, confidence info)
         """
-        # Delegate to the MatchingCalculator
-        return self._matching_calculator.get_matching_shows(criteria, flexible=flexible)
+        # Ensure we have criteria data
+        if self.criteria_data is None or self.criteria_data.empty:
+            self.fetch_criteria_data()
+            
+        if self.criteria_data is None or self.criteria_data.empty:
+            st.error("No criteria data available for matching")
+            return pd.DataFrame(), 0, {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0}
+        
+        # Use the matcher from network_analyzer if available
+        if hasattr(self, '_matching_calculator') and self._matching_calculator is not None:
+            # Ensure matcher has the latest criteria data
+            self._matching_calculator.matcher.set_criteria_data(self.criteria_data)
+            return self._matching_calculator.get_matching_shows(criteria, flexible=flexible)
+        
+        # If no matcher is available, use the network_analyzer's matcher directly
+        try:
+            from .optimizer_matcher import Matcher
+            matcher = Matcher(self.field_manager)
+            matcher.set_criteria_data(self.criteria_data)
+            
+            # Find matches with the matcher
+            matched_shows, match_info = matcher.find_matches(criteria, self.criteria_data)
+            
+            # Return in the expected format
+            return matched_shows, len(matched_shows), match_info
+            
+        except Exception as e:
+            st.error(f"Error matching shows: {str(e)}")
+            return pd.DataFrame(), 0, {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0}
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
         """Calculate the success rate for a set of shows with confidence information.
         
@@ -202,8 +246,53 @@ class CriteriaScorer:
             - success_rate: Success rate (0-1) or None if success_score is missing
             - confidence_info: Dictionary with confidence metrics
         """
-        # Delegate to the MatchingCalculator
-        return self._matching_calculator.calculate_success_rate(shows, threshold, confidence_info)
+        # Use the matching calculator if available
+        if hasattr(self, '_matching_calculator') and self._matching_calculator is not None:
+            return self._matching_calculator.calculate_success_rate(shows, threshold, confidence_info)
+        
+        # If no matching calculator is available, calculate success rate directly
+        if shows.empty:
+            st.warning("Cannot calculate success rate with empty shows DataFrame")
+            return None, {'confidence': 'none', 'sample_size': 0}
+            
+        # Validate that we have success_score column
+        if 'success_score' not in shows.columns:
+            st.warning("success_score column not found in shows DataFrame")
+            return None, {'confidence': 'none', 'sample_size': 0}
+            
+        # Get sample size
+        sample_size = len(shows)
+        
+        # Use default threshold if none provided
+        if threshold is None:
+            threshold = OptimizerConfig.SUCCESS['threshold']
+            
+        # Calculate success rate
+        success_count = shows[shows['success_score'] >= threshold].shape[0]
+        success_rate = success_count / sample_size if sample_size > 0 else 0
+        
+        # Calculate confidence level based on sample size
+        if sample_size < OptimizerConfig.CONFIDENCE['minimum_sample']:
+            confidence_level = 'very_low'
+        elif sample_size < OptimizerConfig.CONFIDENCE['low_threshold']:
+            confidence_level = 'low'
+        elif sample_size < OptimizerConfig.CONFIDENCE['medium_threshold']:
+            confidence_level = 'medium'
+        else:
+            confidence_level = 'high'
+            
+        # Create or update confidence info
+        if confidence_info is None:
+            confidence_info = {}
+            
+        confidence_info.update({
+            'confidence': confidence_level,
+            'sample_size': sample_size,
+            'success_count': success_count,
+            'threshold': threshold
+        })
+        
+        return success_rate, confidence_info
 
    
     def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], flexible: bool = True) -> List[Tuple[Optional[float], Dict[str, Any]]]:
@@ -216,8 +305,37 @@ class CriteriaScorer:
         Returns:
             List of tuples (success_rate, confidence_info) in the same order as criteria_list
         """
-        # Delegate to the MatchingCalculator
-        return self._matching_calculator.batch_calculate_success_rates(criteria_list, flexible=flexible)
+        # Use the matching calculator if available
+        if hasattr(self, '_matching_calculator') and self._matching_calculator is not None:
+            return self._matching_calculator.batch_calculate_success_rates(criteria_list, flexible=flexible)
+            
+        # If no matching calculator is available, calculate success rates directly
+        results = []
+        
+        # Validate input
+        if not criteria_list:
+            st.warning("Empty criteria list provided for batch success rate calculation")
+            return []
+            
+        # Process each criteria set
+        for criteria in criteria_list:
+            try:
+                # Get matching shows
+                shows, match_count, confidence_info = self._get_matching_shows(criteria, flexible=flexible)
+                
+                # Calculate success rate
+                if shows.empty or match_count == 0:
+                    results.append((None, {'confidence': 'none', 'sample_size': 0}))
+                    continue
+                    
+                success_rate, confidence_info = self._calculate_success_rate(shows, confidence_info=confidence_info)
+                results.append((success_rate, confidence_info))
+                
+            except Exception as e:
+                st.error(f"Error calculating success rate for criteria: {str(e)}")
+                results.append((None, {'confidence': 'none', 'sample_size': 0, 'error': str(e)}))
+                
+        return results
     
     @lru_cache(maxsize=32)
     def calculate_criteria_impact(self, base_criteria: Dict[str, Any], field_name: Optional[str] = None) -> Dict[str, Dict[str, float]]:

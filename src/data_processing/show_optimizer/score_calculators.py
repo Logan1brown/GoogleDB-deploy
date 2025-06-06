@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
 from .optimizer_config import OptimizerConfig
-from .optimizer_matcher import Matcher
 
 __all__ = [
     'ComponentScore',
@@ -18,8 +17,7 @@ __all__ = [
     'AudienceScoreCalculator',
     'CriticsScoreCalculator',
     'LongevityScoreCalculator',
-    'NetworkScoreCalculator',
-    'MatchingCalculator'
+    'NetworkScoreCalculator'
 ]
 
 @dataclass
@@ -51,16 +49,65 @@ class ScoreCalculator(ABC):
     """Abstract base class for score calculations."""
     
     def __init__(self, component_name: str):
+        """Initialize the calculator with a component name.
+        
+        Args:
+            component_name: Name of the component (audience, critics, longevity, etc.)
+        """
         self.component_name = component_name
+        
+    def validate_input(self, shows: pd.DataFrame, required_columns: List[str]) -> Tuple[bool, Optional[str]]:
+        """Validate input DataFrame for required columns.
+        
+        Args:
+            shows: DataFrame to validate
+            required_columns: List of required column names
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        # Check if DataFrame is empty
+        if shows is None or shows.empty:
+            return False, "Empty shows DataFrame provided"
+            
+        # Check for required columns
+        missing_columns = [col for col in required_columns if col not in shows.columns]
+        if missing_columns:
+            return False, f"Missing required columns: {', '.join(missing_columns)}"
+            
+        return True, None
+        
+    def get_confidence_level(self, sample_size: int) -> str:
+        """Get confidence level based on sample size.
+        
+        Args:
+            sample_size: Number of samples
+            
+        Returns:
+            Confidence level string ('none', 'very_low', 'low', 'medium', 'high')
+        """
+        if sample_size < 1:
+            return 'none'
+        elif sample_size < OptimizerConfig.CONFIDENCE['minimum_sample']:
+            return 'very_low'
+        elif sample_size < OptimizerConfig.CONFIDENCE['low_threshold']:
+            return 'low'
+        elif sample_size < OptimizerConfig.CONFIDENCE['medium_threshold']:
+            return 'medium'
+        else:
+            return 'high'
     
     @abstractmethod
-    def calculate(self, shows: pd.DataFrame) -> 'ComponentScore': # Forward reference ComponentScore
-        """Calculate the component score."""
+    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
+        """Calculate score for the component.
+        
+        Args:
+            shows: DataFrame of shows to calculate score for
+            
+        Returns:
+            ComponentScore object with score and confidence information
+        """
         pass
-    
-    def _get_confidence(self, sample_size: int) -> str:
-        """Get confidence level based on sample size."""
-        return OptimizerConfig.get_confidence_level(sample_size)
 
 class SuccessScoreCalculator(ScoreCalculator):
     """Calculate score based on success metrics."""

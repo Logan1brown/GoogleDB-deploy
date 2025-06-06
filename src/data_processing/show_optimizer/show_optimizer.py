@@ -224,24 +224,44 @@ class ShowOptimizer:
             st.error(f"Error initializing Show Optimizer: {str(e)}")
             return False
     
-    def _ensure_initialized(self) -> bool:
-        """Ensure the optimizer is initialized.
+    def _ensure_initialized(self) -> Tuple[bool, Optional[str]]:
+        """Ensure the optimizer and its components are initialized.
         
-        This helper method checks if the optimizer is initialized and attempts
-        to initialize it if not. It provides a convenient way to ensure the
-        optimizer is ready before performing operations.
-        
-        This method is called at the beginning of all public analysis methods
-        to guarantee that the optimizer is properly initialized before any
-        operations are performed.
+        Checks initialization status and required components.
         
         Returns:
-            True if the optimizer is initialized, False otherwise
+            Tuple of (success, error_message)
         """
+        # Check if initialized
         if not self.initialized:
             st.write("Show Optimizer not initialized. Initializing now...")
-            return self.initialize()
-        return True
+            if not self.initialize():
+                return False, "Failed to initialize Show Optimizer"
+        
+        # Check required components
+        missing_components = []
+        
+        if self.shows_analyzer is None:
+            missing_components.append("ShowsAnalyzer")
+        if self.success_analyzer is None:
+            missing_components.append("SuccessAnalyzer")
+        if self.field_manager is None:
+            missing_components.append("FieldManager")
+        if self.criteria_scorer is None:
+            missing_components.append("CriteriaScorer")
+        if self.network_analyzer is None:
+            missing_components.append("NetworkAnalyzer")
+        if self.concept_analyzer is None:
+            missing_components.append("ConceptAnalyzer")
+        if self.suggestion_analyzer is None:
+            missing_components.append("SuggestionAnalyzer")
+            
+        if missing_components:
+            error_msg = f"Missing required components: {', '.join(missing_components)}"
+            st.error(error_msg)
+            return False, error_msg
+            
+        return True, None
     
     def get_field_options(self, field_name: str) -> List[Any]:
         """Get options for a field.
@@ -252,24 +272,11 @@ class ShowOptimizer:
         Returns:
             List of options for the field
         """
-        if not self._ensure_initialized():
-            st.warning(f"ShowOptimizer not initialized when getting options for {field_name}")
+        # Ensure initialization and check components
+        initialized, error = self._ensure_initialized()
+        if not initialized:
+            st.warning(f"Cannot get options for {field_name}: {error}")
             return []
-            
-        if self.field_manager is None:
-            st.error(f"Field manager is None when trying to get options for {field_name}")
-            # Force a re-initialization attempt
-            try:
-                # Try to initialize again with force_refresh=True
-                self.initialize(force_refresh=True)
-                
-                # If still None after re-initialization, return empty list
-                if self.field_manager is None:
-                    st.error("Field manager still None after forced re-initialization")
-                    return []
-            except Exception as e:
-                st.error(f"Error during re-initialization: {e}")
-                return []
         
         # Try to get options with error handling
         try:
@@ -287,33 +294,15 @@ class ShowOptimizer:
         Returns:
             Tuple of (normalized_criteria, validation_errors)
         """
-        import streamlit as st
-        
-        if not self.initialized and not self.initialize():
-            st.warning("ShowOptimizer not initialized when validating criteria")
-            return {}, {"error": "Show Optimizer not initialized. Please try refreshing the page."}
-            
-        if self.field_manager is None:
-            st.error("Field manager is None when trying to validate criteria")
-            # Force a re-initialization attempt
-            try:
-                # Try to initialize again with force_refresh=True
-                self.initialize(force_refresh=True)
-                
-                # If still None after re-initialization, return error
-                if self.field_manager is None:
-                    st.error("Field manager still None after forced re-initialization")
-                    return {}, {"error": "Unable to initialize field manager. This may be due to database connection issues."}
-            except Exception as e:
-                st.error(f"Error during re-initialization: {e}")
-                return {}, {"error": f"Error initializing components: {str(e)}"}
+        # Ensure initialization and check components
+        initialized, error = self._ensure_initialized()
+        if not initialized:
+            return {}, {"error": f"Cannot validate criteria: {error}"}
         
         # Try to validate with error handling
         try:
-            # The field_manager.validate_criteria returns a list of error strings, not a tuple
             # Validate criteria using field manager
             validation_errors = self.field_manager.validate_criteria(criteria)
-            # Check for validation errors
             
             # Convert the list of errors to the expected format
             error_dict = {}
@@ -326,23 +315,10 @@ class ShowOptimizer:
         except Exception as e:
             # Error occurred during criteria validation
             st.error(f"Error validating criteria: {e}")
-            return {}, {"error": f"Error validating criteria: {str(e)}"}
-        
+            return {}, {"error": f"Error validating criteria: {str(e)}"}        
     
     def match_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
         """Match shows based on criteria.
-        
-        This method retrieves matching shows from the integrated data based on the provided criteria.
-        The actual matching is performed by the Matcher class (in optimizer_matcher.py), which is
-        accessed through the field_manager. The field_manager provides field mapping and validation
-        but the actual matching logic is in the Matcher._match_shows method.
-        
-        The method follows a consistent pattern:
-        1. Ensure initialization
-        2. Check component availability
-        3. Fetch integrated data
-        4. Call field_manager.match_shows which uses the Matcher class
-        5. Handle errors and provide appropriate feedback
         
         Args:
             criteria: Dictionary of criteria for matching shows
@@ -350,24 +326,20 @@ class ShowOptimizer:
         Returns:
             Tuple of (matching_shows_dataframe, total_matches_count)
         """
-        # Step 1: Ensure initialization
-        if not self._ensure_initialized():
-            st.error("Failed to initialize Show Optimizer components for matching")
+        # Ensure initialization and check components
+        initialized, error = self._ensure_initialized()
+        if not initialized:
+            st.error(f"Cannot match shows: {error}")
             return pd.DataFrame(), 0
             
-        # Step 2: Check component availability
-        if self.field_manager is None:
-            st.error("Field manager is not initialized")
-            return pd.DataFrame(), 0
-            
-        # Step 3: Fetch integrated data
+        # Fetch integrated data
         try:
             integrated_data = self.fetch_and_integrate_data()
             if not integrated_data or 'shows' not in integrated_data or integrated_data['shows'].empty:
                 st.error("No show data available for matching")
                 return pd.DataFrame(), 0
                 
-            # Step 4: Perform matching using field manager
+            # Perform matching using field manager
             st.write("Matching shows based on criteria...")
             matching_shows, total_matches = self.field_manager.match_shows(criteria, integrated_data['shows'])
             
@@ -380,82 +352,55 @@ class ShowOptimizer:
     def _create_fallback_summary(self, error_message: str) -> OptimizationSummary:
         """Create a fallback summary when analysis fails.
         
-        This helper method creates a fallback OptimizationSummary object with
-        default values and an error message when analysis fails. It ensures that
-        even in error conditions, a valid OptimizationSummary object is returned
-        to prevent cascading failures in the UI.
-        
-        The method includes two levels of error handling:
-        1. Primary try/except to create a detailed fallback summary
-        2. Secondary fallback with minimal information if the first attempt fails
-        
         Args:
             error_message: The error message to include in the summary
             
         Returns:
             A fallback OptimizationSummary object with error information
         """
-        try:
-            # Create a minimal but valid OptimizationSummary with error information
-            current_time = datetime.now()
-            formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-            
-            return OptimizationSummary(
-                overall_score=0.0,
-                success_probability="Low",
-                success_factors=[],
-                component_scores={},
-                network_tiers=[],
-                recommendations=[
-                    Recommendation(
-                        title="Error Occurred",
-                        description=f"Analysis failed: {error_message}",
-                        impact="High",
-                        effort="Unknown",
-                        priority="High"
-                    )
-                ],
-                matched_shows=pd.DataFrame(),
-                matched_count=0,
-                analysis_date=formatted_time,
-                error_message=error_message
-            )
-        except Exception as e:
-            st.error(f"Failed to create fallback summary: {str(e)}")
-            # Return an absolute minimal summary as last resort
-            return OptimizationSummary(
-                overall_score=0.0,
-                success_probability="Unknown",
-                success_factors=[],
-                component_scores={},
-                network_tiers=[],
-                recommendations=[],
-                matched_shows=pd.DataFrame(),
-                matched_count=0,
-                analysis_date="Unknown",
-                error_message=f"Critical error: {str(e)}"
-            )
+        # Create a minimal but valid OptimizationSummary with error information
+        current_time = datetime.now()
+        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        return OptimizationSummary(
+            overall_success_probability=None,  # None indicates unknown probability
+            confidence="Low",
+            top_networks=[],
+            component_scores={},
+            recommendations=[
+                Recommendation(
+                    title="Error Occurred",
+                    description=f"Analysis failed: {error_message}",
+                    impact_score=1.0,  # High impact
+                    confidence_score=0.0,  # Low confidence
+                    type="error"
+                )
+            ],
+            success_factors=[],
+            matching_titles=[],
+            match_level=0,
+            match_quality=0.0,
+            confidence_score=0.0,
+            matching_shows=None,
+            match_count=0,
+            match_counts_by_level={}
+        )
     
     def _prepare_analysis_context(self, criteria: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any], bool]:
         """Prepare the context for analysis operations.
-        
-        This helper method prepares the necessary context for analysis operations,
-        including normalizing criteria and fetching integrated data. It centralizes
-        the common preparation steps used by multiple analysis methods.
         
         Args:
             criteria: The criteria to prepare context for
             
         Returns:
             Tuple of (normalized_criteria, integrated_data, success)
-            where success is a boolean indicating if preparation was successful
         """
         # Normalize criteria
         normalized_criteria = criteria.copy()
         
         # Fetch integrated data
         integrated_data = self.fetch_and_integrate_data()
-        if not integrated_data:
+        if not integrated_data or 'shows' not in integrated_data or integrated_data['shows'].empty:
             st.error("No integrated data available for analysis")
             return normalized_criteria, {}, False
         
@@ -464,18 +409,6 @@ class ShowOptimizer:
     def analyze_concept(self, criteria: Dict[str, Any]) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
         
-        This is the primary method for analyzing a show concept. It uses the
-        ConceptAnalyzer as the main orchestrator to analyze the concept and
-        generate recommendations, success factors, and other metrics.
-        
-        The method follows a consistent pattern:
-        1. Ensure initialization
-        2. Check component availability
-        3. Prepare analysis context (normalize criteria and fetch data)
-        4. Perform analysis using ConceptAnalyzer
-        5. Format results using SuggestionAnalyzer
-        6. Handle errors and provide fallback responses
-        
         Args:
             criteria: Dictionary of criteria for the show concept
             
@@ -483,51 +416,39 @@ class ShowOptimizer:
             OptimizationSummary containing analysis results or error information
         """
         try:
-            # Step 1: Ensure initialization
-            if not self._ensure_initialized():
-                return self._create_fallback_summary("Initialization failed")
+            # Ensure initialization and check components
+            initialized, error = self._ensure_initialized()
+            if not initialized:
+                return self._create_fallback_summary(f"Cannot analyze concept: {error}")
                 
-            # Step 2: Check component availability
-            if self.concept_analyzer is None or self.suggestion_analyzer is None:
-                st.error("Required analyzer components are not initialized")
-                return self._create_fallback_summary("Missing required components")
-                
-            # Step 3: Prepare analysis context
+            # Prepare analysis context
             normalized_criteria, integrated_data, success = self._prepare_analysis_context(criteria)
             if not success:
                 return self._create_fallback_summary("No show data available")
                 
-            # Step 4: Perform analysis
+            # Perform analysis
             st.write("Analyzing show concept...")
-            try:
-                analysis_result = self.concept_analyzer.analyze_concept(
-                    criteria=normalized_criteria,
-                    integrated_data=integrated_data
-                )
-                
-                # Step 5: Format results using SuggestionAnalyzer
-                if analysis_result:
-                    formatted_result = self.suggestion_analyzer.format_optimization_summary(analysis_result)
-                    st.write("Analysis completed successfully")
-                    return formatted_result
-                else:
-                    st.warning("Analysis produced no results")
-                    return self._create_fallback_summary("No analysis results")
-                    
-            except Exception as analysis_error:
-                st.error(f"Error during concept analysis: {str(analysis_error)}")
-                return self._create_fallback_summary(f"Analysis error: {str(analysis_error)}")
+            analysis_result = self.concept_analyzer.analyze_concept(
+                criteria=normalized_criteria,
+                integrated_data=integrated_data
+            )
+            
+            # Format results using SuggestionAnalyzer
+            if analysis_result:
+                formatted_result = self.suggestion_analyzer.format_optimization_summary(analysis_result)
+                st.write("Analysis completed successfully")
+                return formatted_result
+            else:
+                st.warning("Analysis produced no results")
+                return self._create_fallback_summary("No analysis results")
                 
         except Exception as e:
-            st.error(f"Unexpected error in analyze_concept: {str(e)}")
-            return self._create_fallback_summary(f"Unexpected error: {str(e)}")
+            st.error(f"Error in analyze_concept: {str(e)}")
+            return self._create_fallback_summary(f"Analysis error: {str(e)}")
     
     def get_network_tiers(self, criteria: Dict[str, Any], 
                         min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:
         """Get network tiers for the given criteria.
-        
-        This method analyzes the criteria and returns a dictionary of network tiers
-        (premium, standard, niche) with matching networks for each tier.
         
         Args:
             criteria: Dictionary of criteria for network matching
@@ -536,13 +457,10 @@ class ShowOptimizer:
         Returns:
             Dictionary mapping tier names to lists of NetworkMatch objects
         """
-        if not self._ensure_initialized():
-            st.error("Failed to initialize Show Optimizer components for network tier analysis")
-            return {}
-            
-        # Check if required components are initialized
-        if self.network_analyzer is None:
-            st.error("Network analyzer component is not initialized")
+        # Ensure initialization and check components
+        initialized, error = self._ensure_initialized()
+        if not initialized:
+            st.error(f"Cannot analyze network tiers: {error}")
             return {}
             
         try:
@@ -576,9 +494,6 @@ class ShowOptimizer:
                           limit: int = 5) -> List[SuccessFactor]:
         """Get success factors for the given criteria.
         
-        This method analyzes the criteria and identifies key factors that contribute
-        to the success of shows with similar characteristics.
-        
         Args:
             criteria: Dictionary of criteria for success factor analysis
             limit: Maximum number of factors to return
@@ -586,13 +501,10 @@ class ShowOptimizer:
         Returns:
             List of SuccessFactor objects sorted by importance
         """
-        if not self._ensure_initialized():
-            st.error("Failed to initialize Show Optimizer components for success factor analysis")
-            return []
-            
-        # Check if required components are initialized
-        if self.concept_analyzer is None:
-            st.error("Concept analyzer component is not initialized")
+        # Ensure initialization and check components
+        initialized, error = self._ensure_initialized()
+        if not initialized:
+            st.error(f"Cannot analyze success factors: {error}")
             return []
             
         try:
@@ -610,8 +522,8 @@ class ShowOptimizer:
             
             st.write("Analyzing success factors...")
             
-            # Use concept_analyzer to identify success factors
-            success_factors = self.concept_analyzer.identify_success_factors(
+            # Use concept_analyzer to get success factors
+            success_factors = self.concept_analyzer.get_success_factors(
                 criteria=normalized_criteria,
                 integrated_data=integrated_data,
                 limit=limit
@@ -625,22 +537,16 @@ class ShowOptimizer:
     def get_recommendations(self, criteria: Dict[str, Any]) -> List[Recommendation]:
         """Get recommendations for the given criteria.
         
-        This method generates recommendations for improving the show concept based on
-        success factors and network compatibility analysis.
-        
         Args:
             criteria: Dictionary of criteria for recommendation generation
             
         Returns:
             List of Recommendation objects sorted by importance
         """
-        if not self._ensure_initialized():
-            st.error("Failed to initialize Show Optimizer components for recommendation generation")
-            return []
-            
-        # Check if required components are initialized
-        if self.concept_analyzer is None:
-            st.error("Concept analyzer component is not initialized")
+        # Ensure initialization and check components
+        initialized, error = self._ensure_initialized()
+        if not initialized:
+            st.error(f"Cannot generate recommendations: {error}")
             return []
             
         try:
@@ -682,22 +588,16 @@ class ShowOptimizer:
     def get_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, ComponentScore]:
         """Get component scores for the given criteria.
         
-        This method calculates scores for different components of the show concept
-        (e.g., premise, characters, setting) based on the provided criteria.
-        
         Args:
             criteria: Dictionary of criteria for component scoring
             
         Returns:
             Dictionary mapping component names to ComponentScore objects
         """
-        if not self._ensure_initialized():
-            st.error("Failed to initialize Show Optimizer components for component scoring")
-            return {}
-            
-        # Check if required components are initialized
-        if self.concept_analyzer is None:
-            st.error("Concept analyzer component is not initialized")
+        # Ensure initialization and check components
+        initialized, error = self._ensure_initialized()
+        if not initialized:
+            st.error(f"Cannot calculate component scores: {error}")
             return {}
             
         try:
@@ -729,22 +629,16 @@ class ShowOptimizer:
     def get_overall_success_rate(self, criteria: Dict[str, Any]) -> Tuple[float, str]:
         """Get overall success rate for the given criteria.
         
-        This method calculates the overall success probability for a show concept
-        based on the provided criteria, along with a confidence level for the prediction.
-        
         Args:
             criteria: Dictionary of criteria for success rate calculation
             
         Returns:
             Tuple of (success_rate_float, confidence_level_string)
         """
-        if not self._ensure_initialized():
-            st.error("Failed to initialize Show Optimizer components for success rate calculation")
-            return 0.0, 'none'
-            
-        # Check if required components are initialized
-        if self.concept_analyzer is None:
-            st.error("Concept analyzer component is not initialized")
+        # Ensure initialization and check components
+        initialized, error = self._ensure_initialized()
+        if not initialized:
+            st.error(f"Cannot calculate success rate: {error}")
             return 0.0, 'none'
             
         try:
