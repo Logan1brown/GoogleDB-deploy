@@ -251,8 +251,7 @@ class SuccessScoreCalculator(ScoreCalculator):
         if sample_size is None:
             sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
         confidence = self.get_confidence_level(sample_size)
-        if sample_size >= OptimizerConfig.CONFIDENCE['high_sample']:
-            confidence = 'high'
+
         # Create detailed breakdown
         details = {
             'success_score': avg_score,

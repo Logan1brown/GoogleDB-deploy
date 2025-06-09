@@ -807,7 +807,7 @@ class RecommendationEngine:
             recommendations = []
             
             # Get network-specific success rates for each criteria using integrated data
-            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(criteria, network.network_id)
+            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(criteria, network.network_id, integrated_data)
             
             # Get overall success rates for each criteria
             overall_rates = {}
