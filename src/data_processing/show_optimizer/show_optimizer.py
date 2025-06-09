@@ -140,11 +140,14 @@ class ShowOptimizer:
                             
                             # Now merge the datasets
                             if not success_df.empty:
-                                # Only merge in non-conflicting columns from success_df
-                                success_columns = [col for col in success_df.columns if col not in ['title', 'id', 'show_id']]
+                                # Only merge columns from success_df that are not present in shows_df (except for 'show_id')
+                                shows_columns = set(integrated_shows.columns)
+                                merge_columns = [col for col in success_df.columns if col not in shows_columns and col != 'id']
+                                # Always include 'show_id' for the join
+                                columns_to_merge = ['show_id'] + merge_columns
                                 integrated_shows = pd.merge(
                                     integrated_shows,
-                                    success_df[['show_id'] + success_columns],
+                                    success_df[columns_to_merge],
                                     on='show_id',
                                     how='left'
                                 )
@@ -218,8 +221,9 @@ class ShowOptimizer:
                     optimizer_cache=self.cache
                 )
                 
-                # Set the network_analyzer in the criteria_scorer
+                # Set the network_analyzer and matcher in the criteria_scorer
                 self.criteria_scorer.network_analyzer = self.network_analyzer
+                self.criteria_scorer.matcher = self.network_analyzer.matcher
                 
                 # Initialize recommendation engine
                 self.recommendation_engine = RecommendationEngine(

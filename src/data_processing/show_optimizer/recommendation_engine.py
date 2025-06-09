@@ -183,10 +183,12 @@ class RecommendationEngine:
                 # Convert any unhashable keys to strings first
                 hashable_values = {}
                 for k, v in values.items():
+                    # Always convert dict/list keys to string for hashing
                     if isinstance(k, (dict, list)):
-                        hashable_values[str(k)] = v
+                        k_str = str(k)
                     else:
-                        hashable_values[k] = v
+                        k_str = k
+                    hashable_values[k_str] = v
                 
                 for value_id, impact_data in hashable_values.items():
                     if processed_count >= 5:  # Limit processing per criteria type
@@ -196,7 +198,9 @@ class RecommendationEngine:
                         # Extract impact and sample size from the impact data
                         if isinstance(impact_data, dict) and 'impact' in impact_data:
                             impact = impact_data['impact']
-                            sample_size = impact_data.get('sample_size', 0)
+                            sample_size = impact_data.get('sample_size', None)
+                            if sample_size is None:
+                                sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                         else:
                             # Invalid data format, use default values from config
                             st.write(f"Debug: Invalid impact data format for {criteria_type}:{value_id}")
@@ -223,6 +227,9 @@ class RecommendationEngine:
                         try:
                             # Use the standardized get_confidence_level method from OptimizerConfig
                             # This ensures consistent confidence calculation across the application
+                            # Ensure sample_size is always defined
+                            if 'sample_size' not in locals() or sample_size is None:
+                                sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                             confidence = self.config.get_confidence_level(sample_size)
                         except Exception as conf_e:
                             # If there's an issue with the config, log it and use the default from config

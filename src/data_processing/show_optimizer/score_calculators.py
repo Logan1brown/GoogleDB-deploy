@@ -167,6 +167,8 @@ class ScoreCalculator(ABC):
             
         # Calculate sample size and coverage
         sample_size = len(valid_shows)
+        if sample_size is None:
+            sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
         result_info['sample_size'] = sample_size
         result_info['data_coverage'] = sample_size / len(shows) if len(shows) > 0 else 0
         
@@ -243,7 +245,11 @@ class SuccessScoreCalculator(ScoreCalculator):
         avg_score = valid_shows['success_score'].mean()
         
         # Determine confidence level based on sample size
-        confidence = self.get_confidence_level(result_info['sample_size'])
+        # Ensure sample_size is always defined
+        sample_size = result_info.get('sample_size', None)
+        if sample_size is None:
+            sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
+        confidence = self.get_confidence_level(sample_size)
         
         # Create detailed breakdown
         details = {
@@ -295,7 +301,11 @@ class AudienceScoreCalculator(ScoreCalculator):
         
         # Calculate average popcornmeter score and normalize to 0-1
         avg_score = valid_shows['popcornmeter'].mean() / OptimizerConfig.SCORE_NORMALIZATION['popcornmeter']
-        confidence = self.get_confidence_level(result_info['sample_size'])
+        # Ensure sample_size is always defined
+        sample_size = result_info.get('sample_size', None)
+        if sample_size is None:
+            sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
+        confidence = self.get_confidence_level(sample_size)
         
         # Create detailed breakdown
         details = {
@@ -354,7 +364,11 @@ class CriticsScoreCalculator(ScoreCalculator):
         
         # Calculate average tomatometer score and normalize to 0-1
         avg_score = valid_shows['tomatometer'].mean() / OptimizerConfig.SCORE_NORMALIZATION['tomatometer']
-        confidence = self.get_confidence_level(result_info['sample_size'])
+        # Ensure sample_size is always defined
+        sample_size = result_info.get('sample_size', None)
+        if sample_size is None:
+            sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
+        confidence = self.get_confidence_level(sample_size)
         
         # Create detailed breakdown
         details = {
@@ -465,7 +479,11 @@ class LongevityScoreCalculator(ScoreCalculator):
         ) / 100  # Convert to 0-1 scale
         
         avg_score = valid_shows['longevity_score_calc'].mean()
-        confidence = self.get_confidence_level(result_info['sample_size'])
+        # Ensure sample_size is always defined
+        sample_size = result_info.get('sample_size', None)
+        if sample_size is None:
+            sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
+        confidence = self.get_confidence_level(sample_size)
         
         details = {
             'avg_seasons': valid_shows['tmdb_seasons'].mean(),
