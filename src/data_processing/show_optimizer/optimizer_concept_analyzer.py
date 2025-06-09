@@ -343,7 +343,8 @@ class ConceptAnalyzer:
             
             # Log the match results
             match_count = len(matching_shows) if not matching_shows.empty else 0
-            st.write(f"Found {match_count} matching shows with confidence level '{confidence_info.get('confidence_level', 'unknown')}'") 
+            st.write(f"Found {match_count} matching shows with confidence level '{confidence_info.get('confidence_level', 'unknown')}'")
+            st.write(f"DEBUG: Columns in matching_shows: {matching_shows.columns.tolist()}") 
             
             # Cache the results if we have a cache manager
             if self.optimizer_cache is not None:
