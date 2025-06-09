@@ -17,19 +17,20 @@ Handles all network-related analysis in the Show Optimizer, including:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Union
 import pandas as pd
 import numpy as np
 import streamlit as st
+from datetime import datetime
 from functools import lru_cache
-from datetime import datetime, timedelta
 
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
-from .field_manager import FieldManager
 from .optimizer_config import OptimizerConfig
-from .score_calculators import NetworkMatch, NetworkScoreCalculator
+from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
+from .score_calculators import NetworkMatch, NetworkScoreCalculator
+from .optimizer_cache import OptimizerCache
 from .optimizer_matcher import Matcher
 
 
@@ -45,19 +46,21 @@ class NetworkTier:
 class NetworkAnalyzer:
     """Specialized analyzer for network compatibility and recommendations."""
     
-    def __init__(self, criteria_scorer: CriteriaScorer, field_manager: FieldManager = None):
+    def __init__(self, criteria_scorer: CriteriaScorer, field_manager: FieldManager = None, optimizer_cache: Optional[OptimizerCache] = None):
         """Initialize the network analyzer.
         
         Args:
             criteria_scorer: CriteriaScorer instance for scoring calculations
             field_manager: Optional FieldManager instance for field mapping
+            optimizer_cache: Optional OptimizerCache instance for caching
         """
         self.criteria_scorer = criteria_scorer
         self.field_manager = field_manager or criteria_scorer.field_manager
         self.network_score_calculator = NetworkScoreCalculator(criteria_scorer)
-        self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
-        self._last_network_analysis = None
-        self._network_analysis_cache = {}
+        self.optimizer_cache = optimizer_cache
+        
+        # Initialize matcher for network analysis
+        self.matcher = Matcher(self.field_manager)
         
     def rank_networks_by_compatibility(self, criteria: Dict[str, Any], 
                                      limit: int = 10) -> List[NetworkMatch]:
@@ -114,51 +117,27 @@ class NetworkAnalyzer:
             # Group into tiers
             tiers = {}
             
-            # Define tier thresholds from OptimizerConfig
+            # Get tier thresholds directly from OptimizerConfig
             tier_thresholds = OptimizerConfig.NETWORK_TIERS
             
-            # Excellent matches (highest tier)
-            excellent_threshold = tier_thresholds.get('excellent', 0.85)
-            excellent_matches = [m for m in filtered_matches if m.compatibility_score >= excellent_threshold]
-            if excellent_matches:
-                tiers['excellent'] = NetworkTier(
-                    tier_name="Excellent Match",
-                    networks=excellent_matches,
-                    min_score=excellent_threshold,
-                    max_score=1.0
-                )
+            # Use a more efficient approach to create tiers
+            tier_definitions = [
+                ('excellent', 'Excellent Match', tier_thresholds['excellent'], 1.0),
+                ('good', 'Good Match', tier_thresholds['good'], tier_thresholds['excellent']),
+                ('fair', 'Fair Match', tier_thresholds['fair'], tier_thresholds['good']),
+                ('poor', 'Poor Match', 0.0, tier_thresholds['fair'])
+            ]
             
-            # Good matches (second tier)
-            good_threshold = tier_thresholds.get('good', 0.7)
-            good_matches = [m for m in filtered_matches if good_threshold <= m.compatibility_score < excellent_threshold]
-            if good_matches:
-                tiers['good'] = NetworkTier(
-                    tier_name="Good Match",
-                    networks=good_matches,
-                    min_score=good_threshold,
-                    max_score=excellent_threshold
-                )
-            
-            # Fair matches (third tier)
-            fair_threshold = tier_thresholds.get('fair', 0.5)
-            fair_matches = [m for m in filtered_matches if fair_threshold <= m.compatibility_score < good_threshold]
-            if fair_matches:
-                tiers['fair'] = NetworkTier(
-                    tier_name="Fair Match",
-                    networks=fair_matches,
-                    min_score=fair_threshold,
-                    max_score=good_threshold
-                )
-            
-            # Poor matches (lowest tier)
-            poor_matches = [m for m in filtered_matches if m.compatibility_score < fair_threshold]
-            if poor_matches:
-                tiers['poor'] = NetworkTier(
-                    tier_name="Poor Match",
-                    networks=poor_matches,
-                    min_score=0.0,
-                    max_score=fair_threshold
-                )
+            # Create tiers using the definitions
+            for tier_id, tier_name, min_score, max_score in tier_definitions:
+                matches = [m for m in filtered_matches if min_score <= m.compatibility_score < max_score]
+                if matches:
+                    tiers[tier_id] = NetworkTier(
+                        tier_name=tier_name,
+                        networks=matches,
+                        min_score=min_score,
+                        max_score=max_score
+                    )
             
             return tiers
         except Exception as e:
@@ -206,7 +185,7 @@ class NetworkAnalyzer:
                     if field_name in array_field_mapping:
                         field_id = array_field_mapping[field_name]
                     else:
-                        st.error(f"ERROR: Field '{field_name}' not found in array field mapping")
+                        st.error(f"Field '{field_name}' not found in array field mapping")
                         success_rates[field_name] = {
                             'rate': None,
                             'sample_size': 0,
@@ -217,7 +196,7 @@ class NetworkAnalyzer:
                     
                     # Check if the column exists in the DataFrame
                     if field_id not in network_data.columns:
-                        st.error(f"ERROR: Column '{field_id}' for field '{field_name}' not found in data")
+                        st.error(f"Column '{field_id}' for field '{field_name}' not found in data")
                         success_rates[field_name] = {
                             'rate': None,
                             'sample_size': 0,
@@ -303,135 +282,47 @@ class NetworkAnalyzer:
             return {}
     
     def get_network_recommendations(self, criteria: Dict[str, Any], 
-                                  network: NetworkMatch) -> List[Dict[str, Any]]:
-        """Generate network-specific recommendations.
+                                    network: NetworkMatch, 
+                                    concept_analyzer=None) -> List[Dict[str, Any]]:
+        """Generate network-specific recommendations using the RecommendationEngine from ConceptAnalyzer.
         
         Args:
             criteria: Dictionary of criteria
             network: Target network
+            concept_analyzer: ConceptAnalyzer instance that contains the RecommendationEngine
             
         Returns:
             List of recommendation dictionaries
         """
         try:
-            recommendations = []
-            
-            # Get network-specific success rates for each criteria
-            network_rates = self.get_network_specific_success_rates(criteria, network.network_id)
-            
-            # Get overall success rates for each criteria
-            overall_rates = {}
-            for criteria_type in network_rates.keys():
-                # Create a criteria dict with just this one criteria
-                single_criteria = {criteria_type: criteria[criteria_type]}
-                overall_rate, _ = self.criteria_scorer._calculate_success_rate_with_confidence(
-                    single_criteria, min_sample_size=OptimizerConfig.CONFIDENCE['minimum_sample']
-                )
-                overall_rates[criteria_type] = overall_rate
-            
-            # Find criteria where network rate differs significantly from overall rate
-            for criteria_type, network_rate_data in network_rates.items():
-                if criteria_type not in overall_rates:
-                    continue
-                    
-                # Skip if we don't have enough data for this criteria
-                if not network_rate_data['has_data'] or network_rate_data['rate'] is None:
-                    continue
-                    
-                # Get the actual rate value from the dictionary
-                network_rate = network_rate_data['rate']
-                overall_rate = overall_rates[criteria_type]
+            if concept_analyzer is None or not hasattr(concept_analyzer, 'recommendation_engine'):
+                st.write("Warning: ConceptAnalyzer not provided or missing RecommendationEngine. Cannot generate network recommendations.")
+                return []
                 
-                # Calculate the difference
-                difference = network_rate - overall_rate
+            # Get the RecommendationEngine from the ConceptAnalyzer
+            recommendation_engine = concept_analyzer.recommendation_engine
                 
-                # If the difference is significant, make a recommendation
-                if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']:
-                    if difference > 0:
-                        # This criteria works better for this network than overall
-                        recommendations.append({
-                            'recommendation_type': 'consider',
-                            'criteria_type': criteria_type,
-                            'current_value': criteria[criteria_type],
-                            'suggested_value': criteria[criteria_type],  # Same value, just emphasizing it
-                            'impact_score': difference,
-                            'confidence': 'medium',  # Network-specific recommendations have medium confidence
-                            'explanation': f"'{self._get_criteria_name(criteria_type, criteria[criteria_type])}' works particularly well for {network.network_name}, with {difference:.0%} higher success rate than average."
-                        })
-                    else:
-                        # This criteria works worse for this network than overall
-                        # Look for alternative values that might work better
-                        options = self.field_manager.get_options(criteria_type)
-                        if options:
-                            # Suggest a different option
-                            alternative = options[0]  # Default to first option
-                            for option in options:
-                                if option.id != criteria[criteria_type]:
-                                    alternative = option
-                                    break
-                                    
-                            recommendations.append({
-                                'recommendation_type': 'replace',
-                                'criteria_type': criteria_type,
-                                'current_value': criteria[criteria_type],
-                                'suggested_value': alternative.id,
-                                'suggested_name': alternative.name,
-                                'impact_score': -difference,  # Convert to positive impact
-                                'confidence': 'medium',  # Network-specific recommendations have medium confidence
-                                'explanation': f"'{self._get_criteria_name(criteria_type, criteria[criteria_type])}' performs {-difference:.0%} worse than average for {network.network_name}. Consider alternatives like '{alternative.name}'."
-                            })
+            # Use the RecommendationEngine to generate network-specific recommendations
+            recommendations = recommendation_engine.generate_network_specific_recommendations(criteria, network)
             
-            return recommendations
+            # Convert Recommendation objects to dictionaries for compatibility
+            recommendation_dicts = []
+            for rec in recommendations:
+                recommendation_dicts.append({
+                    'recommendation_type': rec.recommendation_type,
+                    'criteria_type': rec.criteria_type,
+                    'current_value': rec.current_value,
+                    'suggested_value': rec.suggested_value,
+                    'suggested_name': rec.suggested_name,
+                    'impact_score': rec.impact_score,
+                    'confidence': rec.confidence,
+                    'explanation': rec.explanation
+                })
+            
+            return recommendation_dicts
         except Exception as e:
             st.error(f"Error generating network recommendations: {str(e)}")
             return []
-    
-    def calculate_network_compatibility(self, criteria: Dict[str, Any], network_id: int) -> Dict[str, Any]:
-        """Calculate compatibility score between criteria and a specific network.
-        
-        Args:
-            criteria: Dictionary of criteria
-            network_id: ID of the network to analyze
-            
-        Returns:
-            Dictionary with compatibility score and details
-        """
-        try:
-            # Create network-specific criteria
-            network_criteria = criteria.copy()
-            network_criteria['network'] = network_id
-            
-            # Get all network matches
-            network_matches = self.network_score_calculator.calculate_network_scores(criteria)
-            
-            # Find the match for this network
-            for match in network_matches:
-                if match.network_id == network_id:
-                    return {
-                        'compatibility_score': match.compatibility_score,
-                        'success_probability': match.success_probability,
-                        'sample_size': match.sample_size,
-                        'confidence': match.confidence,
-                        'details': match.details
-                    }
-            
-            # Network not found
-            return {
-                'compatibility_score': None,
-                'success_probability': None,
-                'sample_size': 0,
-                'confidence': 'none',
-                'details': {}
-            }
-        except Exception as e:
-            st.error(f"Error calculating network compatibility: {str(e)}")
-            return {
-                'compatibility_score': None,
-                'success_probability': None,
-                'sample_size': 0,
-                'confidence': 'none',
-                'details': {'error': str(e)}
-            }
     
     def _get_criteria_name(self, criteria_type: str, criteria_value: Any) -> str:
         """Get the display name for a criteria value.

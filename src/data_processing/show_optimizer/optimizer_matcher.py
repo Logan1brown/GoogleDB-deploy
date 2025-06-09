@@ -34,6 +34,35 @@ class Matcher:
         self.field_manager = field_manager
         self._criteria_data = None  # Cache for criteria data
         
+    def _get_data(self, data=None):
+        """Get data for matching, falling back to cached criteria data if None.
+        
+        Args:
+            data: DataFrame of shows to match against (uses cached data if None)
+            
+        Returns:
+            DataFrame of shows, or empty DataFrame if no data available
+        """
+        if data is None:
+            if self._criteria_data is None:
+                st.error("No criteria data available and none provided")
+                return pd.DataFrame()
+            return self._criteria_data
+        return data
+        
+    def _empty_confidence_info(self):
+        """Return standard empty confidence info dictionary.
+        
+        Returns:
+            Dictionary with default confidence metrics
+        """
+        return {
+            'level': 'none', 
+            'score': 0, 
+            'match_quality': 0, 
+            'sample_size': 0
+        }
+        
     def set_criteria_data(self, criteria_data: pd.DataFrame):
         """Set the criteria data for matching.
         
@@ -61,12 +90,10 @@ class Matcher:
         if min_sample_size is None:
             min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample']
         
-        # Use cached data if none provided
-        if data is None:
-            if self._criteria_data is None:
-                st.error("No criteria data available and none provided")
-                return pd.DataFrame(), {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0}
-            data = self._criteria_data
+        # Use helper method to get data
+        data = self._get_data(data)
+        if data.empty:
+            return pd.DataFrame(), self._empty_confidence_info()
         
         # We'll collect matches from all levels
         all_matches_by_level = {}
@@ -110,8 +137,8 @@ class Matcher:
         
         # If we didn't find any matches at any level
         if not all_matches_by_level:
-            st.write("No matches found at any level")
-            return pd.DataFrame(), {'level': 'none', 'score': 0, 'match_quality': 0, 'sample_size': 0}
+            st.error("No matches found at any level")
+            return pd.DataFrame(), self._empty_confidence_info()
         
         # Use the best level we found
         result_shows = all_matches_by_level[best_level]
@@ -264,12 +291,10 @@ class Matcher:
         Returns:
             List of dictionaries with network information and matching results
         """
-        # Use cached data if none provided
-        if data is None:
-            if self._criteria_data is None:
-                st.error("No criteria data available and none provided for network matching")
-                return []
-            data = self._criteria_data
+        # Use helper method to get data
+        data = self._get_data(data)
+        if data.empty:
+            return []
         
         # Extract all unique networks from the data
         try:
@@ -312,18 +337,15 @@ class Matcher:
                 except Exception as e:
                     st.error(f"Error matching network {network_name} (ID: {network_id}): {str(e)}")
                     # Add empty result to maintain network in results
+                    empty_confidence = self._empty_confidence_info()
+                    empty_confidence['match_level'] = 0  # Add match_level for network results
+                    
                     results.append({
                         'network_id': int(network_id),
                         'network_name': network_name,
                         'matching_shows': pd.DataFrame(),
                         'sample_size': 0,
-                        'confidence_info': {
-                            'level': 'none',
-                            'score': 0.0,
-                            'match_quality': 0.0,
-                            'sample_size': 0,
-                            'match_level': 0
-                        },
+                        'confidence_info': empty_confidence,
                         'match_quality': 0.0
                     })
             
@@ -343,13 +365,8 @@ class Matcher:
         Returns:
             Tuple of (matching_shows, match_count)
         """
-        # Use cached data if none provided
-        if data is None:
-            if self._criteria_data is None:
-                st.error("No criteria data available and none provided")
-                return pd.DataFrame(), 0
-            data = self._criteria_data
-            
+        # Use helper method to get data
+        data = self._get_data(data)
         if data.empty:
             st.error("Empty criteria data provided")
             return pd.DataFrame(), 0
@@ -362,14 +379,15 @@ class Matcher:
         array_fields = list(array_field_mapping.keys())
         
         for field_name, value in criteria.items():
-            # Skip None values and empty lists
-            if value is None:
+            # Skip empty criteria
+            if value is None or (isinstance(value, list) and not value):
                 continue
-            if isinstance(value, list) and len(value) == 0:
-                continue
+                
+            # Use field_manager to determine the field type
+            field_type = self.field_manager.get_field_type(field_name)
             
             # Handle array fields
-            if field_name in array_fields:
+            if field_type == 'array':
                 # Make sure array field values are always lists
                 if not isinstance(value, list):
                     clean_criteria[field_name] = [value]
@@ -382,7 +400,7 @@ class Matcher:
         # If we have no valid criteria after cleaning, return all shows
         if not clean_criteria:
             return data, len(data)
-        
+            
         try:
             # Start with all shows
             matches = data.copy()
@@ -392,7 +410,10 @@ class Matcher:
             array_fields_to_filter = {}
             
             for field_name, value in clean_criteria.items():
-                if isinstance(value, list):
+                # Use field_manager to determine the field type
+                field_type = self.field_manager.get_field_type(field_name)
+                
+                if field_type == 'array':
                     array_fields_to_filter[field_name] = value
                 else:
                     # For scalar fields, determine the actual column name using field_manager
@@ -406,7 +427,7 @@ class Matcher:
                 
                 # If column doesn't exist, skip this field
                 if field_column is None:
-                    st.write(f"Field '{field_name}' not found in data columns")
+                    st.error(f"Field '{field_name}' not found in data columns")
                     continue
                     
                 # Check if the column contains lists or is itself a list
@@ -431,7 +452,7 @@ class Matcher:
             for field_id, value in scalar_fields.items():
                 # Check if field exists in data
                 if field_id not in matches.columns:
-                    st.write(f"Field '{field_id}' not found in data columns")
+                    st.error(f"Field '{field_id}' not found in data columns")
                     continue
                     
                 if isinstance(value, list):
@@ -468,7 +489,7 @@ class Matcher:
         """
         # Validate match level against config
         if match_level not in OptimizerConfig.MATCH_LEVELS:
-            st.write(f"Invalid match level {match_level}, using all criteria")
+            st.error(f"Invalid match level {match_level}, using all criteria")
             return criteria.copy()
             
         # If match level is 1, use all criteria
@@ -562,17 +583,12 @@ class Matcher:
                     
                 # Handle array fields differently
                 if isinstance(value, list):
-                    # Get the correct column name for this field
-                    if field_name in array_field_mapping:
-                        field_column = array_field_mapping[field_name]
-                    elif f"{field_name}_ids" in shows.columns:
-                        field_column = f"{field_name}_ids"
-                    else:
-                        field_column = field_name
+                    # Use field_manager to get the correct column name
+                    field_column = self.field_manager.get_field_column_name(field_name, shows.columns)
                         
                     # Check if this column exists in the data
                     if field_column not in shows.columns:
-                        st.write(f"Field '{field_column}' not found in shows data")
+                        st.error(f"Field '{field_column}' not found in shows data")
                         actual_match_level = 2  # Downgrade to level 2 if field is missing
                         continue
                         
@@ -596,12 +612,12 @@ class Matcher:
                         actual_match_level = 2  # Downgrade to level 2
                         break
                 else:  # Handle scalar fields
-                    # Determine the actual column name
-                    field_id = f"{field_name}_id" if f"{field_name}_id" in shows.columns else field_name
+                    # Use field_manager to determine the actual column name
+                    field_id = self.field_manager.map_field_name(field_name, shows.columns)
                         
                     # Check if this column exists in the data
                     if field_id not in shows.columns:
-                        st.write(f"Field '{field_id}' not found in shows data")
+                        st.error(f"Field '{field_id}' not found in shows data")
                         actual_match_level = 2  # Downgrade to level 2 if field is missing
                         continue
                             

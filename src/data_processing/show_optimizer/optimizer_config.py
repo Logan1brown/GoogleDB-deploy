@@ -131,9 +131,36 @@ class OptimizerConfig:
         }
     }
     
+    # Confidence score to level mapping thresholds
+    CONFIDENCE_SCORE_LEVELS = {
+        'none': 0.0,       # No confidence (score = 0)
+        'low': 0.3,       # Low confidence threshold
+        'medium': 0.7,    # Medium confidence threshold
+        'high': 1.0       # High confidence threshold (anything above 0.7)
+    }
+    
+    @classmethod
+    def map_confidence_score_to_level(cls, confidence_score: float) -> str:
+        """Map a confidence score to a confidence level string.
+        
+        Args:
+            confidence_score: Confidence score between 0 and 1
+            
+        Returns:
+            Confidence level string ('none', 'low', 'medium', 'high')
+        """
+        if confidence_score == 0:
+            return 'none'
+        elif confidence_score < cls.CONFIDENCE_SCORE_LEVELS['low']:
+            return 'low'
+        elif confidence_score < cls.CONFIDENCE_SCORE_LEVELS['medium']:
+            return 'medium'
+        else:
+            return 'high'
+    
     # Performance settings
     PERFORMANCE = {
-        'cache_duration': 3600,        # Cache duration in seconds (1 hour)
+        'cache_duration': 60,          # Cache duration in seconds (1 minute for testing)
         'success_threshold': 0.6,      # Default threshold for success rate calculation
         'min_criteria_coverage': 0.5,  # Minimum criteria coverage for valid analysis
         'min_confidence_score': 0.3,   # Minimum confidence score for valid results
@@ -141,88 +168,6 @@ class OptimizerConfig:
         'incremental_threshold': 0.7    # Threshold for incremental vs full recalculation
     }
     
-    @classmethod
-    def calculate_confidence_score(cls, sample_size: int, criteria_count: int, total_criteria: int, match_level: int) -> float:
-        """Calculate a confidence score based on sample size, criteria coverage, and match level.
-        
-        Args:
-            sample_size: Number of shows in the sample
-            criteria_count: Number of criteria used in the match
-            total_criteria: Total number of available criteria
-            match_level: Match level used (1-4)
-            
-        Returns:
-            Confidence score between 0 and 1
-        """
-        # Base confidence from sample size
-        if sample_size <= cls.CONFIDENCE['minimum_sample']:
-            base_confidence = 0.1
-        elif sample_size <= cls.CONFIDENCE['low_confidence']:
-            base_confidence = 0.3
-        elif sample_size <= cls.CONFIDENCE['medium_confidence']:
-            base_confidence = 0.6
-        elif sample_size <= cls.CONFIDENCE['high_confidence']:
-            base_confidence = 0.8
-        else:
-            base_confidence = 1.0
-            
-        # Adjust for criteria coverage
-        criteria_coverage = criteria_count / total_criteria if total_criteria > 0 else 0
-        coverage_factor = max(criteria_coverage, cls.PERFORMANCE['min_criteria_coverage'])
-        
-        # Adjust for match level degradation
-        match_level_factor = cls.CONFIDENCE['match_level_factor'].get(match_level, 0.5)
-        
-        # Calculate final confidence score
-        confidence_score = base_confidence * coverage_factor * match_level_factor
-        
-        return min(1.0, max(0.1, confidence_score))  # Clamp between 0.1 and 1.0
-    
-    @classmethod
-    def get_confidence_level(cls, sample_size: int, match_level: int) -> str:
-        """Get a confidence level string based on sample size and match level.
-        
-        Args:
-            sample_size: Number of shows in the sample
-            match_level: Match level used (1-4)
-            
-        Returns:
-            Confidence level string ('none', 'very_low', 'low', 'medium', 'high')
-        """
-        if sample_size < cls.CONFIDENCE['minimum_sample']:
-            return 'none'
-            
-        # Base level from sample size
-        if sample_size < cls.CONFIDENCE['low_confidence']:
-            base_level = 'very_low'
-        elif sample_size < cls.CONFIDENCE['medium_confidence']:
-            base_level = 'low'
-        elif sample_size < cls.CONFIDENCE['high_confidence']:
-            base_level = 'medium'
-        else:
-            base_level = 'high'
-            
-        # Adjust for match level
-        if match_level == 1:
-            # No adjustment for level 1
-            return base_level
-        elif match_level == 2:
-            # Reduce by one level for level 2
-            if base_level == 'high':
-                return 'medium'
-            elif base_level == 'medium':
-                return 'low'
-            else:
-                return 'very_low'
-        elif match_level == 3:
-            # Reduce by two levels for level 3
-            if base_level == 'high':
-                return 'low'
-            else:
-                return 'very_low'
-        else:  # match_level == 4 or higher
-            # Always very_low for level 4+
-            return 'very_low'
     
     # Suggestion impact settings
     SUGGESTIONS = {
@@ -267,6 +212,58 @@ class OptimizerConfig:
         'minimum_compatibility': 0.3,   # Minimum compatibility score for recommendations
         'strong_compatibility': 0.7,    # Strong compatibility threshold
         'success_threshold': 0.6        # Threshold for considering a show successful (60%)
+    }
+    
+    # Network tier thresholds for compatibility scoring
+    NETWORK_TIERS = {
+        'excellent': 0.85,  # Threshold for excellent network compatibility
+        'good': 0.7,       # Threshold for good network compatibility
+        'fair': 0.5        # Threshold for fair network compatibility
+        # Note: poor tier is anything below fair threshold
+    }
+    
+    # UI color scheme for consistent visualization
+    UI_COLORS = {
+        'success': 'green',      # Used for high scores, positive impacts
+        'warning': 'orange',     # Used for medium scores, neutral impacts
+        'danger': 'red',         # Used for low scores, negative impacts
+        'neutral': 'gray',       # Used for unknown or NA values
+        'default_text': 'black'  # Default text color
+    }
+    
+    # Default values for fallbacks and missing data
+    DEFAULT_VALUES = {
+        'impact_score': 0.5,     # Default impact score when no data available
+        'confidence': 'low',     # Default confidence level when sample size is limited
+        'min_recommendations': 3,  # Minimum number of recommendations to generate
+        'fallback_sample_size': 0,  # Default sample size for fallback recommendations
+        'fallback_impact_score': 0.1  # Default impact score for fallback recommendations
+    }
+    
+    # Recommendation type display names
+    RECOMMENDATION_TYPES = {
+        'add': "Missing Criteria",
+        'replace': "Criteria Replacement",
+        'relax': "Limiting Criteria",
+        'change': "Successful Pattern",
+        'consider': "Consider Adding",
+        'fallback': "Fallback Recommendation"
+    }
+    
+    # Confidence level display names
+    CONFIDENCE_DISPLAY = {
+        'high': "High confidence",
+        'medium': "Medium confidence",
+        'low': "Low confidence",
+        'none': "Insufficient data"
+    }
+    
+    # Match level descriptions
+    MATCH_LEVEL_DESCRIPTIONS = {
+        1: "Exact match (all criteria)",
+        2: "Strong match (most criteria)",
+        3: "Partial match (some criteria)",
+        4: "Minimal match (few criteria)"
     }
     
     # Longevity scoring configuration

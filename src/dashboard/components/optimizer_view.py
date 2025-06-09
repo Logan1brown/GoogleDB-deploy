@@ -10,7 +10,7 @@ from typing import Dict, Any
 
 from src.data_processing.show_optimizer.show_optimizer import ShowOptimizer
 from src.data_processing.show_optimizer.criteria_scorer import CriteriaScorer
-from src.data_processing.show_optimizer.criteria_analyzer import CriteriaAnalyzer
+# Removed dependency on CriteriaAnalyzer
 from src.data_processing.show_optimizer.suggestion_analyzer import SuggestionAnalyzer
 
 class OptimizerView:
@@ -154,8 +154,8 @@ class OptimizerView:
                     
                     # Try to catch any exceptions during analysis
                     try:
-                        # Check if criteria_analyzer is initialized
-                        if not (hasattr(self.optimizer, 'criteria_analyzer') and self.optimizer.criteria_analyzer is not None):
+                        # Check if concept_analyzer is initialized
+                        if not (hasattr(self.optimizer, 'concept_analyzer') and self.optimizer.concept_analyzer is not None):
                             st.warning("Analysis components are not properly initialized.")
                             return
                             

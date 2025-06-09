@@ -1,7 +1,7 @@
 """Show Optimizer: Main coordinator for show optimization.
 
 This component coordinates the Show Optimizer feature, integrating all the
-specialized components (FieldManager, CriteriaScorer, CriteriaAnalyzer,
+specialized components (FieldManager, CriteriaScorer,
 SuggestionAnalyzer) to provide a unified interface for the UI.
 
 Key responsibilities:
@@ -38,7 +38,7 @@ from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer, NetworkMatch, ComponentScore
-from .criteria_analyzer import SuccessFactor
+from .recommendation_engine import SuccessFactor, RecommendationEngine, Recommendation
 from .suggestion_analyzer import SuggestionAnalyzer, Recommendation, OptimizationSummary
 from .optimizer_config import OptimizerConfig
 
@@ -73,15 +73,10 @@ class ShowOptimizer:
         self.network_analyzer = None
         self.concept_analyzer = None
         self.suggestion_analyzer = None
-        
-        # State tracking
-        self.initialized = False
-        self.last_update = None
+        self.recommendation_engine = None
         
         # Cache management
-        self.cache_duration = OptimizerConfig.PERFORMANCE['cache_duration']
-        self.integrated_data = None
-        self.data_last_update = None
+        self.cache = OptimizerCache()
         
     def fetch_and_integrate_data(self, force_refresh: bool = False) -> Dict[str, Any]:
         """Fetch and integrate data from different sources with caching.
@@ -100,13 +95,8 @@ class ShowOptimizer:
             Dictionary containing integrated data sets needed for optimization
         """
         try:
-            current_time = datetime.now()
-            
-            # Check if we need to refresh the data
-            if (self.integrated_data is None or 
-                force_refresh or 
-                self.data_last_update is None or 
-                (current_time - self.data_last_update).total_seconds() > self.cache_duration):
+            # Check if we need to refresh the data using the cache manager
+            if not self.cache.is_data_cache_valid(force_refresh):
                 
                 st.write("Fetching and integrating show data...")
                 
@@ -136,23 +126,23 @@ class ShowOptimizer:
                         st.warning("Could not integrate success metrics: missing 'show_id' column")
                     
                     # Create the integrated data dictionary
-                    self.integrated_data = {
+                    integrated_data = {
                         'shows': integrated_shows,
-                        'reference_data': reference_data,
-                        'success_metrics': success_df
+                        'reference_data': reference_data
                     }
                     
-                    # Update the last update timestamp
-                    self.data_last_update = current_time
+                    # Update the cache
+                    self.cache.update_data_cache(integrated_data)
                     
-                    st.write("Data integration complete")
+                    st.write(f"Data integrated successfully: {len(integrated_shows)} shows")
                 else:
-                    st.error("Could not integrate data: missing 'show_id' column in shows data")
+                    st.error("Show data missing required columns for integration")
                     return {}
             else:
-                st.write("Using cached integrated data")
+                st.write("Using cached data...")
             
-            return self.integrated_data
+            # Get the cached data
+            return self.cache.get_integrated_data()
             
         except Exception as e:
             st.error(f"Error fetching and integrating data: {str(e)}")
@@ -172,12 +162,8 @@ class ShowOptimizer:
             True if initialization was successful, False otherwise
         """
         try:
-            # Check if we need to refresh
-            current_time = datetime.now()
-            if (not self.initialized or 
-                force_refresh or 
-                self.last_update is None or 
-                (current_time - self.last_update).total_seconds() > self.cache_duration):
+            # Check if we need to refresh using the cache manager
+            if not self.cache.is_components_cache_valid(force_refresh):
                 
                 st.write("Initializing Show Optimizer components...")
                 
@@ -197,7 +183,25 @@ class ShowOptimizer:
                 
                 # Initialize criteria scorer
                 self.criteria_scorer = CriteriaScorer(self.field_manager)
-                self.network_analyzer = self.criteria_scorer.network_analyzer  # Share the network analyzer
+                
+                # Initialize network analyzer
+                from .network_analyzer import NetworkAnalyzer
+                self.network_analyzer = NetworkAnalyzer(
+                    criteria_scorer=self.criteria_scorer,
+                    field_manager=self.field_manager,
+                    optimizer_cache=self.cache
+                )
+                
+                # Set the network_analyzer in the criteria_scorer
+                self.criteria_scorer.network_analyzer = self.network_analyzer
+                
+                # Initialize recommendation engine
+                self.recommendation_engine = RecommendationEngine(
+                    shows_analyzer=self.shows_analyzer,
+                    success_analyzer=self.success_analyzer,
+                    field_manager=self.field_manager,
+                    criteria_scorer=self.criteria_scorer
+                )
                 
                 # Initialize concept analyzer with all required components
                 self.concept_analyzer = ConceptAnalyzer(
@@ -205,24 +209,59 @@ class ShowOptimizer:
                     success_analyzer=self.success_analyzer,
                     matcher=self.network_analyzer.matcher,  # Use the matcher from network analyzer
                     field_manager=self.field_manager,
-                    criteria_scorer=self.criteria_scorer
+                    criteria_scorer=self.criteria_scorer,
+                    optimizer_cache=self.cache  # Pass the cache instance
                 )
                 
                 # Initialize suggestion analyzer for formatting results
-                self.suggestion_analyzer = SuggestionAnalyzer(self.criteria_scorer, self.concept_analyzer)
+                self.suggestion_analyzer = SuggestionAnalyzer(self.criteria_scorer)
                 
-
-                
-                self.initialized = True
-                self.last_update = current_time
+                # Update the components cache
+                self.cache.update_components_cache()
                 
                 st.write("Show Optimizer initialized successfully")
                 
-            return self.initialized
+            # Return true if components are initialized
+            return self.cache.is_components_cache_valid()
             
         except Exception as e:
             st.error(f"Error initializing Show Optimizer: {str(e)}")
             return False
+    
+    def display_cache_status(self, show_details: bool = False) -> None:
+        """Display cache status information in the Streamlit UI.
+        
+        This method provides a user-friendly display of the cache status,
+        including when components were last initialized and when data was last fetched.
+        
+        Args:
+            show_details: Whether to show detailed cache information
+        """
+        st.write("### OptimizerCache Status")
+        self.cache.display_cache_status(show_details)
+        
+        # Display ConceptAnalyzer cache status if available
+        if self.concept_analyzer and hasattr(self.concept_analyzer, 'display_cache_status'):
+            st.write("### ConceptAnalyzer Cache Status")
+            self.concept_analyzer.display_cache_status(show_details)
+        
+    def invalidate_cache(self, components: bool = True, data: bool = True) -> None:
+        """Explicitly invalidate the cache.
+        
+        This method allows explicit invalidation of the cache, forcing a refresh
+        on the next request, regardless of the cache duration setting.
+        
+        Args:
+            components: Whether to invalidate component initialization cache
+            data: Whether to invalidate integrated data cache
+        """
+        # Invalidate the main cache
+        self.cache.invalidate_cache(components, data)
+        
+        # Invalidate the ConceptAnalyzer's cache if available
+        if components and self.concept_analyzer and hasattr(self.concept_analyzer, 'invalidate_cache'):
+            st.write("Invalidating ConceptAnalyzer cache...")
+            self.concept_analyzer.invalidate_cache()
     
     def _ensure_initialized(self) -> Tuple[bool, Optional[str]]:
         """Ensure the optimizer and its components are initialized.
@@ -232,8 +271,8 @@ class ShowOptimizer:
         Returns:
             Tuple of (success, error_message)
         """
-        # Check if initialized
-        if not self.initialized:
+        # Check if initialized using the cache manager
+        if not self.cache.is_components_cache_valid():
             st.write("Show Optimizer not initialized. Initializing now...")
             if not self.initialize():
                 return False, "Failed to initialize Show Optimizer"
@@ -406,11 +445,12 @@ class ShowOptimizer:
         
         return normalized_criteria, integrated_data, True
     
-    def analyze_concept(self, criteria: Dict[str, Any]) -> OptimizationSummary:
+    def analyze_concept(self, criteria: Dict[str, Any], force_refresh: bool = False) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
         
         Args:
             criteria: Dictionary of criteria for the show concept
+            force_refresh: Whether to force a refresh of cached data
             
         Returns:
             OptimizationSummary containing analysis results or error information
@@ -430,7 +470,7 @@ class ShowOptimizer:
             st.write("Analyzing show concept...")
             analysis_result = self.concept_analyzer.analyze_concept(
                 criteria=normalized_criteria,
-                integrated_data=integrated_data
+                force_refresh=force_refresh
             )
             
             # Format results using SuggestionAnalyzer

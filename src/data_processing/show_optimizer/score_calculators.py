@@ -496,43 +496,28 @@ class NetworkScoreCalculator:
         """
         self.criteria_scorer = criteria_scorer
     
-    def calculate_network_scores(self, criteria_str) -> List[NetworkMatch]:
+    def calculate_network_scores(self, criteria: Dict[str, Any]) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         
         Args:
-            criteria_str: String representation of criteria dictionary or a dict
+            criteria: Dictionary containing criteria for network scoring
             
         Returns:
             List of NetworkMatch objects with compatibility and success scores
         """
         try:
-            # Parse criteria if it's a string
-            criteria: Dict[str, Any]
-            if isinstance(criteria_str, str):
-                try:
-                    criteria = ast.literal_eval(criteria_str)
-                except (SyntaxError, ValueError) as parse_err:
-                    st.warning(f"Invalid criteria string format for network scores: '{criteria_str}'. Error: {parse_err}")
-                    st.error(f"Invalid format for criteria input: {str(parse_err)}. Please check the input string.")
-                    raise ValueError(f"Invalid criteria string format: {str(parse_err)}") from parse_err
-            elif isinstance(criteria_str, dict):
-                criteria = criteria_str
-            else:
-                err_msg = f"Invalid criteria type: {type(criteria_str)}. Must be a dict or a string representation of a dict."
-                st.error(err_msg)
-                raise ValueError(err_msg)
-                
             # Prepare results list
             results = []
             
             # Get criteria data
             criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
             
-            # Use the Matcher to find network matches
-            if not hasattr(self.criteria_scorer, 'matcher'):
+            # Validate that matcher exists before using it
+            if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
+                st.write("Debug: Matcher component missing for network scoring")
                 st.error("Network scoring requires the Matcher component. Please ensure your application is properly configured.")
-                raise ValueError("Matcher component is required for network scoring")
-                
+                return []  # Return empty results instead of raising an exception
+            
             # Get network matches using the Matcher
             network_matches = self.criteria_scorer.matcher.find_network_matches(criteria, criteria_data)
             
@@ -583,11 +568,14 @@ class NetworkScoreCalculator:
             return results
 
         except ValueError as ve:
-            st.error(f"Calculation Error (Network Scores): {str(ve)}")
-            raise
+            # Use consistent error handling - st.write for debug, st.error for user-facing
+            st.write(f"Debug: Network score calculation error: {str(ve)}")
+            st.error("Unable to calculate network scores. Please check your criteria and try again.")
+            return []
         except Exception as e:
-            st.error(f"Optimizer Error: An unexpected error occurred while calculating network scores. Details: {e}")
-            raise
+            st.write(f"Debug: Unexpected error in network score calculation: {str(e)}")
+            st.error("An unexpected error occurred while calculating network scores.")
+            return []
     
     def calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, 
                                confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
@@ -606,15 +594,15 @@ class NetworkScoreCalculator:
         # Initialize confidence info if not provided
         if confidence_info is None:
             sample_size = len(shows) if not shows.empty else 0
-            match_level = 1  # Default match level
-            confidence_info = {
-                'level': OptimizerConfig.get_confidence_level(sample_size, match_level),
-                'score': OptimizerConfig.calculate_confidence_score(sample_size, 1, 1, match_level),
-                'match_quality': OptimizerConfig.MATCH_LEVELS[match_level]['min_quality'],
-                'sample_size': sample_size,
-                'match_level': match_level,
-                'match_level_name': OptimizerConfig.MATCH_LEVELS[match_level]['name']
-            }
+            match_level = OptimizerConfig.DEFAULT_MATCH_LEVEL
+            
+            # Use OptimizerConfig's standardized method to create confidence info
+            confidence_info = OptimizerConfig.create_confidence_info(
+                sample_size=sample_size,
+                match_level=match_level,
+                criteria_count=1,
+                total_criteria=1
+            )
                 
         # Check if we have shows to analyze
         if shows.empty:
@@ -630,36 +618,36 @@ class NetworkScoreCalculator:
             criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
             
             if 'id' not in shows.columns:
-                st.error("Shows data missing required 'id' field for success score calculation")
+                st.write("Debug: Shows data missing required 'id' field for success score calculation")
+                st.error("Missing show identifiers. Please ensure shows data includes ID fields.")
                 raise ValueError("Shows data missing required 'id' field")
-                
+            
             if 'success_score' not in criteria_data.columns:
-                st.error("Criteria data missing required 'success_score' field")
+                st.write("Debug: Criteria data missing required 'success_score' field")
+                st.error("Success metrics are not available. Please check data sources.")
                 raise ValueError("Criteria data missing required 'success_score' field")
-                
-            # Merge success_score from criteria_data
+            
+            # Merge success_score from criteria_data - use efficient merge only on required columns
             shows = shows.merge(criteria_data[['id', 'success_score']], on='id', how='left')
             
             # Check if merge was successful
             if not shows['success_score'].notna().any():
-                st.error("No success scores available after merging with criteria data")
+                st.write("Debug: No success scores available after merging with criteria data")
+                st.error("Unable to retrieve success metrics for the selected shows.")
                 raise ValueError("No success scores available after merging")
                     
-            # The code should never reach here since we raise an exception if merge fails
-            # But keeping this as a safety check
-            if 'success_score' not in shows.columns:
-                st.error("Failed to add success_score column after merge")
-                raise ValueError("Failed to add success_score column after merge")
+            # No need for additional checks here as we've already raised exceptions for failure cases
                 
         # Filter out shows with zero or missing success scores
         valid_shows = shows[shows['success_score'].notna() & (shows['success_score'] > 0)]
             
         if valid_shows.empty:
             # No valid shows after filtering
-            confidence_info['success_rate'] = 0.0
+            default_success_rate = OptimizerConfig.FALLBACK_VALUES.get('success_rate', 0.0)
+            confidence_info['success_rate'] = default_success_rate
             confidence_info['success_count'] = 0
             confidence_info['total_count'] = 0
-            return 0.0, confidence_info
+            return default_success_rate, confidence_info
         
         # Use default threshold if none provided
         if threshold is None:
@@ -726,9 +714,11 @@ class NetworkScoreCalculator:
         content_match_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['content_match']
         success_history_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['success_history']
         
-        # If success history is not available, use only content match
+        # If success history is not available, use only content match with config weight
         if success_history is None:
-            return match_quality
+            # Use content match with weight adjustment from config
+            content_only_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility'].get('content_only', 1.0)
+            return match_quality * content_only_weight
             
         # Calculate weighted score
         weighted_score = (match_quality * content_match_weight) + (success_history * success_history_weight)
@@ -748,32 +738,45 @@ class NetworkScoreCalculator:
             List of tuples (success_rate, confidence_info) in the same order as criteria_list
         """
         # Ensure we have criteria data with success metrics, but don't force refresh
-        if self._criteria_data is None:
-            try:
-                self._criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
-            except Exception as e:
-                st.error(f"Error fetching criteria data: {e}")
+        try:
+            criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
+        except Exception as e:
+            st.write(f"Debug: Error fetching criteria data: {str(e)}")
+            criteria_data = None
             
         results = []
         for criteria in criteria_list:
             try:
-                # Get matching shows with flexible matching
-                shows, count, confidence_info = self.get_matching_shows(criteria, flexible=flexible)
+                # Get matching shows using the matcher from criteria_scorer
+                if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
+                    st.write("Debug: Matcher not available for batch calculations")
+                    raise ValueError("Matcher component is required for batch calculations")
+                    
+                # Use matcher to get matching shows
+                matching_shows = self.criteria_scorer.matcher.find_matching_shows(criteria, criteria_data)
+                count = len(matching_shows) if not matching_shows.empty else 0
+                
+                # Create confidence info
+                confidence_info = {
+                    'sample_size': count,
+                    'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
+                    'match_quality': OptimizerConfig.MATCH_LEVELS[OptimizerConfig.DEFAULT_MATCH_LEVEL]['min_quality']
+                }
                 
                 # Calculate success rate with confidence information
-                success_rate, confidence_info = self.calculate_success_rate(shows, confidence_info=confidence_info)
+                success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
                 
                 # Add the result with confidence info
                 results.append((success_rate, confidence_info))
             except Exception as e:
-                st.warning(f"Error calculating success rate for criteria: {e}")
-                # Return None with basic confidence info for errors
+                st.write(f"Debug: Error calculating success rate for criteria: {str(e)}")
+                # Use config values for default confidence levels
                 error_confidence = {
-                    'level': 'none',
-                    'score': 0.0,
-                    'match_quality': 0.0,
+                    'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
+                    'score': OptimizerConfig.FALLBACK_VALUES.get('confidence_score', 0.0),
+                    'match_quality': OptimizerConfig.FALLBACK_VALUES.get('match_quality', 0.0),
                     'sample_size': 0,
-                    'match_level': 0,
+                    'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
                     'success_rate': None,
                     'success_count': 0,
                     'total_count': 0,

@@ -152,35 +152,55 @@ class OptimizerCache:
         """Check if the components cache is valid.
         
         Args:
-            force_refresh: Whether to ignore cache and force a refresh
+            force_refresh: If True, ignore cache and return False
             
         Returns:
-            True if cache is valid, False if a refresh is needed
+            True if cache is valid, False otherwise
         """
-        if force_refresh:
-            return False
+        try:
+            if force_refresh:
+                return False
+                
+            # Check if components are initialized
+            if self.components_initialized and self.components_last_update:
+                current_time = datetime.now()
+                components_cache_age = (current_time - self.components_last_update).total_seconds()
+                components_cache_valid = components_cache_age <= self.cache_duration
+                components_cache_expiry = self.components_last_update + timedelta(seconds=self.cache_duration)
+                return components_cache_valid
             
-        current_time = datetime.now()
-        return (self.components_initialized and 
-                self.components_last_update is not None and 
-                (current_time - self.components_last_update).total_seconds() <= self.cache_duration)
+            return False
+        except Exception as e:
+            st.error(f"Cache validation error: {str(e)}")
+            # If there's an error, assume cache is invalid to force refresh
+            return False
     
     def is_data_cache_valid(self, force_refresh: bool = False) -> bool:
         """Check if the data cache is valid.
         
         Args:
-            force_refresh: Whether to ignore cache and force a refresh
+            force_refresh: If True, ignore cache and return False
             
         Returns:
-            True if cache is valid, False if a refresh is needed
+            True if cache is valid, False otherwise
         """
-        if force_refresh:
-            return False
+        try:
+            if force_refresh:
+                return False
+                
+            # Check if data is cached
+            if self.integrated_data and self.data_last_update:
+                current_time = datetime.now()
+                data_cache_age = (current_time - self.data_last_update).total_seconds()
+                data_cache_valid = data_cache_age <= self.cache_duration
+                data_cache_expiry = self.data_last_update + timedelta(seconds=self.cache_duration)
+                return data_cache_valid
             
-        current_time = datetime.now()
-        return (self.integrated_data is not None and 
-                self.data_last_update is not None and 
-                (current_time - self.data_last_update).total_seconds() <= self.cache_duration)
+            return False
+        except Exception as e:
+            st.error(f"Data cache validation error: {str(e)}")
+            # If there's an error, assume cache is invalid to force refresh
+            return False
     
     def update_components_cache(self) -> None:
         """Mark the components cache as updated."""

@@ -45,6 +45,7 @@ class CriteriaScorer:
             field_manager: FieldManager instance for field mapping and validation
         """
         self.field_manager = field_manager
+        self.network_analyzer = None  # Will be set by ShowOptimizer after initialization
         
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
         """Calculate the success rate for a set of shows with confidence information.
@@ -292,7 +293,14 @@ class CriteriaScorer:
             
             # Using general minimum_sample from OptimizerConfig
             if match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                st.warning(
+                st.warning(f"Insufficient sample size ({match_count}) for criteria: {criteria} to calculate reliable component scores. Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
+                # We'll continue with the calculation, but with a warning
+            
+            # Validate that we have required confidence info fields
+            if 'match_level' not in confidence_info:
+                st.warning("Incomplete confidence info provided to calculate_component_scores: missing match_level")
+                actual_match_level = 1  # Default to exact match level
+            else:
                 actual_match_level = confidence_info.get('match_level')
                 original_match_level = confidence_info.get('original_match_level', actual_match_level)
                 
@@ -304,30 +312,9 @@ class CriteriaScorer:
                 array_fields = [field for field, value in criteria.items() if isinstance(value, list) and value]
                 if array_fields and actual_match_level > 1:
                     st.write(f"Note: Some array criteria like {', '.join(array_fields)} may be relaxed in match level {actual_match_level}")
-            else:
-                st.write("Warning: No match level information available in confidence data")
                 
-            # Ensure we're using the right data columns for component score calculation
-            # This is especially important for shows that have been filtered by character types
-            required_columns = {
-                'success': ['success_score'],
-                'audience': ['popcornmeter'],
-                'critics': ['tomatometer'],
-                'longevity': ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
-            }
-            
-            # Check for missing columns and log them
-            missing_columns = {}
-            for component, columns in required_columns.items():
-                missing = [col for col in columns if col not in matching_shows.columns]
-                if missing:
-                    missing_columns[component] = missing
-            
-            if missing_columns:
-                st.warning(f"Missing columns for component score calculation: {missing_columns}")
-                st.write("Continuing with available data. Individual calculators will handle missing data validation.")
-                
-                # Proceed with available data - score calculators will handle validation
+            # Each individual calculator will validate its required columns
+            # using the validate_and_prepare_data helper method
 
         except Exception as e:
             st.error(f"Optimizer Error: Failed to get matching shows for component score calculation. Criteria: {criteria}. Details: {e}")

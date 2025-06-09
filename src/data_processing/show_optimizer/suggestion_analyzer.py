@@ -55,16 +55,14 @@ class OptimizationSummary:
 class SuggestionAnalyzer:
     """Formats and presents optimization results for UI display."""
     
-    def __init__(self, criteria_scorer, criteria_analyzer):
+    def __init__(self, criteria_scorer):
         """Initialize the suggestion analyzer.
         
         Args:
             criteria_scorer: CriteriaScorer instance for scoring criteria
-            criteria_analyzer: CriteriaAnalyzer instance for analyzing criteria
         """
         self.field_manager = criteria_scorer.field_manager
         self.criteria_scorer = criteria_scorer
-        self.criteria_analyzer = criteria_analyzer
         self.config = OptimizerConfig
         
     def format_optimization_summary(self, summary: OptimizationSummary) -> Dict[str, Any]:
@@ -108,8 +106,9 @@ class SuggestionAnalyzer:
             }
             
         except Exception as e:
-            st.error(f"Error formatting optimization summary: {str(e)}")
-            return {"error": str(e)}
+            st.write(f"Debug: Error formatting optimization summary: {str(e)}")
+            st.error("Unable to format optimization results. Please try again or contact support.")
+            return {"error": "Formatting error", "details": str(e)}
             
     def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, Any]:
         """Format success probability for display.
@@ -126,7 +125,7 @@ class SuggestionAnalyzer:
             if probability is None:
                 formatted_value = "Unknown"
                 percentage = None
-                color = "gray"
+                color = self.config.UI_COLORS['neutral']
             else:
                 percentage = probability * 100
                 if percentage < 1 and percentage > 0:
@@ -138,19 +137,14 @@ class SuggestionAnalyzer:
                 
                 # Determine color based on probability using config thresholds
                 if percentage >= (self.config.THRESHOLDS['strong_compatibility'] * 100):
-                    color = "green"
+                    color = self.config.UI_COLORS['success']
                 elif percentage >= (self.config.THRESHOLDS['minimum_compatibility'] * 100):
-                    color = "orange"
+                    color = self.config.UI_COLORS['warning']
                 else:
-                    color = "red"
+                    color = self.config.UI_COLORS['danger']
             
-            # Format confidence level
-            confidence_display = {
-                'high': "High confidence",
-                'medium': "Medium confidence",
-                'low': "Low confidence",
-                'none': "Insufficient data"
-            }.get(confidence, "Unknown confidence")
+            # Format confidence level using config
+            confidence_display = self.config.CONFIDENCE_DISPLAY.get(confidence, "Unknown confidence")
             
             return {
                 "value": probability,
@@ -161,8 +155,9 @@ class SuggestionAnalyzer:
                 "color": color
             }
         except Exception as e:
-            st.error(f"Error formatting success probability: {str(e)}")
-            return {"formatted": "Error", "confidence_display": "Error", "color": "gray"}
+            st.write(f"Debug: Error formatting success probability: {str(e)}")
+            st.error("Unable to format success probability data.")
+            return {"formatted": "Error", "confidence_display": "Error", "color": self.config.UI_COLORS['neutral']}
             
     def _format_recommendations(self, recommendations: List[Recommendation]) -> List[Dict[str, Any]]:
         """Format recommendations for display.
@@ -176,14 +171,8 @@ class SuggestionAnalyzer:
         try:
             formatted_recommendations = []
             
-            # Group recommendations by type
-            recommendation_types = {
-                'add': "Missing Criteria",
-                'replace': "Criteria Replacement",
-                'relax': "Limiting Criteria",
-                'change': "Successful Pattern",
-                'fallback': "Fallback Recommendation"
-            }
+            # Use recommendation types from config
+            recommendation_types = self.config.RECOMMENDATION_TYPES
             
             for rec in recommendations:
                 # Format impact score as a percentage with sign
@@ -197,24 +186,19 @@ class SuggestionAnalyzer:
                 
                 if rec.impact_score > 0:
                     impact_display = f"+{impact_formatted}"
-                    impact_color = "green"
+                    impact_color = self.config.UI_COLORS['success']
                 elif rec.impact_score < 0:
                     impact_display = f"-{impact_formatted}"
-                    impact_color = "red"
+                    impact_color = self.config.UI_COLORS['danger']
                 else:
                     impact_display = "0%"
-                    impact_color = "gray"
+                    impact_color = self.config.UI_COLORS['neutral']
                 
                 # Get recommendation type display name
                 rec_type_display = recommendation_types.get(rec.rec_type, "Other Recommendation")
                 
-                # Format confidence level
-                confidence_display = {
-                    'high': "High confidence",
-                    'medium': "Medium confidence",
-                    'low': "Low confidence",
-                    'none': "Insufficient data"
-                }.get(rec.confidence, "Unknown confidence")
+                # Format confidence level using config
+                confidence_display = self.config.CONFIDENCE_DISPLAY.get(rec.confidence, "Unknown confidence")
                 
                 # Create formatted recommendation
                 formatted_rec = {
@@ -235,7 +219,8 @@ class SuggestionAnalyzer:
             return formatted_recommendations
             
         except Exception as e:
-            st.error(f"Error formatting recommendations: {str(e)}")
+            st.write(f"Debug: Error formatting recommendations: {str(e)}")
+            st.error("Unable to format recommendation data.")
             return []
             
     def _format_network_matches(self, networks: List[NetworkMatch]) -> List[Dict[str, Any]]:
@@ -262,11 +247,11 @@ class SuggestionAnalyzer:
                 
                 # Determine color based on compatibility using config thresholds
                 if compatibility_percentage >= (self.config.THRESHOLDS['strong_compatibility'] * 100):
-                    color = "green"
+                    color = self.config.UI_COLORS['success']
                 elif compatibility_percentage >= (self.config.THRESHOLDS['minimum_compatibility'] * 100):
-                    color = "orange"
+                    color = self.config.UI_COLORS['warning']
                 else:
-                    color = "red"
+                    color = self.config.UI_COLORS['danger']
                 
                 # Get network name
                 network_name = network.name if hasattr(network, 'name') else "Unknown Network"
@@ -287,7 +272,8 @@ class SuggestionAnalyzer:
             return formatted_networks
             
         except Exception as e:
-            st.error(f"Error formatting network matches: {str(e)}")
+            st.write(f"Debug: Error formatting network matches: {str(e)}")
+            st.error("Unable to format network match data.")
             return []
                 
     def _format_component_scores(self, component_scores: Dict[str, ComponentScore]) -> Dict[str, Dict[str, Any]]:
@@ -314,11 +300,11 @@ class SuggestionAnalyzer:
                 
                 # Determine color based on score using config thresholds
                 if score_percentage >= (self.config.THRESHOLDS['strong_compatibility'] * 100):
-                    color = "green"
+                    color = self.config.UI_COLORS['success']
                 elif score_percentage >= (self.config.THRESHOLDS['minimum_compatibility'] * 100):
-                    color = "orange"
+                    color = self.config.UI_COLORS['warning']
                 else:
-                    color = "red"
+                    color = self.config.UI_COLORS['danger']
                 
                 # Get display name for component
                 display_name = self.field_manager.get_display_name(component_name) if hasattr(self, 'field_manager') else component_name
@@ -337,7 +323,8 @@ class SuggestionAnalyzer:
             return formatted_scores
             
         except Exception as e:
-            st.error(f"Error formatting component scores: {str(e)}")
+            st.write(f"Debug: Error formatting component scores: {str(e)}")
+            st.error("Unable to format component score data.")
             return {}
     def _format_match_quality(self, match_level: int, match_count: int, match_counts_by_level: Dict[int, int], confidence_score: float) -> Dict[str, Any]:
         """Format match quality information for display.
@@ -352,15 +339,8 @@ class SuggestionAnalyzer:
             Dictionary with formatted match quality information
         """
         try:
-            # Format match level description
-            match_level_descriptions = {
-                1: "Exact match (all criteria)",
-                2: "Strong match (most criteria)",
-                3: "Partial match (some criteria)",
-                4: "Minimal match (few criteria)"
-            }
-            
-            match_level_display = match_level_descriptions.get(match_level, "Unknown match level")
+            # Format match level description using config
+            match_level_display = self.config.MATCH_LEVEL_DESCRIPTIONS.get(match_level, "Unknown match level")
             
             # Format confidence score as a percentage
             confidence_percentage = confidence_score * 100
@@ -373,16 +353,16 @@ class SuggestionAnalyzer:
             
             # Determine color based on confidence using config thresholds
             if confidence_percentage >= (self.config.THRESHOLDS['strong_compatibility'] * 100):
-                color = "green"
+                color = self.config.UI_COLORS['success']
             elif confidence_percentage >= (self.config.THRESHOLDS['minimum_compatibility'] * 100):
-                color = "orange"
+                color = self.config.UI_COLORS['warning']
             else:
-                color = "red"
+                color = self.config.UI_COLORS['danger']
             
             # Format match counts by level
             formatted_counts = {}
             for level, count in match_counts_by_level.items():
-                level_desc = match_level_descriptions.get(level, f"Level {level}")
+                level_desc = self.config.MATCH_LEVEL_DESCRIPTIONS.get(level, f"Level {level}")
                 formatted_counts[str(level)] = {
                     "level": level,
                     "description": level_desc,
@@ -400,8 +380,9 @@ class SuggestionAnalyzer:
             }
             
         except Exception as e:
-            st.error(f"Error formatting match quality: {str(e)}")
-            return {"match_level_display": "Error", "confidence_formatted": "Error", "color": "gray"}
+            st.write(f"Debug: Error formatting match quality: {str(e)}")
+            st.error("Unable to format match quality data.")
+            return {"match_level_display": "Error", "confidence_formatted": "Error", "color": self.config.UI_COLORS['neutral']}
                         
     def format_criteria_for_display(self, criteria: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         """Format criteria for display in the UI.
@@ -433,7 +414,8 @@ class SuggestionAnalyzer:
             return formatted_criteria
             
         except Exception as e:
-            st.error(f"Error formatting criteria: {str(e)}")
+            st.write(f"Debug: Error formatting criteria: {str(e)}")
+            st.error("Unable to format criteria data.")
             return {}
     def _format_field_value(self, field_name: str, value: Any) -> str:
         """Format a field value for display based on field type.
@@ -445,27 +427,31 @@ class SuggestionAnalyzer:
         Returns:
             Formatted string representation of the value
         """
-        # Handle None values
-        if value is None:
-            return ""
-            
-        # Handle list values
-        if isinstance(value, list):
-            return ", ".join(str(v) for v in value)
-            
-        # Handle boolean values
-        if isinstance(value, bool):
-            return "Yes" if value else "No"
-            
-        # Handle numeric values
-        if isinstance(value, (int, float)):
-            # Format percentages
-            if field_name.endswith('_percent') or field_name.endswith('_rate'):
-                return f"{value * 100:.1f}%"
+        try:
+            # Handle None values
+            if value is None:
+                return ""
+                
+            # Handle list values
+            if isinstance(value, list):
+                return ", ".join(str(v) for v in value)
+                
+            # Handle boolean values
+            if isinstance(value, bool):
+                return "Yes" if value else "No"
+                
+            # Handle numeric values
+            if isinstance(value, (int, float)):
+                # Format percentages
+                if field_name.endswith('_percent') or field_name.endswith('_rate'):
+                    return f"{value * 100:.1f}%"
+                return str(value)
+                
+            # Default: return as string
             return str(value)
-            
-        # Default: return as string
-        return str(value)
+        except Exception as e:
+            st.write(f"Debug: Error formatting field value for {field_name}: {str(e)}")
+            return str(value) if value is not None else ""  # Safe fallback
         
     def _get_criteria_name(self, criteria_type: str, criteria_value: Any) -> str:
         """Get the display name for a criteria value.
@@ -477,13 +463,27 @@ class SuggestionAnalyzer:
         Returns:
             Display name for the criteria value
         """
-        options = self.field_manager.get_options(criteria_type)
-        
-        # Find the option with this ID
-        name = str(criteria_value)  # Default if not found
-        for option in options:
-            if option.id == criteria_value:
-                name = option.name
-                break
+        try:
+            # Handle None values
+            if criteria_value is None:
+                return "None"
                 
-        return name
+            # Handle list values
+            if isinstance(criteria_value, list):
+                names = [self._get_criteria_name(criteria_type, v) for v in criteria_value]
+                return ", ".join(names)
+                
+            # Get options from field manager
+            options = self.field_manager.get_options(criteria_type)
+            
+            # Find the option with this ID
+            name = str(criteria_value)  # Default if not found
+            for option in options:
+                if option.id == criteria_value:
+                    name = option.name
+                    break
+                    
+            return name
+        except Exception as e:
+            st.write(f"Debug: Error getting criteria name for {criteria_type}: {str(e)}")
+            return str(criteria_value)  # Fallback to string representation
