@@ -180,12 +180,12 @@ class Matcher:
         Returns:
             Tuple of (matching_shows, match_info) with combined matches from all levels needed
         """
-        # Use default min_sample_size if not provided
-        if min_sample_size is None:
-            min_sample_size = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_matches_before_fallback']
+        # Always use MAX_RESULTS as the target sample size
+        target_sample_size = OptimizerConfig.MAX_RESULTS
         
-        # Ensure we respect the MAX_RESULTS configuration
-        target_sample_size = min(min_sample_size, OptimizerConfig.MAX_RESULTS)
+        # If min_sample_size is provided and smaller, use that instead
+        if min_sample_size is not None and min_sample_size < target_sample_size:
+            target_sample_size = min_sample_size
         
         # Get data if not provided
         data = self._get_data(data)
@@ -240,16 +240,15 @@ class Matcher:
         if all_matches.empty:
             return pd.DataFrame(), self._empty_confidence_info()
         
-        # Limit to MAX_RESULTS if needed
+        # Sort by match_level (ascending) and success_score (descending)
+        if 'success_score' in all_matches.columns:
+            all_matches = all_matches.sort_values(by=['match_level', 'success_score'], 
+                                                 ascending=[True, False])
+        else:
+            all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
+        
+        # Always limit to MAX_RESULTS
         if len(all_matches) > OptimizerConfig.MAX_RESULTS:
-            # Sort by match_level (ascending) and success_score (descending) before limiting
-            if 'success_score' in all_matches.columns:
-                all_matches = all_matches.sort_values(by=['match_level', 'success_score'], 
-                                                     ascending=[True, False])
-            else:
-                all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
-            
-            # Limit to MAX_RESULTS
             all_matches = all_matches.head(OptimizerConfig.MAX_RESULTS)
         
         # Add match level counts to confidence info
