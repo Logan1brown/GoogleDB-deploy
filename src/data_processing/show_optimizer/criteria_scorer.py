@@ -127,20 +127,23 @@ class CriteriaScorer:
         return success_rate, confidence_info
 
    
-    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: List[pd.DataFrame]) -> List[Optional[float]]:
-        """Calculate success rates for a batch of criteria using provided matching shows.
-        
+    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: Optional[List[pd.DataFrame]] = None) -> List[Optional[float]]:
+        """
+        Calculate success rates for a batch of criteria using provided matching shows.
+
         Args:
             criteria_list: List of criteria dictionaries
-            matching_shows_list: List of DataFrames containing shows matching each criteria
-            
+            matching_shows_list: Optional list of DataFrames containing shows matching each criteria. If not provided, raises an error (explicit matching is required).
         Returns:
             List of success rates (one for each criteria/matching shows pair)
         """
+        if matching_shows_list is None:
+            st.error("No matching_shows_list provided to _batch_calculate_success_rates. This method requires explicit matching.")
+            return [None] * len(criteria_list)
         if len(criteria_list) != len(matching_shows_list):
             st.error(f"Mismatch between criteria list ({len(criteria_list)}) and matching shows list ({len(matching_shows_list)})")
             return [None] * len(criteria_list)
-            
+        
         results = []
         
         # Create a single SuccessScoreCalculator instance to reuse
@@ -168,16 +171,14 @@ class CriteriaScorer:
         return results
     
     @lru_cache(maxsize=32)
-    def calculate_criteria_impact(self, base_criteria: Dict[str, Any], base_matching_shows: pd.DataFrame, option_matching_shows_map: Dict[str, Dict[int, pd.DataFrame]] = None, field_name: Optional[str] = None) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    def calculate_criteria_impact(self, base_criteria: Dict[str, Any], base_matching_shows: pd.DataFrame, option_matching_shows_map: Optional[Dict[str, Dict[int, pd.DataFrame]]] = None, field_name: Optional[str] = None) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
         Calculate the impact of criteria values on success rate.
-        
+
         Args:
             base_criteria: The base criteria to compare against.
             base_matching_shows: DataFrame of shows matching the base criteria.
-            option_matching_shows_map: Optional mapping of field names to option IDs to matching shows.
-                If provided, these pre-matched shows will be used for impact calculation.
-                If not provided, impact scores cannot be calculated.
+            option_matching_shows_map: Optional mapping of field names to option IDs to matching shows. If provided, these pre-matched shows will be used for impact calculation (recommended for batch/impact analysis).
             field_name: Optional name of the field to analyze. If None, analyzes all fields.
             
         Returns:

@@ -775,56 +775,71 @@ class NetworkScoreCalculator:
             return match_quality * content_only_weight
             
         # Calculate weighted score
-        weighted_score = (match_quality * content_match_weight) + (success_history * success_history_weight)
         
+        # Calculate weighted score
+        weighted_score = (match_quality * content_match_weight) + (success_history * success_history_weight)
         # Ensure score is in 0-1 range
         return max(0.0, min(1.0, weighted_score))
+
+def _calculate_weighted_compatibility_score(self, match_quality: float, success_history: Optional[float] = None) -> float:
+    """Calculate weighted compatibility score using configuration weights.
     
-    def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], flexible: bool = True) -> List[Tuple[Optional[float], Dict[str, Any]]]:
-        
-        """Batch calculate success rates for multiple criteria with confidence information.
-        
-        Args:
-            criteria_list: List of criteria dictionaries
-            flexible: Whether to use flexible matching (try different match levels)
+    Args:
+        match_quality: Content match quality score (0-1)
+        success_history: Optional success history score (0-1)
             
-        Returns:
-            List of tuples (success_rate, confidence_info) in the same order as criteria_list
-        """
-        # Ensure we have criteria data with success metrics, but don't force refresh
-        try:
-            criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
-        except Exception as e:
-            st.write(f"Debug: Error fetching criteria data: {str(e)}")
-            criteria_data = None
+    Returns:
+        Weighted compatibility score (0-1)
+    """
+    # Get weights from config
+    content_match_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['content_match']
+    success_history_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['success_history']
+    
+    # If success history is not available, use only content match with config weight
+    if success_history is None:
+        # Use content match with weight adjustment from config
+        content_only_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility'].get('content_only', 1.0)
+        return match_quality * content_only_weight
             
-        results = []
-        for criteria in criteria_list:
+    # Calculate weighted score
+    weighted_score = (match_quality * content_match_weight) + (success_history * success_history_weight)
+    
+    # Ensure score is in 0-1 range
+    return max(0.0, min(1.0, weighted_score))
+
+def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: List[pd.DataFrame] = None, flexible: bool = True) -> List[Tuple[Optional[float], Dict[str, Any]]]:
+    """
+    Batch calculate success rates for multiple criteria with confidence information.
+
+    Args:
+        criteria_list: List of criteria dictionaries
+        matching_shows_list: Optional list of DataFrames, each containing shows matching the corresponding criteria.
+        flexible: Whether to use flexible matching (try different match levels; only applies if matching_shows_list is not provided)
+
+    Returns:
+        List of tuples (success_rate, confidence_info) in the same order as criteria_list
+    """
+    results = []
+    # If matching_shows_list is provided, use it directly
+    if matching_shows_list is not None:
+        if len(criteria_list) != len(matching_shows_list):
+            st.error(f"Mismatch between criteria list ({len(criteria_list)}) and matching shows list ({len(matching_shows_list)})")
+            return [(None, {'error': 'criteria/matching_shows_list length mismatch'})] * len(criteria_list)
+        for criteria, matching_shows in zip(criteria_list, matching_shows_list):
             try:
-                # Get matching shows using the matcher from criteria_scorer
-                if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
-                    st.write("Debug: Matcher not available for batch calculations")
-                    raise ValueError("Matcher component is required for batch calculations")
-                    
-                # Use matcher to get matching shows
-                matching_shows = self.criteria_scorer.matcher.find_matching_shows(criteria, criteria_data)
-                count = len(matching_shows) if not matching_shows.empty else 0
-                
-                # Create confidence info
-                confidence_info = {
-                    'sample_size': count,
-                    'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
-                    'match_quality': OptimizerConfig.MATCH_LEVELS[OptimizerConfig.DEFAULT_MATCH_LEVEL]['min_quality']
-                }
-                
-                # Calculate success rate with confidence information
-                success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
-                
-                # Add the result with confidence info
+                if matching_shows is None or matching_shows.empty:
+                    confidence_info = {
+                        'sample_size': 0,
+                        'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
+                        'match_quality': OptimizerConfig.MATCH_LEVELS[OptimizerConfig.DEFAULT_MATCH_LEVEL]['min_quality'],
+                        'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
+                        'success_rate': None
+                    }
+                    results.append((None, confidence_info))
+                    continue
+                success_rate, confidence_info = self.calculate_success_rate(matching_shows)
                 results.append((success_rate, confidence_info))
             except Exception as e:
-                st.write(f"Debug: Error calculating success rate for criteria: {str(e)}")
-                # Use config values for default confidence levels
                 error_confidence = {
                     'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
                     'score': OptimizerConfig.FALLBACK_VALUES.get('confidence_score', 0.0),
@@ -837,5 +852,39 @@ class NetworkScoreCalculator:
                     'error': str(e)
                 }
                 results.append((None, error_confidence))
-        
         return results
+    # Otherwise, fall back to internal matcher logic (legacy)
+    st.write("Debug: No matching_shows_list provided to batch_calculate_success_rates; falling back to internal matcher calls.")
+    try:
+        criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
+    except Exception as e:
+        st.write(f"Debug: Error fetching criteria data: {str(e)}")
+        criteria_data = None
+    for criteria in criteria_list:
+        try:
+            if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
+                st.write("Debug: Matcher not available for batch calculations")
+                raise ValueError("Matcher component is required for batch calculations")
+            matching_shows = self.criteria_scorer.matcher.find_matching_shows(criteria, criteria_data)
+            count = len(matching_shows) if not matching_shows.empty else 0
+            confidence_info = {
+                'sample_size': count,
+                'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
+                'match_quality': OptimizerConfig.MATCH_LEVELS[OptimizerConfig.DEFAULT_MATCH_LEVEL]['min_quality']
+            }
+            success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
+            results.append((success_rate, confidence_info))
+        except Exception as e:
+            error_confidence = {
+                'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
+                'score': OptimizerConfig.FALLBACK_VALUES.get('confidence_score', 0.0),
+                'match_quality': OptimizerConfig.FALLBACK_VALUES.get('match_quality', 0.0),
+                'sample_size': 0,
+                'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
+                'success_rate': None,
+                'success_count': 0,
+                'total_count': 0,
+                'error': str(e)
+            }
+            results.append((None, error_confidence))
+    return results
