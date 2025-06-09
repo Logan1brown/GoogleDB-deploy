@@ -257,21 +257,26 @@ class RecommendationEngine:
                             st.error("Unable to retrieve matching titles for success factor")
                             matching_titles = []
                         # Ensure criteria_value is hashable for SuccessFactor and for all downstream set/dict usage
-                        factor = SuccessFactor(
-                            criteria_type=criteria_type,
-                            criteria_value=criteria_value,
-                            criteria_name=name,
-                            impact_score=impact,
-                            confidence=confidence,
-                            sample_size=sample_size,
-                            matching_titles=matching_titles
-                        )
-                        # Debug: Log hashability
                         try:
-                            hash((criteria_type, criteria_value))
-                        except Exception as hash_e:
-                            st.write(f"Debug: Unhashable SuccessFactor fields: {criteria_type}, {criteria_value}, error: {hash_e}")
-                        success_factors.append(factor)
+                            factor = SuccessFactor(
+                                criteria_type=criteria_type,
+                                criteria_value=criteria_value,
+                                criteria_name=name,
+                                impact_score=impact,
+                                confidence=confidence,
+                                sample_size=sample_size,
+                                matching_titles=matching_titles
+                            )
+                            # Debug: Log hashability
+                            try:
+                                hash((criteria_type, criteria_value))
+                            except Exception as hash_e:
+                                st.write(f"DEBUG: Unhashable SuccessFactor fields: {criteria_type} (type: {type(criteria_type)}), {criteria_value} (type: {type(criteria_value)}), error: {hash_e}")
+                            success_factors.append(factor)
+                        except Exception as factor_e:
+                            st.write(f"DEBUG: Error creating SuccessFactor for {criteria_type} (type: {type(criteria_type)}), {criteria_value} (type: {type(criteria_value)}): {factor_e}")
+                            st.write(f"DEBUG: Impact data: {impact_data}")
+                            continue
                         processed_count += 1
                     except Exception as e:
                         # Use st.error for consistency but with minimal detail for non-critical errors
