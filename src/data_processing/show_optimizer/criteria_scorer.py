@@ -233,13 +233,19 @@ class CriteriaScorer:
                 
                 for option in options:
                     new_criteria = base_criteria.copy()
+                    # For array fields, always use tuple of ints as the key
                     if is_array_field:
-                        # Ensure option.id is treated as a list item for array fields
-                        new_criteria[current_field] = [option.id] if not isinstance(option.id, list) else option.id
+                        if isinstance(option.id, list):
+                            option_key = tuple(sorted(int(x) for x in option.id))
+                            new_criteria[current_field] = list(option_key)
+                        else:
+                            option_key = (int(option.id),)
+                            new_criteria[current_field] = [option.id]
                     else:
-                        new_criteria[current_field] = option.id
+                        option_key = int(option.id)
+                        new_criteria[current_field] = option_key
                     batch_criteria.append(new_criteria)
-                    option_data.append((make_hashable(option.id), option.name))
+                    option_data.append((option_key, option.name))
                 
                 # Process each option using the provided option_matching_shows_map
                 field_impact = {}
