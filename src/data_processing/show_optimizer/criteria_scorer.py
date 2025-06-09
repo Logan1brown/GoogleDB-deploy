@@ -213,6 +213,13 @@ class CriteriaScorer:
             # Determine which fields to process
             fields_to_process = [field_name] if field_name else self.field_manager.FIELD_CONFIGS.keys()
             
+            def make_hashable(val):
+                if isinstance(val, dict):
+                    return str(val)
+                if isinstance(val, list):
+                    return ','.join([make_hashable(v) for v in val])
+                return val
+            
             for current_field in fields_to_process:
                 # Skip fields already in base criteria
                 if current_field in base_criteria:
@@ -241,12 +248,16 @@ class CriteriaScorer:
                 if option_matching_shows_map and current_field in option_matching_shows_map:
                     field_options_map = option_matching_shows_map[current_field]
                     
+                    # Convert all keys in field_options_map to hashable for safe lookup
+                    hashable_field_options_map = {make_hashable(k): v for k, v in field_options_map.items()}
+                    
                     for i, (option_id, option_name) in enumerate(option_data):
+                        option_id_hashable = make_hashable(option_id)
                         # Skip if we don't have matching shows for this option
-                        if option_id not in field_options_map:
+                        if option_id_hashable not in hashable_field_options_map:
                             continue
                             
-                        option_shows = field_options_map[option_id]
+                        option_shows = hashable_field_options_map[option_id_hashable]
                         
                         if option_shows is None or option_shows.empty:
                             continue
@@ -258,7 +269,7 @@ class CriteriaScorer:
                             match_count = len(option_shows)
                             impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
                             
-                            field_impact[option_id] = {
+                            field_impact[option_id_hashable] = {
                                 "impact": impact, 
                                 "sample_size": match_count, 
                                 "option_name": option_name,
