@@ -47,6 +47,20 @@ class CriteriaScorer:
         self.field_manager = field_manager
         self.network_analyzer = None  # Will be set by ShowOptimizer after initialization
         
+    def calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Tuple[Optional[float], Dict[str, Any]]:
+        """Public method to calculate the success rate for a set of shows.
+        
+        Delegates to the private _calculate_success_rate method.
+        
+        Args:
+            shows: DataFrame of shows
+            threshold: Optional success threshold
+            
+        Returns:
+            Tuple of success rate and confidence information
+        """
+        return self._calculate_success_rate(shows, threshold)
+        
     def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
         """Calculate the success rate for a set of shows with confidence information.
         
@@ -267,7 +281,7 @@ class CriteriaScorer:
             st.error(f"Error calculating criteria impact: {str(e)}")
             raise
     
-    def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any]) -> Dict[str, ComponentScore]:
+    def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:
         """
         Calculate component scores for the given criteria using provided matched shows.
         

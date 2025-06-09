@@ -421,8 +421,9 @@ class ConceptAnalyzer:
             
             # Use NetworkAnalyzer to rank networks by compatibility
             # The limit is controlled by OptimizerConfig.DEFAULT_NETWORK_LIMIT
+            st.write(f"Using cached matching shows ({len(matching_shows)} shows)")
             network_matches = self.criteria_scorer.network_analyzer.rank_networks_by_compatibility(
-                criteria, integrated_data
+                criteria, integrated_data, matching_shows
             )
             
             st.write(f"Found {len(network_matches)} top networks")

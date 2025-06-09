@@ -141,12 +141,14 @@ class RecommendationEngine:
     
     def identify_success_factors(self, criteria: Dict[str, Any], 
                                 matching_shows: pd.DataFrame = None,
+                                integrated_data: Dict[str, pd.DataFrame] = None,
                                 limit: int = 5) -> List[SuccessFactor]:
         """Identify key success factors based on criteria and matching shows.
         
         Args:
             criteria: Dictionary of criteria
             matching_shows: DataFrame of matching shows (optional)
+            integrated_data: Dictionary of integrated data frames (optional)
             limit: Maximum number of success factors to return
             
         Returns:
