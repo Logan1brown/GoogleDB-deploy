@@ -240,7 +240,7 @@ class CriteriaScorer:
                     else:
                         new_criteria[current_field] = option.id
                     batch_criteria.append(new_criteria)
-                    option_data.append((option.id, option.name))
+                    option_data.append((make_hashable(option.id), option.name))
                 
                 # Process each option using the provided option_matching_shows_map
                 field_impact = {}
@@ -252,12 +252,11 @@ class CriteriaScorer:
                     hashable_field_options_map = {make_hashable(k): v for k, v in field_options_map.items()}
                     
                     for i, (option_id, option_name) in enumerate(option_data):
-                        option_id_hashable = make_hashable(option_id)
                         # Skip if we don't have matching shows for this option
-                        if option_id_hashable not in hashable_field_options_map:
+                        if option_id not in hashable_field_options_map:
                             continue
                             
-                        option_shows = hashable_field_options_map[option_id_hashable]
+                        option_shows = hashable_field_options_map[option_id]
                         
                         if option_shows is None or option_shows.empty:
                             continue
@@ -269,13 +268,32 @@ class CriteriaScorer:
                             match_count = len(option_shows)
                             impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
                             
-                            field_impact[option_id_hashable] = {
+                            field_impact[option_id] = {
                                 "impact": impact, 
                                 "sample_size": match_count, 
                                 "option_name": option_name,
                                 "success_rate": option_rate
                             }
-                
+                else:
+                    # Default: batch calculate using batch_criteria and matching_shows_list
+                    # (Assume batch_criteria and batch calculation is available)
+                    matching_shows_list = []
+                    for crit in batch_criteria:
+                        # This should be replaced with actual logic to get matching shows for each crit
+                        # For now, just use base_matching_shows as a placeholder
+                        matching_shows_list.append(base_matching_shows)
+                    rates = self._batch_calculate_success_rates(batch_criteria, matching_shows_list)
+                    for i, (option_id, option_name) in enumerate(option_data):
+                        option_rate = rates[i]
+                        if option_rate is not None:
+                            match_count = len(base_matching_shows)
+                            impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
+                            field_impact[option_id] = {
+                                "impact": impact,
+                                "sample_size": match_count,
+                                "option_name": option_name,
+                                "success_rate": option_rate
+                            }
                 if field_impact:
                     impact_scores[current_field] = field_impact
                     
