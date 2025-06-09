@@ -192,6 +192,7 @@ class RecommendationEngine:
                 hashable_values = {make_hashable(k): v for k, v in values.items()}
 
                 for value_id, impact_data in hashable_values.items():
+                    value_id_hashable = make_hashable(value_id)
                     if processed_count >= 5:  # Limit processing per criteria type
                         break
                         
@@ -210,7 +211,7 @@ class RecommendationEngine:
                         
                         # Get the name for this criteria value
                         # Always use hashable version for criteria_value
-                        criteria_value = make_hashable(value_id)
+                        criteria_value = value_id_hashable
                         # Get the name from field manager
                         if isinstance(value_id, (dict, list)):
                             name = str(value_id)
@@ -221,7 +222,7 @@ class RecommendationEngine:
                                 if option.id == value_id:
                                     name = option.name
                                     break
-                            criteria_value = value_id
+                            # criteria_value = value_id  # Do not overwrite with possibly unhashable value
                         
                         # Set confidence based on sample size using OptimizerConfig method
                         try:
@@ -245,14 +246,10 @@ class RecommendationEngine:
                         try:
                             # Create a single-criteria dictionary for this factor
                             single_criteria = {criteria_type: criteria_value}
-                            
-                            # Get matching shows for just this criteria
+                            # Defensive: Only call .empty if single_matches is a DataFrame
                             single_matches, _ = self.criteria_scorer._get_matching_shows(single_criteria)
-                            
-                            # Extract titles if available
-                            if not single_matches.empty and 'title' in single_matches.columns:
+                            if hasattr(single_matches, 'empty') and not single_matches.empty and 'title' in single_matches.columns:
                                 matching_titles = single_matches['title'].tolist()
-                                # Limit to 100 titles
                                 if len(matching_titles) > 100:
                                     matching_titles = matching_titles[:100]
                         except Exception as e:
@@ -269,6 +266,11 @@ class RecommendationEngine:
                             sample_size=sample_size,
                             matching_titles=matching_titles
                         )
+                        # Debug: Log hashability
+                        try:
+                            hash((criteria_type, criteria_value))
+                        except Exception as hash_e:
+                            st.write(f"Debug: Unhashable SuccessFactor fields: {criteria_type}, {criteria_value}, error: {hash_e}")
                         success_factors.append(factor)
                         processed_count += 1
                     except Exception as e:
@@ -820,10 +822,8 @@ class RecommendationEngine:
             # Get overall success rates for each criteria
             overall_rates = {}
             for criteria_type in network_rates.keys():
-                # Defensive: Only proceed if criteria_type is in criteria
                 if criteria_type not in criteria:
                     continue
-                # Create a criteria dict with just this one criteria
                 single_criteria = {criteria_type: criteria[criteria_type]}
                 overall_rate, _ = self.criteria_scorer.calculate_success_rate(
                     single_criteria, integrated_data=integrated_data
@@ -834,10 +834,13 @@ class RecommendationEngine:
             for criteria_type, network_rate_data in network_rates.items():
                 if criteria_type not in overall_rates:
                     continue
-                # Defensive: Ensure network_rate_data is a dict and has expected keys
                 if not isinstance(network_rate_data, dict):
                     st.error(f"Network rate data for {criteria_type} is not a dict: {network_rate_data}")
                     continue
+                # Defensive: Only call .empty on DataFrames
+                if 'matching_shows' in network_rate_data and hasattr(network_rate_data['matching_shows'], 'empty'):
+                    if network_rate_data['matching_shows'].empty:
+                        continue
                 if not network_rate_data.get('has_data') or network_rate_data.get('rate') is None:
                     continue
                 network_rate = network_rate_data['rate']
