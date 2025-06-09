@@ -117,9 +117,14 @@ class ShowOptimizer:
                     integrated_shows = shows_df.copy()
                     
                     # Merge with success metrics if available
-                    if not success_df.empty and 'show_id' in success_df.columns:
+                    if not success_df.empty:
+                        # Reset index to make show_id a column again if it's the index
+                        if success_df.index.name == 'show_id':
+                            success_df = success_df.reset_index()
+                        
                         # Only keep success metrics that have matching shows
-                        success_df = success_df[success_df['show_id'].isin(shows_df['show_id'])]
+                        if 'show_id' in success_df.columns:
+                            success_df = success_df[success_df['show_id'].isin(shows_df['show_id'])]
                     else:
                         st.warning("Could not integrate success metrics: missing 'show_id' column")
                     
