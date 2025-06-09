@@ -157,7 +157,7 @@ class RecommendationEngine:
         try:
             
             # If matching_shows not provided, get them
-            if matching_shows is None or matching_shows.empty:
+            if matching_shows is None or (hasattr(matching_shows, 'empty') and matching_shows.empty):
                 try:
                     matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
                     if matching_shows.empty:
@@ -182,8 +182,15 @@ class RecommendationEngine:
                 
                 # Convert any unhashable keys to strings first
                 # Always convert all keys to string for hashing (fixes unhashable dict/list error)
-                hashable_values = {str(k): v for k, v in values.items()}
-                
+                # Use make_hashable for both key and value to ensure hashability
+                def make_hashable(val):
+                    if isinstance(val, dict):
+                        return str(val)
+                    if isinstance(val, list):
+                        return ','.join([make_hashable(v) for v in val])
+                    return val
+                hashable_values = {make_hashable(k): v for k, v in values.items()}
+
                 for value_id, impact_data in hashable_values.items():
                     if processed_count >= 5:  # Limit processing per criteria type
                         break
@@ -202,13 +209,12 @@ class RecommendationEngine:
                             sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                         
                         # Get the name for this criteria value
+                        # Always use hashable version for criteria_value
+                        criteria_value = make_hashable(value_id)
+                        # Get the name from field manager
                         if isinstance(value_id, (dict, list)):
-                            # Convert to a string representation for unhashable types
-                            value_id_str = str(value_id)
-                            name = value_id_str
-                            criteria_value = value_id_str
+                            name = str(value_id)
                         else:
-                            # Get the name from field manager
                             options = self.field_manager.get_options(criteria_type)
                             name = str(value_id)  # Default if not found
                             for option in options:
@@ -230,6 +236,10 @@ class RecommendationEngine:
                             st.write(f"Debug: Issue determining confidence from config: {str(conf_e)}")
                             confidence = self.config.DEFAULT_VALUES['confidence']
                         
+                        # Debug: Log sample size if confidence is 'none' despite large sample size
+                        if confidence == 'none' and sample_size > self.config.CONFIDENCE['minimum_sample']:
+                            st.write(f"Debug: Confidence is 'none' despite sample size {sample_size} for {criteria_type}:{value_id}")
+                        
                         # Get matching titles for this criteria
                         matching_titles = []
                         try:
@@ -250,16 +260,9 @@ class RecommendationEngine:
                             st.error("Unable to retrieve matching titles for success factor")
                             matching_titles = []
                         # Ensure criteria_value is hashable for SuccessFactor and for all downstream set/dict usage
-                        def make_hashable(val):
-                            if isinstance(val, dict):
-                                return str(val)
-                            if isinstance(val, list):
-                                return ','.join([make_hashable(v) for v in val])
-                            return val
-                        hashable_criteria_value = make_hashable(criteria_value)
                         factor = SuccessFactor(
                             criteria_type=criteria_type,
-                            criteria_value=hashable_criteria_value,
+                            criteria_value=criteria_value,
                             criteria_name=name,
                             impact_score=impact,
                             confidence=confidence,
@@ -809,9 +812,17 @@ class RecommendationEngine:
             # Get network-specific success rates for each criteria using integrated data
             network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(criteria, network.network_id, integrated_data)
             
+            # Defensive: If network_rates is not a dict, error and return
+            if not isinstance(network_rates, dict):
+                st.error("NetworkAnalyzer.get_network_specific_success_rates did not return a dict. Cannot generate recommendations.")
+                return []
+            
             # Get overall success rates for each criteria
             overall_rates = {}
             for criteria_type in network_rates.keys():
+                # Defensive: Only proceed if criteria_type is in criteria
+                if criteria_type not in criteria:
+                    continue
                 # Create a criteria dict with just this one criteria
                 single_criteria = {criteria_type: criteria[criteria_type]}
                 overall_rate, _ = self.criteria_scorer.calculate_success_rate(
@@ -823,61 +834,42 @@ class RecommendationEngine:
             for criteria_type, network_rate_data in network_rates.items():
                 if criteria_type not in overall_rates:
                     continue
-                    
-                # Skip if we don't have enough data for this criteria
-                if not network_rate_data['has_data'] or network_rate_data['rate'] is None:
+                # Defensive: Ensure network_rate_data is a dict and has expected keys
+                if not isinstance(network_rate_data, dict):
+                    st.error(f"Network rate data for {criteria_type} is not a dict: {network_rate_data}")
                     continue
-                    
-                # Get the actual rate value from the dictionary
+                if not network_rate_data.get('has_data') or network_rate_data.get('rate') is None:
+                    continue
                 network_rate = network_rate_data['rate']
                 overall_rate = overall_rates[criteria_type]
-                
-                # Calculate the difference
                 difference = network_rate - overall_rate
-                
-                # If the difference is significant, make a recommendation
                 if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']:
                     current_value = criteria[criteria_type]
                     current_name = self._get_criteria_name(criteria_type, current_value)
-                    
-                    if difference > 0:
-                        # This criteria works better for this network than overall
-                        recommendation = Recommendation(
-                            recommendation_type="consider",
-                            criteria_type=criteria_type,
-                            current_value=current_value,
-                            suggested_value=current_value,  # Same value, just emphasizing it
-                            suggested_name=current_name,
-                            impact_score=difference,
-                            confidence="medium",  # Network-specific recommendations have medium confidence
-                            explanation=f"'{current_name}' works particularly well for {network.network_name}, with {difference:.0%} higher success rate than average."
-                        )
-                        recommendations.append(recommendation)
-                    else:
-                        # This criteria works worse for this network than overall
-                        # Look for alternative values that might work better
-                        options = self.field_manager.get_options(criteria_type)
-                        if options:
-                            # Suggest a different option
-                            alternative = None
-                            for option in options:
-                                if option.id != current_value:
-                                    alternative = option
-                                    break
-                                    
-                            if alternative:
-                                recommendation = Recommendation(
-                                    recommendation_type="replace",
-                                    criteria_type=criteria_type,
-                                    current_value=current_value,
-                                    current_name=current_name,
-                                    suggested_value=alternative.id,
-                                    suggested_name=alternative.name,
-                                    impact_score=-difference,  # Convert to positive impact
-                                    confidence="medium",  # Network-specific recommendations have medium confidence
-                                    explanation=f"'{current_name}' performs {-difference:.0%} worse than average for {network.network_name}. Consider alternatives like '{alternative.name}'."
-                                )
-                                recommendations.append(recommendation)
+                    suggested_value = None
+                    suggested_name = ""
+                    explanation = f"Network {network.display_name} has a significantly different success rate for {criteria_type}."
+                    impact_score = difference
+                    confidence = network_rate_data.get('confidence', 'unknown')
+                    recommendations.append(Recommendation(
+                        recommendation_type="network_specific",
+                        criteria_type=criteria_type,
+                        current_value=current_value,
+                        suggested_value=suggested_value,
+                        suggested_name=suggested_name,
+                        impact_score=impact_score,
+                        confidence=confidence,
+                        explanation=explanation,
+                        current_name=current_name
+                    ))
+                    # The following block should be inside the previous else branch, not at this indentation level
+                    # If you want to suggest alternatives when difference < 0, do so inside an else block
+                    # Example fix:
+                    # else:
+                    #     options = self.field_manager.get_options(criteria_type)
+                    #     if options:
+                    #         ...
+
             
             return recommendations
         except Exception as e:
