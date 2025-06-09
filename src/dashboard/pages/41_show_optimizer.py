@@ -299,10 +299,9 @@ def show():
                                 shows = shows_by_level[level]
                                 color = match_level_colors.get(level, "#000000")
                                 
-                                # Add a separator between match levels if there are multiple levels
-                                if len(shows_by_level) > 1 and level > 1 and level in match_level_names:
+                                # Add separator between match levels if there are multiple levels
+                                if len(shows_by_level) > 1 and level > 1:
                                     st.write(f"---")
-                                    st.write(f"**{match_level_names[level]} Shows ({len(shows)})**")
                                 
                                 # Sort shows by success_score within each match level
                                 if 'success_score' in shows[0] if shows else {}:
