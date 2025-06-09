@@ -20,8 +20,6 @@ from datetime import datetime
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .optimizer_config import OptimizerConfig
-from .recommendation_engine import RecommendationEngine
-from .models import ComponentScore, NetworkMatch, Recommendation, SuccessFactor, OptimizationSummary
 from .optimizer_cache import OptimizerCache
 from .optimizer_matcher import Matcher
 from .field_manager import FieldManager

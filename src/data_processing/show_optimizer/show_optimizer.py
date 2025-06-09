@@ -420,7 +420,8 @@ class ShowOptimizer:
             confidence_score=0.0,
             matching_shows=None,
             match_count=0,
-            match_counts_by_level={}
+            match_counts_by_level={},
+            confidence_info={'error': error_message, 'confidence_level': 'none'}
         )
     
     def _prepare_analysis_context(self, criteria: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any], bool]:
@@ -471,11 +472,10 @@ class ShowOptimizer:
                 force_refresh=force_refresh
             )
             
-            # Format results using OptimizerView
+            # Return the analysis result directly
             if analysis_result:
-                formatted_result = self.optimizer_view.format_optimization_summary(analysis_result)
                 st.write("Analysis completed successfully")
-                return formatted_result
+                return analysis_result
             else:
                 st.warning("Analysis produced no results")
                 return self._create_fallback_summary("No analysis results")
