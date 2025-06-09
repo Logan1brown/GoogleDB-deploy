@@ -49,33 +49,36 @@ class CriteriaScorer:
         self.matcher = matcher  # Matcher instance for finding matches
         self.network_analyzer = None  # Will be set by ShowOptimizer after initialization
         
-    def calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Tuple[Optional[float], Dict[str, Any]]:
+    def calculate_success_rate(self, shows: pd.DataFrame = None, threshold: Optional[float] = None, integrated_data: Optional[Dict[str, pd.DataFrame]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
         """Public method to calculate the success rate for a set of shows.
         
         Delegates to the private _calculate_success_rate method.
         
         Args:
-            shows: DataFrame of shows
+            shows: DataFrame of shows (if None or empty, will use integrated_data['shows'] if provided)
             threshold: Optional success threshold
-            
+            integrated_data: Optional dict of integrated DataFrames (e.g., {'shows': DataFrame})
         Returns:
             Tuple of success rate and confidence information
         """
-        return self._calculate_success_rate(shows, threshold)
-        
-    def _calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
+        return self._calculate_success_rate(shows, threshold, integrated_data=integrated_data)
+
+    def _calculate_success_rate(self, shows: pd.DataFrame = None, threshold: Optional[float] = None, confidence_info: Optional[Dict[str, Any]] = None, integrated_data: Optional[Dict[str, pd.DataFrame]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
         """Calculate the success rate for a set of shows with confidence information.
         
         Delegates success rate calculation to the SuccessScoreCalculator.
         
         Args:
-            shows: DataFrame of shows
+            shows: DataFrame of shows (if None or empty, will use integrated_data['shows'] if provided)
             threshold: Optional success threshold
             confidence_info: Optional confidence information
-            
+            integrated_data: Optional dict of integrated DataFrames (e.g., {'shows': DataFrame})
         Returns:
             Tuple of success rate and confidence information
         """
+        # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
+        if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data and not integrated_data['shows'].empty:
+            shows = integrated_data['shows']
         if shows is None or shows.empty:
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0}

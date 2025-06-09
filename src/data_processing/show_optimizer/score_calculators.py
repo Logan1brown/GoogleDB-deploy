@@ -243,14 +243,16 @@ class SuccessScoreCalculator(ScoreCalculator):
         
         # Calculate average success score from valid shows
         avg_score = valid_shows['success_score'].mean()
-        
+        # Normalize to 0-1 if on a 0-100 scale (assume >1 means 0-100 scale)
+        if avg_score > 1.0:
+            avg_score = avg_score / 100.0
         # Determine confidence level based on sample size
-        # Ensure sample_size is always defined
         sample_size = result_info.get('sample_size', None)
         if sample_size is None:
             sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
         confidence = self.get_confidence_level(sample_size)
-        
+        if sample_size >= OptimizerConfig.CONFIDENCE['high_sample']:
+            confidence = 'high'
         # Create detailed breakdown
         details = {
             'success_score': avg_score,

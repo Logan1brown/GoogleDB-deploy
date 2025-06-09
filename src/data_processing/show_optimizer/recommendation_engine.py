@@ -181,14 +181,8 @@ class RecommendationEngine:
                 processed_count = 0
                 
                 # Convert any unhashable keys to strings first
-                hashable_values = {}
-                for k, v in values.items():
-                    # Always convert dict/list keys to string for hashing
-                    if isinstance(k, (dict, list)):
-                        k_str = str(k)
-                    else:
-                        k_str = k
-                    hashable_values[k_str] = v
+                # Always convert all keys to string for hashing (fixes unhashable dict/list error)
+                hashable_values = {str(k): v for k, v in values.items()}
                 
                 for value_id, impact_data in hashable_values.items():
                     if processed_count >= 5:  # Limit processing per criteria type
@@ -813,7 +807,7 @@ class RecommendationEngine:
             recommendations = []
             
             # Get network-specific success rates for each criteria using integrated data
-            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(criteria, network.network_id, integrated_data=integrated_data)
+            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(criteria, network.network_id)
             
             # Get overall success rates for each criteria
             overall_rates = {}
@@ -821,7 +815,7 @@ class RecommendationEngine:
                 # Create a criteria dict with just this one criteria
                 single_criteria = {criteria_type: criteria[criteria_type]}
                 overall_rate, _ = self.criteria_scorer.calculate_success_rate(
-                    single_criteria, integrated_data=integrated_data, min_sample_size=OptimizerConfig.CONFIDENCE['minimum_sample']
+                    single_criteria, integrated_data=integrated_data
                 )
                 overall_rates[criteria_type] = overall_rate
             
