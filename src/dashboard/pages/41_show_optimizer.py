@@ -304,6 +304,10 @@ def show():
                                     st.write(f"---")
                                     st.write(f"**{match_level_names[level]} Shows ({len(shows)})**")
                                 
+                                # Sort shows by success_score within each match level
+                                if 'success_score' in shows[0] if shows else {}:
+                                    shows.sort(key=lambda x: x.get('success_score', 0), reverse=True)
+                                
                                 # Display each show with appropriate formatting
                                 for show in shows:
                                     title = show.get('title', 'Unknown Title')

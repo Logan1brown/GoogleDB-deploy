@@ -217,6 +217,16 @@ class Matcher:
                 relaxed_matches, relaxed_confidence = self.find_matches(relaxed_criteria, data, min_sample_size)
                 relaxed_count = len(relaxed_matches)
                 
+                # Assign match level based on relaxation tier
+                if not relaxed_matches.empty:
+                    # Match level: 1=exact, 2=secondary relaxed, 3=primary relaxed, 4=core relaxed
+                    match_level = {
+                        'secondary': 2,
+                        'primary': 3,
+                        'core': 4
+                    }.get(relaxation_tier, 2)
+                    relaxed_matches['match_level'] = match_level
+                
                 # Check if relaxation improved the situation significantly
                 if relaxed_count >= match_count * OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_sample_increase_factor']:
                     # Debug output removed: Relaxing criteria increased matches
