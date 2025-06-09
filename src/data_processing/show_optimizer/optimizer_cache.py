@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-from src.config.optimizer_config import OptimizerConfig
+from .optimizer_config import OptimizerConfig
 
 
 class OptimizerCache:
