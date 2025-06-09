@@ -165,15 +165,15 @@ class ShowOptimizer:
                 
                 st.write("Initializing Show Optimizer components...")
                 
-                # Fetch and integrate data first
+                # Initialize analyzers first
+                self.shows_analyzer = ShowsAnalyzer()
+                self.success_analyzer = SuccessAnalyzer()
+                
+                # Now fetch and integrate data
                 integrated_data = self.fetch_and_integrate_data(force_refresh)
                 if not integrated_data:
                     st.error("Failed to fetch and integrate data")
                     return False
-                
-                # Initialize analyzers
-                self.shows_analyzer = ShowsAnalyzer()
-                self.success_analyzer = SuccessAnalyzer()
                 
                 # Initialize field manager
                 reference_data = self.shows_analyzer.get_reference_data()
