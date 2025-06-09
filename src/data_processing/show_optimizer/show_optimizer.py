@@ -30,7 +30,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import streamlit as st
 
-from .optimizer_concept_analyzer import ConceptAnalyzer
+from .optimizer_concept_analyzer import ConceptAnalyzer, OptimizationSummary
 from .optimizer_cache import OptimizerCache
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
@@ -38,7 +38,6 @@ from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer, NetworkMatch, ComponentScore
 from .recommendation_engine import SuccessFactor, RecommendationEngine, Recommendation
 from src.dashboard.components.optimizer_view import OptimizerView
-from .optimizer_concept_analyzer import OptimizationSummary
 from .optimizer_config import OptimizerConfig
 
 

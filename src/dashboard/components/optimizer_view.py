@@ -64,7 +64,7 @@ class OptimizerView:
             # Create ShowOptimizer if not provided
             if self.optimizer is None:
                 # Import here to avoid circular imports
-                from .show_optimizer import ShowOptimizer
+                from src.data_processing.show_optimizer.show_optimizer import ShowOptimizer
                 self.optimizer = ShowOptimizer()
             
             # Initialize the optimizer
