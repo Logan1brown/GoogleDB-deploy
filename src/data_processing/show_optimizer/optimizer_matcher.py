@@ -275,7 +275,7 @@ class Matcher:
             st.write("No better fallback matches found, using original matches")
             return matched_shows, confidence_info
     
-    def find_network_matches(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> List[Dict[str, Any]]:
+    def find_network_matches(self, criteria: Dict[str, Any], data: pd.DataFrame = None, matching_shows: pd.DataFrame = None) -> List[Dict[str, Any]]:
         """Find shows matching criteria for each available network.
         
         This method:
@@ -287,6 +287,7 @@ class Matcher:
         Args:
             criteria: Base criteria to match against
             data: DataFrame of shows to match against (uses cached data if None)
+            matching_shows: Pre-filtered DataFrame of shows that match the criteria (optional)
             
         Returns:
             List of dictionaries with network information and matching results
@@ -295,6 +296,11 @@ class Matcher:
         data = self._get_data(data)
         if data.empty:
             return []
+            
+        # If matching_shows is provided, use it to filter the data
+        if matching_shows is not None and not matching_shows.empty:
+            st.write(f"Using pre-filtered set of {len(matching_shows)} matching shows for network analysis")
+            # We'll use matching_shows to filter network-specific matches later
         
         # Extract all unique networks from the data
         try:
@@ -318,17 +324,38 @@ class Matcher:
                 
                 # Use flexible matching to get best possible results
                 try:
-                    matching_shows, confidence_info = self.find_matches(
-                        network_criteria, 
-                        data=data, 
-                        min_sample_size=OptimizerConfig.CONFIDENCE['minimum_sample']
-                    )
+                    # If we have pre-filtered matching_shows, use them to filter network-specific matches
+                    if matching_shows is not None and not matching_shows.empty:
+                        # Filter the matching_shows by this network
+                        network_matching_shows = matching_shows[matching_shows['network_id'] == network_id].copy()
+                        
+                        if not network_matching_shows.empty:
+                            # We already have matching shows for this network, use them directly
+                            matching_shows_for_network = network_matching_shows
+                            confidence_info = {
+                                'match_level': 1,  # Exact match since we're using pre-filtered shows
+                                'sample_size': len(matching_shows_for_network),
+                                'match_quality': 1.0,  # Perfect match quality
+                                'criteria_coverage': 1.0  # All criteria covered
+                            }
+                        else:
+                            # No matching shows for this network in our pre-filtered set
+                            matching_shows_for_network = pd.DataFrame()
+                            confidence_info = self._empty_confidence_info()
+                            confidence_info['match_level'] = 0
+                    else:
+                        # No pre-filtered shows, use regular matching
+                        matching_shows_for_network, confidence_info = self.find_matches(
+                            network_criteria, 
+                            data=data, 
+                            min_sample_size=OptimizerConfig.CONFIDENCE['minimum_sample']
+                        )
                     
                     # Store the results
                     results.append({
                         'network_id': int(network_id),
                         'network_name': network_name,
-                        'matching_shows': matching_shows,
+                        'matching_shows': matching_shows_for_network,
                         'sample_size': confidence_info.get('sample_size', 0),
                         'confidence_info': confidence_info,
                         'match_quality': confidence_info.get('match_quality', 0.0)

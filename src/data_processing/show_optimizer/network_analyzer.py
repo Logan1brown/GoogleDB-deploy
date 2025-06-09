@@ -79,12 +79,14 @@ class NetworkAnalyzer:
         
     def rank_networks_by_compatibility(self, criteria: Dict[str, Any], 
                                       integrated_data: Dict[str, pd.DataFrame],
+                                      matching_shows: pd.DataFrame,
                                       limit: int = None) -> List[NetworkMatch]:
         """Rank networks by compatibility with the given criteria.
         
         Args:
             criteria: Dictionary of criteria
             integrated_data: Dictionary of integrated data frames from ShowOptimizer
+            matching_shows: DataFrame of shows matching the criteria
             limit: Maximum number of networks to return
             
         Returns:

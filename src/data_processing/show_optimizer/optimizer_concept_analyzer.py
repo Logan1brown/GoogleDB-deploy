@@ -182,8 +182,8 @@ class ConceptAnalyzer:
         try:
             st.write("Analyzing show concept...")
             
-            # Step 1: Find matching shows with fallback
-            matching_shows, confidence_info = self._find_matching_shows(criteria, force_refresh=force_refresh, integrated_data=integrated_data)
+            # Step 1: Find matching shows using integrated data
+            matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data, force_refresh=force_refresh)
             
             # Extract match information
             match_count = len(matching_shows) if not matching_shows.empty else 0
@@ -206,14 +206,14 @@ class ConceptAnalyzer:
             top_networks = self._find_top_networks(criteria, integrated_data=integrated_data)
             
             # Step 4: Calculate component scores
-            component_scores = self._get_component_scores(criteria)
+            component_scores = self._get_component_scores(criteria, matching_shows, integrated_data)
             
             # Step 5: Identify success factors
-            success_factors = self._identify_success_factors(criteria)
+            success_factors = self._identify_success_factors(criteria, matching_shows, integrated_data)
             
             # Step 6: Generate recommendations
             recommendations = self._generate_recommendations(
-                criteria, matching_shows, success_factors, top_networks, confidence_info
+                criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
             )
             
             # Get matching show titles (up to 100) to include in the summary
@@ -460,11 +460,13 @@ class ConceptAnalyzer:
             st.error(f"Error generating network-specific recommendations: {str(e)}")
             return []
     
-    def _get_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, ComponentScore]:
+    def _get_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, integrated_data: Dict[str, pd.DataFrame]) -> Dict[str, ComponentScore]:
         """Calculate component scores for the given criteria.
         
         Args:
             criteria: Dictionary of criteria
+            matching_shows: DataFrame of shows matching the criteria
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
             Dictionary mapping component names to ComponentScore objects
@@ -472,12 +474,15 @@ class ConceptAnalyzer:
         try:
             st.write("Analyzing component scores...")
             
-            # Get the matching shows that were already found
-            matching_shows, confidence_info = self._find_matching_shows(criteria)
+            # Get confidence info from the matching shows
+            confidence_info = {}
+            if 'match_level' in matching_shows.columns:
+                confidence_info['match_level'] = matching_shows['match_level'].max() if not matching_shows.empty else 0
+                confidence_info['confidence_level'] = 'high' if confidence_info['match_level'] >= 3 else 'medium' if confidence_info['match_level'] >= 2 else 'low'
             
-            # Use CriteriaScorer to calculate component scores with the already matched shows
+            # Use CriteriaScorer to calculate component scores with the provided matching shows and integrated data
             component_scores = self.criteria_scorer.calculate_component_scores(
-                criteria, matching_shows, confidence_info
+                criteria, matching_shows, confidence_info, integrated_data=integrated_data
             )
             
             if component_scores:
@@ -517,19 +522,18 @@ class ConceptAnalyzer:
         # Use the OptimizerConfig method for consistent confidence levels
         return self.config.get_confidence_level(sample_size, match_level)
     
-    def _identify_success_factors(self, criteria: Dict[str, Any]) -> List[SuccessFactor]:
+    def _identify_success_factors(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, integrated_data: Dict[str, pd.DataFrame]) -> List[SuccessFactor]:
         """Identify success factors for the given criteria.
         
         Args:
             criteria: Dictionary of criteria
+            matching_shows: DataFrame of shows matching the criteria
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
             List of SuccessFactor objects
         """
         try:
-            # Get matching shows
-            matching_shows, _ = self._find_matching_shows(criteria)
-            
             # If no matching shows, return empty list
             if matching_shows.empty:
                 st.warning("No matching shows found for success factor analysis")
@@ -539,6 +543,7 @@ class ConceptAnalyzer:
             return self.recommendation_engine.identify_success_factors(
                 criteria=criteria,
                 matching_shows=matching_shows,
+                integrated_data=integrated_data,
                 limit=5
             )
             
@@ -552,7 +557,8 @@ class ConceptAnalyzer:
         matching_shows: pd.DataFrame,
         success_factors: List[SuccessFactor],
         top_networks: List[NetworkMatch],
-        confidence_info: Dict[str, Any]
+        confidence_info: Dict[str, Any],
+        integrated_data: Dict[str, pd.DataFrame]
     ) -> List[Recommendation]:
         """Generate recommendations for optimizing the show concept.
         
@@ -562,6 +568,7 @@ class ConceptAnalyzer:
             success_factors: List of success factors
             top_networks: List of top networks
             confidence_info: Dictionary of confidence information
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
             List of Recommendation objects
@@ -575,7 +582,8 @@ class ConceptAnalyzer:
                 success_factors=success_factors,
                 top_networks=top_networks,
                 matching_shows=matching_shows,
-                confidence_info=confidence_info
+                confidence_info=confidence_info,
+                integrated_data=integrated_data
             )
             
             # Generate network-specific recommendations for each top network
@@ -586,7 +594,9 @@ class ConceptAnalyzer:
                         # Generate network-specific recommendations using the RecommendationEngine directly
                         network_recommendations = self.recommendation_engine.generate_network_specific_recommendations(
                             criteria=criteria,
-                            network=network
+                            network=network,
+                            matching_shows=matching_shows,
+                            integrated_data=integrated_data
                         )
                         
                         # Add network-specific recommendations to the list

@@ -514,11 +514,12 @@ class NetworkScoreCalculator:
         """
         self._matching_shows = matching_shows
     
-    def calculate_network_scores(self, criteria: Dict[str, Any]) -> List[NetworkMatch]:
+    def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame = None) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         
         Args:
             criteria: Dictionary containing criteria for network scoring
+            matching_shows: DataFrame of shows matching the criteria (optional, will use self._matching_shows if not provided)
             
         Returns:
             List of NetworkMatch objects with compatibility and success scores
@@ -527,13 +528,21 @@ class NetworkScoreCalculator:
             # Prepare results list
             results = []
             
-            # Use the integrated data that was set via set_integrated_data
+            # Use the matching_shows parameter if provided, otherwise use the stored matching_shows
+            if matching_shows is not None:
+                self._matching_shows = matching_shows
+            
+            if self._matching_shows is None or self._matching_shows.empty:
+                st.error("No matching shows available for network scoring. Make sure to provide matching_shows.")
+                return []
+                
+            # We still need integrated_data for additional context
             if self._integrated_data is None or 'shows' not in self._integrated_data:
                 st.error("No integrated data available for network scoring. Make sure to call set_integrated_data first.")
                 return []
                 
             criteria_data = self._integrated_data['shows']
-            st.write("Using integrated data from ShowOptimizer")
+            st.write("Using matching shows and integrated data for network scoring")
             
             # Validate that matcher exists before using it
             if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
@@ -541,8 +550,12 @@ class NetworkScoreCalculator:
                 st.error("Network scoring requires the Matcher component. Please ensure your application is properly configured.")
                 return []  # Return empty results instead of raising an exception
             
-            # Get network matches using the Matcher
-            network_matches = self.criteria_scorer.matcher.find_network_matches(criteria, criteria_data)
+            # Get network matches using the Matcher with both matching_shows and integrated data
+            network_matches = self.criteria_scorer.matcher.find_network_matches(
+                criteria, 
+                criteria_data,
+                matching_shows=self._matching_shows
+            )
             
             # Process each network match
             for network_match in network_matches:

@@ -279,7 +279,8 @@ class RecommendationEngine:
                                 success_factors: List[SuccessFactor],
                                 top_networks: List[NetworkMatch],
                                 matching_shows: pd.DataFrame,
-                                confidence_info: Dict[str, Any]) -> List[Recommendation]:
+                                confidence_info: Dict[str, Any],
+                                integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
         """Generate recommendations based on criteria analysis.
         
         Args:
@@ -288,6 +289,7 @@ class RecommendationEngine:
             top_networks: List of top network matches
             matching_shows: DataFrame of matching shows
             confidence_info: Dictionary with confidence metrics
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
             List of Recommendation objects
@@ -308,7 +310,7 @@ class RecommendationEngine:
             
             # Analyze missing high-impact criteria
             try:
-                missing_criteria_recs = self._recommend_missing_criteria(criteria, success_factors)
+                missing_criteria_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
                 recommendations.extend(missing_criteria_recs)
             except Exception as e:
                 st.write(f"Debug: Error analyzing missing criteria: {str(e)}")
@@ -358,12 +360,14 @@ class RecommendationEngine:
             return []
     
     def _recommend_missing_criteria(self, criteria: Dict[str, Any], 
-                                   success_factors: List[SuccessFactor]) -> List[Recommendation]:
+                                   success_factors: List[SuccessFactor],
+                                   matching_shows: pd.DataFrame) -> List[Recommendation]:
         """Recommend high-impact criteria that are missing from the concept.
         
         Args:
             criteria: Dictionary of criteria
             success_factors: List of success factors
+            matching_shows: DataFrame of shows matching the criteria
             
         Returns:
             List of Recommendation objects
@@ -774,12 +778,16 @@ class RecommendationEngine:
             return str(criteria_value)
             
     def generate_network_specific_recommendations(self, criteria: Dict[str, Any], 
-                                               network: NetworkMatch) -> List[Recommendation]:
+                                               network: NetworkMatch,
+                                               matching_shows: pd.DataFrame,
+                                               integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
         """Generate network-specific recommendations.
         
         Args:
             criteria: Dictionary of criteria
             network: Target network
+            matching_shows: DataFrame of shows matching the criteria
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
             List of Recommendation objects specific to the network
@@ -787,8 +795,8 @@ class RecommendationEngine:
         try:
             recommendations = []
             
-            # Get network-specific success rates for each criteria
-            network_rates = self.criteria_scorer.get_network_specific_success_rates(criteria, network.network_id)
+            # Get network-specific success rates for each criteria using integrated data
+            network_rates = self.criteria_scorer.get_network_specific_success_rates(criteria, network.network_id, integrated_data=integrated_data)
             
             # Get overall success rates for each criteria
             overall_rates = {}
@@ -796,7 +804,7 @@ class RecommendationEngine:
                 # Create a criteria dict with just this one criteria
                 single_criteria = {criteria_type: criteria[criteria_type]}
                 overall_rate, _ = self.criteria_scorer._calculate_success_rate_with_confidence(
-                    single_criteria, min_sample_size=OptimizerConfig.CONFIDENCE['minimum_sample']
+                    single_criteria, integrated_data=integrated_data, min_sample_size=OptimizerConfig.CONFIDENCE['minimum_sample']
                 )
                 overall_rates[criteria_type] = overall_rate
             
