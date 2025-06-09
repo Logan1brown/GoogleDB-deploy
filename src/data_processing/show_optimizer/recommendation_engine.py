@@ -109,7 +109,7 @@ class RecommendationEngine:
             try:
                 matching_shows, match_count, confidence_info = self.criteria_scorer._get_matching_shows(criteria)
                 
-                if matching_shows.empty or match_count == 0:
+                if isinstance(matching_shows, pd.DataFrame) and matching_shows.empty or match_count == 0:
                     # Return None instead of 0.0 to indicate no data available
                     return None, 'none'
             except Exception as inner_e:
@@ -157,10 +157,12 @@ class RecommendationEngine:
         import traceback
         # Process input arguments
         # If matching_shows not provided, get them
-        if matching_shows is None or (hasattr(matching_shows, 'empty') and matching_shows.empty):
+        if matching_shows is None or \
+           (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty) or \
+           (isinstance(matching_shows, dict) and not matching_shows):
             try:
                 matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
-                if matching_shows.empty:
+                if isinstance(matching_shows, pd.DataFrame) and matching_shows.empty:
                     # Debug output removed: No matching shows found
                     st.error("No shows match your criteria. Try adjusting your parameters.")
                     return []
@@ -324,7 +326,7 @@ class RecommendationEngine:
             
             # Analyze successful patterns in the matched shows
             try:
-                if not matching_shows.empty:
+                if isinstance(matching_shows, pd.DataFrame) and not matching_shows.empty:
                     pattern_recs = self._analyze_successful_patterns(criteria, matching_shows)
                     recommendations.extend(pattern_recs)
             except Exception as e:
@@ -525,7 +527,7 @@ class RecommendationEngine:
             if matching_shows is None:
                 matching_shows = pd.DataFrame()
                 
-            if matching_shows.empty:
+            if isinstance(matching_shows, pd.DataFrame) and matching_shows.empty:
                 # Just return empty list, no need for error message
                 return []
                 
@@ -680,7 +682,7 @@ class RecommendationEngine:
             recommendations = []
             
             # Only generate fallback recommendations if we have very few matches
-            if not matching_shows.empty and len(matching_shows) >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+            if isinstance(matching_shows, pd.DataFrame) and not matching_shows.empty and len(matching_shows) >= OptimizerConfig.CONFIDENCE['minimum_sample']:
                 return []
                 
             # Get the most common successful criteria combinations from the database
