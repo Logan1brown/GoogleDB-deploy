@@ -154,8 +154,8 @@ class RecommendationEngine:
         Returns:
             List of SuccessFactor objects
         """
+        import traceback
         try:
-            
             # If matching_shows not provided, get them
             if matching_shows is None or (hasattr(matching_shows, 'empty') and matching_shows.empty):
                 try:
@@ -168,21 +168,13 @@ class RecommendationEngine:
                     st.write(f"Debug: Error retrieving matching shows: {str(inner_e)}")
                     st.error("Unable to analyze shows matching your criteria.")
                     return []
-            
             # Calculate criteria impact
             impact_data = self.criteria_scorer.calculate_criteria_impact(criteria)
-            
             # Convert to SuccessFactor objects
             success_factors = []
-            
             # Process each criteria type
             for criteria_type, values in impact_data.items():
-                # Process at most 5 values per criteria type to reduce processing
                 processed_count = 0
-                
-                # Convert any unhashable keys to strings first
-                # Always convert all keys to string for hashing (fixes unhashable dict/list error)
-                # Use make_hashable for both key and value to ensure hashability
                 def make_hashable(val):
                     if isinstance(val, dict):
                         return str(val)
@@ -190,73 +182,50 @@ class RecommendationEngine:
                         return ','.join([make_hashable(v) for v in val])
                     return val
                 hashable_values = {make_hashable(k): v for k, v in values.items()}
-
                 for value_id, impact_data in hashable_values.items():
                     value_id_hashable = make_hashable(value_id)
-                    if processed_count >= 5:  # Limit processing per criteria type
+                    if processed_count >= 5:
                         break
-                        
                     try:
-                        # Extract impact and sample size from the impact data
                         if isinstance(impact_data, dict) and 'impact' in impact_data:
                             impact = impact_data['impact']
                             sample_size = impact_data.get('sample_size', None)
                             if sample_size is None:
                                 sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                         else:
-                            # Invalid data format, use default values from config
                             st.write(f"Debug: Invalid impact data format for {criteria_type}:{value_id}")
                             impact = self.config.DEFAULT_VALUES['impact_score']
                             sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
-                        
-                        # Get the name for this criteria value
-                        # Always use hashable version for criteria_value
                         criteria_value = value_id_hashable
-                        # Get the name from field manager
                         if isinstance(value_id, (dict, list)):
                             name = str(value_id)
                         else:
                             options = self.field_manager.get_options(criteria_type)
-                            name = str(value_id)  # Default if not found
+                            name = str(value_id)
                             for option in options:
                                 if option.id == value_id:
                                     name = option.name
                                     break
-                            # criteria_value = value_id  # Do not overwrite with possibly unhashable value
-                        
-                        # Set confidence based on sample size using OptimizerConfig method
                         try:
-                            # Use the standardized get_confidence_level method from OptimizerConfig
-                            # This ensures consistent confidence calculation across the application
-                            # Ensure sample_size is always defined
                             if 'sample_size' not in locals() or sample_size is None:
                                 sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                             confidence = self.config.get_confidence_level(sample_size)
                         except Exception as conf_e:
-                            # If there's an issue with the config, log it and use the default from config
                             st.write(f"Debug: Issue determining confidence from config: {str(conf_e)}")
                             confidence = self.config.DEFAULT_VALUES['confidence']
-                        
-                        # Debug: Log sample size if confidence is 'none' despite large sample size
                         if confidence == 'none' and sample_size > self.config.CONFIDENCE['minimum_sample']:
                             st.write(f"Debug: Confidence is 'none' despite sample size {sample_size} for {criteria_type}:{value_id}")
-                        
-                        # Get matching titles for this criteria
                         matching_titles = []
                         try:
-                            # Create a single-criteria dictionary for this factor
                             single_criteria = {criteria_type: criteria_value}
-                            # Defensive: Only call .empty if single_matches is a DataFrame
                             single_matches, _ = self.criteria_scorer._get_matching_shows(single_criteria)
                             if hasattr(single_matches, 'empty') and not single_matches.empty and 'title' in single_matches.columns:
                                 matching_titles = single_matches['title'].tolist()
                                 if len(matching_titles) > 100:
                                     matching_titles = matching_titles[:100]
                         except Exception as e:
-                            # Use st.error for consistency but with minimal detail for non-critical errors
                             st.error("Unable to retrieve matching titles for success factor")
                             matching_titles = []
-                        # Ensure criteria_value is hashable for SuccessFactor and for all downstream set/dict usage
                         try:
                             factor = SuccessFactor(
                                 criteria_type=criteria_type,
@@ -267,22 +236,20 @@ class RecommendationEngine:
                                 sample_size=sample_size,
                                 matching_titles=matching_titles
                             )
-                            # Debug: Log hashability
                             try:
                                 hash((criteria_type, criteria_value))
                             except Exception as hash_e:
                                 st.write(f"DEBUG: Unhashable SuccessFactor fields: {criteria_type} (type: {type(criteria_type)}), {criteria_value} (type: {type(criteria_value)}), error: {hash_e}")
                             success_factors.append(factor)
                         except Exception as factor_e:
-                            st.write(f"DEBUG: Error creating SuccessFactor for {criteria_type} (type: {type(criteria_type)}), {criteria_value} (type: {type(criteria_value)}): {factor_e}")
+                            st.write(f"DEBUG: Error creating SuccessFactor for {criteria_type} (type: {type(criteria_type)}), {criteria_value} (type: {type(criteria_value)}): {factor_e}\n{traceback.format_exc()}")
                             st.write(f"DEBUG: Impact data: {impact_data}")
                             continue
                         processed_count += 1
                     except Exception as e:
-                        # Use st.error for consistency but with minimal detail for non-critical errors
-                        st.error(f"Error processing success factor for {criteria_type}")
+                        st.write(f"DEBUG: Error in inner loop for {criteria_type}: {e}\n{traceback.format_exc()}")
+                        st.error("Unable to create success factor for criteria value")
                         continue
-            
             # No fallback success factors - we'll rely on the recommendation engine's
             # fallback recommendation generation instead of creating artificial success factors
             
@@ -843,9 +810,15 @@ class RecommendationEngine:
                     st.error(f"Network rate data for {criteria_type} is not a dict: {network_rate_data}")
                     continue
                 # Defensive: Only call .empty on DataFrames
-                if 'matching_shows' in network_rate_data and hasattr(network_rate_data['matching_shows'], 'empty'):
-                    if network_rate_data['matching_shows'].empty:
-                        continue
+                try:
+                    if 'matching_shows' in network_rate_data and hasattr(network_rate_data['matching_shows'], 'empty'):
+                        if network_rate_data['matching_shows'].empty:
+                            continue
+                except Exception as empty_e:
+                    import traceback
+                    st.write(f"DEBUG: Error checking .empty on network_rate_data['matching_shows'] (type: {type(network_rate_data.get('matching_shows', None))}): {empty_e}\n{traceback.format_exc()}")
+                    st.error("Critical error: 'empty' attribute access failed in network-specific recommendations.")
+                    continue
                 if not network_rate_data.get('has_data') or network_rate_data.get('rate') is None:
                     continue
                 network_rate = network_rate_data['rate']
