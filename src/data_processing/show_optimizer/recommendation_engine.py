@@ -172,7 +172,7 @@ class RecommendationEngine:
                     return []
             # Calculate criteria impact with debug
             try:
-                impact_data = self.criteria_scorer.calculate_criteria_impact(criteria)
+                impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
             except Exception as impact_e:
                 st.write(f"DEBUG: Exception in calculate_criteria_impact with criteria={criteria}: {impact_e}\n{traceback.format_exc()}")
                 st.error("Critical error during criteria impact calculation.")
