@@ -167,7 +167,7 @@ class ShowOptimizer:
                 
                 # Initialize analyzers first
                 self.shows_analyzer = ShowsAnalyzer()
-                self.success_analyzer = SuccessAnalyzer()
+                self.success_analyzer = SuccessAnalyzer(shows_analyzer=self.shows_analyzer)
                 
                 # Now fetch and integrate data
                 integrated_data = self.fetch_and_integrate_data(force_refresh)
