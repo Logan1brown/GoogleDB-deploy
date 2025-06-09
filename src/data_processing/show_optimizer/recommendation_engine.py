@@ -155,20 +155,21 @@ class RecommendationEngine:
             List of SuccessFactor objects
         """
         import traceback
-        try:
-            # Process input arguments
-            # If matching_shows not provided, get them
-            if matching_shows is None or (hasattr(matching_shows, 'empty') and matching_shows.empty):
-                try:
-                    matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
-                    if matching_shows.empty:
-                        st.write("Debug: No matching shows found for the given criteria")
-                        st.error("No shows match your criteria. Try adjusting your parameters.")
-                        return []
-                except Exception as inner_e:
-                    # Error retrieving matching shows
-                    st.error("Unable to analyze shows matching your criteria.")
+        # Process input arguments
+        # If matching_shows not provided, get them
+        if matching_shows is None or (hasattr(matching_shows, 'empty') and matching_shows.empty):
+            try:
+                matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
+                if matching_shows.empty:
+                    st.write("Debug: No matching shows found for the given criteria")
+                    st.error("No shows match your criteria. Try adjusting your parameters.")
                     return []
+            except Exception as inner_e:
+                # Error retrieving matching shows
+                st.error("Unable to analyze shows matching your criteria.")
+                return []
+                
+        try:
             # Calculate criteria impact
             try:
                 impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
@@ -214,8 +215,8 @@ class RecommendationEngine:
                         except Exception as conf_e:
                             st.write(f"Debug: Issue determining confidence from config: {str(conf_e)}")
                             confidence = self.config.DEFAULT_VALUES['confidence']
-                        if confidence == 'none' and sample_size > self.config.CONFIDENCE['minimum_sample']:
-                            st.write(f"Debug: Confidence is 'none' despite sample size {sample_size} for {criteria_type}:{value_id}")
+                        if confidence == 'none' and sample_size > self.config.CONFIDENCE['minimum_sample']:            
+                            pass
                         matching_titles = []
                         try:
                             # Convert tuple back to list for matching if needed
@@ -265,108 +266,6 @@ class RecommendationEngine:
             st.write(f"DEBUG: Input arguments were: criteria={criteria}, matching_shows type={type(matching_shows)}, integrated_data keys={list(integrated_data.keys()) if integrated_data else None}, limit={limit}")
             st.error("Critical error in identify_success_factors. See debug output above.")
             return []
-            # If matching_shows not provided, get them
-            if matching_shows is None or (hasattr(matching_shows, 'empty') and matching_shows.empty):
-                try:
-                    matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
-                    if matching_shows.empty:
-                        st.write("Debug: No matching shows found for the given criteria")
-                        st.error("No shows match your criteria. Try adjusting your parameters.")
-                        return []
-                except Exception as inner_e:
-                    st.write(f"Debug: Error retrieving matching shows: {str(inner_e)}")
-                    st.error("Unable to analyze shows matching your criteria.")
-                    return []
-            # Calculate criteria impact
-            impact_data = self.criteria_scorer.calculate_criteria_impact(criteria)
-            # Convert to SuccessFactor objects
-            success_factors = []
-            # Process each criteria type
-            for criteria_type, values in impact_data.items():
-                processed_count = 0
-                def make_hashable(val):
-                    if isinstance(val, dict):
-                        return str(val)
-                    if isinstance(val, list):
-                        return ','.join([make_hashable(v) for v in val])
-                    return val
-                hashable_values = {make_hashable(k): v for k, v in values.items()}
-                for value_id, impact_data in hashable_values.items():
-                    value_id_hashable = make_hashable(value_id)
-                    if processed_count >= 5:
-                        break
-                    try:
-                        if isinstance(impact_data, dict) and 'impact' in impact_data:
-                            impact = impact_data['impact']
-                            sample_size = impact_data.get('sample_size', None)
-                            if sample_size is None:
-                                sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
-                        else:
-                            st.write(f"Debug: Invalid impact data format for {criteria_type}:{value_id}")
-                            impact = self.config.DEFAULT_VALUES['impact_score']
-                            sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
-                        criteria_value = value_id_hashable
-                        if isinstance(value_id, (dict, list)):
-                            name = str(value_id)
-                        else:
-                            options = self.field_manager.get_options(criteria_type)
-                            name = str(value_id)
-                            for option in options:
-                                if option.id == value_id:
-                                    name = option.name
-                                    break
-                        try:
-                            if 'sample_size' not in locals() or sample_size is None:
-                                sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
-                            confidence = self.config.get_confidence_level(sample_size)
-                        except Exception as conf_e:
-                            st.write(f"Debug: Issue determining confidence from config: {str(conf_e)}")
-                            confidence = self.config.DEFAULT_VALUES['confidence']
-                        if confidence == 'none' and sample_size > self.config.CONFIDENCE['minimum_sample']:
-                            st.write(f"Debug: Confidence is 'none' despite sample size {sample_size} for {criteria_type}:{value_id}")
-                        matching_titles = []
-                        try:
-                            single_criteria = {criteria_type: criteria_value}
-                            single_matches, _ = self.criteria_scorer._get_matching_shows(single_criteria)
-                            if hasattr(single_matches, 'empty') and not single_matches.empty and 'title' in single_matches.columns:
-                                matching_titles = single_matches['title'].tolist()
-                                if len(matching_titles) > 100:
-                                    matching_titles = matching_titles[:100]
-                        except Exception as e:
-                            st.error("Unable to retrieve matching titles for success factor")
-                            matching_titles = []
-                        try:
-                            factor = SuccessFactor(
-                                criteria_type=criteria_type,
-                                criteria_value=criteria_value,
-                                criteria_name=name,
-                                impact_score=impact,
-                                confidence=confidence,
-                                sample_size=sample_size,
-                                matching_titles=matching_titles
-                            )
-                            try:
-                                hash((criteria_type, criteria_value))
-                            except Exception as hash_e:
-                                st.write(f"DEBUG: Unhashable SuccessFactor fields: {criteria_type} (type: {type(criteria_type)}), {criteria_value} (type: {type(criteria_value)}), error: {hash_e}")
-                            success_factors.append(factor)
-                        except Exception as factor_e:
-                            st.write(f"DEBUG: Error creating SuccessFactor for {criteria_type} (type: {type(criteria_type)}), {criteria_value} (type: {type(criteria_value)}): {factor_e}\n{traceback.format_exc()}")
-                            st.write(f"DEBUG: Impact data: {impact_data}")
-                            continue
-                        processed_count += 1
-                    except Exception as e:
-                        st.write(f"DEBUG: Error in inner loop for {criteria_type}: {e}\n{traceback.format_exc()}")
-                        st.error("Unable to create success factor for criteria value")
-                        continue
-            # No fallback success factors - we'll rely on the recommendation engine's
-            # fallback recommendation generation instead of creating artificial success factors
-            
-            # Sort by absolute impact (both positive and negative factors are important)
-            success_factors.sort(key=lambda x: abs(x.impact_score), reverse=True)
-            
-            # Return top factors
-            return success_factors[:limit]
             
         except Exception as e:
             st.error(f"Error identifying success factors: {str(e)}")

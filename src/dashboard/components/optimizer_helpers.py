@@ -348,13 +348,15 @@ def render_success_metrics(summary: Any):
         st.write(f"Debug: Error rendering success metrics: {str(e)}")
         st.error("Unable to display success metrics due to an error.")
         # Render empty cards as fallback
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             render_metric_card("Success Probability", "N/A", "Error in data")
         with col2:
             render_metric_card("Audience Appeal", "N/A", "Error in data")
         with col3:
             render_metric_card("Critical Reception", "N/A", "Error in data")
+        with col4:
+            render_metric_card("Longevity", "N/A", "Error in data")
 
 
 def render_success_factors(success_factors: List):
