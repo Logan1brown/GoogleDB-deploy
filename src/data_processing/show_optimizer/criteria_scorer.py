@@ -114,7 +114,7 @@ class CriteriaScorer:
             return None, confidence_info
         
         # Extract success rate and metadata from component score
-        success_rate = component_score.value
+        success_rate = component_score.score
         
         # Update confidence information
         if confidence_info is None:
@@ -162,7 +162,7 @@ class CriteriaScorer:
                     results.append(None)
                 else:
                     # Extract just the success rate value
-                    results.append(component_score.value)
+                    results.append(component_score.score)
                     
             except Exception as e:
                 st.error(f"Error calculating success rate for criteria {criteria}: {str(e)}")

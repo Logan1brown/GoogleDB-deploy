@@ -255,9 +255,14 @@ class RecommendationEngine:
                             # Use st.error for consistency but with minimal detail for non-critical errors
                             st.error("Unable to retrieve matching titles for success factor")
                             matching_titles = []
+                        # Ensure criteria_value is hashable for SuccessFactor
+                        hashable_criteria_value = (
+                            str(criteria_value)
+                            if isinstance(criteria_value, (dict, list)) else criteria_value
+                        )
                         factor = SuccessFactor(
                             criteria_type=criteria_type,
-                            criteria_value=criteria_value,
+                            criteria_value=hashable_criteria_value,
                             criteria_name=name,
                             impact_score=impact,
                             confidence=confidence,
@@ -805,7 +810,7 @@ class RecommendationEngine:
             recommendations = []
             
             # Get network-specific success rates for each criteria using integrated data
-            network_rates = self.criteria_scorer.get_network_specific_success_rates(criteria, network.network_id, integrated_data=integrated_data)
+            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(criteria, network.network_id, integrated_data=integrated_data)
             
             # Get overall success rates for each criteria
             overall_rates = {}
