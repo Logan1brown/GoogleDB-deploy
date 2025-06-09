@@ -121,7 +121,7 @@ class CriteriaScorer:
             confidence_info = {}
         
         # Merge metadata from component score into confidence info
-        for key, value in component_score.metadata.items():
+        for key, value in component_score.details.items():
             confidence_info[key] = value
         
         return success_rate, confidence_info
