@@ -209,7 +209,7 @@ class OptimizerConfig:
         
         # Weighted relevance scoring
         'relevance': {
-            'min_relevance_score': 0.5,  # Minimum relevance score for inclusion in results
+            'min_relevance_score': 0.3,  # Minimum relevance score for inclusion in results (lowered to allow more relaxed matches)
             'high_relevance_threshold': 0.8,  # Threshold for high relevance
             'weight_multipliers': {  # Multipliers for importance categories in relevance scoring
                 'essential': 1.0,  # Essential criteria always fully weighted

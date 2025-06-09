@@ -56,15 +56,15 @@ class RecommendationEngine:
         try:
             # Validate required dependencies
             if shows_analyzer is None:
-                st.write("Debug: shows_analyzer dependency missing")
+                # Debug output removed: shows_analyzer dependency missing
                 st.error("Required component missing. Please ensure your application is properly configured.")
                 raise ValueError("shows_analyzer cannot be None")
             if success_analyzer is None:
-                st.write("Debug: success_analyzer dependency missing")
+                # Debug output removed: success_analyzer dependency missing
                 st.error("Required component missing. Please ensure your application is properly configured.")
                 raise ValueError("success_analyzer cannot be None")
             if field_manager is None:
-                st.write("Debug: field_manager dependency missing")
+                # Debug output removed: field_manager dependency missing
                 st.error("Required component missing. Please ensure your application is properly configured.")
                 raise ValueError("field_manager cannot be None")
                 
@@ -79,10 +79,10 @@ class RecommendationEngine:
                 self.criteria_scorer = success_analyzer.criteria_scorer
                 
             if self.criteria_scorer is None:
-                st.write("Debug: No criteria_scorer available for RecommendationEngine")
+                # Debug output removed: No criteria_scorer available
                 st.error("Some recommendation features may be limited due to missing components.")
         except Exception as e:
-            st.write(f"Debug: Error initializing RecommendationEngine: {str(e)}")
+            # Debug output removed: Error initializing RecommendationEngine
             st.error("Error initializing recommendation system. Some features may be unavailable.")
             raise
     
@@ -114,7 +114,7 @@ class RecommendationEngine:
                     return None, 'none'
             except Exception as inner_e:
                 # Log the error but don't stop execution
-                st.write(f"Debug: Issue retrieving matching shows: {str(inner_e)}")
+                # Debug output removed: Issue retrieving matching shows
                 return None, 'none'
             
             # Calculate success rate
@@ -122,7 +122,7 @@ class RecommendationEngine:
                 success_rate = self.criteria_scorer._calculate_success_rate(matching_shows)
             except Exception as calc_e:
                 # If success rate calculation fails, return None but don't stop execution
-                st.write(f"Debug: Issue calculating success rate: {str(calc_e)}")
+                # Debug output removed: Issue calculating success rate
                 return None, 'none'
             
             # Calculate confidence
@@ -130,13 +130,13 @@ class RecommendationEngine:
                 confidence = self.config.get_confidence_level(match_count)
             except Exception as conf_e:
                 # If confidence calculation fails, log it and continue with none confidence
-                st.write(f"Debug: Issue calculating confidence level: {str(conf_e)}")
+                # Debug output removed: Issue calculating confidence level
                 confidence = 'none'
             
             return success_rate, confidence
         except Exception as e:
             # Log the error but don't stop execution
-            st.write(f"Debug: Issue in overall success rate calculation: {str(e)}")
+            # Debug output removed: Issue in overall success rate calculation
             return None, 'none'
     
     def identify_success_factors(self, criteria: Dict[str, Any], 
@@ -161,7 +161,7 @@ class RecommendationEngine:
             try:
                 matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
                 if matching_shows.empty:
-                    st.write("Debug: No matching shows found for the given criteria")
+                    # Debug output removed: No matching shows found
                     st.error("No shows match your criteria. Try adjusting your parameters.")
                     return []
             except Exception as inner_e:
@@ -194,7 +194,7 @@ class RecommendationEngine:
                             if sample_size is None:
                                 sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                         else:
-                            st.write(f"Debug: Invalid impact data format for {criteria_type}:{value_id}")
+                            # Debug output removed: Invalid impact data format
                             impact = self.config.DEFAULT_VALUES['impact_score']
                             sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                             # Convert list to tuple for hashability if needed
@@ -213,7 +213,7 @@ class RecommendationEngine:
                                 sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                             confidence = self.config.get_confidence_level(sample_size)
                         except Exception as conf_e:
-                            st.write(f"Debug: Issue determining confidence from config: {str(conf_e)}")
+                            # Debug output removed: Issue determining confidence
                             confidence = self.config.DEFAULT_VALUES['confidence']
                         if confidence == 'none' and sample_size > self.config.CONFIDENCE['minimum_sample']:            
                             pass
@@ -248,23 +248,24 @@ class RecommendationEngine:
                             try:
                                 hash((criteria_type, criteria_value))
                             except Exception as hash_e:
-                                st.write(f"DEBUG: Unhashable SuccessFactor fields: {criteria_type} (type: {type(criteria_type)}), {criteria_value} (type: {type(criteria_value)}), error: {hash_e}")
+                                # Debug output removed: Unhashable SuccessFactor fields
+                                pass
                             success_factors.append(factor)
                         except Exception as factor_e:
-                            st.write(f"DEBUG: Error creating SuccessFactor for {criteria_type} (type: {type(criteria_type)}), {criteria_value} (type: {type(criteria_value)}): {factor_e}\n{traceback.format_exc()}")
-                            st.write(f"DEBUG: Impact data: {impact_data}")
+                            # Debug output removed: Error creating SuccessFactor
+                            # Debug output removed: Impact data
                             continue
                         processed_count += 1
                     except Exception as e:
-                        st.write(f"DEBUG: Error in inner loop for {criteria_type}: {e}\n{traceback.format_exc()}")
+                        # Debug output removed: Error in inner loop
                         st.error("Unable to create success factor for criteria value")
                         continue
             return success_factors
         except Exception as main_e:
             import traceback
-            st.write(f"DEBUG: Exception at top level of identify_success_factors: {main_e}\n{traceback.format_exc()}")
-            st.write(f"DEBUG: Input arguments were: criteria={criteria}, matching_shows type={type(matching_shows)}, integrated_data keys={list(integrated_data.keys()) if integrated_data else None}, limit={limit}")
-            st.error("Critical error in identify_success_factors. See debug output above.")
+            # Debug output removed: Exception at top level
+            # Debug output removed: Input arguments
+            st.error("Critical error in identify_success_factors.")
             return []
             
         except Exception as e:

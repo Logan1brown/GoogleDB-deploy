@@ -109,13 +109,13 @@ class Matcher:
                 
                 # Skip if we have no criteria at this level
                 if not level_criteria:
-                    st.write(f"No criteria for match level {level}, skipping")
+                    # Debug output removed: No criteria for match level
                     continue
                 
                 # Match shows using the level-specific criteria
                 matched_shows, match_count = self._match_shows(level_criteria, data)
                 level_name = OptimizerConfig.MATCH_LEVELS[level]['name']
-                st.write(f"Match level {level} ({level_name}) found {match_count} shows")
+                # Debug output removed: Match level found shows
                 
                 # Store these matches with their level
                 if not matched_shows.empty:
@@ -184,7 +184,7 @@ class Matcher:
         if match_count >= min_matches and confidence_levels.index(confidence_level) >= confidence_levels.index(min_confidence):
             return matched_shows, confidence_info
             
-        st.write(f"Insufficient matches ({match_count}) or confidence ({confidence_level}), trying fallback strategies...")
+        # Debug output removed: Insufficient matches, trying fallback
         
         # Get relaxation tiers from config
         relaxation_tiers = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['relaxation_tiers']
@@ -195,14 +195,14 @@ class Matcher:
         
         # Try each relaxation tier in order
         for relaxation_tier in relaxation_tiers:
-            st.write(f"Trying relaxation tier: {relaxation_tier}")
+            # Debug output removed: Trying relaxation tier
             
             # Get sets of relaxed criteria for this tier
             relaxed_criteria_sets = self._get_relaxed_criteria(criteria, relaxation_tier)
             
             # If no relaxable criteria in this tier, continue to next tier
             if not relaxed_criteria_sets:
-                st.write(f"No relaxable criteria in tier: {relaxation_tier}")
+                # Debug output removed: No relaxable criteria in tier
                 continue
                 
             # Try each relaxed criteria set
@@ -211,7 +211,7 @@ class Matcher:
                 relaxed_type = relaxed_set['relaxed_type']
                 relaxed_name = relaxed_set['relaxed_name']
                 
-                st.write(f"Trying relaxed criteria by removing: {relaxed_name}")
+                # Debug output removed: Trying relaxed criteria
                 
                 # Get matching shows with relaxed criteria
                 relaxed_matches, relaxed_confidence = self.find_matches(relaxed_criteria, data, min_sample_size)
@@ -219,7 +219,7 @@ class Matcher:
                 
                 # Check if relaxation improved the situation significantly
                 if relaxed_count >= match_count * OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_sample_increase_factor']:
-                    st.write(f"Relaxing '{relaxed_name}' increased matches from {match_count} to {relaxed_count}")
+                    # Debug output removed: Relaxing criteria increased matches
                     
                     # Calculate relevance scores for the new matches
                     relevance_scores = []
@@ -255,24 +255,25 @@ class Matcher:
                                 'avg_relevance': avg_relevance
                             }
                             
-                            st.write(f"Found {best_fallback_count} relevant matches with average relevance {avg_relevance:.2f}")
+                            # Debug output removed: Found relevant matches with average relevance
                             
                             # If we found a very good fallback, stop searching
                             if best_fallback_count >= min_sample_size * 2 and avg_relevance >= 0.8:
-                                st.write("Found excellent fallback matches, stopping search")
+                                # Debug output removed: Found excellent fallback matches
                                 break
                 
             # If we found good fallback matches in this tier, no need to try more tiers
             if best_fallback_count >= min_sample_size:
-                st.write(f"Found sufficient fallback matches in tier {relaxation_tier}, stopping search")
+                # Debug output removed: Found sufficient fallback matches
                 break
                 
-        # Return the best fallback matches if we found any, otherwise return original matches
-        if not best_fallback_matches.empty and best_fallback_count > match_count:
-            st.write(f"Using fallback matches: {best_fallback_count} shows with relevance {best_fallback_relevance:.2f}")
+        # Return the best fallback matches if we found any and they meet minimum requirements
+        min_required = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_matches_before_fallback']
+        if not best_fallback_matches.empty and best_fallback_count >= min_required:
+            # Debug output removed: Using fallback matches
             return best_fallback_matches, best_fallback_confidence
         else:
-            st.write("No better fallback matches found, using original matches")
+            # Debug output removed: No better fallback matches found
             return matched_shows, confidence_info
     
     def find_network_matches(self, criteria: Dict[str, Any], data: pd.DataFrame = None, matching_shows: pd.DataFrame = None) -> List[Dict[str, Any]]:
@@ -299,8 +300,8 @@ class Matcher:
             
         # If matching_shows is provided, use it to filter the data
         if matching_shows is not None and not matching_shows.empty:
-            st.write(f"Using pre-filtered set of {len(matching_shows)} matching shows for network analysis")
-            # We'll use matching_shows to filter network-specific matches later
+            # Debug output removed: Using pre-filtered set of matching shows
+            pass  # We'll use matching_shows to filter network-specific matches later
         
         # Extract all unique networks from the data
         try:
@@ -635,7 +636,7 @@ class Matcher:
                         
                     # If not all shows match this criterion, downgrade the match level
                     if not all_match:
-                        st.write(f"Not all shows match array criterion '{field_name}', downgrading match level")
+                        # Debug output removed: Not all shows match array criterion
                         actual_match_level = 2  # Downgrade to level 2
                         break
                 else:  # Handle scalar fields
@@ -650,7 +651,7 @@ class Matcher:
                             
                     # Check if all shows match this scalar criterion
                     if not (shows[field_id] == value).all():
-                        st.write(f"Not all shows match scalar criterion '{field_name}', downgrading match level")
+                        # Debug output removed: Not all shows match scalar criterion
                         actual_match_level = 2  # Downgrade to level 2
                         break
         
