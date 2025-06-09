@@ -343,7 +343,7 @@ class CriteriaScorer:
             
             # Calculate match count
             match_count = len(matching_shows)
-            st.write(f"Calculating scores using {match_count} matched shows")
+            # Debug output removed: Calculating scores using matched shows
             
             # Using general minimum_sample from OptimizerConfig
             if match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
@@ -359,14 +359,16 @@ class CriteriaScorer:
                 original_match_level = confidence_info.get('original_match_level', actual_match_level)
                 
                 if actual_match_level != original_match_level:
-                    st.write(f"Note: Match level was adjusted from {original_match_level} to {actual_match_level} based on criteria validation")
+                    # Debug output removed: Match level adjustment note
+                    pass
                     
                 # If we have array fields like character_types in our criteria, make sure they're properly matched
                 # This helps ensure component scores are calculated based on shows that actually match the criteria
                 array_fields = [field for field, value in criteria.items() if isinstance(value, list) and value]
                 if array_fields and actual_match_level > 1:
-                    st.write(f"Note: Some array criteria like {', '.join(array_fields)} may be relaxed in match level {actual_match_level}")
-                
+                    # Debug output removed: Array criteria relaxation note
+                    pass
+            
             # Each individual calculator will validate its required columns
             # using the validate_and_prepare_data helper method
 
