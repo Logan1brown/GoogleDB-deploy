@@ -156,8 +156,7 @@ class RecommendationEngine:
         """
         import traceback
         try:
-            # Defensive: print all input arguments at the top
-            st.write(f"DEBUG: identify_success_factors called with criteria={criteria}, matching_shows type={type(matching_shows)}, integrated_data keys={list(integrated_data.keys()) if integrated_data else None}, limit={limit}")
+            # Process input arguments
             # If matching_shows not provided, get them
             if matching_shows is None or (hasattr(matching_shows, 'empty') and matching_shows.empty):
                 try:
@@ -167,14 +166,14 @@ class RecommendationEngine:
                         st.error("No shows match your criteria. Try adjusting your parameters.")
                         return []
                 except Exception as inner_e:
-                    st.write(f"Debug: Error retrieving matching shows: {str(inner_e)}\n{traceback.format_exc()}")
+                    # Error retrieving matching shows
                     st.error("Unable to analyze shows matching your criteria.")
                     return []
-            # Calculate criteria impact with debug
+            # Calculate criteria impact
             try:
                 impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
             except Exception as impact_e:
-                st.write(f"DEBUG: Exception in calculate_criteria_impact with criteria={criteria}: {impact_e}\n{traceback.format_exc()}")
+                # Exception in calculate_criteria_impact
                 st.error("Critical error during criteria impact calculation.")
                 return []
             # Convert to SuccessFactor objects

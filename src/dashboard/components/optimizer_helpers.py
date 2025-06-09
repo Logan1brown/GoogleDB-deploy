@@ -244,7 +244,7 @@ def render_success_metrics(summary: Any):
         # Get config for consistent display
         config = OptimizerConfig()
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             # Check for overall_success_probability attribute
@@ -319,6 +319,30 @@ def render_success_metrics(summary: Any):
             except Exception as e:
                 st.write(f"Debug: Error rendering critics score: {str(e)}")
                 render_metric_card("Critical Reception", "N/A", "Error in data")
+        
+        # Longevity score
+        with col4:
+            try:
+                if hasattr(summary, 'component_scores') and summary.component_scores:
+                    longevity_score = summary.component_scores.get("longevity", None)
+                    if longevity_score and hasattr(longevity_score, 'score'):
+                        score = longevity_score.score
+                        if score is not None:
+                            sample_size = getattr(longevity_score, 'sample_size', 'N/A')
+                            render_metric_card(
+                                "Longevity", 
+                                f"{score:.0%}", 
+                                f"Sample: {sample_size}"
+                            )
+                        else:
+                            render_metric_card("Longevity", "N/A", "Data unavailable")
+                    else:
+                        render_metric_card("Longevity", "N/A", "Data unavailable")
+                else:
+                    render_metric_card("Longevity", "N/A", "Data unavailable")
+            except Exception as e:
+                st.write(f"Debug: Error rendering longevity score: {str(e)}")
+                render_metric_card("Longevity", "N/A", "Error in data")
     
     except Exception as e:
         st.write(f"Debug: Error rendering success metrics: {str(e)}")

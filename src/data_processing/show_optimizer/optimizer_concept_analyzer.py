@@ -344,7 +344,7 @@ class ConceptAnalyzer:
             # Log the match results
             match_count = len(matching_shows) if not matching_shows.empty else 0
             st.write(f"Found {match_count} matching shows with confidence level '{confidence_info.get('confidence_level', 'unknown')}'")
-            st.write(f"DEBUG: Columns in matching_shows: {matching_shows.columns.tolist()}") 
+            # Check columns in matching_shows
             
             # Cache the results if we have a cache manager
             if self.optimizer_cache is not None:
@@ -375,7 +375,7 @@ class ConceptAnalyzer:
             Tuple of (success_probability, confidence_level)
         """
         try:
-            st.write("Calculating success probability...")
+            # Calculate success probability
             
             # If no matching shows, return None
             if matching_shows.empty:
@@ -408,7 +408,7 @@ class ConceptAnalyzer:
                 if 'confidence' in confidence_info:
                     confidence_level = confidence_info['confidence']
                 
-                st.write(f"Success probability: {success_rate:.2f} (confidence: {confidence_level})")
+                # Success probability calculated successfully
                 return success_rate, confidence_level
             
             st.warning("Could not calculate success probability: missing success scores")
@@ -506,7 +506,7 @@ class ConceptAnalyzer:
             )
             
             if component_scores:
-                st.write(f"Analyzed scores for {len(component_scores)} components")
+                # Component scores analyzed successfully
                 return component_scores
             else:
                 st.warning("No component scores could be calculated")

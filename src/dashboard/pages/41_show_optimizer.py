@@ -138,29 +138,9 @@ def show():
                     # Use our improved helper function to render success metrics
                     render_success_metrics(summary)
                     
-                    # Add longevity score if available (not included in the helper function)
-                    if hasattr(summary, 'component_scores') and summary.component_scores and "longevity" in summary.component_scores:
-                        longevity_score = summary.component_scores["longevity"]
-                        if hasattr(longevity_score, 'score'):
-                            st.subheader("Longevity Analysis")
-                            col1, col2, col3 = st.columns([1, 2, 1])
-                            with col2:
-                                if longevity_score.score is not None:
-                                    st.metric("Longevity Score", f"{longevity_score.score:.0%}")
-                                    if hasattr(longevity_score, 'sample_size'):
-                                        st.caption(f"Sample size: {longevity_score.sample_size} shows")
-                                    if hasattr(longevity_score, 'confidence'):
-                                        config = OptimizerConfig()
-                                        confidence_display = config.CONFIDENCE_DISPLAY.get(
-                                            longevity_score.confidence, 
-                                            longevity_score.confidence.capitalize()
-                                        )
-                                        st.caption(f"Confidence: {confidence_display}")
-                                else:
-                                    st.metric("Longevity Score", "N/A")
-                                    st.caption("Insufficient data")
-                        else:
-                            st.info("Longevity score data not available.")
+                    # Longevity score is now displayed in the main metrics section
+                    
+                    # Display network recommendations if available
                     
                     # Display matching show titles
                     st.subheader("Matching Shows")
