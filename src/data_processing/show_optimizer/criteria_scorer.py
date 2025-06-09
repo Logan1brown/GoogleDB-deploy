@@ -435,6 +435,31 @@ class CriteriaScorer:
         """
         return self.field_manager.calculate_confidence(criteria)
         
+    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
+        """Get shows matching the given criteria.
+        
+        This method delegates to the matcher's find_matches method.
+        
+        Args:
+            criteria: Dictionary of criteria to match against
+            data: Optional DataFrame of shows to match against (uses matcher's cached data if None)
+            
+        Returns:
+            Tuple of (matching_shows, match_count, confidence_info)
+        """
+        if self.matcher is None:
+            st.error("No matcher available in CriteriaScorer. Cannot get matching shows.")
+            return pd.DataFrame(), 0, {'level': 'none', 'score': 0.0, 'error': 'No matcher available'}
+            
+        try:
+            # Delegate to the matcher's find_matches method
+            matching_shows, confidence_info = self.matcher.find_matches(criteria, data)
+            match_count = len(matching_shows) if not matching_shows.empty else 0
+            return matching_shows, match_count, confidence_info
+        except Exception as e:
+            st.error(f"Error getting matching shows: {str(e)}")
+            return pd.DataFrame(), 0, {'level': 'none', 'score': 0.0, 'error': str(e)}
+    
     def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, integrated_data: Dict[str, pd.DataFrame]) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         

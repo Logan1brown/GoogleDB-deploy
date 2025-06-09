@@ -224,14 +224,16 @@ class RecommendationEngine:
                                 match_value = list(criteria_value)
                             else:
                                 match_value = criteria_value
+                            
                             single_criteria = {criteria_type: match_value}
-                            single_matches, _ = self.criteria_scorer._get_matching_shows(single_criteria)
-                            if hasattr(single_matches, 'empty') and not single_matches.empty and 'title' in single_matches.columns:
+                            single_matches, _, _ = self.criteria_scorer._get_matching_shows(single_criteria)
+                            
+                            if isinstance(single_matches, pd.DataFrame) and not single_matches.empty and 'title' in single_matches.columns:
                                 matching_titles = single_matches['title'].tolist()
                                 if len(matching_titles) > 100:
                                     matching_titles = matching_titles[:100]
                         except Exception as e:
-                            st.error("Unable to retrieve matching titles for success factor")
+                            st.error(f"Unable to retrieve matching titles for success factor: {criteria_type}={criteria_value}")
                             matching_titles = []
                         try:
                             factor = SuccessFactor(
@@ -917,24 +919,37 @@ class RecommendationEngine:
                 if not isinstance(network_rate_data, dict):
                     st.error(f"Network rate data for {criteria_type} is not a dict: {network_rate_data}")
                     continue
-                # Defensive: Check if matching_shows exists and is a DataFrame before checking empty
+                # Check if we have valid matching shows data before proceeding
                 try:
+                    # Get the matching_shows data safely
                     matching_shows_data = network_rate_data.get('matching_shows')
-                    # Skip if matching_shows is None or not a DataFrame
+                    
+                    # Skip if no matching shows data
                     if matching_shows_data is None:
                         continue
-                    # If it's a DataFrame, check if it's empty
-                    if hasattr(matching_shows_data, 'empty'):
-                        if matching_shows_data.empty:
-                            continue
-                    # If it's a dict, check if it's empty using len
+                        
+                    # Handle different types of matching_shows data
+                    is_empty = False
+                    
+                    if isinstance(matching_shows_data, pd.DataFrame):
+                        # For DataFrames, use the empty attribute
+                        is_empty = matching_shows_data.empty
                     elif isinstance(matching_shows_data, dict):
-                        if len(matching_shows_data) == 0:
-                            continue
-                except Exception as empty_e:
-                    import traceback
-                    st.write(f"DEBUG: Error checking matching_shows data (type: {type(network_rate_data.get('matching_shows', None))}): {empty_e}\n{traceback.format_exc()}")
-                    st.error("Critical error: Type checking failed in network-specific recommendations.")
+                        # For dictionaries, check if length is zero
+                        is_empty = len(matching_shows_data) == 0
+                    elif isinstance(matching_shows_data, list):
+                        # For lists, check if length is zero
+                        is_empty = len(matching_shows_data) == 0
+                    else:
+                        # For other types, assume it's empty (safer approach)
+                        st.warning(f"Unexpected type for matching_shows: {type(matching_shows_data)}")
+                        is_empty = True
+                        
+                    if is_empty:
+                        continue
+                        
+                except Exception as e:
+                    st.error(f"Error checking matching shows data: {str(e)}")
                     continue
                 if not network_rate_data.get('has_data') or network_rate_data.get('rate') is None:
                     continue
