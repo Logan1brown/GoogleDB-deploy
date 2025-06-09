@@ -181,15 +181,10 @@ class RecommendationEngine:
             success_factors = []
             for criteria_type, values in impact_data.items():
                 processed_count = 0
-                def make_hashable(val):
-                    if isinstance(val, dict):
-                        return str(val)
-                    if isinstance(val, list):
-                        return ','.join([make_hashable(v) for v in val])
-                    return val
-                hashable_values = {make_hashable(k): v for k, v in values.items()}
-                for value_id, impact_data in hashable_values.items():
-                    value_id_hashable = make_hashable(value_id)
+                # Process values directly with proper type handling
+                for value_id, impact_data in values.items():
+                    # Use the original value_id for matching
+                    value_id_hashable = value_id
                     if processed_count >= 5:
                         break
                     try:
@@ -202,7 +197,8 @@ class RecommendationEngine:
                             st.write(f"Debug: Invalid impact data format for {criteria_type}:{value_id}")
                             impact = self.config.DEFAULT_VALUES['impact_score']
                             sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
-                        criteria_value = value_id_hashable
+                            # Convert list to tuple for hashability if needed
+                        criteria_value = tuple(value_id) if isinstance(value_id, list) else value_id
                         if isinstance(value_id, (dict, list)):
                             name = str(value_id)
                         else:
@@ -223,7 +219,12 @@ class RecommendationEngine:
                             st.write(f"Debug: Confidence is 'none' despite sample size {sample_size} for {criteria_type}:{value_id}")
                         matching_titles = []
                         try:
-                            single_criteria = {criteria_type: criteria_value}
+                            # Convert tuple back to list for matching if needed
+                            if isinstance(criteria_value, tuple):
+                                match_value = list(criteria_value)
+                            else:
+                                match_value = criteria_value
+                            single_criteria = {criteria_type: match_value}
                             single_matches, _ = self.criteria_scorer._get_matching_shows(single_criteria)
                             if hasattr(single_matches, 'empty') and not single_matches.empty and 'title' in single_matches.columns:
                                 matching_titles = single_matches['title'].tolist()
@@ -916,15 +917,24 @@ class RecommendationEngine:
                 if not isinstance(network_rate_data, dict):
                     st.error(f"Network rate data for {criteria_type} is not a dict: {network_rate_data}")
                     continue
-                # Defensive: Only call .empty on DataFrames
+                # Defensive: Check if matching_shows exists and is a DataFrame before checking empty
                 try:
-                    if 'matching_shows' in network_rate_data and hasattr(network_rate_data['matching_shows'], 'empty'):
-                        if network_rate_data['matching_shows'].empty:
+                    matching_shows_data = network_rate_data.get('matching_shows')
+                    # Skip if matching_shows is None or not a DataFrame
+                    if matching_shows_data is None:
+                        continue
+                    # If it's a DataFrame, check if it's empty
+                    if hasattr(matching_shows_data, 'empty'):
+                        if matching_shows_data.empty:
+                            continue
+                    # If it's a dict, check if it's empty using len
+                    elif isinstance(matching_shows_data, dict):
+                        if len(matching_shows_data) == 0:
                             continue
                 except Exception as empty_e:
                     import traceback
-                    st.write(f"DEBUG: Error checking .empty on network_rate_data['matching_shows'] (type: {type(network_rate_data.get('matching_shows', None))}): {empty_e}\n{traceback.format_exc()}")
-                    st.error("Critical error: 'empty' attribute access failed in network-specific recommendations.")
+                    st.write(f"DEBUG: Error checking matching_shows data (type: {type(network_rate_data.get('matching_shows', None))}): {empty_e}\n{traceback.format_exc()}")
+                    st.error("Critical error: Type checking failed in network-specific recommendations.")
                     continue
                 if not network_rate_data.get('has_data') or network_rate_data.get('rate') is None:
                     continue
