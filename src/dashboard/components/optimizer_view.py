@@ -97,6 +97,7 @@ class OptimizerView:
             st.error(f"Error initializing Show Optimizer: {str(e)}")
             return False
     
+
     def run_analysis(self, state, criteria=None):
         """Run analysis on the provided criteria and update state with results.
         

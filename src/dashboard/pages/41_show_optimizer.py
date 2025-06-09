@@ -105,7 +105,7 @@ def show():
             # Run the analysis with the updated criteria
             # Always run the analysis, even if criteria is empty
             # This ensures the UI updates when criteria are deselected
-            optimizer_view._run_analysis(state)
+            optimizer_view.run_analysis(state)
         
         # Render criteria sections using helper functions
         render_content_criteria(state, update_criteria_and_analyze)
@@ -118,7 +118,7 @@ def show():
         
         # Run analysis automatically when criteria changes
         # Always run the analysis, even if criteria is empty
-        optimizer_view._run_analysis(state)
+        optimizer_view.run_analysis(state)
     
     # If we have results, render tabs in the second column
     with col2:
