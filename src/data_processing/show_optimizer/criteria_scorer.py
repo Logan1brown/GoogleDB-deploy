@@ -173,7 +173,6 @@ class CriteriaScorer:
                 
         return results
     
-    @lru_cache(maxsize=32)
     def calculate_criteria_impact(self, base_criteria: Dict[str, Any], base_matching_shows: pd.DataFrame, option_matching_shows_map: Optional[Dict[str, Dict[int, pd.DataFrame]]] = None, field_name: Optional[str] = None) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
         Calculate the impact of criteria values on success rate.
