@@ -140,8 +140,19 @@ class Matcher:
             st.error("No matches found at any level")
             return pd.DataFrame(), self._empty_confidence_info()
         
-        # Use the best level we found
-        result_shows = all_matches_by_level[best_level]
+        # Combine shows from all match levels, starting with best match level
+        result_shows = pd.DataFrame()
+        for level in sorted(all_matches_by_level.keys()):
+            if level in all_matches_by_level:
+                if result_shows.empty:
+                    result_shows = all_matches_by_level[level]
+                else:
+                    # Only add shows that aren't already included (avoid duplicates)
+                    existing_titles = set(result_shows['title']) if 'title' in result_shows.columns else set()
+                    new_shows = all_matches_by_level[level]
+                    if 'title' in new_shows.columns:
+                        new_shows = new_shows[~new_shows['title'].isin(existing_titles)]
+                    result_shows = pd.concat([result_shows, new_shows], ignore_index=True)
         
         # Add match level counts to confidence info
         confidence_info['match_counts'] = match_counts
@@ -151,14 +162,15 @@ class Matcher:
         return result_shows, confidence_info
         
     def find_matches_with_fallback(self, criteria: Dict[str, Any], data: pd.DataFrame = None,
-                                min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+                             min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Enhanced version of find_matches that incorporates sophisticated fallback logic.
         
-        This method first tries the standard matching approach and then applies additional
-        fallback strategies if the results are insufficient. The fallback logic includes:
-        1. Relaxing secondary criteria
-        2. Relaxing primary criteria if needed
-        3. Relaxing core criteria as a last resort
+        This method first tries exact matching (level 1) and then progressively relaxes
+        criteria through match levels 2-4 until we have enough matches. The process:
+        1. Start with exact matches (level 1)
+        2. If insufficient, add close matches (level 2)
+        3. If still insufficient, add partial matches (level 3)
+        4. If still insufficient, add loose matches (level 4)
         
         Args:
             criteria: Dictionary of criteria to match against
@@ -166,125 +178,87 @@ class Matcher:
             min_sample_size: Minimum number of matches required
             
         Returns:
-            Tuple of (matching_shows, match_info) with enhanced fallback matches if needed
+            Tuple of (matching_shows, match_info) with combined matches from all levels needed
         """
-        # First try standard matching
-        matched_shows, confidence_info = self.find_matches(criteria, data, min_sample_size)
-        match_count = len(matched_shows)
+        # Use default min_sample_size if not provided
+        if min_sample_size is None:
+            min_sample_size = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_matches_before_fallback']
         
-        # Check if fallback is needed based on match count and confidence
-        min_matches = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_matches_before_fallback']
-        min_confidence = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_confidence_before_fallback']
-        confidence_level = confidence_info.get('confidence_level', 'none')
+        # Ensure we respect the MAX_RESULTS configuration
+        target_sample_size = min(min_sample_size, OptimizerConfig.MAX_RESULTS)
         
-        # Define confidence level hierarchy for comparison
-        confidence_levels = ['none', 'very_low', 'low', 'medium', 'high']
+        # Get data if not provided
+        data = self._get_data(data)
+        if data.empty:
+            return pd.DataFrame(), self._empty_confidence_info()
         
-        # If we have enough matches and confidence is high enough, no fallback needed
-        if match_count >= min_matches and confidence_levels.index(confidence_level) >= confidence_levels.index(min_confidence):
-            return matched_shows, confidence_info
-            
-        # Debug output removed: Insufficient matches, trying fallback
+        # Start with an empty result set
+        all_matches = pd.DataFrame()
+        all_match_counts = {}
+        best_confidence_info = {}
+        unique_titles = set()
         
-        # Get relaxation tiers from config
-        relaxation_tiers = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['relaxation_tiers']
-        best_fallback_matches = pd.DataFrame()
-        best_fallback_count = 0
-        best_fallback_confidence = {}
-        best_fallback_relevance = 0
-        
-        # Try each relaxation tier in order
-        for relaxation_tier in relaxation_tiers:
-            # Debug output removed: Trying relaxation tier
-            
-            # Get sets of relaxed criteria for this tier
-            relaxed_criteria_sets = self._get_relaxed_criteria(criteria, relaxation_tier)
-            
-            # If no relaxable criteria in this tier, continue to next tier
-            if not relaxed_criteria_sets:
-                # Debug output removed: No relaxable criteria in tier
+        # Try each match level in sequence
+        for level in sorted(OptimizerConfig.MATCH_LEVELS.keys()):
+            # Get criteria for this match level
+            level_criteria = self.get_criteria_for_match_level(criteria, level)
+            if not level_criteria:
                 continue
                 
-            # Try each relaxed criteria set
-            for relaxed_set in relaxed_criteria_sets:
-                relaxed_criteria = relaxed_set['criteria']
-                relaxed_type = relaxed_set['relaxed_type']
-                relaxed_name = relaxed_set['relaxed_name']
+            # Match shows using the level-specific criteria
+            level_matches, match_count = self._match_shows(level_criteria, data)
+            
+            # Skip if no matches at this level
+            if level_matches.empty:
+                continue
                 
-                # Debug output removed: Trying relaxed criteria
-                
-                # Get matching shows with relaxed criteria
-                relaxed_matches, relaxed_confidence = self.find_matches(relaxed_criteria, data, min_sample_size)
-                relaxed_count = len(relaxed_matches)
-                
-                # Assign match level based on relaxation tier
-                if not relaxed_matches.empty:
-                    # Match level: 1=exact, 2=secondary relaxed, 3=primary relaxed, 4=core relaxed
-                    match_level = {
-                        'secondary': 2,
-                        'primary': 3,
-                        'core': 4
-                    }.get(relaxation_tier, 2)
-                    relaxed_matches['match_level'] = match_level
-                
-                # Check if relaxation improved the situation significantly
-                if relaxed_count >= match_count * OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_sample_increase_factor']:
-                    # Debug output removed: Relaxing criteria increased matches
-                    
-                    # Calculate relevance scores for the new matches
-                    relevance_scores = []
-                    for _, show in relaxed_matches.iterrows():
-                        score = self._calculate_relevance_score(criteria, show)
-                        relevance_scores.append(score)
-                    
-                    # Add relevance scores to the DataFrame
-                    relaxed_matches['relevance_score'] = relevance_scores
-                    
-                    # Filter by minimum relevance score
-                    min_relevance = OptimizerConfig.FALLBACK_SYSTEM['relevance']['min_relevance_score']
-                    relevant_matches = relaxed_matches[relaxed_matches['relevance_score'] >= min_relevance]
-                    
-                    # If we have relevant matches and they're better than our current best
-                    if not relevant_matches.empty:
-                        avg_relevance = relevant_matches['relevance_score'].mean()
-                        
-                        # Update best fallback if this is better
-                        if len(relevant_matches) > best_fallback_count or \
-                           (len(relevant_matches) == best_fallback_count and avg_relevance > best_fallback_relevance):
-                            best_fallback_matches = relevant_matches
-                            best_fallback_count = len(relevant_matches)
-                            best_fallback_confidence = relaxed_confidence
-                            best_fallback_relevance = avg_relevance
-                            
-                            # Add fallback info to confidence info
-                            best_fallback_confidence['fallback_info'] = {
-                                'relaxed_type': relaxed_type,
-                                'relaxed_name': relaxed_name,
-                                'original_count': match_count,
-                                'fallback_count': best_fallback_count,
-                                'avg_relevance': avg_relevance
-                            }
-                            
-                            # Debug output removed: Found relevant matches with average relevance
-                            
-                            # If we found a very good fallback, stop searching
-                            if best_fallback_count >= min_sample_size * 2 and avg_relevance >= 0.8:
-                                # Debug output removed: Found excellent fallback matches
-                                break
-                
-            # If we found good fallback matches in this tier, no need to try more tiers
-            if best_fallback_count >= min_sample_size:
-                # Debug output removed: Found sufficient fallback matches
+            # Add match_level to the matches
+            level_matches['match_level'] = level
+            all_match_counts[level] = match_count
+            
+            # Calculate confidence for this level if it's the first with matches
+            if not best_confidence_info:
+                best_confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
+            
+            # Add new unique matches to the result set
+            if 'title' in level_matches.columns:
+                # Filter out duplicates
+                new_matches = level_matches[~level_matches['title'].isin(unique_titles)]
+                # Add new titles to the set of unique titles
+                unique_titles.update(new_matches['title'].tolist())
+                # Add new matches to the result set
+                if all_matches.empty:
+                    all_matches = new_matches
+                else:
+                    all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
+            
+            # If we have enough matches, we can stop
+            if len(unique_titles) >= target_sample_size:
                 break
-                
-        # Return the best fallback matches if we found any and they meet minimum requirements
-        min_required = OptimizerConfig.FALLBACK_SYSTEM['relaxation']['min_matches_before_fallback']
-        if not best_fallback_matches.empty and best_fallback_count >= min_required:
-            # Debug output removed: Using fallback matches
-            return best_fallback_matches, best_fallback_confidence
-        else:
-            # Debug output removed: No better fallback matches found
-            return matched_shows, confidence_info
+        
+        # If we didn't find any matches at any level
+        if all_matches.empty:
+            return pd.DataFrame(), self._empty_confidence_info()
+        
+        # Limit to MAX_RESULTS if needed
+        if len(all_matches) > OptimizerConfig.MAX_RESULTS:
+            # Sort by match_level (ascending) and success_score (descending) before limiting
+            if 'success_score' in all_matches.columns:
+                all_matches = all_matches.sort_values(by=['match_level', 'success_score'], 
+                                                     ascending=[True, False])
+            else:
+                all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
+            
+            # Limit to MAX_RESULTS
+            all_matches = all_matches.head(OptimizerConfig.MAX_RESULTS)
+        
+        # Add match level counts to confidence info
+        best_confidence_info['match_counts'] = all_match_counts
+        best_level = min(all_match_counts.keys()) if all_match_counts else 1
+        best_confidence_info['match_level_name'] = OptimizerConfig.MATCH_LEVELS[best_level]['name']
+        best_confidence_info['confidence_level'] = best_confidence_info.get('level', 'none')
+        
+        return all_matches, best_confidence_info
     
     def find_network_matches(self, criteria: Dict[str, Any], data: pd.DataFrame = None, matching_shows: pd.DataFrame = None) -> List[Dict[str, Any]]:
         """Find shows matching criteria for each available network.
