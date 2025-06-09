@@ -15,7 +15,10 @@ from typing import Dict, List, Optional, Tuple, Any, Union
 import pandas as pd
 import numpy as np
 import streamlit as st
+from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Dict, List, Optional, Any, Union
+import pandas as pd
 
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
@@ -26,8 +29,26 @@ from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
 from .score_calculators import ComponentScore
 from .network_analyzer import NetworkMatch
-from src.dashboard.components.optimizer_view import OptimizationSummary
 from .recommendation_engine import RecommendationEngine, SuccessFactor, Recommendation
+
+
+@dataclass
+class OptimizationSummary:
+    """Summary of optimization recommendations."""
+    overall_success_probability: Optional[float]  # Can be None when data is insufficient
+    confidence: str
+    top_networks: List[NetworkMatch]
+    component_scores: Dict[str, ComponentScore]
+    recommendations: List[Recommendation]
+    success_factors: List[SuccessFactor]
+    matching_titles: List[str] = field(default_factory=list)  # Titles of shows matching all criteria
+    match_level: int = 1  # Match level used (1-4, where 1 is highest)
+    match_quality: float = 1.0  # Quality of the match (0-1)
+    confidence_score: float = 1.0  # Confidence score (0-1)
+    matching_shows: Any = None  # DataFrame of matching shows (pandas DataFrame)
+    match_count: int = 0  # Number of matching shows
+    match_counts_by_level: Dict[int, int] = field(default_factory=dict)  # Count of shows by match level
+    confidence_info: Dict[str, Any] = field(default_factory=dict)  # Detailed confidence information
 
 
 class ConceptAnalyzer:
@@ -115,26 +136,23 @@ class ConceptAnalyzer:
         else:
             st.write(f"Matching Shows Cache: {cache_status}")
     
-    def _create_fallback_summary(self, error_message: str) -> OptimizationSummary:
-        """Create a fallback summary when analysis fails.
+    def _handle_analysis_error(self, error_message: str) -> OptimizationSummary:
+        """Handle analysis errors and return a minimal summary.
         
         Args:
-            error_message: Error message to include in the summary
+            error_message: Error message to display
             
         Returns:
-            Basic OptimizationSummary with error information
+            Minimal OptimizationSummary with error information
         """
         st.error(f"Analysis failed: {error_message}")
-        
-        # Create placeholder component scores
-        component_scores = self._create_placeholder_component_scores()
         
         # Create a minimal summary with error information
         return OptimizationSummary(
             overall_success_probability=None,
             confidence='none',
             top_networks=[],
-            component_scores=component_scores,
+            component_scores={},
             recommendations=[],
             success_factors=[],
             matching_titles=[],
@@ -231,7 +249,7 @@ class ConceptAnalyzer:
             import traceback
             # Use st.write for detailed stack trace as it's supplementary information
             st.write(f"Error details: {traceback.format_exc()}")
-            return self._create_fallback_summary(f"Unexpected error: {str(e)}")
+            return self._handle_analysis_error(f"Unexpected error: {str(e)}")
     
     def _get_criteria_hash(self, criteria: Dict[str, Any]) -> str:
         """Generate a hash for criteria to use as a cache key.

@@ -37,7 +37,8 @@ from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer, NetworkMatch, ComponentScore
 from .recommendation_engine import SuccessFactor, RecommendationEngine, Recommendation
-from src.dashboard.components.optimizer_view import OptimizerView, OptimizationSummary
+from src.dashboard.components.optimizer_view import OptimizerView
+from .optimizer_concept_analyzer import OptimizationSummary
 from .optimizer_config import OptimizerConfig
 
 
@@ -424,6 +425,14 @@ class ShowOptimizer:
             confidence_info={'error': error_message, 'confidence_level': 'none'}
         )
     
+    def _handle_error(self, error_message: str) -> None:
+        """Handle errors by displaying an error message.
+        
+        Args:
+            error_message: Error message to display
+        """
+        st.error(f"Analysis error: {error_message}")
+    
     def _prepare_analysis_context(self, criteria: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any], bool]:
         """Prepare the context for analysis operations.
         
@@ -458,12 +467,14 @@ class ShowOptimizer:
             # Ensure initialization and check components
             initialized, error = self._ensure_initialized()
             if not initialized:
-                return self._create_fallback_summary(f"Cannot analyze concept: {error}")
+                self._handle_error(f"Cannot analyze concept: {error}")
+                return self.concept_analyzer._handle_analysis_error(f"Initialization failed: {error}")
                 
             # Prepare analysis context
             normalized_criteria, integrated_data, success = self._prepare_analysis_context(criteria)
             if not success:
-                return self._create_fallback_summary("No show data available")
+                self._handle_error("No show data available")
+                return self.concept_analyzer._handle_analysis_error("No show data available")
                 
             # Perform analysis
             st.write("Analyzing show concept...")
@@ -478,11 +489,11 @@ class ShowOptimizer:
                 return analysis_result
             else:
                 st.warning("Analysis produced no results")
-                return self._create_fallback_summary("No analysis results")
+                return self.concept_analyzer._handle_analysis_error("No analysis results")
                 
         except Exception as e:
             st.error(f"Error in analyze_concept: {str(e)}")
-            return self._create_fallback_summary(f"Analysis error: {str(e)}")
+            return self.concept_analyzer._handle_analysis_error(f"Analysis error: {str(e)}")
     
     def get_network_tiers(self, criteria: Dict[str, Any], 
                         min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:

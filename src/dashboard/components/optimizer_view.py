@@ -23,7 +23,6 @@ Key responsibilities:
    - Prepare data structures for UI components
 """
 
-from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Union
 import pandas as pd
 import streamlit as st
@@ -33,25 +32,7 @@ from src.data_processing.show_optimizer.criteria_scorer import ComponentScore
 from src.data_processing.show_optimizer.network_analyzer import NetworkMatch
 from src.data_processing.show_optimizer.recommendation_engine import SuccessFactor, Recommendation
 from src.data_processing.show_optimizer.field_manager import FieldManager
-
-
-@dataclass
-class OptimizationSummary:
-    """Summary of optimization recommendations."""
-    overall_success_probability: Optional[float]  # Can be None when data is insufficient
-    confidence: str
-    top_networks: List[NetworkMatch]
-    component_scores: Dict[str, ComponentScore]
-    recommendations: List[Recommendation]
-    success_factors: List[SuccessFactor]
-    matching_titles: List[str] = field(default_factory=list)  # Titles of shows matching all criteria
-    match_level: int = 1  # Match level used (1-4, where 1 is highest)
-    match_quality: float = 1.0  # Quality of the match (0-1)
-    confidence_score: float = 1.0  # Confidence score (0-1)
-    matching_shows: Any = None  # DataFrame of matching shows (pandas DataFrame)
-    match_count: int = 0  # Number of matching shows
-    match_counts_by_level: Dict[int, int] = field(default_factory=dict)  # Count of shows by match level
-    confidence_info: Dict[str, Any] = field(default_factory=dict)  # Detailed confidence information
+from src.data_processing.show_optimizer.optimizer_concept_analyzer import OptimizationSummary
 
 
 class OptimizerView:
