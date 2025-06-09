@@ -46,21 +46,25 @@ class NetworkTier:
 class NetworkAnalyzer:
     """Specialized analyzer for network compatibility and recommendations."""
     
-    def __init__(self, criteria_scorer: CriteriaScorer, field_manager: FieldManager = None, optimizer_cache: Optional[OptimizerCache] = None):
+    def __init__(self, criteria_scorer: CriteriaScorer, field_manager: FieldManager = None, optimizer_cache: Optional[OptimizerCache] = None, matcher: Optional[Matcher] = None):
         """Initialize the network analyzer.
         
         Args:
             criteria_scorer: CriteriaScorer instance for scoring calculations
             field_manager: Optional FieldManager instance for field mapping
             optimizer_cache: Optional OptimizerCache instance for caching
+            matcher: Optional Matcher instance for finding network matches
         """
         self.criteria_scorer = criteria_scorer
         self.field_manager = field_manager or criteria_scorer.field_manager
         self.network_score_calculator = NetworkScoreCalculator(criteria_scorer)
         self.optimizer_cache = optimizer_cache
         
-        # Initialize matcher for network analysis
-        self.matcher = Matcher(self.field_manager)
+        # Initialize matcher for network analysis if not provided
+        if matcher is None:
+            self.matcher = Matcher(self.field_manager)
+        else:
+            self.matcher = matcher
         
         # Initialize integrated data
         self._integrated_data = None
@@ -116,7 +120,7 @@ class NetworkAnalyzer:
             
             # Use config for default limit if not specified
             if limit is None:
-                limit = OptimizerConfig.DEFAULT_NETWORK_LIMIT
+                limit = OptimizerConfig.NETWORK['default_limit']
                 
             # Return top networks
             return network_matches[:limit]

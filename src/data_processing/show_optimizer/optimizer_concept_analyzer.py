@@ -384,7 +384,7 @@ class ConceptAnalyzer:
             # Use CriteriaScorer to calculate success rate
             success_rate, confidence_info = self.criteria_scorer.calculate_success_rate(
                 matching_shows, 
-                threshold=self.config.SUCCESS['threshold']
+                threshold=self.config.PERFORMANCE['success_threshold']
             )
             
             if success_rate is not None:

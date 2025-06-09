@@ -38,13 +38,15 @@ class CriteriaScorer:
     specialized calculator classes while providing orchestration and result aggregation.
     """
     
-    def __init__(self, field_manager: FieldManager):
+    def __init__(self, field_manager: FieldManager, matcher=None):
         """Initialize the criteria scorer.
         
         Args:
             field_manager: FieldManager instance for field mapping and validation
+            matcher: Optional Matcher instance for finding matches
         """
         self.field_manager = field_manager
+        self.matcher = matcher  # Matcher instance for finding matches
         self.network_analyzer = None  # Will be set by ShowOptimizer after initialization
         
     def calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None) -> Tuple[Optional[float], Dict[str, Any]]:

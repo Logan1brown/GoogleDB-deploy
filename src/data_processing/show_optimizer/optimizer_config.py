@@ -177,6 +177,20 @@ class OptimizerConfig:
         'network_specific_ratio': 0.6   # Ratio of network-specific to general suggestions
     }
     
+    # Success calculation settings
+    SUCCESS = {
+        'threshold': 0.6,              # Default threshold for success rate calculation
+        'min_data_points': 5,          # Minimum data points needed for success calculation
+        'confidence_factor': 0.8       # Confidence factor for success probability
+    }
+    
+    # Network analysis settings
+    NETWORK = {
+        'default_limit': 5,            # Default limit for network recommendations
+        'min_compatibility': 0.3,      # Minimum compatibility score for network inclusion
+        'high_compatibility': 0.7      # Threshold for high compatibility networks
+    }
+    
     
     # Fallback recommendation system settings
     FALLBACK_SYSTEM = {
