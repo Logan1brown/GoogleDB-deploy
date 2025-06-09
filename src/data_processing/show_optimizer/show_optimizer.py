@@ -505,7 +505,8 @@ class ShowOptimizer:
             st.write("Analyzing show concept...")
             analysis_result = self.concept_analyzer.analyze_concept(
                 criteria=normalized_criteria,
-                force_refresh=force_refresh
+                force_refresh=force_refresh,
+                integrated_data=integrated_data
             )
             
             # Return the analysis result directly

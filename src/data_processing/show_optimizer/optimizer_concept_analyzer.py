@@ -165,7 +165,7 @@ class ConceptAnalyzer:
             confidence_info={'error': error_message, 'confidence_level': 'none'}
         )
     
-    def analyze_concept(self, criteria: Dict[str, Any], force_refresh: bool = False) -> OptimizationSummary:
+    def analyze_concept(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame], force_refresh: bool = False) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
         
         This is the main entry point for concept analysis, coordinating the entire
@@ -173,6 +173,7 @@ class ConceptAnalyzer:
         
         Args:
             criteria: Dictionary of criteria defining the show concept
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             force_refresh: Whether to force a refresh of cached data
             
         Returns:
@@ -182,7 +183,7 @@ class ConceptAnalyzer:
             st.write("Analyzing show concept...")
             
             # Step 1: Find matching shows with fallback
-            matching_shows, confidence_info = self._find_matching_shows(criteria, force_refresh=force_refresh)
+            matching_shows, confidence_info = self._find_matching_shows(criteria, force_refresh=force_refresh, integrated_data=integrated_data)
             
             # Extract match information
             match_count = len(matching_shows) if not matching_shows.empty else 0
@@ -202,7 +203,7 @@ class ConceptAnalyzer:
             success_probability, confidence = self._calculate_success_probability(criteria, matching_shows)
             
             # Step 3: Find top networks
-            top_networks = self._find_top_networks(criteria)
+            top_networks = self._find_top_networks(criteria, integrated_data=integrated_data)
             
             # Step 4: Calculate component scores
             component_scores = self._get_component_scores(criteria)
@@ -297,13 +298,14 @@ class ConceptAnalyzer:
             # If there's an error, assume cache is invalid to force refresh
             return False
     
-    def _find_matching_shows(self, criteria: Dict[str, Any], force_refresh: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    def _find_matching_shows(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame], force_refresh: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Find shows matching the given criteria with fallback strategies.
         
         This method uses caching when available to avoid redundant matching operations.
         
         Args:
             criteria: Dictionary of criteria
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             force_refresh: If True, bypass cache and force a new search
             
         Returns:
@@ -319,11 +321,16 @@ class ConceptAnalyzer:
                 st.write(f"Using cached matching shows ({len(cached_result[0])} shows)")
                 return cached_result
             
-            # Get the criteria data from the criteria scorer
-            criteria_data = self.criteria_scorer.get_criteria_data()
+            # Get shows data from integrated data
+            if 'shows' not in integrated_data or integrated_data['shows'].empty:
+                st.error("No shows data available in integrated data")
+                return pd.DataFrame(), {'confidence_level': 'none', 'error': 'No shows data available'}
+                
+            shows_data = integrated_data['shows']
+            st.write(f"Using integrated data with {len(shows_data)} shows")
             
             # Set the criteria data in the matcher
-            self.matcher.set_criteria_data(criteria_data)
+            self.matcher.set_criteria_data(shows_data)
             
             # Get minimum sample size from config
             min_sample_size = self.config.CONFIDENCE['minimum_sample']
@@ -331,7 +338,7 @@ class ConceptAnalyzer:
             # Find matches with fallback
             st.write("Finding shows matching your criteria...")
             matching_shows, confidence_info = self.matcher.find_matches_with_fallback(
-                criteria, criteria_data, min_sample_size
+                criteria, shows_data, min_sample_size
             )
             
             # Log the match results
@@ -392,11 +399,12 @@ class ConceptAnalyzer:
             st.error(f"Error calculating success probability: {str(e)}")
             return None, 'none'
     
-    def _find_top_networks(self, criteria: Dict[str, Any]) -> List[NetworkMatch]:
+    def _find_top_networks(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> List[NetworkMatch]:
         """Find top networks compatible with the given criteria.
         
         Args:
             criteria: Dictionary of criteria
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
             List of NetworkMatch objects sorted by compatibility score
@@ -405,16 +413,20 @@ class ConceptAnalyzer:
             st.write("Finding top networks...")
             
             # Get the matching shows that were already found
-            matching_shows, confidence_info = self._find_matching_shows(criteria)
+            matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data=integrated_data)
             
-            # Use CriteriaScorer to analyze network compatibility with the already matched shows
-            network_matches = self.criteria_scorer.calculate_network_scores(criteria, matching_shows)
+            # Set the matching shows in the NetworkScoreCalculator
+            if hasattr(self.criteria_scorer.network_analyzer.network_score_calculator, 'set_matching_shows'):
+                self.criteria_scorer.network_analyzer.network_score_calculator.set_matching_shows(matching_shows)
             
-            # Take top 5
-            top_networks = network_matches[:5] if network_matches else []
+            # Use NetworkAnalyzer to rank networks by compatibility
+            # The limit is controlled by OptimizerConfig.DEFAULT_NETWORK_LIMIT
+            network_matches = self.criteria_scorer.network_analyzer.rank_networks_by_compatibility(
+                criteria, integrated_data
+            )
             
-            st.write(f"Found {len(top_networks)} top networks")
-            return top_networks
+            st.write(f"Found {len(network_matches)} top networks")
+            return network_matches
             
         except Exception as e:
             st.error(f"Error finding top networks: {str(e)}")

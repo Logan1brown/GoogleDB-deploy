@@ -137,10 +137,18 @@ class OptimizerView:
                 
                 # Check if criteria_scorer has data
                 if hasattr(self.optimizer, 'criteria_scorer'):
-                    criteria_data = self.optimizer.criteria_scorer.fetch_criteria_data(force_refresh=False)
-                    if criteria_data.empty:
-                        st.warning("No criteria data available for analysis.")
-                        return False
+                    try:
+                        # Try to fetch criteria data, but handle if the method doesn't exist
+                        criteria_data = self.optimizer.criteria_scorer.fetch_criteria_data(force_refresh=False)
+                        if criteria_data.empty:
+                            st.warning("No criteria data available for analysis.")
+                            return False
+                    except AttributeError:
+                        # Method doesn't exist, but we'll continue anyway
+                        st.write("Debug: fetch_criteria_data not found, continuing with analysis")
+                else:
+                    st.warning("Criteria scorer not initialized properly.")
+                    return False
                 
                 # Run the actual analysis
                 summary = self.optimizer.analyze_concept(normalized_criteria)

@@ -495,6 +495,24 @@ class NetworkScoreCalculator:
             criteria_scorer: The CriteriaScorer instance to use for calculations
         """
         self.criteria_scorer = criteria_scorer
+        self._integrated_data = None
+        self._matching_shows = None
+        
+    def set_integrated_data(self, integrated_data: Dict[str, pd.DataFrame]) -> None:
+        """Set the integrated data to use for network scoring.
+        
+        Args:
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
+        """
+        self._integrated_data = integrated_data
+        
+    def set_matching_shows(self, matching_shows: pd.DataFrame) -> None:
+        """Set the matching shows to use for network scoring.
+        
+        Args:
+            matching_shows: DataFrame of matching shows
+        """
+        self._matching_shows = matching_shows
     
     def calculate_network_scores(self, criteria: Dict[str, Any]) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
@@ -509,8 +527,13 @@ class NetworkScoreCalculator:
             # Prepare results list
             results = []
             
-            # Get criteria data
-            criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
+            # Use the integrated data that was set via set_integrated_data
+            if self._integrated_data is None or 'shows' not in self._integrated_data:
+                st.error("No integrated data available for network scoring. Make sure to call set_integrated_data first.")
+                return []
+                
+            criteria_data = self._integrated_data['shows']
+            st.write("Using integrated data from ShowOptimizer")
             
             # Validate that matcher exists before using it
             if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:

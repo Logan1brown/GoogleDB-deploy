@@ -62,24 +62,48 @@ class NetworkAnalyzer:
         # Initialize matcher for network analysis
         self.matcher = Matcher(self.field_manager)
         
+        # Initialize integrated data
+        self._integrated_data = None
+        
+    def set_integrated_data(self, integrated_data: Dict[str, pd.DataFrame]) -> None:
+        """Set the integrated data to use for network analysis.
+        
+        Args:
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
+        """
+        self._integrated_data = integrated_data
+        
+        # Also set the integrated data in the network score calculator
+        if hasattr(self.network_score_calculator, 'set_integrated_data'):
+            self.network_score_calculator.set_integrated_data(integrated_data)
+        
     def rank_networks_by_compatibility(self, criteria: Dict[str, Any], 
-                                     limit: int = 10) -> List[NetworkMatch]:
+                                      integrated_data: Dict[str, pd.DataFrame],
+                                      limit: int = None) -> List[NetworkMatch]:
         """Rank networks by compatibility with the given criteria.
         
         Args:
             criteria: Dictionary of criteria
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             limit: Maximum number of networks to return
             
         Returns:
             List of NetworkMatch objects sorted by compatibility score
         """
         try:
+            # Set the integrated data in the network score calculator
+            self.set_integrated_data(integrated_data)
+                
             # Get network matches from NetworkScoreCalculator
             network_matches = self.network_score_calculator.calculate_network_scores(criteria)
             
             # Sort by compatibility score (descending)
             network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
             
+            # Use config for default limit if not specified
+            if limit is None:
+                limit = OptimizerConfig.DEFAULT_NETWORK_LIMIT
+                
             # Return top networks
             return network_matches[:limit]
         except Exception as e:
@@ -87,17 +111,22 @@ class NetworkAnalyzer:
             return []
     
     def get_network_tiers(self, criteria: Dict[str, Any], 
+                        integrated_data: Dict[str, pd.DataFrame],
                         min_confidence: str = 'low') -> Dict[str, NetworkTier]:
         """Group networks into tiers based on compatibility with criteria.
         
         Args:
             criteria: Dictionary of criteria
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             min_confidence: Minimum confidence level to include (none, low, medium, high)
             
         Returns:
             Dictionary mapping tier names to NetworkTier objects
         """
         try:
+            # Set the integrated data in the network score calculator
+            self.set_integrated_data(integrated_data)
+                
             # Get network matches from NetworkScoreCalculator
             network_matches = self.network_score_calculator.calculate_network_scores(criteria)
             
@@ -145,25 +174,29 @@ class NetworkAnalyzer:
             # Return empty tiers dictionary on error
             return {}
     
-    def get_network_specific_success_rates(self, criteria: Dict[str, Any], 
-                                         network_id: int) -> Dict[str, Any]:
-        """Get network-specific success rates for each criteria.
+    def get_network_specific_success_rates(self, criteria: Dict[str, Any], network_id: int, integrated_data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, Any]]:
+        """Get success rates for specific criteria for a given network.
         
         Args:
             criteria: Dictionary of criteria
             network_id: ID of the network to analyze
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
             Dictionary mapping criteria names to success rate information
         """
         try:
-            # Fetch criteria data
-            data = self.criteria_scorer.fetch_criteria_data()
-            if data.empty:
+            # Set the integrated data in the network score calculator
+            self.set_integrated_data(integrated_data)
+            
+            # Get the shows data from integrated_data
+            data = integrated_data.get('shows')
+            if data is None or data.empty:
+                st.warning("No shows data available in integrated data for network analysis")
                 return {}
             
             # Filter to this network
-            network_data = data[data['network_id'] == network_id]
+            network_data = data[data['network_id'] == network_id] if 'network_id' in data.columns else pd.DataFrame()
             if network_data.empty:
                 return {}
             
