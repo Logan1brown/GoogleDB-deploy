@@ -447,6 +447,45 @@ class FieldManager:
                 'fields': {}
             }
     
+    def normalize_criteria(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize criteria for consistent processing.
+        
+        This method ensures that:
+        1. List values with single items are converted to scalar values for scalar fields
+        2. Numeric IDs like genre are properly typed as integers
+        
+        Args:
+            criteria: Dictionary of criteria to normalize
+            
+        Returns:
+            Normalized criteria dictionary
+        """
+        if not criteria:
+            return {}
+            
+        normalized_criteria = {}
+        
+        for key, value in criteria.items():
+            # Skip None values
+            if value is None:
+                continue
+                
+            # Convert single-item lists to scalar values for scalar fields
+            if isinstance(value, list) and len(value) == 1 and self.get_field_type(key) == 'scalar':
+                normalized_criteria[key] = value[0]
+            else:
+                normalized_criteria[key] = value
+            
+            # Ensure numeric IDs are integers
+            if key == 'genre' and not isinstance(normalized_criteria[key], int):
+                try:
+                    normalized_criteria[key] = int(normalized_criteria[key])
+                except (ValueError, TypeError):
+                    # If conversion fails, keep the original value
+                    pass
+        
+        return normalized_criteria
+    
     def get_array_field_mapping(self) -> Dict[str, str]:
         """Get the mapping from array field names to their column names in the DataFrame.
         

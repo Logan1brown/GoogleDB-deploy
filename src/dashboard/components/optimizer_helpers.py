@@ -9,6 +9,9 @@ import pandas as pd
 import altair as alt
 from typing import Dict, List, Tuple, Optional, Any, Union, Callable
 
+from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
+from src.dashboard.utils.style_config import render_metric_card, render_info_card, COLORS
+
 
 def get_id_for_name(name: str, options: List[Tuple[int, str]]) -> Optional[int]:
     """Get ID for a display name.
@@ -228,37 +231,7 @@ def render_format_criteria(state: Dict, update_callback: Callable) -> None:
 
 # Helper functions for rendering tab content
 
-# Visualization helper functions
-def render_metric_card(title: str, value: str, subtitle: str = None):
-    """Render a metric card with title, value, and optional subtitle.
-    
-    Args:
-        title: Card title
-        value: Main value to display
-        subtitle: Optional subtitle
-    """
-    st.markdown(f"""
-    <div style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin-bottom: 10px;">
-        <p style="font-size: 14px; color: #666; margin-bottom: 0;">{title}</p>
-        <h3 style="font-size: 24px; margin: 5px 0;">{value}</h3>
-        {f'<p style="font-size: 12px; color: #888; margin-top: 0;">{subtitle}</p>' if subtitle else ''}
-    </div>
-    """, unsafe_allow_html=True)
-
-
-def render_info_card(title: str, content: str):
-    """Render an info card with title and content.
-    
-    Args:
-        title: Card title
-        content: Card content
-    """
-    st.markdown(f"""
-    <div style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin-bottom: 10px;">
-        <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">{title}</p>
-        <p style="font-size: 14px; margin-top: 0;">{content}</p>
-    </div>
-    """, unsafe_allow_html=True)
+# Visualization helper functions are imported from style_config.py
 
 
 def render_success_metrics(summary: Any):
@@ -267,78 +240,97 @@ def render_success_metrics(summary: Any):
     Args:
         summary: Optimization summary
     """
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # Check for overall_success_probability attribute
-        if hasattr(summary, 'overall_success_probability'):
-            probability = summary.overall_success_probability
-            
-            if probability is None:
-                render_metric_card(
-                    "Success Probability", 
-                    "N/A", 
-                    "Data unavailable"
-                )
-            else:
-                confidence = summary.confidence if hasattr(summary, 'confidence') else 'medium'
-                
-                render_metric_card(
-                    "Success Probability", 
-                    f"{probability:.0%}", 
-                    f"Confidence: {confidence.capitalize()}"
-                )
-        else:
-            st.info("Overall success probability not available.")
-    
-    # Component scores
-    with col2:
-        # Check if component_scores exists
-        if hasattr(summary, 'component_scores') and summary.component_scores:
-            audience_score = summary.component_scores.get("audience", None)
-            if audience_score:
-                # Check if audience_score has score attribute
-                if hasattr(audience_score, 'score'):
-                    score = audience_score.score
-                    
-                    if score is None:
-                        render_metric_card(
-                            "Audience Appeal", 
-                            "N/A", 
-                            "Data unavailable"
-                        )
-                    else:
-                        confidence = audience_score.confidence if hasattr(audience_score, 'confidence') else 'medium'
-                        
-                        render_metric_card(
-                            "Audience Appeal", 
-                            f"{score:.0%}", 
-                            f"Confidence: {confidence.capitalize()}"
-                        )
+    try:
+        # Get config for consistent display
+        config = OptimizerConfig()
         
-    with col3:
-        # Check if component_scores exists
-        if hasattr(summary, 'component_scores') and summary.component_scores:
-            critic_score = summary.component_scores.get("critics", None)
-            if critic_score:
-                # Check if critic_score has score attribute
-                if hasattr(critic_score, 'score'):
-                    score = critic_score.score
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Check for overall_success_probability attribute
+            if hasattr(summary, 'overall_success_probability'):
+                probability = summary.overall_success_probability
+                
+                if probability is None:
+                    render_metric_card(
+                        "Success Probability", 
+                        "N/A", 
+                        "Data unavailable"
+                    )
+                else:
+                    # Get confidence and use config for display
+                    confidence = summary.confidence if hasattr(summary, 'confidence') else config.DEFAULT_VALUES['confidence']
+                    confidence_display = config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
                     
-                    if score is None:
-                        render_metric_card(
-                            "Critical Reception", 
-                            "N/A", 
-                            "Data unavailable"
-                        )
+                    render_metric_card(
+                        "Success Probability", 
+                        f"{probability:.0%}", 
+                        f"Confidence: {confidence_display}"
+                    )
+            else:
+                st.info("Overall success probability not available.")
+        
+        # Component scores
+        with col2:
+            # Check if component_scores exists
+            try:
+                if hasattr(summary, 'component_scores') and summary.component_scores:
+                    audience_score = summary.component_scores.get("audience", None)
+                    if audience_score and hasattr(audience_score, 'score'):
+                        score = audience_score.score
+                        if score is not None:
+                            sample_size = getattr(audience_score, 'sample_size', 'N/A')
+                            render_metric_card(
+                                "Audience Appeal", 
+                                f"{score:.0%}", 
+                                f"Sample: {sample_size}"
+                            )
+                        else:
+                            render_metric_card("Audience Appeal", "N/A", "Data unavailable")
                     else:
-                        confidence = critic_score.confidence if hasattr(critic_score, 'confidence') else 'medium'
-                        
-                        render_metric_card(
-                            "Critical Reception", 
-                            f"{score:.0%}", 
-                            f"Confidence: {confidence.capitalize()}"
-                        )
+                        render_metric_card("Audience Appeal", "N/A", "Data unavailable")
+                else:
+                    render_metric_card("Audience Appeal", "N/A", "Data unavailable")
+            except Exception as e:
+                st.write(f"Debug: Error rendering audience score: {str(e)}")
+                render_metric_card("Audience Appeal", "N/A", "Error in data")
+        
+        # Critics score
+        with col3:
+            # Check if component_scores exists
+            try:
+                if hasattr(summary, 'component_scores') and summary.component_scores:
+                    critics_score = summary.component_scores.get("critics", None)
+                    if critics_score and hasattr(critics_score, 'score'):
+                        score = critics_score.score
+                        if score is not None:
+                            sample_size = getattr(critics_score, 'sample_size', 'N/A')
+                            render_metric_card(
+                                "Critical Reception", 
+                                f"{score:.0%}", 
+                                f"Sample: {sample_size}"
+                            )
+                        else:
+                            render_metric_card("Critical Reception", "N/A", "Data unavailable")
+                    else:
+                        render_metric_card("Critical Reception", "N/A", "Data unavailable")
+                else:
+                    render_metric_card("Critical Reception", "N/A", "Data unavailable")
+            except Exception as e:
+                st.write(f"Debug: Error rendering critics score: {str(e)}")
+                render_metric_card("Critical Reception", "N/A", "Error in data")
+    
+    except Exception as e:
+        st.write(f"Debug: Error rendering success metrics: {str(e)}")
+        st.error("Unable to display success metrics due to an error.")
+        # Render empty cards as fallback
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            render_metric_card("Success Probability", "N/A", "Error in data")
+        with col2:
+            render_metric_card("Audience Appeal", "N/A", "Error in data")
+        with col3:
+            render_metric_card("Critical Reception", "N/A", "Error in data")
 
 
 def render_success_factors(success_factors: List):
@@ -413,52 +405,83 @@ def render_network_compatibility(networks: List):
     Args:
         networks: List of network matches
     """
-    if not networks:
-        st.info("No network compatibility data available.")
-        return
+    try:
+        # Get config for consistent display
+        config = OptimizerConfig()
         
-    # Create a dataframe for the networks
-    network_data = []
-    for network in networks:
-        # Format None values as N/A for display
-        success_prob = "N/A" if network.success_probability is None else network.success_probability
-        compatibility = "N/A" if network.compatibility_score is None else network.compatibility_score
+        if not networks:
+            st.info("No network compatibility data available.")
+            return
+            
+        # Create a dataframe for the networks
+        network_data = []
+        for network in networks:
+            try:
+                # Get network attributes with safe fallbacks
+                network_name = getattr(network, 'network_name', 'Unknown')
+                
+                # Format None values as N/A for display
+                success_prob = getattr(network, 'success_probability', None)
+                compatibility = getattr(network, 'compatibility_score', None)
+                sample_size = getattr(network, 'sample_size', 0)
+                
+                # Get confidence and use config for display
+                confidence = getattr(network, 'confidence', config.DEFAULT_VALUES['confidence'])
+                confidence_display = config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
+                
+                network_data.append({
+                    "Network": network_name,
+                    "Success Probability": success_prob,
+                    "Compatibility": compatibility,
+                    "Sample Size": sample_size,
+                    "Confidence": confidence_display
+                })
+            except Exception as e:
+                st.write(f"Debug: Error processing network {getattr(network, 'network_name', 'Unknown')}: {str(e)}")
+                # Add a row with error information
+                network_data.append({
+                    "Network": getattr(network, 'network_name', 'Error'),
+                    "Success Probability": None,
+                    "Compatibility": None,
+                    "Sample Size": 0,
+                    "Confidence": "Error"
+                })
+            
+        if not network_data:
+            st.info("No valid network data available.")
+            return
+            
+        network_df = pd.DataFrame(network_data)
         
-        network_data.append({
-            "Network": network.network_name,
-            "Success Probability": success_prob,
-            "Compatibility": compatibility,
-            "Sample Size": network.sample_size,
-            "Confidence": network.confidence.capitalize()
-        })
-        
-    network_df = pd.DataFrame(network_data)
-    
-    # Convert string 'N/A' values to actual None for proper display
-    for col in ['Success Probability', 'Compatibility']:
-        network_df[col] = network_df[col].apply(lambda x: None if x == 'N/A' else x)
-    
-    # Display as a table
-    st.dataframe(
-        network_df,
-        column_config={
-            "Success Probability": st.column_config.ProgressColumn(
-                "Success Probability",
-                format="%.0f%%",
-                min_value=0,
-                max_value=1,
-                help="Success probability based on historical data. N/A indicates insufficient data."
-            ),
-            "Compatibility": st.column_config.ProgressColumn(
-                "Compatibility",
-                format="%.0f%%",
-                min_value=0,
-                max_value=1,
-                help="How well the network matches your criteria. N/A indicates insufficient matching data."
-            )
-        },
-        hide_index=True
-    )
+        # Display as a table
+        st.dataframe(
+            network_df,
+            column_config={
+                "Success Probability": st.column_config.ProgressColumn(
+                    "Success Probability",
+                    format="%.0f%%",
+                    min_value=0,
+                    max_value=1,
+                    help="Success probability based on historical data. N/A indicates insufficient data."
+                ),
+                "Compatibility": st.column_config.ProgressColumn(
+                    "Compatibility",
+                    format="%.0f%%",
+                    min_value=0,
+                    max_value=1,
+                    help="How well the network matches your criteria. N/A indicates insufficient matching data."
+                )
+            },
+            hide_index=True
+        )
+    except Exception as e:
+        st.write(f"Debug: Error rendering network compatibility: {str(e)}")
+        st.error("Unable to display network compatibility due to an error.")
+        # Show empty table as fallback
+        st.dataframe(
+            pd.DataFrame(columns=["Network", "Success Probability", "Compatibility", "Sample Size", "Confidence"]),
+            hide_index=True
+        )
 
 
 def group_recommendations(recommendations: List) -> Dict[str, List]:
@@ -470,40 +493,82 @@ def group_recommendations(recommendations: List) -> Dict[str, List]:
     Returns:
         Dictionary of recommendation types to lists of recommendations
     """
-    grouped = {
-        "add": [],
-        "replace": [],
-        "remove": [],
-        "consider": []
-    }
+    # Initialize with keys from OptimizerConfig.RECOMMENDATION_TYPES
+    config = OptimizerConfig()
+    grouped = {rec_type: [] for rec_type in config.RECOMMENDATION_TYPES.keys()}
+    
+    # Add backward compatibility for 'remove' type which might be used in UI
+    if 'remove' not in grouped:
+        grouped['remove'] = []
     
     for rec in recommendations:
-        if rec.recommendation_type in grouped:
-            grouped[rec.recommendation_type].append(rec)
+        # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
+        rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
+        
+        if rec_type and rec_type in grouped:
+            grouped[rec_type].append(rec)
+        elif rec_type:
+            # If we have an unrecognized type, add it to the dictionary
+            if rec_type not in grouped:
+                grouped[rec_type] = []
+            grouped[rec_type].append(rec)
             
     return grouped
+
+
+def render_recommendations(recommendations: List, on_click_handler=None):
+    """Render recommendations.
+    
+    Args:
+        recommendations: List of recommendations
+        on_click_handler: Function to call when recommendation button is clicked
+    """
+    try:
+        if not recommendations:
+            st.info("No recommendations available.")
+            return
+            
+        # Group recommendations by type
+        grouped = group_recommendations(recommendations)
+        
+        # Render each group that has recommendations
+        for rec_type, recs in grouped.items():
+            if recs:  # Only render groups with recommendations
+                render_recommendation_group(rec_type, recs, on_click_handler)
+                
+        # Check if we actually rendered any recommendations
+        if all(len(recs) == 0 for recs in grouped.values()):
+            st.info("No recommendations available.")
+            
+    except Exception as e:
+        st.write(f"Debug: Error rendering recommendations: {str(e)}")
+        st.error("Unable to display recommendations due to an error.")
+        # No fallback UI needed as the error message is sufficient
 
 
 def render_recommendation_group(rec_type: str, recommendations: List, on_click_handler=None, limit: int = 3):
     """Render a group of recommendations with appropriate UI elements.
     
     Args:
-        rec_type: Type of recommendation (add, replace, remove, consider)
+        rec_type: Type of recommendation (add, replace, remove, consider, etc.)
         recommendations: List of recommendations of this type
         on_click_handler: Function to call when recommendation button is clicked
         limit: Maximum number of recommendations to show
     """
     if not recommendations:
         return
-        
+    
+    # Get recommendation type display names from config
+    config = OptimizerConfig()
+    
     # Set up headers and UI based on recommendation type
     if rec_type == "add":
-        st.subheader("Consider Adding")
+        st.subheader(config.RECOMMENDATION_TYPES.get('add', "Consider Adding"))
         button_prefix = "Add"
         use_button = True
         use_info_card = True
     elif rec_type == "replace":
-        st.subheader("Consider Replacing")
+        st.subheader(config.RECOMMENDATION_TYPES.get('replace', "Consider Replacing"))
         button_prefix = "Replace with"
         use_button = True
         use_info_card = True
@@ -512,12 +577,31 @@ def render_recommendation_group(rec_type: str, recommendations: List, on_click_h
         button_prefix = "Remove"
         use_button = True
         use_info_card = False
+    elif rec_type == "relax":
+        st.subheader(config.RECOMMENDATION_TYPES.get('relax', "Limiting Criteria"))
+        button_prefix = "Relax"
+        use_button = True
+        use_info_card = True
+    elif rec_type == "change":
+        st.subheader(config.RECOMMENDATION_TYPES.get('change', "Successful Pattern"))
+        button_prefix = "Change to"
+        use_button = True
+        use_info_card = True
     elif rec_type == "consider":
-        st.subheader("Additional Insights")
+        st.subheader(config.RECOMMENDATION_TYPES.get('consider', "Additional Insights"))
         use_button = False
         use_info_card = True
+    elif rec_type == "fallback":
+        st.subheader(config.RECOMMENDATION_TYPES.get('fallback', "Fallback Recommendation"))
+        button_prefix = "Add"
+        use_button = True
+        use_info_card = True
     else:
-        return
+        # For any other recommendation type, use a generic header
+        st.subheader(f"{rec_type.replace('_', ' ').title()} Recommendations")
+        button_prefix = "Apply"
+        use_button = True
+        use_info_card = True
     
     # Display recommendations
     for rec in recommendations[:limit]:

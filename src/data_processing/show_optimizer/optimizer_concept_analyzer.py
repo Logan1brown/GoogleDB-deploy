@@ -28,7 +28,7 @@ from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
 from .score_calculators import ComponentScore
 from .network_analyzer import NetworkMatch
-from .suggestion_analyzer import OptimizationSummary
+from src.dashboard.components.optimizer_view import OptimizationSummary
 from .recommendation_engine import RecommendationEngine, SuccessFactor, Recommendation
 
 

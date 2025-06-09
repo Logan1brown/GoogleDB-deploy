@@ -177,6 +177,7 @@ class OptimizerConfig:
         'network_specific_ratio': 0.6   # Ratio of network-specific to general suggestions
     }
     
+    
     # Fallback recommendation system settings
     FALLBACK_SYSTEM = {
         # Criteria relaxation settings

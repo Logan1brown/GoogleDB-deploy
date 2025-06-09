@@ -2,7 +2,7 @@
 
 This component coordinates the Show Optimizer feature, integrating all the
 specialized components (FieldManager, CriteriaScorer,
-SuggestionAnalyzer) to provide a unified interface for the UI.
+OptimizerView) to provide a unified interface for the UI.
 
 Key responsibilities:
 
@@ -31,15 +31,13 @@ from datetime import datetime, timedelta
 import streamlit as st
 
 from .optimizer_concept_analyzer import ConceptAnalyzer
-
 from .optimizer_cache import OptimizerCache
-
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer, NetworkMatch, ComponentScore
 from .recommendation_engine import SuccessFactor, RecommendationEngine, Recommendation
-from .suggestion_analyzer import SuggestionAnalyzer, Recommendation, OptimizationSummary
+from src.dashboard.components.optimizer_view import OptimizerView, OptimizationSummary
 from .optimizer_config import OptimizerConfig
 
 
@@ -72,7 +70,7 @@ class ShowOptimizer:
         self.criteria_scorer = None
         self.network_analyzer = None
         self.concept_analyzer = None
-        self.suggestion_analyzer = None
+        self.optimizer_view = None
         self.recommendation_engine = None
         
         # Cache management
@@ -213,8 +211,8 @@ class ShowOptimizer:
                     optimizer_cache=self.cache  # Pass the cache instance
                 )
                 
-                # Initialize suggestion analyzer for formatting results
-                self.suggestion_analyzer = SuggestionAnalyzer(self.criteria_scorer)
+                # Initialize optimizer view for formatting results
+                self.optimizer_view = OptimizerView(self)
                 
                 # Update the components cache
                 self.cache.update_components_cache()
@@ -292,8 +290,8 @@ class ShowOptimizer:
             missing_components.append("NetworkAnalyzer")
         if self.concept_analyzer is None:
             missing_components.append("ConceptAnalyzer")
-        if self.suggestion_analyzer is None:
-            missing_components.append("SuggestionAnalyzer")
+        if self.optimizer_view is None:
+            missing_components.append("OptimizerView")
             
         if missing_components:
             error_msg = f"Missing required components: {', '.join(missing_components)}"
@@ -473,9 +471,9 @@ class ShowOptimizer:
                 force_refresh=force_refresh
             )
             
-            # Format results using SuggestionAnalyzer
+            # Format results using OptimizerView
             if analysis_result:
-                formatted_result = self.suggestion_analyzer.format_optimization_summary(analysis_result)
+                formatted_result = self.optimizer_view.format_optimization_summary(analysis_result)
                 st.write("Analysis completed successfully")
                 return formatted_result
             else:

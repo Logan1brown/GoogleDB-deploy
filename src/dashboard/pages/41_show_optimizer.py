@@ -19,9 +19,10 @@ from src.shared.auth import auth_required
 from src.dashboard.state.session import get_page_state, update_page_state
 from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS
 from src.dashboard.components.optimizer_view import OptimizerView
+from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
 from src.dashboard.components.optimizer_helpers import (
-    render_success_metrics, render_network_compatibility, group_recommendations,
-    render_recommendation_group, render_content_criteria, render_production_criteria, render_format_criteria,
+    render_success_metrics, render_network_compatibility, render_recommendations,
+    render_content_criteria, render_production_criteria, render_format_criteria,
     render_success_factors
 )
 
@@ -134,66 +135,32 @@ def show():
                 
                 # Tab 1: Success Metrics
                 with tab1:
-                    # Display component scores in metrics
-                        
-                    # Display success metrics using available attributes
-                    # Create columns for metrics - now 4 columns for all scores
-                    metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+                    # Use our improved helper function to render success metrics
+                    render_success_metrics(summary)
                     
-                    with metric_col1:
-                        if hasattr(summary, 'overall_success_probability'):
-                            probability = summary.overall_success_probability
-                            if probability is not None:
-                                st.metric("Success Probability", f"{probability:.0%}")
-                            else:
-                                st.metric("Success Probability", "N/A")
-                                
-                            if hasattr(summary, 'confidence'):
-                                st.caption(f"Confidence: {summary.confidence.capitalize()}")
-                        else:
-                            st.info("Overall success probability not available.")
-                    
-                    with metric_col2:
-                        if hasattr(summary, 'component_scores') and summary.component_scores and "audience" in summary.component_scores:
-                            audience_score = summary.component_scores["audience"]
-                            if hasattr(audience_score, 'score'):
-                                if audience_score.score is not None:
-                                    st.metric("Audience Appeal", f"{audience_score.score:.0%}")
-                                    if hasattr(audience_score, 'sample_size'):
-                                        st.caption(f"Sample size: {audience_score.sample_size} shows")
-                                else:
-                                    st.metric("Audience Appeal", "N/A")
-                                    st.caption("Insufficient data")
-                            else:
-                                st.error("Audience score object missing 'score' attribute")
-                    
-                    with metric_col3:
-                        if hasattr(summary, 'component_scores') and summary.component_scores and "critics" in summary.component_scores:
-                            critics_score = summary.component_scores["critics"]
-                            if hasattr(critics_score, 'score'):
-                                if critics_score.score is not None:
-                                    st.metric("Critics Score", f"{critics_score.score:.0%}")
-                                    if hasattr(critics_score, 'sample_size'):
-                                        st.caption(f"Sample size: {critics_score.sample_size} shows")
-                                else:
-                                    st.metric("Critics Score", "N/A")
-                                    st.caption("Insufficient data")
-                            else:
-                                st.error("Critics score object missing 'score' attribute")
-                    
-                    with metric_col4:
-                        if hasattr(summary, 'component_scores') and summary.component_scores and "longevity" in summary.component_scores:
-                            longevity_score = summary.component_scores["longevity"]
-                            if hasattr(longevity_score, 'score'):
+                    # Add longevity score if available (not included in the helper function)
+                    if hasattr(summary, 'component_scores') and summary.component_scores and "longevity" in summary.component_scores:
+                        longevity_score = summary.component_scores["longevity"]
+                        if hasattr(longevity_score, 'score'):
+                            st.subheader("Longevity Analysis")
+                            col1, col2, col3 = st.columns([1, 2, 1])
+                            with col2:
                                 if longevity_score.score is not None:
                                     st.metric("Longevity Score", f"{longevity_score.score:.0%}")
                                     if hasattr(longevity_score, 'sample_size'):
                                         st.caption(f"Sample size: {longevity_score.sample_size} shows")
+                                    if hasattr(longevity_score, 'confidence'):
+                                        config = OptimizerConfig()
+                                        confidence_display = config.CONFIDENCE_DISPLAY.get(
+                                            longevity_score.confidence, 
+                                            longevity_score.confidence.capitalize()
+                                        )
+                                        st.caption(f"Confidence: {confidence_display}")
                                 else:
                                     st.metric("Longevity Score", "N/A")
                                     st.caption("Insufficient data")
-                            else:
-                                st.error("Longevity score object missing 'score' attribute")
+                        else:
+                            st.info("Longevity score data not available.")
                     
                     # Display matching show titles
                     st.subheader("Matching Shows")
@@ -376,109 +343,31 @@ def show():
                 
                 # Tab 2: Network Analysis
                 with tab2:
-                    # Display network compatibility directly without helper
-                    if hasattr(summary, 'network_compatibility') and summary.network_compatibility:
-                        networks = summary.network_compatibility
-                        
+                    # Display network compatibility using our helper function
+                    if hasattr(summary, 'network_compatibility'):
                         # Add a note about match level
                         match_level = getattr(summary, 'match_level', 0)
                         if match_level > 1:
                             st.info(f"Network compatibility is based on flexible matching (level {match_level}). Results may vary with exact matches.")
                         
-                        # Create a dataframe for the networks
-                        network_data = []
-                        for network in networks:
-                            # Format the success probability and compatibility score for display
-                            success_prob = f"{network.success_probability:.0%}" if network.success_probability is not None else "N/A"
-                            compat_score = f"{network.compatibility_score:.0%}" if network.compatibility_score is not None else "N/A"
-                            
-                            network_data.append({
-                                "Network": network.network_name,
-                                "Success Probability": success_prob,
-                                "Compatibility": compat_score,
-                                "Sample Size": network.sample_size
-                            })
-                        
-                        # Sort by compatibility score (descending)
-                        network_df = pd.DataFrame(network_data)
-                        if not network_df.empty:
-                            st.write("Top networks for your concept:")
-                            st.dataframe(network_df)
-                            
-                            # Add explanation of what the scores mean
-                            st.caption("**Compatibility**: How well your concept aligns with the network's content strategy")
-                            st.caption("**Success Probability**: Estimated chance of success if your show airs on this network")
-                            st.caption("**Sample Size**: Number of similar shows used in this analysis")
-                    elif hasattr(summary, 'top_networks') and summary.top_networks:
-                        # Create a simple table of top networks
-                        network_df = pd.DataFrame(summary.top_networks)
-                        st.dataframe(network_df)
+                        # Use the helper function to render network compatibility
+                        render_network_compatibility(summary.network_compatibility)
                     else:
-                        st.info("No network compatibility data available for the selected criteria.")
+                        st.info("No network compatibility data available.")
                 
                 # Tab 3: Recommendations
                 with tab3:
                     # Display success factors if available
                     if hasattr(summary, 'success_factors') and summary.success_factors:
                         st.subheader("Success Factors")
-                        # Display success factors
+                        # Display success factors using our helper function
                         render_success_factors(summary.success_factors)
-                        
-                        # Group by type
-                        grouped = {
-                            "add": [],
-                            "replace": [],
-                            "remove": [],
-                            "consider": []
-                        }
-                        
-                        # Use summary.recommendations instead of undefined 'recommendations' variable
-                        for rec in summary.recommendations:
-                            if hasattr(rec, 'recommendation_type') and rec.recommendation_type in grouped:
-                                grouped[rec.recommendation_type].append(rec)
-                        
-                        # Display each group
-                        if grouped["add"]:
-                            st.subheader("Consider Adding")
-                            for rec in grouped["add"][:3]:
-                                st.write(f"**{rec.criteria_type}:** {rec.suggested_name}")
-                                if hasattr(rec, 'impact_score'):
-                                    st.write(f"Impact: {rec.impact_score:.2f}")
-                                st.write("---")
-                        
-                        if grouped["replace"]:
-                            st.subheader("Consider Replacing")
-                            for rec in grouped["replace"][:3]:
-                                # Get the human-readable name for the current value if available
-                                current_name = rec.current_value
-                                if hasattr(rec, 'current_name') and rec.current_name:
-                                    current_name = rec.current_name
-                                
-                                # Get the field name from the criteria type
-                                field_name = rec.criteria_type.replace('_', ' ').title()
-                                
-                                st.write(f"Replace **{field_name}**: '{current_name}' with '{rec.suggested_name}'")
-                                if hasattr(rec, 'impact_score'):
-                                    st.write(f"Impact: +{rec.impact_score:.2f} (success probability)")
-                                st.write("---")
-                        
-                        if grouped["remove"]:
-                            st.subheader("Consider Removing")
-                            for rec in grouped["remove"][:3]:
-                                st.write(f"**{rec.criteria_type}:** {rec.current_value}")
-                                if hasattr(rec, 'impact_score'):
-                                    st.write(f"Impact: {rec.impact_score:.2f}")
-                                st.write("---")
-                        
-                        if grouped["consider"]:
-                            st.subheader("Additional Insights")
-                            for rec in grouped["consider"][:3]:
-                                st.write(f"**{rec.criteria_type}:** {rec.suggested_name}")
-                                if hasattr(rec, 'explanation'):
-                                    st.write(rec.explanation)
-                                if hasattr(rec, 'impact_score'):
-                                    st.write(f"Impact: {rec.impact_score:.2f}")
-                                st.write("---")
+                    
+                    # Display recommendations if available
+                    if hasattr(summary, 'recommendations') and summary.recommendations:
+                        st.subheader("Recommendations")
+                        # Use our improved helper function to render recommendations
+                        render_recommendations(summary.recommendations, on_click_handler=None)
                     else:
                         st.info("No recommendations available for the selected criteria.")
                 
