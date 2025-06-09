@@ -112,9 +112,14 @@ class ShowOptimizer:
                 
                 # Integrate the data
                 # First, ensure we have the necessary columns for integration
-                if 'show_id' in shows_df.columns:
+                # The api_show_comp_data view uses 'id' as the show identifier
+                if 'id' in shows_df.columns:
                     # Create a copy to avoid modifying the original
                     integrated_shows = shows_df.copy()
+                    
+                    # Rename 'id' to 'show_id' for consistency
+                    if 'show_id' not in integrated_shows.columns:
+                        integrated_shows['show_id'] = integrated_shows['id']
                     
                     # Merge with success metrics if available
                     if not success_df.empty:
@@ -123,8 +128,24 @@ class ShowOptimizer:
                             success_df = success_df.reset_index()
                         
                         # Only keep success metrics that have matching shows
-                        if 'show_id' in success_df.columns:
-                            success_df = success_df[success_df['show_id'].isin(shows_df['show_id'])]
+                        if 'show_id' in success_df.columns and 'show_id' in integrated_shows.columns:
+                            success_df = success_df[success_df['show_id'].isin(integrated_shows['show_id'])]
+                            
+                            # Check for duplicate columns that might cause conflicts
+                            # tmdb_status exists in both datasets, so we'll drop it from success_df
+                            conflict_columns = ['tmdb_status', 'tmdb_seasons']
+                            for col in conflict_columns:
+                                if col in success_df.columns and col in integrated_shows.columns:
+                                    success_df = success_df.drop(columns=[col])
+                            
+                            # Now merge the datasets
+                            if not success_df.empty:
+                                integrated_shows = pd.merge(
+                                    integrated_shows,
+                                    success_df,
+                                    on='show_id',
+                                    how='left'
+                                )
                     else:
                         st.warning("Could not integrate success metrics: missing 'show_id' column")
                     
