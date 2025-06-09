@@ -356,7 +356,19 @@ class NetworkAnalyzer:
             recommendation_engine = concept_analyzer.recommendation_engine
                 
             # Use the RecommendationEngine to generate network-specific recommendations
-            recommendations = recommendation_engine.generate_network_specific_recommendations(criteria, network)
+            # Get the integrated data from the shows analyzer
+            integrated_data = self.shows_analyzer.get_integrated_data() if hasattr(self, 'shows_analyzer') else {}
+            
+            # Create an empty DataFrame for matching shows if not available
+            matching_shows = pd.DataFrame()
+            
+            # Call with all required parameters
+            recommendations = recommendation_engine.generate_network_specific_recommendations(
+                criteria=criteria, 
+                network=network,
+                matching_shows=matching_shows,
+                integrated_data=integrated_data
+            )
             
             # Convert Recommendation objects to dictionaries for compatibility
             recommendation_dicts = []

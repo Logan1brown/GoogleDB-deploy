@@ -161,8 +161,7 @@ class Matcher:
         
         return result_shows, confidence_info
         
-    def find_matches_with_fallback(self, criteria: Dict[str, Any], data: pd.DataFrame = None,
-                             min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    def find_matches_with_fallback(self, criteria: Dict[str, Any], data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Enhanced version of find_matches that incorporates sophisticated fallback logic.
         
         This method first tries exact matching (level 1) and then progressively relaxes
@@ -232,9 +231,9 @@ class Matcher:
                 else:
                     all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
             
-            # If we have enough matches, we can stop
-            if len(unique_titles) >= target_sample_size:
-                break
+            # Continue to next level even if we have enough matches
+            # This ensures we get matches from all levels up to MAX_RESULTS
+            # We'll sort and limit the results at the end
         
         # If we didn't find any matches at any level
         if all_matches.empty:
