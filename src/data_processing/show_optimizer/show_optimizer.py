@@ -108,7 +108,7 @@ class ShowOptimizer:
                 reference_data = self.shows_analyzer.get_reference_data()
                 
                 # Get success metrics
-                success_df = self.success_analyzer.get_success_metrics()
+                success_df = self.success_analyzer.success_data
                 
                 # Integrate the data
                 # First, ensure we have the necessary columns for integration
