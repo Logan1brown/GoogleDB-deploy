@@ -250,7 +250,12 @@ class SuccessScoreCalculator(ScoreCalculator):
         sample_size = result_info.get('sample_size', None)
         if sample_size is None:
             sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
+        
+        # Set confidence level based on sample size
         confidence = self.get_confidence_level(sample_size)
+        
+        # Debug the confidence calculation
+        st.write(f"DEBUG: Sample size for success score: {sample_size}, confidence: {confidence}")
 
         # Create detailed breakdown
         details = {

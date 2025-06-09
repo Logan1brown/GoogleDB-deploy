@@ -389,7 +389,25 @@ class ConceptAnalyzer:
             )
             
             if success_rate is not None:
-                confidence_level = confidence_info.get('confidence_level', 'none')
+                # Get sample size from confidence info or use the number of matching shows
+                sample_size = confidence_info.get('sample_size', len(matching_shows))
+                
+                # Determine confidence level based on sample size
+                if sample_size >= self.config.CONFIDENCE['high_confidence']:
+                    confidence_level = 'high'
+                elif sample_size >= self.config.CONFIDENCE['medium_confidence']:
+                    confidence_level = 'medium'
+                elif sample_size >= self.config.CONFIDENCE['low_confidence']:
+                    confidence_level = 'low'
+                elif sample_size >= self.config.CONFIDENCE['minimum_sample']:
+                    confidence_level = 'very_low'
+                else:
+                    confidence_level = 'none'
+                
+                # Override with confidence level from confidence_info if available
+                if 'confidence' in confidence_info:
+                    confidence_level = confidence_info['confidence']
+                
                 st.write(f"Success probability: {success_rate:.2f} (confidence: {confidence_level})")
                 return success_rate, confidence_level
             
