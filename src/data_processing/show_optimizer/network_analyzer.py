@@ -111,9 +111,9 @@ class NetworkAnalyzer:
         try:
             # Set the integrated data in the network score calculator
             self.set_integrated_data(integrated_data)
-                
-            # Get network matches from NetworkScoreCalculator
-            network_matches = self.network_score_calculator.calculate_network_scores(criteria)
+            
+            # Pass matching_shows directly to NetworkScoreCalculator
+            network_matches = self.network_score_calculator.calculate_network_scores(criteria, matching_shows=matching_shows)
             
             # Sort by compatibility score (descending)
             network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
@@ -130,12 +130,14 @@ class NetworkAnalyzer:
     
     def get_network_tiers(self, criteria: Dict[str, Any], 
                         integrated_data: Dict[str, pd.DataFrame],
+                        matching_shows: pd.DataFrame = None,
                         min_confidence: str = 'low') -> Dict[str, NetworkTier]:
         """Group networks into tiers based on compatibility with criteria.
         
         Args:
             criteria: Dictionary of criteria
             integrated_data: Dictionary of integrated data frames from ShowOptimizer
+            matching_shows: DataFrame of shows matching the criteria (for scoring consistency)
             min_confidence: Minimum confidence level to include (none, low, medium, high)
             
         Returns:
@@ -144,9 +146,9 @@ class NetworkAnalyzer:
         try:
             # Set the integrated data in the network score calculator
             self.set_integrated_data(integrated_data)
-                
-            # Get network matches from NetworkScoreCalculator
-            network_matches = self.network_score_calculator.calculate_network_scores(criteria)
+            
+            # Get network matches from NetworkScoreCalculator (always use matching_shows if provided)
+            network_matches = self.network_score_calculator.calculate_network_scores(criteria, matching_shows=matching_shows)
             
             # Filter by confidence
             confidence_levels = {'none': 0, 'low': 1, 'medium': 2, 'high': 3}

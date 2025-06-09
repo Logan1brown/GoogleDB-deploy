@@ -193,7 +193,7 @@ class ScoreCalculator(ABC):
         return OptimizerConfig.get_confidence_level(sample_size, match_level=1)
     
     @abstractmethod
-    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
+    def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
         """Calculate score for the component.
         
         Args:
@@ -210,7 +210,7 @@ class SuccessScoreCalculator(ScoreCalculator):
     def __init__(self):
         super().__init__(component_name='success')
 
-    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
+    def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
         # Get required and optional columns from config
         required_columns = OptimizerConfig.REQUIRED_COLUMNS['base'] + OptimizerConfig.REQUIRED_COLUMNS['success']
         optional_columns = OptimizerConfig.OPTIONAL_COLUMNS['success']
@@ -269,7 +269,7 @@ class AudienceScoreCalculator(ScoreCalculator):
     def __init__(self):
         super().__init__(component_name='audience')
 
-    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
+    def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
         # Get required and optional columns from config
         required_columns = OptimizerConfig.REQUIRED_COLUMNS['base'] + OptimizerConfig.REQUIRED_COLUMNS['audience']
         optional_columns = OptimizerConfig.OPTIONAL_COLUMNS['audience']
@@ -324,7 +324,7 @@ class CriticsScoreCalculator(ScoreCalculator):
     def __init__(self):
         super().__init__(component_name='critics')
 
-    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
+    def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
         # Get required and optional columns from config
         required_columns = OptimizerConfig.REQUIRED_COLUMNS['base'] + OptimizerConfig.REQUIRED_COLUMNS['critics']
         optional_columns = OptimizerConfig.OPTIONAL_COLUMNS['critics']
@@ -420,7 +420,7 @@ class LongevityScoreCalculator(ScoreCalculator):
         # Base scoring for shows with few episodes
         return episodes * config['base_score_per_episode']
 
-    def calculate(self, shows: pd.DataFrame) -> ComponentScore:
+    def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
         # Get required and optional columns from config
         required_columns = OptimizerConfig.REQUIRED_COLUMNS['base'] + OptimizerConfig.REQUIRED_COLUMNS['longevity']
         optional_columns = OptimizerConfig.OPTIONAL_COLUMNS['longevity']

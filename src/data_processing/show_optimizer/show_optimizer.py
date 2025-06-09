@@ -140,9 +140,11 @@ class ShowOptimizer:
                             
                             # Now merge the datasets
                             if not success_df.empty:
+                                # Only merge in non-conflicting columns from success_df
+                                success_columns = [col for col in success_df.columns if col not in ['title', 'id', 'show_id']]
                                 integrated_shows = pd.merge(
                                     integrated_shows,
-                                    success_df,
+                                    success_df[['show_id'] + success_columns],
                                     on='show_id',
                                     how='left'
                                 )
