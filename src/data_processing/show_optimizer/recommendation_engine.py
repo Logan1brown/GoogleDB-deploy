@@ -826,14 +826,16 @@ class RecommendationEngine:
                     if not network_rate_data.get('has_data', False):
                         continue
                     
-                    # The 'matching_shows' key might not exist in older versions of the network_rate_data
-                    # If it doesn't exist, we'll use the matching_shows parameter passed to this function
+                    # Get the matching_shows data safely
+                    # If matching_shows is not in network_rate_data, use the matching_shows parameter
+                    # that was passed to this function
                     matching_shows_data = network_rate_data.get('matching_shows')
-                    
-                    # If matching_shows_data is None, we'll use the matching_shows parameter
-                    # This ensures backward compatibility with older versions of the code
                     if matching_shows_data is None:
+                        # Use the matching_shows parameter as a fallback
                         matching_shows_data = matching_shows
+                        
+                        # Add it to network_rate_data for future reference
+                        network_rate_data['matching_shows'] = matching_shows_data
                     
                     # Handle different types of matching_shows data
                     is_empty = True  # Default to empty unless proven otherwise
