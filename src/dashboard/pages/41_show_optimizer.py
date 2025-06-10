@@ -203,46 +203,19 @@ def show():
                                 count = match_counts_by_level[level]
                                 match_level_summary.append(f"{count} {level_name}")
                         
-                        # Display match counts with clearer explanation
-                        exact_match_count = match_counts_by_level.get(1, 0)
-                        
-                        if exact_match_count > 0 and exact_match_count < sample_size:
-                            # We have both exact and supplemental matches
-                            st.write(f"Found {exact_match_count} exact matches plus {sample_size - exact_match_count} supplemental matches")
-                            if exact_match_count < 5:
-                                st.info(f"Found only {exact_match_count} exact matches, so supplemental matches were added to provide better analysis.")
-                        elif match_level_summary:
-                            st.write(f"Found {sample_size} shows: {', '.join(match_level_summary)}")
+                        # Count shows by match level for verification
+                        level_counts = {}
+                        if 'match_level' in summary.matching_shows.columns:
+                            for level in range(1, 5):
+                                count = len(summary.matching_shows[summary.matching_shows['match_level'] == level])
+                                if count > 0:
+                                    level_counts[level] = count
                         else:
-                            st.write(f"Found {sample_size} shows with similar criteria ({match_level_name})")
+                            # Use match_counts_by_level if available
+                            level_counts = match_counts_by_level
                         
-                        # Add legend for the colors with clearer explanation
-                        st.write("**Bold** = Exact match (matches ALL selected criteria including character types)")
-                        st.write("Normal = Close match (matches most criteria)")
-                        st.write("Grey = Supplemental match (matches core criteria only)")
-                        
-                        # Add note about supplemental matches if needed
-                        if exact_match_count > 0 and exact_match_count < sample_size:
-                            st.write("Note: Supplemental matches may not include all selected criteria but help provide a more robust analysis.")
-                        
-                        # Add explanation about character types if they're in the criteria
-                        if 'character_types' in state.get('criteria', {}) and state['criteria']['character_types']:
-                            char_types = state['criteria']['character_types']
-                            if char_types:
-                                # Convert character types to strings before joining
-                                char_types_str = [str(ct) for ct in char_types]
-                                
-                                # Look up character type names if possible
-                                char_type_names = []
-                                if 'field_options' in state and 'character_types' in state['field_options']:
-                                    # Create a mapping of ID to name
-                                    ct_map = {opt.id: opt.name for opt in state['field_options']['character_types']}
-                                    char_type_names = [ct_map.get(int(ct), f"Type {ct}") for ct in char_types_str]
-                                
-                                # Use names if available, otherwise use IDs
-                                display_types = char_type_names if char_type_names else char_types_str
-                                st.info(f"Shows are matched based on character types: {', '.join(display_types)}. "
-                                       f"Only exact matches (bold) are guaranteed to have these character types.")
+                        # Display match level counts
+                        st.write(f"Shows by match level: {level_counts}")
 
                         
                         if 'title' in summary.matching_shows.columns:
