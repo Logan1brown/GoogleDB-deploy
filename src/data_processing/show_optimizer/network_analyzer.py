@@ -292,8 +292,12 @@ class NetworkAnalyzer:
                 
                 # Calculate success rate and sample size
                 # Check if matching_shows is a DataFrame and not empty
-                is_empty = True
-                if isinstance(matching_shows, pd.DataFrame):
+                is_empty = True  # Default to empty unless proven otherwise
+                
+                # First check the type to avoid attribute errors
+                if matching_shows is None:
+                    is_empty = True
+                elif isinstance(matching_shows, pd.DataFrame):
                     is_empty = matching_shows.empty
                 elif isinstance(matching_shows, dict):
                     is_empty = len(matching_shows) == 0

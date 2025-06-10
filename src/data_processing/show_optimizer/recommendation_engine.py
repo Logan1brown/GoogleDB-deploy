@@ -830,9 +830,12 @@ class RecommendationEngine:
                         continue
                         
                     # Handle different types of matching_shows data
-                    is_empty = False
+                    is_empty = True  # Default to empty unless proven otherwise
                     
-                    if isinstance(matching_shows_data, pd.DataFrame):
+                    # First check the type to avoid attribute errors
+                    if matching_shows_data is None:
+                        is_empty = True
+                    elif isinstance(matching_shows_data, pd.DataFrame):
                         # For DataFrames, use the empty attribute
                         is_empty = matching_shows_data.empty
                     elif isinstance(matching_shows_data, dict):
@@ -842,7 +845,7 @@ class RecommendationEngine:
                         # For lists, check if length is zero
                         is_empty = len(matching_shows_data) == 0
                     else:
-                        # For other types, assume it's empty (safer approach)
+                        # For other types, log warning and assume it's empty (safer approach)
                         st.warning(f"Unexpected type for matching_shows: {type(matching_shows_data)}")
                         is_empty = True
                         
