@@ -374,9 +374,10 @@ class NetworkAnalyzer:
             
             # Get matching shows from the criteria scorer if available
             matching_shows = None
-            if hasattr(self, 'criteria_scorer') and hasattr(self.criteria_scorer, '_matching_calculator'):
+            if hasattr(self, 'criteria_scorer') and self.criteria_scorer is not None:
                 try:
-                    matching_shows, _, _ = self.criteria_scorer._matching_calculator.get_matching_shows(criteria)
+                    # Use the _get_matching_shows method directly from criteria_scorer
+                    matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
                 except Exception as e:
                     st.error(f"Error getting matching shows: {str(e)}")
                     matching_shows = None
