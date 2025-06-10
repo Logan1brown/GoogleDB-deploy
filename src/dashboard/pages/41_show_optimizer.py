@@ -157,14 +157,16 @@ def show():
                             1: "100% Criteria Match",
                             2: "75% Criteria Match",
                             3: "50% Criteria Match",
-                            4: "25% Criteria Match"
+                            4: "25% Criteria Match",
+                            5: "Minimal Criteria Match"
                         }
                         
                         match_level_colors = {
                             1: "#000000",  # Black for 100% match
                             2: "#000000",  # Black for 75% match
                             3: "#666666",  # Grey for 50% match
-                            4: "#999999"   # Light grey for 25% match
+                            4: "#999999",  # Light grey for 25% match
+                            5: "#AAAAAA"   # Very light grey for minimal match
                         }
                         
                         # Get match counts by level if available
@@ -197,7 +199,7 @@ def show():
                         
                         # Create a summary of match levels
                         match_level_summary = []
-                        for level in range(1, 5):
+                        for level in range(1, 6):
                             if level in match_counts_by_level and match_counts_by_level[level] > 0:
                                 level_name = match_level_names.get(level, f"Level {level}")
                                 count = match_counts_by_level[level]
@@ -206,7 +208,7 @@ def show():
                         # Count shows by match level for verification
                         level_counts = {}
                         if 'match_level' in summary.matching_shows.columns:
-                            for level in range(1, 5):
+                            for level in range(1, 6):
                                 count = len(summary.matching_shows[summary.matching_shows['match_level'] == level])
                                 if count > 0:
                                     level_counts[level] = count
@@ -219,7 +221,8 @@ def show():
                             1: "100% criteria",
                             2: "75% criteria",
                             3: "50% criteria",
-                            4: "25% criteria"
+                            4: "25% criteria",
+                            5: "minimal criteria"
                         }
                         
                         # Format the level counts with descriptions

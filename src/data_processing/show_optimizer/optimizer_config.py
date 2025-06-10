@@ -117,6 +117,12 @@ class OptimizerConfig:
             'confidence': 'very_low',
             'min_quality': 0.3,
             'criteria_percent': 0.25  # At least 25% of criteria must match
+        },
+        5: {
+            'name': 'Minimal criteria matched',
+            'confidence': 'minimal',
+            'min_quality': 0.1,
+            'criteria_percent': 0.1  # Extremely minimal matching (typically just genre)
         }
     }
     

@@ -182,22 +182,13 @@ class Matcher:
         # Always use MAX_RESULTS as the target sample size
         target_sample_size = OptimizerConfig.MAX_RESULTS
         
-        # If min_sample_size is provided and smaller, use that instead
-        if min_sample_size is not None and min_sample_size < target_sample_size:
-            target_sample_size = min_sample_size
-        
-        # Get data if not provided
-        data = self._get_data(data)
-        if data.empty:
-            return pd.DataFrame(), self._empty_confidence_info()
-        
-        # Start with an empty result set
+        # Initialize result variables
         all_matches = pd.DataFrame()
-        all_match_counts = {}
         best_confidence_info = {}
+        all_match_counts = {}
         unique_titles = set()
         
-        # Try each match level in sequence
+        # Try each match level in order (1-4)
         for level in sorted(OptimizerConfig.MATCH_LEVELS.keys()):
             # Get criteria for this match level
             level_criteria = self.get_criteria_for_match_level(criteria, level)
@@ -230,12 +221,27 @@ class Matcher:
                     all_matches = new_matches
                 else:
                     all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
-            
-            # Continue to next level even if we have enough matches
-            # This ensures we get matches from all levels up to MAX_RESULTS
-            # We'll sort and limit the results at the end
         
-        # If we didn't find any matches at any level
+        # If we didn't find any matches at any level, try level 5 (extremely minimal matching)
+        if all_matches.empty:
+            # Get criteria for level 5
+            level_criteria = self.get_criteria_for_match_level(criteria, 5)
+            if level_criteria:
+                # Match shows using the minimal criteria
+                level_matches, match_count = self._match_shows(level_criteria, data)
+                
+                if not level_matches.empty:
+                    # Add match_level to the matches
+                    level_matches['match_level'] = 5
+                    all_match_counts[5] = match_count
+                    
+                    # Calculate confidence for this level
+                    best_confidence_info = self.calculate_match_confidence(level_matches, 5, criteria)
+                    
+                    # Add matches to the result set
+                    all_matches = level_matches
+        
+        # If we still didn't find any matches at any level
         if all_matches.empty:
             return pd.DataFrame(), self._empty_confidence_info()
         
@@ -489,16 +495,44 @@ class Matcher:
         2 - Match with most criteria (75%)
         3 - Match with about half of criteria (50%)
         4 - Match with minimal essential criteria (25%)
+        5 - Extremely minimal matching (genre only)
         
-        This implementation uses a percentage-based approach that adapts to the number of criteria selected.
+        This implementation uses a percentage-based approach that adapts to the number of criteria selected,
+        with special handling for level 5 which ensures at least some shows are found.
         
         Args:
             criteria: Dictionary of criteria
-            match_level: Match level (1-4)
+            match_level: Match level (1-5)
             
         Returns:
             Criteria dictionary adjusted for the match level
         """
+        # Handle level 5 (extremely minimal matching - genre only)
+        if match_level == 5:
+            # Only include genre if it exists, otherwise include the most essential criterion
+            result = {}
+            if 'genre' in criteria:
+                result['genre'] = criteria['genre']
+                return result
+            
+            # If no genre, try to find the most essential criterion
+            classified = self.field_manager.classify_criteria_by_importance(criteria)
+            if classified['essential']:
+                # Take the first essential criterion
+                field, value = next(iter(classified['essential'].items()))
+                result[field] = value
+                return result
+            elif classified['core']:
+                # Take the first core criterion
+                field, value = next(iter(classified['core'].items()))
+                result[field] = value
+                return result
+            else:
+                # Take the first criterion of any type
+                field, value = next(iter(criteria.items()))
+                result[field] = value
+                return result
+        
         # Validate match level against config
         if match_level not in OptimizerConfig.MATCH_LEVELS:
             st.error(f"Invalid match level {match_level}, using all criteria")
@@ -556,11 +590,9 @@ class Matcher:
             for field, value in secondary_items:
                 result[field] = value
         
-        # Debug info
-        if len(result) != criteria_to_include and len(result) < total_criteria:
-            # This is not an error, just informational for debugging
-            # It can happen if we don't have enough criteria in the lower importance categories
-            pass
+        # Ensure we always include genre if it exists (for better matching)
+        if 'genre' in criteria and 'genre' not in result:
+            result['genre'] = criteria['genre']
             
         return result
     
