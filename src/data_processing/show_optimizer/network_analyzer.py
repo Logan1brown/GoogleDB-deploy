@@ -291,7 +291,16 @@ class NetworkAnalyzer:
                         matching_shows = network_data[network_data[field_id] == value]
                 
                 # Calculate success rate and sample size
-                if not matching_shows.empty:
+                # Check if matching_shows is a DataFrame and not empty
+                is_empty = True
+                if isinstance(matching_shows, pd.DataFrame):
+                    is_empty = matching_shows.empty
+                elif isinstance(matching_shows, dict):
+                    is_empty = len(matching_shows) == 0
+                elif isinstance(matching_shows, list):
+                    is_empty = len(matching_shows) == 0
+                
+                if not is_empty:
                     # Calculate success rate using threshold from OptimizerConfig
                     success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
                     success_count = matching_shows[matching_shows['success_score'] >= success_threshold].shape[0]

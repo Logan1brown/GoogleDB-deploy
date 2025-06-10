@@ -97,22 +97,26 @@ class OptimizerConfig:
         1: {
             'name': 'All criteria matched',
             'confidence': 'high',
-            'min_quality': 0.9
+            'min_quality': 0.9,
+            'criteria_percent': 1.0  # 100% of criteria must match
         },
         2: {
             'name': 'All but one secondary criterion matched',
             'confidence': 'medium',
-            'min_quality': 0.7
+            'min_quality': 0.7,
+            'criteria_percent': 0.75  # At least 75% of criteria must match
         },
         3: {
             'name': 'Core and primary criteria matched',
             'confidence': 'low',
-            'min_quality': 0.5
+            'min_quality': 0.5,
+            'criteria_percent': 0.5  # At least 50% of criteria must match
         },
         4: {
             'name': 'Only core criteria matched',
             'confidence': 'very_low',
-            'min_quality': 0.3
+            'min_quality': 0.3,
+            'criteria_percent': 0.25  # At least 25% of criteria must match
         }
     }
     

@@ -486,9 +486,11 @@ class Matcher:
         
         Match levels are defined in OptimizerConfig.MATCH_LEVELS:
         1 - Exact match with all criteria
-        2 - Match with all primary criteria, relaxed secondary criteria
-        3 - Match with only high-importance criteria
+        2 - Match with most criteria (typically all but one)
+        3 - Match with about half of criteria (prioritizing important ones)
         4 - Match with minimal essential criteria
+        
+        This implementation uses a percentage-based approach that adapts to the number of criteria selected.
         
         Args:
             criteria: Dictionary of criteria
@@ -505,42 +507,59 @@ class Matcher:
         # If match level is 1, use all criteria
         if match_level == 1:
             return criteria.copy()
-            
-        # Classify criteria by importance using field_manager
+        
+        # Get the percentage from config
+        level_config = OptimizerConfig.MATCH_LEVELS[match_level]
+        criteria_percent = level_config.get('criteria_percent', 1.0)
+        
+        # Get the total number of criteria
+        total_criteria = len(criteria)
+        
+        # Calculate how many criteria to include based on percentage
+        criteria_to_include = max(1, int(total_criteria * criteria_percent))
+        
+        # Classify criteria by importance
         classified = self.field_manager.classify_criteria_by_importance(criteria)
         
-        # Apply match level rules based on OptimizerConfig.MATCH_LEVELS
+        # Build result by adding criteria in order of importance until we reach the target count
         result = {}
+        remaining_slots = criteria_to_include
         
-        # Always include essential criteria at all levels
+        # Always include essential criteria first
         result.update(classified['essential'])
+        remaining_slots -= len(classified['essential'])
         
-        # For level 4, use only essential and core criteria
-        if match_level == 4:
-            result.update(classified['core'])
-            return result
-            
-        # For level 3, use essential, core, and primary criteria
-        if match_level == 3:
-            result.update(classified['core'])
-            result.update(classified['primary'])
-            return result
-            
-        # For level 2, use all criteria except one secondary criterion (if any)
-        if match_level == 2:
-            result.update(classified['core'])
-            result.update(classified['primary'])
-            
-            # Add all but one secondary criterion if any exist
-            if classified['secondary']:
-                secondary_items = list(classified['secondary'].items())
-                for i, (field, value) in enumerate(secondary_items):
-                    if i < len(secondary_items) - 1:  # Skip the last one
-                        result[field] = value
-            return result
+        # Add core criteria if we have slots left
+        if remaining_slots > 0:
+            core_to_add = min(len(classified['core']), remaining_slots)
+            core_items = list(classified['core'].items())[:core_to_add]
+            for field, value in core_items:
+                result[field] = value
+            remaining_slots -= core_to_add
         
-        # Default to all criteria if match level is invalid
-        return criteria.copy()
+        # Add primary criteria if we have slots left
+        if remaining_slots > 0:
+            primary_to_add = min(len(classified['primary']), remaining_slots)
+            primary_items = list(classified['primary'].items())[:primary_to_add]
+            for field, value in primary_items:
+                result[field] = value
+            remaining_slots -= primary_to_add
+        
+        # Add secondary criteria if we have slots left
+        if remaining_slots > 0:
+            secondary_to_add = min(len(classified['secondary']), remaining_slots)
+            secondary_items = list(classified['secondary'].items())[:secondary_to_add]
+            for field, value in secondary_items:
+                result[field] = value
+        
+        # Special case for level 2 with exactly 2 criteria total
+        # In this case, we want to keep the more important criterion
+        if match_level == 2 and total_criteria == 2 and len(result) < 2:
+            # We've already added the more important criterion above
+            # No need to do anything special here
+            pass
+            
+        return result
     
     def calculate_match_confidence(self, shows: pd.DataFrame, match_level: int, 
                                   criteria: Dict[str, Any]) -> Dict[str, Any]:
