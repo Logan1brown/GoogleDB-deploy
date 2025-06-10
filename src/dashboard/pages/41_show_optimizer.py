@@ -152,19 +152,19 @@ def show():
                         match_level_name = getattr(summary, 'match_level_name', 'Exact Match')
                         sample_size = len(summary.matching_shows)
                         
-                        # Define match level names and colors
+                        # Define match level names and colors based on percentage criteria
                         match_level_names = {
-                            1: "Exact Match",
-                            2: "Close Match",
-                            3: "Partial Match",
-                            4: "Loose Match"
+                            1: "100% Criteria Match",
+                            2: "75% Criteria Match",
+                            3: "50% Criteria Match",
+                            4: "25% Criteria Match"
                         }
                         
                         match_level_colors = {
-                            1: "#000000",  # Black for exact match
-                            2: "#000000",  # Black for close match
-                            3: "#666666",  # Grey for partial match
-                            4: "#999999"   # Light grey for loose match
+                            1: "#000000",  # Black for 100% match
+                            2: "#000000",  # Black for 75% match
+                            3: "#666666",  # Grey for 50% match
+                            4: "#999999"   # Light grey for 25% match
                         }
                         
                         # Get match counts by level if available
@@ -214,8 +214,19 @@ def show():
                             # Use match_counts_by_level if available
                             level_counts = match_counts_by_level
                         
-                        # Display match level counts
-                        st.write(f"Shows by match level: {level_counts}")
+                        # Display match level counts with clear percentage-based descriptions
+                        level_descriptions = {
+                            1: "100% criteria",
+                            2: "75% criteria",
+                            3: "50% criteria",
+                            4: "25% criteria"
+                        }
+                        
+                        # Format the level counts with descriptions
+                        formatted_counts = {f"{level_descriptions.get(level, f'Level {level}')}": count 
+                                           for level, count in level_counts.items()}
+                        
+                        st.write(f"Shows by match level: {formatted_counts}")
 
                         
                         if 'title' in summary.matching_shows.columns:
@@ -245,8 +256,7 @@ def show():
                             # Limit to 100 shows
                             unique_shows = unique_shows[:100]
                             
-                            # Display the unique shows
-                            st.write(f"Displaying {len(unique_shows)} unique shows")
+                            # No need to display the unique shows count
                             
                             # Count shows by match level for verification
                             level_counts = {}
@@ -254,7 +264,11 @@ def show():
                                 level = show.get('match_level', match_level)
                                 level_counts[level] = level_counts.get(level, 0) + 1
                             
-                            st.write(f"Shows by match level: {level_counts}")
+                            # Format the level counts with descriptions
+                            formatted_counts = {f"{level_descriptions.get(level, f'Level {level}')}": count 
+                                              for level, count in level_counts.items()}
+                            
+                            st.write(f"Shows by match level: {formatted_counts}")
                             
                             # Sort shows by match level to ensure exact matches appear first
                             unique_shows.sort(key=lambda x: x.get('match_level', 4))
@@ -286,13 +300,13 @@ def show():
                                     
                                     # Format based on match level
                                     if level == 1:
-                                        # Exact match - bold black
+                                        # 100% criteria match - bold black
                                         st.markdown(f"**{title}**")
                                     elif level == 2:
-                                        # Close match - normal black
+                                        # 75% criteria match - normal black
                                         st.markdown(title)
                                     else:
-                                        # Other match levels - use appropriate color
+                                        # 50% or 25% criteria match - use appropriate color
                                         st.markdown(f"<span style='color: {color};'>{title}</span>", unsafe_allow_html=True)
                     else:
                         st.info("No matching shows available for the selected criteria.")
