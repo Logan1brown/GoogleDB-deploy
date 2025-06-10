@@ -485,10 +485,10 @@ class Matcher:
         """Get criteria adjusted for a specific match level.
         
         Match levels are defined in OptimizerConfig.MATCH_LEVELS:
-        1 - Exact match with all criteria
-        2 - Match with most criteria (typically all but one)
-        3 - Match with about half of criteria (prioritizing important ones)
-        4 - Match with minimal essential criteria
+        1 - Exact match with all criteria (100%)
+        2 - Match with most criteria (75%)
+        3 - Match with about half of criteria (50%)
+        4 - Match with minimal essential criteria (25%)
         
         This implementation uses a percentage-based approach that adapts to the number of criteria selected.
         
@@ -507,6 +507,10 @@ class Matcher:
         # If match level is 1, use all criteria
         if match_level == 1:
             return criteria.copy()
+            
+        # Special case for only 1 criterion
+        if len(criteria) == 1:
+            return criteria.copy()  # Always include the only criterion
         
         # Get the percentage from config
         level_config = OptimizerConfig.MATCH_LEVELS[match_level]
@@ -516,7 +520,7 @@ class Matcher:
         total_criteria = len(criteria)
         
         # Calculate how many criteria to include based on percentage
-        criteria_to_include = max(1, int(total_criteria * criteria_percent))
+        criteria_to_include = max(1, int(total_criteria * criteria_percent + 0.5))  # Round up
         
         # Classify criteria by importance
         classified = self.field_manager.classify_criteria_by_importance(criteria)
@@ -530,7 +534,7 @@ class Matcher:
         remaining_slots -= len(classified['essential'])
         
         # Add core criteria if we have slots left
-        if remaining_slots > 0:
+        if remaining_slots > 0 and classified['core']:
             core_to_add = min(len(classified['core']), remaining_slots)
             core_items = list(classified['core'].items())[:core_to_add]
             for field, value in core_items:
@@ -538,7 +542,7 @@ class Matcher:
             remaining_slots -= core_to_add
         
         # Add primary criteria if we have slots left
-        if remaining_slots > 0:
+        if remaining_slots > 0 and classified['primary']:
             primary_to_add = min(len(classified['primary']), remaining_slots)
             primary_items = list(classified['primary'].items())[:primary_to_add]
             for field, value in primary_items:
@@ -546,17 +550,16 @@ class Matcher:
             remaining_slots -= primary_to_add
         
         # Add secondary criteria if we have slots left
-        if remaining_slots > 0:
+        if remaining_slots > 0 and classified['secondary']:
             secondary_to_add = min(len(classified['secondary']), remaining_slots)
             secondary_items = list(classified['secondary'].items())[:secondary_to_add]
             for field, value in secondary_items:
                 result[field] = value
         
-        # Special case for level 2 with exactly 2 criteria total
-        # In this case, we want to keep the more important criterion
-        if match_level == 2 and total_criteria == 2 and len(result) < 2:
-            # We've already added the more important criterion above
-            # No need to do anything special here
+        # Debug info
+        if len(result) != criteria_to_include and len(result) < total_criteria:
+            # This is not an error, just informational for debugging
+            # It can happen if we don't have enough criteria in the lower importance categories
             pass
             
         return result

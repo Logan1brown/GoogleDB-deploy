@@ -368,8 +368,18 @@ class NetworkAnalyzer:
             # Get the integrated data from the shows analyzer
             integrated_data = self.shows_analyzer.get_integrated_data() if hasattr(self, 'shows_analyzer') else {}
             
-            # Create an empty DataFrame for matching shows if not available
-            matching_shows = pd.DataFrame()
+            # Get matching shows from the criteria scorer if available
+            matching_shows = None
+            if hasattr(self, 'criteria_scorer') and hasattr(self.criteria_scorer, '_matching_calculator'):
+                try:
+                    matching_shows, _, _ = self.criteria_scorer._matching_calculator.get_matching_shows(criteria)
+                except Exception as e:
+                    st.error(f"Error getting matching shows: {str(e)}")
+                    matching_shows = None
+            
+            # Ensure matching_shows is a DataFrame
+            if matching_shows is None or not isinstance(matching_shows, pd.DataFrame):
+                matching_shows = pd.DataFrame()
             
             # Call with all required parameters
             recommendations = recommendation_engine.generate_network_specific_recommendations(
@@ -438,13 +448,35 @@ class NetworkAnalyzer:
             # Use the criteria scorer to get matching shows
             matching_shows, count, confidence_info = self.criteria_scorer._matching_calculator.get_matching_shows(criteria)
             
-            if matching_shows.empty or count < min_sample_size:
+            # Check if matching_shows is empty
+            is_empty = False
+            if isinstance(matching_shows, pd.DataFrame):
+                is_empty = matching_shows.empty
+            elif isinstance(matching_shows, dict):
+                is_empty = len(matching_shows) == 0
+            elif isinstance(matching_shows, list):
+                is_empty = len(matching_shows) == 0
+            else:
+                # For other types, assume it's empty (safer approach)
+                is_empty = True
+                
+            if is_empty or count < min_sample_size:
                 return None, 'none'
             
             # Calculate success rate
             success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
-            success_count = matching_shows[matching_shows['success_score'] >= success_threshold].shape[0]
-            success_rate = success_count / count if count > 0 else None
+            
+            # Handle different types of matching_shows for success rate calculation
+            if isinstance(matching_shows, pd.DataFrame):
+                if 'success_score' in matching_shows.columns:
+                    success_count = matching_shows[matching_shows['success_score'] >= success_threshold].shape[0]
+                    success_rate = success_count / count if count > 0 else None
+                else:
+                    # No success_score column
+                    success_rate = None
+            else:
+                # Can't calculate success rate with non-DataFrame
+                success_rate = None
             
             # Determine confidence level
             confidence = confidence_info.get('level', OptimizerConfig.get_confidence_level(count, confidence_info.get('match_level', 1)))
