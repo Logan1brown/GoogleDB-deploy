@@ -324,7 +324,8 @@ class NetworkAnalyzer:
                             'rate': success_rate,
                             'sample_size': total_count,
                             'has_data': True,
-                            'matching_titles': matching_titles
+                            'matching_titles': matching_titles,
+                            'matching_shows': matching_shows
                         }
                     else:
                         success_rates[field_name] = {
@@ -339,7 +340,8 @@ class NetworkAnalyzer:
                         'rate': None,
                         'sample_size': 0,
                         'has_data': False,
-                        'matching_titles': []
+                        'matching_titles': [],
+                        'matching_shows': pd.DataFrame()
                     }
             
             return success_rates

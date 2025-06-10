@@ -820,15 +820,21 @@ class RecommendationEngine:
                 if not isinstance(network_rate_data, dict):
                     st.error(f"Network rate data for {criteria_type} is not a dict: {network_rate_data}")
                     continue
-                # Check if we have valid matching shows data before proceeding
+                # Check if we have valid data before proceeding
                 try:
-                    # Get the matching_shows data safely
+                    # First check if we have any data at all
+                    if not network_rate_data.get('has_data', False):
+                        continue
+                    
+                    # The 'matching_shows' key might not exist in older versions of the network_rate_data
+                    # If it doesn't exist, we'll use the matching_shows parameter passed to this function
                     matching_shows_data = network_rate_data.get('matching_shows')
                     
-                    # Skip if no matching shows data
+                    # If matching_shows_data is None, we'll use the matching_shows parameter
+                    # This ensures backward compatibility with older versions of the code
                     if matching_shows_data is None:
-                        continue
-                        
+                        matching_shows_data = matching_shows
+                    
                     # Handle different types of matching_shows data
                     is_empty = True  # Default to empty unless proven otherwise
                     
@@ -848,8 +854,9 @@ class RecommendationEngine:
                         # For other types, log warning and assume it's empty (safer approach)
                         st.warning(f"Unexpected type for matching_shows: {type(matching_shows_data)}")
                         is_empty = True
-                        
-                    if is_empty:
+                    
+                    # Only skip if we have no data at all
+                    if is_empty and not network_rate_data.get('has_data', False):
                         continue
                         
                 except Exception as e:
