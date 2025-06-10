@@ -437,7 +437,7 @@ class CriteriaScorer:
         """
         return self.field_manager.calculate_confidence(criteria)
         
-    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
+    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None, flexible: bool = False) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
         """Get shows matching the given criteria.
         
         This method delegates to the matcher's find_matches method.
@@ -445,6 +445,7 @@ class CriteriaScorer:
         Args:
             criteria: Dictionary of criteria to match against
             data: Optional DataFrame of shows to match against (uses matcher's cached data if None)
+            flexible: If True, use more flexible matching criteria (for recommendations)
             
         Returns:
             Tuple of (matching_shows, match_count, confidence_info)
@@ -455,7 +456,7 @@ class CriteriaScorer:
             
         try:
             # Delegate to the matcher's find_matches method
-            matching_shows, confidence_info = self.matcher.find_matches(criteria, data)
+            matching_shows, confidence_info = self.matcher.find_matches(criteria, data, flexible=flexible)
             match_count = len(matching_shows) if not matching_shows.empty else 0
             return matching_shows, match_count, confidence_info
         except Exception as e:

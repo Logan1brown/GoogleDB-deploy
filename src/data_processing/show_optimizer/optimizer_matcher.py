@@ -72,7 +72,7 @@ class Matcher:
         self._criteria_data = criteria_data.copy() if criteria_data is not None else None
     
     def find_matches(self, criteria: Dict[str, Any], data: pd.DataFrame = None, 
-                     min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+                     min_sample_size: int = None, flexible: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Main entry point for finding matches with automatic fallback strategies.
         
         This method orchestrates the search process, trying different strategies
@@ -101,8 +101,16 @@ class Matcher:
         best_level = 0
         confidence_info = {}
         
-        # Try each match level defined in OptimizerConfig
-        for level in sorted(OptimizerConfig.MATCH_LEVELS.keys()):
+        # If flexible is True, use level 5 (minimal criteria) for recommendation testing
+        if flexible:
+            # Start with level 5 (minimal criteria) or the highest level available
+            start_level = 5 if 5 in OptimizerConfig.MATCH_LEVELS else max(OptimizerConfig.MATCH_LEVELS.keys())
+            levels_to_try = [start_level]
+        else:
+            # Try each match level defined in OptimizerConfig in order
+            levels_to_try = sorted(OptimizerConfig.MATCH_LEVELS.keys())
+            
+        for level in levels_to_try:
             try:
                 # Get criteria for this match level
                 level_criteria = self.get_criteria_for_match_level(criteria, level)
