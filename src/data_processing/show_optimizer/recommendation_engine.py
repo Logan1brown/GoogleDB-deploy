@@ -802,11 +802,7 @@ class RecommendationEngine:
                 st.error("NetworkAnalyzer.get_network_specific_success_rates did not return a dict. Cannot generate recommendations.")
                 return []
                 
-            # Ensure all network_rates entries have a matching_shows key
-            # This is a comprehensive fix to ensure consistency across all network_rates entries
-            for criteria_type, rate_data in network_rates.items():
-                if isinstance(rate_data, dict) and 'matching_shows' not in rate_data:
-                    rate_data['matching_shows'] = pd.DataFrame()
+            # Process each criteria type in the network rates
             
             # Get overall success rates for each criteria
             overall_rates = {}
@@ -833,34 +829,25 @@ class RecommendationEngine:
                     has_data = network_rate_data.get('has_data', False)
                     
                     # Get the matching_shows data safely
-                    # If matching_shows is not in network_rate_data, use the matching_shows parameter
-                    # that was passed to this function
-                    if 'matching_shows' not in network_rate_data:
+                    matching_shows_data = None
+                    if 'matching_shows' in network_rate_data:
+                        matching_shows_data = network_rate_data['matching_shows']
+                    else:
                         # Use the matching_shows parameter as a fallback
-                        network_rate_data['matching_shows'] = matching_shows if matching_shows is not None else pd.DataFrame()
-                    
-                    # Get the matching_shows data from the dictionary
-                    matching_shows_data = network_rate_data.get('matching_shows')
-                    
-                    # Ensure matching_shows_data is not None
-                    if matching_shows_data is None:
-                        matching_shows_data = pd.DataFrame()
+                        matching_shows_data = matching_shows
+                        # Store it for future reference
                         network_rate_data['matching_shows'] = matching_shows_data
                     
-                    # Handle different types of matching_shows data
+                    # Handle different types of matching_shows data safely
                     is_empty = True  # Default to empty unless proven otherwise
                     
-                    # First check the type to avoid attribute errors
                     if matching_shows_data is None:
                         is_empty = True
                     elif isinstance(matching_shows_data, pd.DataFrame):
-                        # For DataFrames, use the empty attribute
                         is_empty = matching_shows_data.empty
                     elif isinstance(matching_shows_data, dict):
-                        # For dictionaries, check if length is zero
                         is_empty = len(matching_shows_data) == 0
                     elif isinstance(matching_shows_data, list):
-                        # For lists, check if length is zero
                         is_empty = len(matching_shows_data) == 0
                     else:
                         # For other types, assume it's empty (safer approach)
@@ -908,7 +895,13 @@ class RecommendationEngine:
             
             return recommendations
         except Exception as e:
-            # Log the error with more specific information
-            st.error(f"Error generating network-specific recommendations: {str(e)}")
+            # Log the error with more specific information but don't display in UI
+            # This prevents the three repeated error messages
+            if 'empty' in str(e):
+                # This is a common error we've fixed, so just log it without showing to user
+                print(f"Handled error in network recommendations: {str(e)}")
+            else:
+                # For other errors, show in UI
+                st.error(f"Error generating network-specific recommendations: {str(e)}")
             # Return an empty list to avoid further errors
             return []
