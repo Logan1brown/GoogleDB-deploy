@@ -820,17 +820,28 @@ class RecommendationEngine:
                 if not isinstance(network_rate_data, dict):
                     st.error(f"Network rate data for {criteria_type} is not a dict: {network_rate_data}")
                     continue
+                    
+                # Add debug information to understand the structure
+                st.write(f"Debug: Network rate data keys for {criteria_type}: {list(network_rate_data.keys())}")
+                
                 # Check if we have valid data before proceeding
                 try:
                     # First check if we have any data at all
-                    if not network_rate_data.get('has_data', False):
+                    has_data = network_rate_data.get('has_data', False)
+                    st.write(f"Debug: has_data for {criteria_type}: {has_data}")
+                    
+                    if not has_data:
+                        st.write(f"Debug: Skipping {criteria_type} due to no data")
                         continue
                     
                     # Get the matching_shows data safely
                     # If matching_shows is not in network_rate_data, use the matching_shows parameter
                     # that was passed to this function
                     matching_shows_data = network_rate_data.get('matching_shows')
+                    st.write(f"Debug: matching_shows_data type for {criteria_type}: {type(matching_shows_data)}")
+                    
                     if matching_shows_data is None:
+                        st.write(f"Debug: Using fallback matching_shows for {criteria_type}")
                         # Use the matching_shows parameter as a fallback
                         matching_shows_data = matching_shows
                         
@@ -843,23 +854,33 @@ class RecommendationEngine:
                     # First check the type to avoid attribute errors
                     if matching_shows_data is None:
                         is_empty = True
+                        st.write(f"Debug: matching_shows_data is None for {criteria_type}")
                     elif isinstance(matching_shows_data, pd.DataFrame):
                         # For DataFrames, use the empty attribute
                         is_empty = matching_shows_data.empty
+                        st.write(f"Debug: DataFrame is_empty={is_empty} for {criteria_type}")
                     elif isinstance(matching_shows_data, dict):
                         # For dictionaries, check if length is zero
                         is_empty = len(matching_shows_data) == 0
+                        st.write(f"Debug: Dict length={len(matching_shows_data)} for {criteria_type}")
                     elif isinstance(matching_shows_data, list):
                         # For lists, check if length is zero
                         is_empty = len(matching_shows_data) == 0
+                        st.write(f"Debug: List length={len(matching_shows_data)} for {criteria_type}")
                     else:
                         # For other types, log warning and assume it's empty (safer approach)
                         st.warning(f"Unexpected type for matching_shows: {type(matching_shows_data)}")
                         is_empty = True
+                        st.write(f"Debug: Unexpected type for {criteria_type}")
                     
                     # Only skip if we have no data at all
-                    if is_empty and not network_rate_data.get('has_data', False):
+                    if is_empty and not has_data:
+                        st.write(f"Debug: Skipping {criteria_type} due to empty data and no has_data flag")
                         continue
+                    
+                    # If we get here, we have valid data to process
+                    st.write(f"Debug: Processing {criteria_type} with valid data")
+                    
                         
                 except Exception as e:
                     st.error(f"Error checking matching shows data: {str(e)}")
