@@ -505,7 +505,7 @@ def render_network_compatibility(networks: List):
                         compatibility = None
                 
                 # Handle placeholder values and special cases
-                if success_prob == 1 and sample_size < 5:
+                if isinstance(success_prob, (int, float)) and success_prob == 1 and sample_size < 5:
                     success_prob = None  # Replace placeholder with None for insufficient data
                     
                 # Handle #LOADING values
@@ -518,6 +518,12 @@ def render_network_compatibility(networks: List):
                 # Handle other invalid values
                 if compatibility is None or (isinstance(compatibility, (int, float)) and compatibility <= 0):
                     compatibility = None  # Replace invalid values with None
+                    
+                # Ensure success probability is not hardcoded to 1
+                if isinstance(success_prob, (int, float)) and success_prob == 1 and sample_size >= 5:
+                    # This is likely a placeholder value that wasn't properly updated
+                    st.write(f"Debug: Found hardcoded success probability of 1 for {network_name} with sample size {sample_size}")
+                    # Keep it as is, but log for debugging
                 
                 # Get confidence and use config for display
                 confidence = getattr(network, 'confidence', config.DEFAULT_VALUES['confidence'])
