@@ -801,6 +801,12 @@ class RecommendationEngine:
             if not isinstance(network_rates, dict):
                 st.error("NetworkAnalyzer.get_network_specific_success_rates did not return a dict. Cannot generate recommendations.")
                 return []
+                
+            # Ensure all network_rates entries have a matching_shows key
+            # This is a comprehensive fix to ensure consistency across all network_rates entries
+            for criteria_type, rate_data in network_rates.items():
+                if isinstance(rate_data, dict) and 'matching_shows' not in rate_data:
+                    rate_data['matching_shows'] = pd.DataFrame()
             
             # Get overall success rates for each criteria
             overall_rates = {}
@@ -829,13 +835,16 @@ class RecommendationEngine:
                     # Get the matching_shows data safely
                     # If matching_shows is not in network_rate_data, use the matching_shows parameter
                     # that was passed to this function
+                    if 'matching_shows' not in network_rate_data:
+                        # Use the matching_shows parameter as a fallback
+                        network_rate_data['matching_shows'] = matching_shows if matching_shows is not None else pd.DataFrame()
+                    
+                    # Get the matching_shows data from the dictionary
                     matching_shows_data = network_rate_data.get('matching_shows')
                     
+                    # Ensure matching_shows_data is not None
                     if matching_shows_data is None:
-                        # Use the matching_shows parameter as a fallback
-                        matching_shows_data = matching_shows
-                        
-                        # Add it to network_rate_data for future reference
+                        matching_shows_data = pd.DataFrame()
                         network_rate_data['matching_shows'] = matching_shows_data
                     
                     # Handle different types of matching_shows data

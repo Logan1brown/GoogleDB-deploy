@@ -332,8 +332,7 @@ class NetworkAnalyzer:
                             'rate': None,
                             'sample_size': 0,
                             'has_data': False,
-                            'matching_titles': [],
-                            'matching_shows': pd.DataFrame()  # Always include an empty DataFrame
+                            'matching_titles': []
                         }
                 else:
                     # No matching shows
@@ -341,8 +340,7 @@ class NetworkAnalyzer:
                         'rate': None,
                         'sample_size': 0,
                         'has_data': False,
-                        'matching_titles': [],
-                        'matching_shows': pd.DataFrame()
+                        'matching_titles': []
                     }
             
             return success_rates
