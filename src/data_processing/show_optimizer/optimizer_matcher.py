@@ -209,17 +209,11 @@ class Matcher:
         return result_shows, confidence_info
         
     def find_matches_with_fallback(self, criteria: Dict[str, Any], data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-        """Enhanced version of find_matches that incorporates sophisticated fallback logic.
+        """Find shows matching criteria, with fallback to more permissive criteria if needed.
         
-        This method starts with exact matching (level 1) and then progressively relaxes
-        criteria by removing one criterion at a time until it reaches the target sample size.
-        The process:
-        1. Start with exact matches (level 1 = all criteria match)
-        2. If insufficient, try missing 1 criterion (level 2)
-        3. If still insufficient, try missing 2 criteria (level 3)
-        4. Continue relaxing criteria until we either:
-           - Reach the target sample size (OptimizerConfig.MAX_RESULTS)
-           - Have tried all possible match levels (down to 1 remaining criterion)
+        This method will progressively relax the matching criteria until either:
+            - Reach the target sample size (OptimizerConfig.MAX_RESULTS)
+            - Have tried all possible match levels (down to 1 remaining criterion)
         
         Args:
             criteria: Dictionary of criteria to match against
@@ -254,16 +248,8 @@ class Matcher:
         # This is based on the total number of criteria but with a reasonable limit
         max_possible_drop = total_criteria - 1  # Maximum possible criteria to drop
         
-        # For high-quality matches, don't drop more than 50% of criteria or 5 criteria, whichever is less
-        # This ensures we get relevant matches that still resemble the original concept
-        high_quality_max_drop = min(max_possible_drop, min(int(total_criteria * 0.5), 5))
-        
-        # For additional matches, we can be more permissive but still keep at least 1 criterion
-        # This allows us to find more matches while still having some relevance
-        max_criteria_to_drop = max_possible_drop
-        
-        # Ensure we always keep at least 2 criteria for high-quality matches if possible
-        if total_criteria > 2 and high_quality_max_drop > total_criteria - 2:
+        # Try each possible match level in order, from exact match to progressively fewer criteria
+        for level in range(1, max_possible_drop + 2):
             # Get criteria for this match level
             level_criteria = self.get_criteria_for_match_level(criteria, level)
             if not level_criteria:
@@ -282,21 +268,39 @@ class Matcher:
             
             # Add match_level to the matches
             level_matches['match_level'] = level
+            all_match_counts[level] = match_count
             
             # Calculate match quality as a percentage based on criteria retained
-            match_quality = round(((total_criteria - (level - 1)) / total_criteria) * 100)
-            level_matches['match_quality'] = match_quality
+            criteria_retained = total_criteria - (level - 1)
+            match_quality_pct = round((criteria_retained / total_criteria) * 100)
+            level_matches['match_quality'] = match_quality_pct
             
             # Add description of the match level
-            level_matches['match_level_desc'] = self._get_match_level_description(level)
-                
-                # Calculate match quality percentage based on criteria retained
-                criteria_retained = total_criteria - (level - 1)
-                match_quality_pct = round((criteria_retained / total_criteria) * 100)
-                
-                st.write(f"Found {new_unique_count} new matches at level {level} ({level_desc}). Match quality: {match_quality_pct}%. Total unique matches: {total_unique_matches}")
+            level_matches['match_level_desc'] = level_desc
             
-            # If we've reached the target sample size, we can stop
+            # Calculate confidence for this level if it's the first with matches
+            if not best_confidence_info:
+                best_confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
+            
+            # Filter out shows we've already found at better match levels
+            new_matches = level_matches[~level_matches['title'].isin(unique_titles)]
+            new_unique_count = len(new_matches)
+            
+            # Log the number of new matches found at this level
+            if not new_matches.empty:
+                st.write(f"Found {new_unique_count} new matches at level {level} ({level_desc}). Match quality: {match_quality_pct}%. Total unique matches: {total_unique_matches + new_unique_count}")
+            
+            # Add new matches to our results
+            if all_matches.empty:
+                all_matches = new_matches
+            else:
+                all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
+            
+            # Update our list of unique titles
+            unique_titles.update(new_matches['title'].tolist())
+            total_unique_matches += new_unique_count
+            
+            # If we've found enough matches, stop looking
             if total_unique_matches >= target_sample_size:
                 break
         
@@ -310,10 +314,10 @@ class Matcher:
         confidence_info['total_unique_matches'] = total_unique_matches
         
         # Add a summary of the match levels we tried and how many matches we found at each level
-        level_summaries = []
+        level_summaries = {}
         for level, count in all_match_counts.items():
             level_desc = self._get_match_level_description(level)
-            level_summaries.append(f"{level_desc}: {count} matches")
+            level_summaries[level_desc] = count
         
         confidence_info['match_level_summary'] = level_summaries
         
