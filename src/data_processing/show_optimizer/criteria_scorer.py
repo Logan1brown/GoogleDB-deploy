@@ -158,8 +158,9 @@ class CriteriaScorer:
                     results.append(None)
                     continue
                     
-                # Use the calculator to calculate the success rate
-                component_score = calculator.calculate(matching_shows)
+                # Use the calculator to calculate the success rate with the proper threshold
+                threshold = OptimizerConfig.PERFORMANCE.get('success_threshold', None)
+                component_score = calculator.calculate(matching_shows, threshold=threshold)
                 
                 if component_score is None:
                     results.append(None)
