@@ -27,8 +27,8 @@ from .optimizer_cache import OptimizerCache
 from .optimizer_matcher import Matcher
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
-from .score_calculators import ComponentScore
-from .network_analyzer import NetworkMatch
+from .score_calculators import ComponentScore, NetworkMatch
+from .network_analyzer import NetworkAnalyzer
 from .recommendation_engine import RecommendationEngine, SuccessFactor, Recommendation
 
 

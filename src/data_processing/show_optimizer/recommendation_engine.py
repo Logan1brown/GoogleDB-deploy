@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Tuple, Optional, Set, Union
 from functools import lru_cache
 
 from .optimizer_config import OptimizerConfig
-from .network_analyzer import NetworkMatch
+from .score_calculators import NetworkMatch
 
 
 @dataclass
