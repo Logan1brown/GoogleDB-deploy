@@ -459,12 +459,12 @@ def render_network_compatibility(networks: List):
                     except:
                         pass  # Keep original if extraction fails
                 
-                # Get raw values
+                # Get success probability and compatibility from network object
                 success_prob = getattr(network, 'success_probability', None)
                 compatibility = getattr(network, 'compatibility_score', None)
                 sample_size = getattr(network, 'sample_size', 0)
                 
-                # Debug the raw values
+                # Only show debug output in debug mode
                 if st.session_state.get('debug_mode', False):
                     st.write(f"Debug raw values for {network_name}: success_prob={success_prob}, compatibility={compatibility}, type={type(compatibility)}")
                 
@@ -519,11 +519,13 @@ def render_network_compatibility(networks: List):
                 if compatibility is None or (isinstance(compatibility, (int, float)) and compatibility <= 0):
                     compatibility = None  # Replace invalid values with None
                     
-                # Ensure success probability is not hardcoded to 1
-                if isinstance(success_prob, (int, float)) and success_prob == 1 and sample_size >= 5:
-                    # This is likely a placeholder value that wasn't properly updated
-                    st.write(f"Debug: Found hardcoded success probability of 1 for {network_name} with sample size {sample_size}")
-                    # Keep it as is, but log for debugging
+                # Handle invalid success probability values
+                if success_prob is not None and not isinstance(success_prob, (int, float)):
+                    success_prob = None
+                    
+                # Log suspicious values in debug mode but don't modify them
+                if st.session_state.get('debug_mode', False) and isinstance(success_prob, (int, float)) and success_prob == 1 and sample_size >= 5:
+                    st.write(f"Debug: Found success probability of 1 for {network_name} with sample size {sample_size}")
                 
                 # Get confidence and use config for display
                 confidence = getattr(network, 'confidence', config.DEFAULT_VALUES['confidence'])

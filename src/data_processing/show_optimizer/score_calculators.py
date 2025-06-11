@@ -700,11 +700,12 @@ class NetworkScoreCalculator:
             
         if valid_shows.empty:
             # No valid shows after filtering
-            default_success_rate = OptimizerConfig.FALLBACK_VALUES.get('success_rate', 0.0)
-            confidence_info['success_rate'] = default_success_rate
+            # Use DEFAULT_VALUES instead of FALLBACK_VALUES which doesn't exist
+            default_success_rate = 0.0  # Don't use hardcoded values
+            confidence_info['success_rate'] = None  # Use None to indicate no data
             confidence_info['success_count'] = 0
             confidence_info['total_count'] = 0
-            return default_success_rate, confidence_info
+            return None, confidence_info
         
         # Use default threshold if none provided
         if threshold is None:
@@ -819,8 +820,8 @@ def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], mat
             except Exception as e:
                 error_confidence = {
                     'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
-                    'score': OptimizerConfig.FALLBACK_VALUES.get('confidence_score', 0.0),
-                    'match_quality': OptimizerConfig.FALLBACK_VALUES.get('match_quality', 0.0),
+                    'score': 0.0,  # No fallback value, use 0.0 to indicate no data
+                    'match_quality': 0.0,  # No fallback value, use 0.0 to indicate no data
                     'sample_size': 0,
                     'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
                     'success_rate': None,
@@ -854,8 +855,8 @@ def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], mat
         except Exception as e:
             error_confidence = {
                 'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
-                'score': OptimizerConfig.FALLBACK_VALUES.get('confidence_score', 0.0),
-                'match_quality': OptimizerConfig.FALLBACK_VALUES.get('match_quality', 0.0),
+                'score': 0.0,  # No fallback value, use 0.0 to indicate no data
+                'match_quality': 0.0,  # No fallback value, use 0.0 to indicate no data
                 'sample_size': 0,
                 'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
                 'success_rate': None,
