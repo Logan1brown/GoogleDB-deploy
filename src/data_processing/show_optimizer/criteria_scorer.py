@@ -331,6 +331,7 @@ class CriteriaScorer:
             criteria: Dictionary of criteria
             matching_shows: DataFrame of shows matching the criteria
             confidence_info: Confidence information from matching
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
             Dictionary mapping component names to ComponentScore objects
@@ -345,7 +346,6 @@ class CriteriaScorer:
             
             # Calculate match count
             match_count = len(matching_shows)
-            # Debug output removed: Calculating scores using matched shows
             
             # Using general minimum_sample from OptimizerConfig
             if match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
@@ -360,22 +360,30 @@ class CriteriaScorer:
                 actual_match_level = confidence_info.get('match_level')
                 original_match_level = confidence_info.get('original_match_level', actual_match_level)
                 
-                if actual_match_level != original_match_level:
-                    # Debug output removed: Match level adjustment note
-                    pass
+                if actual_match_level != original_match_level and OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Note: Match level adjusted from {original_match_level} to {actual_match_level} for component score calculation")
                     
                 # If we have array fields like character_types in our criteria, make sure they're properly matched
                 # This helps ensure component scores are calculated based on shows that actually match the criteria
                 array_fields = [field for field, value in criteria.items() if isinstance(value, list) and value]
-                if array_fields and actual_match_level > 1:
-                    # Debug output removed: Array criteria relaxation note
-                    pass
+                if array_fields and actual_match_level > 1 and OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Note: Array criteria matching relaxed to level {actual_match_level} for fields: {array_fields}")
             
-            # Each individual calculator will validate its required columns
-            # using the validate_and_prepare_data helper method
+            # Ensure all required data is available in the matching_shows DataFrame
+            # This prevents each calculator from having to find matches again
+            required_columns = {
+                'success': ['success_score'],
+                'audience': ['tmdb_vote_average', 'tmdb_vote_count'],
+                'critics': ['tomatometer'],
+                'longevity': ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
+            }
+            
+            # Log once at the beginning rather than for each calculator
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Using {match_count} matched shows for all component score calculations")
 
         except Exception as e:
-            st.error(f"Optimizer Error: Failed to get matching shows for component score calculation. Criteria: {criteria}. Details: {e}")
+            st.error(f"Optimizer Error: Failed to prepare for component score calculation. Criteria: {criteria}. Details: {e}")
             return {}
 
         # Ensure field_manager is initialized (should be in __init__)
@@ -390,9 +398,11 @@ class CriteriaScorer:
             LongevityScoreCalculator()
         ]
         
-        # Calculate scores for each component
+        # Calculate scores for each component using the SAME matching_shows DataFrame
+        # This prevents redundant matching operations
         for calculator in calculators:
             try:
+                # Pass the same matching_shows to all calculators
                 score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
                 if score_component:  # Ensure a component score object was returned
                     component_scores[calculator.component_name] = score_component

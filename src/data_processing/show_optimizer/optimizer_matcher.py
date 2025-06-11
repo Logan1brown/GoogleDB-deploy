@@ -57,7 +57,7 @@ class Matcher:
             Empty confidence info dictionary with default values
         """
         return {
-            'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
+            'level': 'none',  # Use string directly instead of non-existent CONFIDENCE_LEVELS
             'score': 0.0,
             'match_quality': 0.0,
             'sample_size': 0,

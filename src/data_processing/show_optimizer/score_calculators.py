@@ -57,73 +57,30 @@ class ScoreCalculationError(Exception):
     """Base exception for score calculation errors."""
     pass
 
-class ScoreCalculator(ABC):
-    """Abstract base class for score calculations."""
+class ScoreCalculator:
+    """Base class for all score calculators.
     
-    def __init__(self, component_name: str):
-        """Initialize the calculator with a component name.
-        
-        Args:
-            component_name: Name of the component (audience, critics, longevity, etc.)
+    This class provides common functionality for score calculation, including
+    data validation and preparation.
+    """
+    component_name = "base"  # Override in subclasses
+    required_columns = []   # Override in subclasses
+    optional_columns = []   # Override in subclasses
+    data_column = None      # Override in subclasses
+    
+    def validate_and_prepare_data(self, shows: pd.DataFrame, required_columns=None, optional_columns=None, 
+                                  data_column=None, filter_condition=None) -> Tuple[bool, Optional[pd.DataFrame], Dict[str, Any]]:
         """
-        self.component_name = component_name
-        
-    def validate_input(self, shows: pd.DataFrame, required_columns: List[str], optional_columns: List[str] = None) -> Tuple[bool, Optional[str], Dict[str, bool]]:
-        """Validate input DataFrame for required and optional columns.
+        Validate and prepare data for score calculation.
         
         Args:
-            shows: DataFrame to validate
-            required_columns: List of required column names (must be present)
-            optional_columns: List of optional column names (may be missing)
-            
-        Returns:
-            Tuple of (is_valid, error_message, column_presence)
-            - is_valid: True if all required columns are present
-            - error_message: Error message if validation fails, None otherwise
-            - column_presence: Dictionary mapping column names to presence status
-        """
-        # Initialize column presence dictionary
-        column_presence = {}
-        
-        # Check if DataFrame is empty
-        if shows is None or shows.empty:
-            return False, "Empty shows DataFrame provided", column_presence
-        
-        # Check for required columns
-        missing_required = [col for col in required_columns if col not in shows.columns]
-        if missing_required:
-            return False, f"Missing required columns: {', '.join(missing_required)}", column_presence
-        
-        # Mark required columns as present
-        for col in required_columns:
-            column_presence[col] = True
-        
-        # Check optional columns if provided
-        if optional_columns:
-            for col in optional_columns:
-                column_presence[col] = col in shows.columns
-        
-        return True, None, column_presence
-        
-    def validate_and_prepare_data(self, shows: pd.DataFrame, required_columns: List[str], 
-                                 optional_columns: List[str], data_column: str = None, 
-                                 filter_condition: Callable = None) -> Tuple[bool, Optional[pd.DataFrame], Dict[str, Any]]:
-        """Validate input data and prepare it for scoring.
-        
-        This helper method encapsulates the common validation pattern used across calculators:
-        1. Validate required and optional columns
-        2. Handle validation failures
-        3. Check for presence of key data columns
-        4. Filter for valid data based on optional condition
-        
-        Args:
-            shows: DataFrame to validate and prepare
-            required_columns: List of required column names
-            optional_columns: List of optional column names
+            shows: DataFrame of shows
+            required_columns: List of required column names (overrides class attribute)
+            optional_columns: List of optional column names (overrides class attribute)
             data_column: Key data column to check presence of (typically the main score/metric column)
             filter_condition: Optional callable that takes a DataFrame and returns a boolean Series for filtering
-                              Default is to filter for non-null values in data_column
-        
+                             Default is to filter for non-null values in data_column
+            
         Returns:
             Tuple of (is_success, valid_shows, result_info)
             - is_success: True if validation succeeded and data is ready for scoring
@@ -139,18 +96,30 @@ class ScoreCalculator(ABC):
             'data_coverage': 0
         }
         
-        # Validate input data
-        is_valid, error_message, column_presence = self.validate_input(
-            shows, required_columns, optional_columns)
+        # Check if shows DataFrame is valid
+        if shows is None or shows.empty:
+            result_info['error'] = 'No shows data provided'
+            return False, None, result_info
+            
+        # Use provided parameters or class attributes
+        required_cols = required_columns if required_columns is not None else self.required_columns
+        optional_cols = optional_columns if optional_columns is not None else self.optional_columns
+        data_col = data_column if data_column is not None else self.data_column
         
-        # Handle critical validation failures
-        if not is_valid:
-            result_info['error'] = f"{self.component_name} score calculation error: {error_message}"
+        # Check for required columns
+        missing_columns = [col for col in required_cols if col not in shows.columns]
+        if missing_columns:
+            result_info['error'] = f"Missing required columns for {self.component_name}: {missing_columns}"
             return False, None, result_info
         
+        # Check for optional columns and note which ones are missing
+        missing_optional = [col for col in optional_cols if col not in shows.columns]
+        if missing_optional and len(missing_optional) == len(optional_cols):
+            result_info['warning'] = f"All optional columns missing for {self.component_name}: {missing_optional}"
+        
         # Check if key data column is present
-        if data_column and not column_presence.get(data_column, False):
-            result_info['warning'] = f"{data_column} column not found in shows data for {self.component_name} score"
+        if data_col and data_col not in shows.columns:
+            result_info['warning'] = f"Data column '{data_col}' not present for {self.component_name} score calculation"
             return False, None, result_info
         
         # Apply filter condition if provided, otherwise filter for non-null values in data_column
@@ -160,8 +129,8 @@ class ScoreCalculator(ABC):
             
         if filter_condition:
             valid_shows = shows[filter_condition(shows)]
-        elif data_column:
-            valid_shows = shows[shows[data_column].notna()]
+        elif data_col and data_col in shows.columns:
+            valid_shows = shows[shows[data_col].notna()]
         else:
             valid_shows = shows
             
@@ -567,18 +536,65 @@ class NetworkScoreCalculator:
             if st.session_state.get('debug_mode', False):
                 st.write("Using matching shows and integrated data for network scoring")
             
-            # Validate that matcher exists before using it
-            if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
-                st.write("Debug: Matcher component missing for network scoring")
-                st.error("Network scoring requires the Matcher component. Please ensure your application is properly configured.")
-                return []  # Return empty results instead of raising an exception
+            # We'll use the provided matching_shows directly instead of triggering a new matching operation
+            # This prevents redundant matching operations
             
-            # Get network matches using the Matcher with both matching_shows and integrated data
-            network_matches = self.criteria_scorer.matcher.find_network_matches(
-                criteria, 
-                criteria_data,
-                matching_shows=self._matching_shows
-            )
+            # Check if we have network data in the integrated data
+            if 'networks' not in self._integrated_data:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: No network data available in integrated_data")
+                st.error("Network data is not available. Please check your data sources.")
+                return []
+                
+            # Get network data from integrated data
+            network_data = self._integrated_data['networks']
+            
+            # Process network matches directly using the matching shows
+            # This is a simplified version of what find_network_matches would do
+            network_matches = []
+            
+            # Get unique networks from the matching shows
+            if 'network_id' in self._matching_shows.columns:
+                network_ids = self._matching_shows['network_id'].dropna().unique()
+                
+                for network_id in network_ids:
+                    # Get network name from network data
+                    network_name = network_data[network_data['id'] == network_id]['name'].iloc[0] if not network_data.empty else f"Network {network_id}"
+                    
+                    # Get shows for this network
+                    network_shows = self._matching_shows[self._matching_shows['network_id'] == network_id]
+                    
+                    # Calculate match quality and confidence info
+                    sample_size = len(network_shows)
+                    match_level = 1  # Direct match
+                    match_quality = 1.0  # Perfect match quality for direct network matches
+                    
+                    # Create confidence info
+                    confidence_info = OptimizerConfig.create_confidence_info(
+                        sample_size=sample_size,
+                        match_level=match_level,
+                        criteria_count=len(criteria),
+                        total_criteria=len(OptimizerConfig.CRITERIA_IMPORTANCE)
+                    )
+                    confidence_info['match_quality'] = match_quality
+                    
+                    network_matches.append({
+                        'network_id': network_id,
+                        'network_name': network_name,
+                        'matching_shows': network_shows,
+                        'sample_size': sample_size,
+                        'confidence_info': confidence_info,
+                        'match_quality': match_quality
+                    })
+            
+            # If we didn't find any networks in the matching shows, log a message
+            if not network_matches and OptimizerConfig.DEBUG_MODE:
+                st.write("Debug: No networks found in matching shows")
+                
+            # Add a debug message about the number of network matches
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Found {len(network_matches)} network matches using {len(self._matching_shows)} matching shows")
+
             
             # Process each network match
             for network_match in network_matches:
@@ -688,27 +704,28 @@ class NetworkScoreCalculator:
                 
         # Check if success_score is present
         if 'success_score' not in shows.columns:
-            # Success score column missing from shows - get from criteria data
-            criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
+            # Success score column missing from shows
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("Debug: Shows data missing required 'success_score' field for success rate calculation")
             
             if 'id' not in shows.columns:
-                st.write("Debug: Shows data missing required 'id' field for success score calculation")
-                st.error("Missing show identifiers. Please ensure shows data includes ID fields.")
-                raise ValueError("Shows data missing required 'id' field")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: Shows data missing required 'id' field for success score calculation")
+                # Don't raise an error, just return None to indicate we can't calculate success rate
+                confidence_info['success_rate'] = None
+                confidence_info['success_count'] = 0
+                confidence_info['total_count'] = 0
+                return None, confidence_info
             
-            if 'success_score' not in criteria_data.columns:
-                st.write("Debug: Criteria data missing required 'success_score' field")
-                st.error("Success metrics are not available. Please check data sources.")
-                raise ValueError("Criteria data missing required 'success_score' field")
+            # We can't calculate success rate without success_score column
+            # Don't try to fetch criteria data here as that would trigger redundant matching
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("Debug: Cannot calculate success rate without success_score column")
             
-            # Merge success_score from criteria_data - use efficient merge only on required columns
-            shows = shows.merge(criteria_data[['id', 'success_score']], on='id', how='left')
-            
-            # Check if merge was successful
-            if not shows['success_score'].notna().any():
-                st.write("Debug: No success scores available after merging with criteria data")
-                st.error("Unable to retrieve success metrics for the selected shows.")
-                raise ValueError("No success scores available after merging")
+            confidence_info['success_rate'] = None
+            confidence_info['success_count'] = 0
+            confidence_info['total_count'] = 0
+            return None, confidence_info
                     
             # No need for additional checks here as we've already raised exceptions for failure cases
                 
