@@ -484,7 +484,7 @@ class NetworkScoreCalculator:
         Note: This class no longer depends on CriteriaScorer to prevent redundant matching operations.
         """
         self._integrated_data = None
-        self._matching_shows = None
+        # No longer storing matching_shows as an instance variable
         
     def set_integrated_data(self, integrated_data: Dict[str, pd.DataFrame]) -> None:
         """Set the integrated data to use for network scoring.
@@ -494,49 +494,27 @@ class NetworkScoreCalculator:
         """
         self._integrated_data = integrated_data
         
-    def set_matching_shows(self, matching_shows: pd.DataFrame) -> None:
-        """Set the matching shows to use for network scoring.
-        
-        Args:
-            matching_shows: DataFrame of matching shows
-        """
-        self._matching_shows = matching_shows
-    
-    def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame = None) -> List[NetworkMatch]:
+    def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         
         Args:
-            criteria: Dictionary containing criteria for network scoring
-            matching_shows: DataFrame of shows matching the criteria (optional, will use self._matching_shows if not provided)
+            criteria: Dictionary of criteria to match against
+            matching_shows: DataFrame of shows matching the criteria
             
         Returns:
             List of NetworkMatch objects with compatibility and success scores
         """
         try:
-            # Prepare results list
-            results = []
-            
-            # Use the matching_shows parameter if provided, otherwise use the stored matching_shows
-            if matching_shows is not None:
-                self._matching_shows = matching_shows
-            
-            if self._matching_shows is None or self._matching_shows.empty:
-                st.error("No matching shows available for network scoring. Make sure to provide matching_shows.")
+            # matching_shows is now a required parameter, no need to check if it's None
+                
+            # Validate that we have matching shows
+            if matching_shows is None or matching_shows.empty:
+                st.warning("No matching shows available for network score calculation")
                 return []
                 
-            # We still need integrated_data for additional context
-            if self._integrated_data is None or 'shows' not in self._integrated_data:
-                st.error("No integrated data available for network scoring. Make sure to call set_integrated_data first.")
-                return []
-                
-            criteria_data = self._integrated_data['shows']
-            # Only show debug output in debug mode
-            if st.session_state.get('debug_mode', False):
-                st.write("Using matching shows and integrated data for network scoring")
-            
-            # We'll use the provided matching_shows directly instead of triggering a new matching operation
-            # This prevents redundant matching operations
-            
+            # Validate that we have integrated data
+            if self._integrated_data is None or 'networks' not in self._integrated_data or self._integrated_data['networks'].empty:
+                st.warning("No network data available for score calculation")
             # Check if we have network data in the integrated data
             if 'networks' not in self._integrated_data:
                 if st.session_state.get('debug_mode', False):
@@ -552,15 +530,15 @@ class NetworkScoreCalculator:
             network_matches = []
             
             # Get unique networks from the matching shows
-            if 'network_id' in self._matching_shows.columns:
-                network_ids = self._matching_shows['network_id'].dropna().unique()
+            if 'network_id' in matching_shows.columns:
+                network_ids = matching_shows['network_id'].dropna().unique()
                 
                 for network_id in network_ids:
                     # Get network name from network data
                     network_name = network_data[network_data['id'] == network_id]['name'].iloc[0] if not network_data.empty else f"Network {network_id}"
                     
                     # Get shows for this network
-                    network_shows = self._matching_shows[self._matching_shows['network_id'] == network_id]
+                    network_shows = matching_shows[matching_shows['network_id'] == network_id]
                     
                     # Calculate match quality and confidence info
                     sample_size = len(network_shows)
@@ -591,7 +569,7 @@ class NetworkScoreCalculator:
                 
             # Add a debug message about the number of network matches
             if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Found {len(network_matches)} network matches using {len(self._matching_shows)} matching shows")
+                st.write(f"Debug: Found {len(network_matches)} network matches using {len(matching_shows)} matching shows")
 
             
             # Process each network match

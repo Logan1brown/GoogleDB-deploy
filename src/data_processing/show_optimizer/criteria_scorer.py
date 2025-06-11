@@ -107,13 +107,22 @@ class CriteriaScorer:
             threshold = OptimizerConfig.SUCCESS['threshold']
         
         # Let the calculator handle the actual calculation
-        component_score = calculator.calculate(validated_data, threshold=threshold)
-        
-        if component_score is None:
+        try:
+            component_score = calculator.calculate(validated_data, threshold=threshold)
+            
+            if component_score is None:
+                if confidence_info is None:
+                    confidence_info = {'level': 'none', 'score': 0.0, 'error': 'Failed to calculate success score'}
+                else:
+                    confidence_info['error'] = 'Failed to calculate success score'
+                return None, confidence_info
+        except Exception as e:
+            st.error(f"Error in success score calculation: {str(e)}")
+            # Create a basic confidence_info dictionary with error details
             if confidence_info is None:
-                confidence_info = {'level': 'none', 'score': 0.0, 'error': 'Failed to calculate success score'}
+                confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
             else:
-                confidence_info['error'] = 'Failed to calculate success score'
+                confidence_info['error'] = f'Exception during calculation: {str(e)}'
             return None, confidence_info
         
         # Extract success rate and metadata from component score
@@ -505,8 +514,7 @@ class CriteriaScorer:
         if not hasattr(self, '_network_calculator'):
             self._network_calculator = NetworkScoreCalculator()
             
-        # Always set the matching shows and integrated data
-        self._network_calculator.set_matching_shows(matching_shows)
+        # Only set the integrated data - matching_shows will be passed directly to calculate_network_scores
         self._network_calculator.set_integrated_data(integrated_data)
             
-        return self._network_calculator.calculate_network_scores(criteria_str)
+        return self._network_calculator.calculate_network_scores(criteria_str, matching_shows)
