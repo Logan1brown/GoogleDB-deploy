@@ -503,6 +503,18 @@ class NetworkScoreCalculator:
         """
         self._integrated_data = integrated_data
         
+        # Extract network data from reference_data if available
+        if 'reference_data' in integrated_data and 'network' in integrated_data['reference_data']:
+            # Make network data directly accessible for compatibility with existing code
+            if 'networks' not in self._integrated_data:
+                self._integrated_data['networks'] = integrated_data['reference_data']['network']
+            
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Found {len(integrated_data['reference_data']['network'])} networks in reference data")
+        else:
+            if st.session_state.get('debug_mode', False):
+                st.write("Debug: No network data found in reference_data")
+        
     def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         
@@ -522,10 +534,15 @@ class NetworkScoreCalculator:
                 return []
                 
             # Validate that we have integrated data with network information
-            if self._integrated_data is None or 'networks' not in self._integrated_data or self._integrated_data['networks'].empty:
+            if self._integrated_data is None:
+                st.warning("No integrated data available for network score calculation")
+                return []
+                
+            # Check if networks data is available (either directly or via reference_data)
+            if 'networks' not in self._integrated_data or self._integrated_data['networks'].empty:
                 st.warning("No network data available for score calculation")
                 if st.session_state.get('debug_mode', False):
-                    st.write("Debug: No network data available in integrated_data")
+                    st.write("Debug: Network data missing or empty. Check reference_data['network'] in integrated_data")
                 return []
                 
             # Get network data from integrated data
