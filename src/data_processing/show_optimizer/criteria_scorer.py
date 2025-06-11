@@ -117,16 +117,14 @@ class CriteriaScorer:
                     confidence_info['error'] = 'Failed to calculate success score'
                 return None, confidence_info
         except Exception as e:
-            import traceback
-            error_trace = traceback.format_exc()
             st.error(f"Error in success score calculation: {str(e)}")
-            st.write(f"Traceback: {error_trace}")
+            # Display the full exception with traceback
+            st.exception(e)
             # Create a basic confidence_info dictionary with error details
             if confidence_info is None:
-                confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}', 'traceback': error_trace}
+                confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
             else:
                 confidence_info['error'] = f'Exception during calculation: {str(e)}'
-                confidence_info['traceback'] = error_trace
             return None, confidence_info
         
         # Extract success rate and metadata from component score
