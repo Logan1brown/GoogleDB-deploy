@@ -141,10 +141,26 @@ class OptimizerConfig:
     
     # Base match level for exact matches
     # Other levels will be generated dynamically based on criteria differences
-    MATCH_LEVELS = {}
+    MATCH_LEVELS = {
+        # Initialize with level 1 (exact match)
+        1: {
+            'criteria_diff': 0,
+            'confidence': 'high',
+            'min_quality': 0.9
+        }
+    }
     
-    # Initialize with level 1 (exact match)
-    # Other levels will be created on demand
+    @classmethod
+    def ensure_match_level_exists(cls, level):
+        """Ensure that a match level configuration exists for the given level.
+        
+        Args:
+            level: The match level (1 = exact match, 2 = missing 1 criterion, etc.)
+        """
+        if level not in cls.MATCH_LEVELS:
+            # Calculate the criteria difference (level 1 = 0 diff, level 2 = 1 diff, etc.)
+            diff = level - 1
+            cls.MATCH_LEVELS[level] = cls.get_match_level_config(diff)
     
     # Confidence thresholds for sample sizes
     CONFIDENCE = {

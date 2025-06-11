@@ -131,6 +131,9 @@ class Matcher:
                 # Match shows using the level-specific criteria
                 matched_shows, match_count = self._match_shows(level_criteria, data)
                 
+                # Ensure the match level exists in OptimizerConfig.MATCH_LEVELS
+                OptimizerConfig.ensure_match_level_exists(level)
+                
                 # Generate level name dynamically based on criteria difference
                 diff = level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
                 level_name = f"Missing {diff} criteria" if diff > 0 else "All criteria matched"
@@ -175,7 +178,14 @@ class Matcher:
         
         # Add match level counts to confidence info
         confidence_info['match_counts'] = match_counts
-        confidence_info['match_level_name'] = OptimizerConfig.MATCH_LEVELS[best_level]['name']
+        
+        # Ensure the match level exists in OptimizerConfig.MATCH_LEVELS
+        OptimizerConfig.ensure_match_level_exists(best_level)
+        
+        # Generate level name dynamically based on criteria difference
+        diff = best_level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+        level_name = f"Missing {diff} criteria" if diff > 0 else "All criteria matched"
+        confidence_info['match_level_name'] = level_name
         confidence_info['confidence_level'] = confidence_info.get('level', 'none')  # Ensure confidence_level is set for fallback logic
         
         return result_shows, confidence_info
@@ -207,8 +217,16 @@ class Matcher:
         all_match_counts = {}
         unique_titles = set()
         
-        # Try each match level in order (1-4)
-        for level in sorted(OptimizerConfig.MATCH_LEVELS.keys()):
+        # Determine how many criteria we have to work with
+        total_criteria = len(criteria)
+        
+        # Define the maximum number of criteria we're willing to drop
+        # This is based on the total number of criteria
+        max_criteria_to_drop = min(total_criteria - 1, 4)  # Keep at least 1 criterion, max drop 4
+        
+        # Try each possible match level in order, from exact match to progressively fewer criteria
+        # Level 1 = exact match, Level 2 = missing 1 criterion, etc.
+        for level in range(1, max_criteria_to_drop + 2):
             # Get criteria for this match level
             level_criteria = self.get_criteria_for_match_level(criteria, level)
             if not level_criteria:
@@ -278,7 +296,14 @@ class Matcher:
         # Add match level counts to confidence info
         best_confidence_info['match_counts'] = all_match_counts
         best_level = min(all_match_counts.keys()) if all_match_counts else 1
-        best_confidence_info['match_level_name'] = OptimizerConfig.MATCH_LEVELS[best_level]['name']
+        
+        # Ensure the match level exists in OptimizerConfig.MATCH_LEVELS
+        OptimizerConfig.ensure_match_level_exists(best_level)
+        
+        # Generate level name dynamically based on criteria difference
+        diff = best_level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+        level_name = f"Missing {diff} criteria" if diff > 0 else "All criteria matched"
+        best_confidence_info['match_level_name'] = level_name
         best_confidence_info['confidence_level'] = best_confidence_info.get('level', 'none')
         
         return all_matches, best_confidence_info
