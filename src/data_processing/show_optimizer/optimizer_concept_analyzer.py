@@ -609,21 +609,31 @@ class ConceptAnalyzer:
             # Generate network-specific recommendations for each top network
             if top_networks:
                 st.write("Generating network-specific recommendations...")
-                for network in top_networks[:3]:  # Limit to top 3 networks
-                    try:
-                        # Generate network-specific recommendations using the RecommendationEngine directly
-                        network_recommendations = self.recommendation_engine.generate_network_specific_recommendations(
-                            criteria=criteria,
-                            network=network,
-                            matching_shows=matching_shows,
-                            integrated_data=integrated_data
-                        )
-                        
-                        # Add network-specific recommendations to the list
-                        if network_recommendations:
-                            recommendations.extend(network_recommendations)
-                    except Exception as network_error:
-                        st.error(f"Error generating recommendations for network {network.network_name}: {str(network_error)}")
+                
+                # First check if matching_shows is valid to avoid multiple errors
+                if matching_shows is None or (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty):
+                    st.warning("No matching shows available for network-specific recommendations")
+                else:
+                    for network in top_networks[:3]:  # Limit to top 3 networks
+                        try:
+                            # Generate network-specific recommendations using the RecommendationEngine directly
+                            network_recommendations = self.recommendation_engine.generate_network_specific_recommendations(
+                                criteria=criteria,
+                                network=network,
+                                matching_shows=matching_shows,
+                                integrated_data=integrated_data
+                            )
+                            
+                            # Add network-specific recommendations to the list
+                            if network_recommendations:
+                                recommendations.extend(network_recommendations)
+                        except Exception as network_error:
+                            # Use a more specific error message that includes the network name
+                            st.error(f"Error generating recommendations for network {network.display_name}: {str(network_error)}")
+                            # Don't continue trying other networks if we're getting the same error
+                            if "'dict' object has no attribute 'empty'" in str(network_error):
+                                st.warning("Skipping remaining networks due to data structure issue")
+                                break
             
             return recommendations
             
