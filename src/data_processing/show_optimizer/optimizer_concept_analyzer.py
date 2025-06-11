@@ -630,10 +630,6 @@ class ConceptAnalyzer:
                         except Exception as network_error:
                             # Use a more specific error message that includes the network name
                             st.error(f"Error generating recommendations for network {network.display_name}: {str(network_error)}")
-                            # Don't continue trying other networks if we're getting the same error
-                            if "'dict' object has no attribute 'empty'" in str(network_error):
-                                st.warning("Skipping remaining networks due to data structure issue")
-                                break
             
             return recommendations
             

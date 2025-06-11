@@ -828,32 +828,17 @@ class RecommendationEngine:
                     # First check if we have any data at all
                     has_data = network_rate_data.get('has_data', False)
                     
-                    # Get the matching_shows data safely
-                    matching_shows_data = None
-                    if 'matching_shows' in network_rate_data:
-                        matching_shows_data = network_rate_data['matching_shows']
-                    else:
-                        # Use the matching_shows parameter as a fallback
-                        matching_shows_data = matching_shows
-                        # Store it for future reference
-                        network_rate_data['matching_shows'] = matching_shows_data
+                    # Get the matching_shows data - we know it's always there now
+                    matching_shows_data = network_rate_data['matching_shows']
                     
-                    # Handle different types of matching_shows data safely
-                    is_empty = True  # Default to empty unless proven otherwise
-                    
+                    # Check if it's empty
+                    is_empty = False
                     if matching_shows_data is None:
                         is_empty = True
                     elif isinstance(matching_shows_data, pd.DataFrame):
                         is_empty = matching_shows_data.empty
-                    elif isinstance(matching_shows_data, dict):
-                        # Dictionary doesn't have an 'empty' attribute, check if it's empty
+                    elif isinstance(matching_shows_data, dict) or isinstance(matching_shows_data, list):
                         is_empty = len(matching_shows_data) == 0
-                    elif isinstance(matching_shows_data, list):
-                        is_empty = len(matching_shows_data) == 0
-                    else:
-                        # For other types, assume it's empty (safer approach)
-                        st.write(f"Debug: Unexpected type for matching_shows_data: {type(matching_shows_data)}")
-                        is_empty = True
                     
                     # Only skip if we have no data at all
                     if is_empty and not has_data:

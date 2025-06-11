@@ -19,13 +19,33 @@ from src.shared.auth import auth_required
 from src.dashboard.state.session import get_page_state, update_page_state
 from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS
 from src.dashboard.components.optimizer_view import OptimizerView
-from src.data_processing.show_optimizer.optimizer_matcher import Matcher
 from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
 from src.dashboard.components.optimizer_helpers import (
     render_success_metrics, render_network_compatibility, render_recommendations,
-    render_content_criteria, render_production_criteria, render_format_criteria,
-    render_success_factors
+    render_matching_shows, render_component_scores, render_criteria_summary
 )
+
+
+def get_match_level_description(level):
+    """Generate a human-readable description of a match level.
+    
+    Args:
+        level: The match level (1 = exact match, 2 = missing 1 criterion, etc.)
+        
+    Returns:
+        A string description of the match level
+    """
+    # Match level directly corresponds to criteria differences + 1
+    # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+    diff = level - 1
+    
+    if diff == 0:
+        return "All criteria matched"
+    elif diff == 1:
+        return f"Missing {diff} criterion"
+    else:
+        return f"Missing {diff} criteria"
+
 
 @auth_required()
 def show():
@@ -223,11 +243,9 @@ def show():
                             level_counts = match_counts_by_level
                         
                         # Generate fully programmatic descriptions based on match level
-                        # Create a temporary matcher instance just to use its helper method
-                        temp_matcher = Matcher()
                         level_descriptions = {}
                         for level in level_counts.keys():
-                            level_descriptions[level] = temp_matcher._get_match_level_description(level)
+                            level_descriptions[level] = get_match_level_description(level)
                         
                         # Format the level counts with descriptions
                         formatted_counts = {f"{level_descriptions.get(level, f'Level {level}')}": count 
