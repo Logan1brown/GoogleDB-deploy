@@ -199,9 +199,18 @@ class RecommendationEngine:
                             # Debug output removed: Invalid impact data format
                             impact = self.config.DEFAULT_VALUES['impact_score']
                             sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
-                            # Convert list to tuple for hashability if needed
-                        criteria_value = tuple(value_id) if isinstance(value_id, list) else value_id
-                        if isinstance(value_id, (dict, list)):
+                            # Convert list/array to tuple or string for hashability if needed
+                        if isinstance(value_id, (list, np.ndarray)):
+                            try:
+                                criteria_value = tuple(value_id)
+                            except:
+                                criteria_value = str(value_id)
+                        elif not isinstance(value_id, (str, int, float, bool, tuple)) or pd.isna(value_id):
+                            criteria_value = str(value_id)
+                        else:
+                            criteria_value = value_id
+                            
+                        if isinstance(value_id, (dict, list, np.ndarray)):
                             name = str(value_id)
                         else:
                             options = self.field_manager.get_options(criteria_type)
@@ -473,9 +482,13 @@ class RecommendationEngine:
                         test_count > len(matching_shows) * 2):  # At least double the sample size
                         
                     # Get the name of the criterion for the explanation
-                    if isinstance(criteria_value, list):
-                        criteria_names = [self._get_criteria_name(criteria_type, v) for v in criteria_value]
-                        criteria_name = ", ".join(criteria_names)
+                    if isinstance(criteria_value, (list, np.ndarray)):
+                        try:
+                            criteria_names = [self._get_criteria_name(criteria_type, v) for v in criteria_value]
+                            criteria_name = ", ".join(criteria_names)
+                        except:
+                            # If iteration fails, use string representation
+                            criteria_name = str(criteria_value)
                     else:
                         criteria_name = self._get_criteria_name(criteria_type, criteria_value)
                         
@@ -614,8 +627,14 @@ class RecommendationEngine:
                         
                         # Calculate impact score based on success difference
                         # Make sure current_value is hashable for dictionary lookup
-                        if isinstance(current_value, list):
-                            hashable_current = tuple(current_value)
+                        if isinstance(current_value, (list, np.ndarray)):
+                            try:
+                                hashable_current = tuple(current_value)
+                            except:
+                                hashable_current = str(current_value)
+                        elif not isinstance(current_value, (str, int, float, bool, tuple)) or pd.isna(current_value):
+                            # Handle any other unhashable types
+                            hashable_current = str(current_value)
                         else:
                             hashable_current = current_value
                             
@@ -770,16 +789,20 @@ class RecommendationEngine:
             if criteria_value is None:
                 return "None"
                 
-            # Handle list values
-            if isinstance(criteria_value, list):
-                names = []
-                for value in criteria_value:
-                    name = self._get_criteria_name(criteria_type, value)
-                    names.append(name)
-                return ", ".join(names)
+            # Handle list or numpy array values
+            if isinstance(criteria_value, (list, np.ndarray)):
+                try:
+                    names = []
+                    for value in criteria_value:
+                        name = self._get_criteria_name(criteria_type, value)
+                        names.append(name)
+                    return ", ".join(names)
+                except:
+                    # If iteration fails, use string representation
+                    return str(criteria_value)
                 
             # Handle unhashable types
-            if isinstance(criteria_value, (dict, list)):
+            if isinstance(criteria_value, (dict, list, np.ndarray)):
                 return str(criteria_value)
                 
             # Get options from field manager
