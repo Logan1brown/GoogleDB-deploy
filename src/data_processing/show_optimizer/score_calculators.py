@@ -28,9 +28,9 @@ class NetworkMatch:
     """
     network_id: int
     network_name: str
-    compatibility_score: Optional[float]  # 0-1 score of how well the network matches criteria, None if N/A
-    success_probability: Optional[float]  # 0-1 probability of success on this network, None if N/A
-    sample_size: int  # Number of shows in the sample
+    compatibility_score: Optional[float] = None  # 0-1 score of how well the network matches criteria, None if N/A
+    success_probability: Optional[float] = None  # 0-1 probability of success on this network, None if N/A
+    sample_size: int = 0  # Number of shows in the sample
     confidence: str = 'none'  # Confidence level (none, very_low, low, medium, high)
     details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
     
@@ -45,9 +45,9 @@ class NetworkMatch:
 class ComponentScore:
     """Success score for a component (audience, critics, longevity)."""
     component: str  # audience, critics, or longevity
-    score: Optional[float]  # 0-1 score, None if N/A
-    sample_size: int
-    confidence: str  # none, low, medium, high
+    score: Optional[float] = None  # 0-1 score, None if N/A
+    sample_size: int = 0
+    confidence: str = 'none'  # none, low, medium, high
     details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
 
 class ScoreCalculationError(Exception):
