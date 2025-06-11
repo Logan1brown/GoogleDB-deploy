@@ -557,8 +557,21 @@ class NetworkScoreCalculator:
                 network_ids = matching_shows['network_id'].dropna().unique()
                 
                 for network_id in network_ids:
-                    # Get network name from network data
-                    network_name = network_data[network_data['id'] == network_id]['name'].iloc[0] if not network_data.empty else f"Network {network_id}"
+                    try:
+                        # Get network name from network data
+                        if not network_data.empty and 'id' in network_data.columns and 'network' in network_data.columns:
+                            matching_networks = network_data[network_data['id'] == network_id]
+                            if not matching_networks.empty:
+                                network_name = matching_networks['network'].iloc[0]
+                            else:
+                                network_name = f"Network {network_id}"
+                        else:
+                            network_name = f"Network {network_id}"
+                    except Exception as e:
+                        # Fallback if there's any error getting the network name
+                        network_name = f"Network {network_id}"
+                        if st.session_state.get('debug_mode', False):
+                            st.write(f"Debug: Error getting network name for ID {network_id}: {str(e)}")
                     
                     # Get shows for this network
                     network_shows = matching_shows[matching_shows['network_id'] == network_id]
