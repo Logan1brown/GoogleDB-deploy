@@ -360,13 +360,13 @@ class CriteriaScorer:
                 actual_match_level = confidence_info.get('match_level')
                 original_match_level = confidence_info.get('original_match_level', actual_match_level)
                 
-                if actual_match_level != original_match_level and OptimizerConfig.DEBUG_MODE:
+                if actual_match_level != original_match_level and st.session_state.get('debug_mode', False):
                     st.write(f"Note: Match level adjusted from {original_match_level} to {actual_match_level} for component score calculation")
                     
                 # If we have array fields like character_types in our criteria, make sure they're properly matched
                 # This helps ensure component scores are calculated based on shows that actually match the criteria
                 array_fields = [field for field, value in criteria.items() if isinstance(value, list) and value]
-                if array_fields and actual_match_level > 1 and OptimizerConfig.DEBUG_MODE:
+                if array_fields and actual_match_level > 1 and st.session_state.get('debug_mode', False):
                     st.write(f"Note: Array criteria matching relaxed to level {actual_match_level} for fields: {array_fields}")
             
             # Ensure all required data is available in the matching_shows DataFrame
@@ -379,7 +379,7 @@ class CriteriaScorer:
             }
             
             # Log once at the beginning rather than for each calculator
-            if OptimizerConfig.DEBUG_MODE:
+            if st.session_state.get('debug_mode', False):
                 st.write(f"Using {match_count} matched shows for all component score calculations")
 
         except Exception as e:
