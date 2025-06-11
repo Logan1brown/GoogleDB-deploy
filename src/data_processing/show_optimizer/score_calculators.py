@@ -3,9 +3,6 @@ from typing import Dict, Any, List, Optional, Tuple, Callable
 import pandas as pd
 import ast
 import streamlit as st
-
-from .optimizer_config import OptimizerConfig
-from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
 from .optimizer_config import OptimizerConfig
@@ -478,13 +475,11 @@ class LongevityScoreCalculator(ScoreCalculator):
 class NetworkScoreCalculator:
     """Calculates network compatibility and success scores for a set of criteria."""
     
-    def __init__(self, criteria_scorer):
-        """Initialize the calculator with a reference to the CriteriaScorer.
+    def __init__(self):
+        """Initialize the calculator.
         
-        Args:
-            criteria_scorer: The CriteriaScorer instance to use for calculations
+        Note: This class no longer depends on CriteriaScorer to prevent redundant matching operations.
         """
-        self.criteria_scorer = criteria_scorer
         self._integrated_data = None
         self._matching_shows = None
         
@@ -541,7 +536,7 @@ class NetworkScoreCalculator:
             
             # Check if we have network data in the integrated data
             if 'networks' not in self._integrated_data:
-                if OptimizerConfig.DEBUG_MODE:
+                if st.session_state.get('debug_mode', False):
                     st.write("Debug: No network data available in integrated_data")
                 st.error("Network data is not available. Please check your data sources.")
                 return []
@@ -588,11 +583,11 @@ class NetworkScoreCalculator:
                     })
             
             # If we didn't find any networks in the matching shows, log a message
-            if not network_matches and OptimizerConfig.DEBUG_MODE:
+            if not network_matches and st.session_state.get('debug_mode', False):
                 st.write("Debug: No networks found in matching shows")
                 
             # Add a debug message about the number of network matches
-            if OptimizerConfig.DEBUG_MODE:
+            if st.session_state.get('debug_mode', False):
                 st.write(f"Debug: Found {len(network_matches)} network matches using {len(self._matching_shows)} matching shows")
 
             
@@ -705,11 +700,11 @@ class NetworkScoreCalculator:
         # Check if success_score is present
         if 'success_score' not in shows.columns:
             # Success score column missing from shows
-            if OptimizerConfig.DEBUG_MODE:
+            if st.session_state.get('debug_mode', False):
                 st.write("Debug: Shows data missing required 'success_score' field for success rate calculation")
             
             if 'id' not in shows.columns:
-                if OptimizerConfig.DEBUG_MODE:
+                if st.session_state.get('debug_mode', False):
                     st.write("Debug: Shows data missing required 'id' field for success score calculation")
                 # Don't raise an error, just return None to indicate we can't calculate success rate
                 confidence_info['success_rate'] = None
@@ -719,7 +714,7 @@ class NetworkScoreCalculator:
             
             # We can't calculate success rate without success_score column
             # Don't try to fetch criteria data here as that would trigger redundant matching
-            if OptimizerConfig.DEBUG_MODE:
+            if st.session_state.get('debug_mode', False):
                 st.write("Debug: Cannot calculate success rate without success_score column")
             
             confidence_info['success_rate'] = None
@@ -820,76 +815,51 @@ class NetworkScoreCalculator:
     
 
 
-def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: List[pd.DataFrame] = None, flexible: bool = True) -> List[Tuple[Optional[float], Dict[str, Any]]]:
+def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: List[pd.DataFrame] = None) -> List[Tuple[Optional[float], Dict[str, Any]]]:
     """
     Batch calculate success rates for multiple criteria with confidence information.
 
     Args:
         criteria_list: List of criteria dictionaries
-        matching_shows_list: Optional list of DataFrames, each containing shows matching the corresponding criteria.
-        flexible: Whether to use flexible matching (try different match levels; only applies if matching_shows_list is not provided)
+        matching_shows_list: Required list of DataFrames, each containing shows matching the corresponding criteria.
 
     Returns:
         List of tuples (success_rate, confidence_info) in the same order as criteria_list
     """
     results = []
-    # If matching_shows_list is provided, use it directly
-    if matching_shows_list is not None:
-        if len(criteria_list) != len(matching_shows_list):
-            st.error(f"Mismatch between criteria list ({len(criteria_list)}) and matching shows list ({len(matching_shows_list)})")
-            return [(None, {'error': 'criteria/matching_shows_list length mismatch'})] * len(criteria_list)
-        for criteria, matching_shows in zip(criteria_list, matching_shows_list):
-            try:
-                if matching_shows is None or matching_shows.empty:
-                    confidence_info = {
-                        'sample_size': 0,
-                        'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
-                        'match_quality': OptimizerConfig.ensure_match_level_exists(OptimizerConfig.DEFAULT_MATCH_LEVEL)['min_quality'],
-                        'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
-                        'success_rate': None
-                    }
-                    results.append((None, confidence_info))
-                    continue
-                success_rate, confidence_info = self.calculate_success_rate(matching_shows)
-                results.append((success_rate, confidence_info))
-            except Exception as e:
-                error_confidence = {
-                    'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
-                    'score': 0.0,  # No fallback value, use 0.0 to indicate no data
-                    'match_quality': 0.0,  # No fallback value, use 0.0 to indicate no data
+    # We now require matching_shows_list to be provided
+    if matching_shows_list is None:
+        if st.session_state.get('debug_mode', False):
+            st.write("Debug: No matching_shows_list provided to batch_calculate_success_rates")
+        # Return empty results for all criteria
+        return [(None, {'error': 'No matching shows provided'})] * len(criteria_list)
+        
+    if len(criteria_list) != len(matching_shows_list):
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug: Mismatch between criteria list ({len(criteria_list)}) and matching shows list ({len(matching_shows_list)})")
+        return [(None, {'error': 'criteria/matching_shows_list length mismatch'})] * len(criteria_list)
+        
+    for criteria, matching_shows in zip(criteria_list, matching_shows_list):
+        try:
+            if matching_shows is None or matching_shows.empty:
+                confidence_info = {
                     'sample_size': 0,
                     'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
-                    'success_rate': None,
-                    'success_count': 0,
-                    'total_count': 0,
-                    'error': str(e)
+                    'match_quality': OptimizerConfig.ensure_match_level_exists(OptimizerConfig.DEFAULT_MATCH_LEVEL)['min_quality'],
+                    'level': 'none',  # Use string directly instead of accessing CONFIDENCE_LEVELS
+                    'success_rate': None
                 }
-                results.append((None, error_confidence))
-        return results
-    # Otherwise, fall back to internal matcher logic (legacy)
-    st.write("Debug: No matching_shows_list provided to batch_calculate_success_rates; falling back to internal matcher calls.")
-    try:
-        criteria_data = self.criteria_scorer.fetch_criteria_data(force_refresh=False)
-    except Exception as e:
-        st.write(f"Debug: Error fetching criteria data: {str(e)}")
-        criteria_data = None
-    for criteria in criteria_list:
-        try:
-            if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
-                st.write("Debug: Matcher not available for batch calculations")
-                raise ValueError("Matcher component is required for batch calculations")
-            matching_shows = self.criteria_scorer.matcher.find_matching_shows(criteria, criteria_data)
-            count = len(matching_shows) if not matching_shows.empty else 0
-            confidence_info = {
-                'sample_size': count,
-                'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
-                'match_quality': OptimizerConfig.ensure_match_level_exists(OptimizerConfig.DEFAULT_MATCH_LEVEL)['min_quality']
-            }
-            success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
+                results.append((None, confidence_info))
+                continue
+                
+            success_rate, confidence_info = self.calculate_success_rate(matching_shows)
             results.append((success_rate, confidence_info))
         except Exception as e:
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Error calculating success rate: {str(e)}")
+                
             error_confidence = {
-                'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
+                'level': 'none',  # Use string directly
                 'score': 0.0,  # No fallback value, use 0.0 to indicate no data
                 'match_quality': 0.0,  # No fallback value, use 0.0 to indicate no data
                 'sample_size': 0,
@@ -900,4 +870,5 @@ def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], mat
                 'error': str(e)
             }
             results.append((None, error_confidence))
+            
     return results

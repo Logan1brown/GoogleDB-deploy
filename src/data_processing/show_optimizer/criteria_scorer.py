@@ -495,7 +495,7 @@ class CriteriaScorer:
         criteria_str = str(criteria) if isinstance(criteria, dict) else criteria
         
         if not hasattr(self, '_network_calculator'):
-            self._network_calculator = NetworkScoreCalculator(self)
+            self._network_calculator = NetworkScoreCalculator()
             
         # Always set the matching shows and integrated data
         self._network_calculator.set_matching_shows(matching_shows)
