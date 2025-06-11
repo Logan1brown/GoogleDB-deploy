@@ -65,6 +65,15 @@ class ScoreCalculator:
     optional_columns = []   # Override in subclasses
     data_column = None      # Override in subclasses
     
+    def __init__(self, component_name=None):
+        """Initialize the score calculator.
+        
+        Args:
+            component_name: Optional name to override the class attribute
+        """
+        if component_name:
+            self.component_name = component_name
+    
     def validate_and_prepare_data(self, shows: pd.DataFrame, required_columns=None, optional_columns=None, 
                                   data_column=None, filter_condition=None) -> Tuple[bool, Optional[pd.DataFrame], Dict[str, Any]]:
         """
