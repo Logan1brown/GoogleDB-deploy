@@ -424,7 +424,10 @@ class ConceptAnalyzer:
             return None, 'none'
             
         except Exception as e:
+            import traceback
+            tb_str = traceback.format_exc()
             st.error(f"Error calculating success probability: {str(e)}")
+            st.code(tb_str, language="python")
             return None, 'none'
     
     def _find_top_networks(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> List[NetworkMatch]:
