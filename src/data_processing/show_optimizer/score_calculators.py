@@ -199,12 +199,14 @@ class SuccessScoreCalculator(ScoreCalculator):
                 st.error(result_info['error'])
             if result_info['warning']:
                 st.warning(result_info['warning'])
+            # Create a ComponentScore with all required fields and default values
+            details = {'error': result_info['error'] or result_info['warning']}
             return ComponentScore(
                 component=self.component_name,
                 score=None,
-                sample_size=result_info['sample_size'],
+                sample_size=result_info.get('sample_size', 0),
                 confidence='none',
-                details={'error': result_info['error'] or result_info['warning']}
+                details=details
             )
         
         # Calculate average success score from valid shows
@@ -230,6 +232,7 @@ class SuccessScoreCalculator(ScoreCalculator):
             'max_score': valid_shows['success_score'].max() if result_info['sample_size'] > 0 else None
         }
         
+        # Ensure all fields have proper values
         return ComponentScore(
             component=self.component_name,
             score=avg_score,

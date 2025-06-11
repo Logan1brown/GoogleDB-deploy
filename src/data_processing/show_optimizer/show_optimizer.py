@@ -508,7 +508,7 @@ class ShowOptimizer:
                 return self.concept_analyzer._handle_analysis_error("No show data available")
                 
             # Perform analysis
-            st.write("Analyzing show concept...")
+            # Note: ConceptAnalyzer will print its own analysis message
             analysis_result = self.concept_analyzer.analyze_concept(
                 criteria=normalized_criteria,
                 force_refresh=force_refresh,
