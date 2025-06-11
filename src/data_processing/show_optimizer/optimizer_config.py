@@ -92,40 +92,59 @@ class OptimizerConfig:
         'secondary': 1.0   # Base weight
     }
     
-    # Match level definitions and confidence mapping
-    # Now based on the number of criteria differences rather than percentages
-    MATCH_LEVELS = {
-        1: {
-            'name': 'All criteria matched',
-            'confidence': 'high',
-            'min_quality': 0.9,
-            'criteria_diff': 0  # All criteria match
-        },
-        2: {
-            'name': 'All but 1 criterion matched',
-            'confidence': 'medium',
-            'min_quality': 0.8,
-            'criteria_diff': 1  # Missing 1 criterion
-        },
-        3: {
-            'name': 'All but 2 criteria matched',
-            'confidence': 'medium-low',
-            'min_quality': 0.7,
-            'criteria_diff': 2  # Missing 2 criteria
-        },
-        4: {
-            'name': 'All but 3 criteria matched',
-            'confidence': 'low',
-            'min_quality': 0.5,
-            'criteria_diff': 3  # Missing 3 criteria
-        },
-        5: {
-            'name': 'All but 4+ criteria matched',
-            'confidence': 'minimal',
-            'min_quality': 0.3,
-            'criteria_diff': 4  # Missing 4 or more criteria
+    # Match level definitions based on exact number of missing criteria
+    # Each match level corresponds directly to the number of missing criteria
+    # Level 1 = 0 missing criteria (all match)
+    # Level 2 = 1 missing criterion
+    # Level 3 = 2 missing criteria
+    # And so on...
+    
+    # Helper functions for match level configuration
+    @classmethod
+    def get_confidence_for_diff(cls, diff):
+        """Get confidence level based on criteria difference."""
+        if diff == 0:
+            return 'high'
+        elif diff == 1:
+            return 'medium'
+        elif diff == 2:
+            return 'medium-low'
+        elif diff <= 4:
+            return 'low'
+        else:
+            return 'minimal'
+    
+    @classmethod
+    def get_quality_for_diff(cls, diff):
+        """Get quality score based on criteria difference."""
+        if diff == 0:
+            return 0.9
+        elif diff == 1:
+            return 0.8
+        elif diff == 2:
+            return 0.7
+        elif diff == 3:
+            return 0.6
+        elif diff == 4:
+            return 0.5
+        else:
+            return max(0.3, 1.0 - (diff * 0.15))  # Decreases with more missing criteria
+    
+    @classmethod
+    def get_match_level_config(cls, diff):
+        """Get match level configuration for a specific criteria difference."""
+        return {
+            'criteria_diff': diff,
+            'confidence': cls.get_confidence_for_diff(diff),
+            'min_quality': cls.get_quality_for_diff(diff)
         }
-    }
+    
+    # Base match level for exact matches
+    # Other levels will be generated dynamically based on criteria differences
+    MATCH_LEVELS = {}
+    
+    # Initialize with level 1 (exact match)
+    # Other levels will be created on demand
     
     # Confidence thresholds for sample sizes
     CONFIDENCE = {

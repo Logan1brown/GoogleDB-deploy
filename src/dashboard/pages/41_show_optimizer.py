@@ -216,14 +216,19 @@ def show():
                             # Use match_counts_by_level if available
                             level_counts = match_counts_by_level
                         
-                        # Display match level counts with criteria-difference based descriptions
-                        level_descriptions = {
-                            1: "All criteria matched",
-                            2: "All but 1 criterion",
-                            3: "All but 2 criteria",
-                            4: "All but 3 criteria",
-                            5: "All but 4+ criteria"
-                        }
+                        # Generate fully programmatic descriptions based on match level
+                        level_descriptions = {}
+                        for level in level_counts.keys():
+                            # Match level directly corresponds to criteria differences + 1
+                            # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+                            diff = level - 1
+                            
+                            if diff == 0:
+                                level_descriptions[level] = "All criteria matched"
+                            elif diff == 1:
+                                level_descriptions[level] = f"Missing {diff} criterion"
+                            else:
+                                level_descriptions[level] = f"Missing {diff} criteria"
                         
                         # Format the level counts with descriptions
                         formatted_counts = {f"{level_descriptions.get(level, f'Level {level}')}": count 

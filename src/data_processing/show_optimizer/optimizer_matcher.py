@@ -101,14 +101,22 @@ class Matcher:
         best_level = 0
         confidence_info = {}
         
-        # If flexible is True, use level 5 (minimal criteria) for recommendation testing
+        # Determine how many criteria we have to work with
+        total_criteria = len(criteria)
+        
+        # Define the maximum number of criteria we're willing to drop
+        # This is based on the total number of criteria
+        max_criteria_to_drop = min(total_criteria - 1, 8)  # Keep at least 1 criterion, max drop 8
+        
         if flexible:
-            # Start with level 5 (minimal criteria) or the highest level available
-            start_level = 5 if 5 in OptimizerConfig.MATCH_LEVELS else max(OptimizerConfig.MATCH_LEVELS.keys())
+            # For flexible matching, start with a higher level (more missing criteria)
+            # but don't go beyond our max_criteria_to_drop
+            start_level = min(total_criteria, 5)  # Default to level 5 if possible
             levels_to_try = [start_level]
         else:
-            # Try each match level defined in OptimizerConfig in order
-            levels_to_try = sorted(OptimizerConfig.MATCH_LEVELS.keys())
+            # Try each possible match level in order, from exact match to progressively fewer criteria
+            # Level 1 = exact match, Level 2 = missing 1 criterion, etc.
+            levels_to_try = list(range(1, max_criteria_to_drop + 2))
             
         for level in levels_to_try:
             try:
@@ -122,7 +130,10 @@ class Matcher:
                 
                 # Match shows using the level-specific criteria
                 matched_shows, match_count = self._match_shows(level_criteria, data)
-                level_name = OptimizerConfig.MATCH_LEVELS[level]['name']
+                
+                # Generate level name dynamically based on criteria difference
+                diff = level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+                level_name = f"Missing {diff} criteria" if diff > 0 else "All criteria matched"
                 # Debug output removed: Match level found shows
                 
                 # Store these matches with their level
@@ -498,80 +509,70 @@ class Matcher:
     def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
         """Get criteria adjusted for a specific match level.
         
-        Match levels are defined in OptimizerConfig.MATCH_LEVELS:
-        1 - Exact match with all criteria (all criteria match)
-        2 - Match with all but 1 criterion (missing 1 criterion)
-        3 - Match with all but 2 criteria (missing 2 criteria)
-        4 - Match with all but 3 criteria (missing 3 criteria)
-        5 - Match with all but 4+ criteria (missing 4 or more criteria)
+        Match levels now directly correspond to the number of criteria differences:
+        - Level 1: All criteria match (0 differences)
+        - Level 2: Missing 1 criterion
+        - Level 3: Missing 2 criteria
+        - Level 4: Missing 3 criteria
+        - And so on...
         
-        This implementation uses a criteria difference approach that removes a specific number of criteria
-        based on their importance, with special handling for level 5 which ensures at least some shows are found.
+        This implementation dynamically calculates which criteria to include based on
+        the exact number of criteria differences specified by the match level.
         
         Args:
             criteria: Dictionary of criteria
-            match_level: Match level (1-5)
+            match_level: Match level (corresponds to criteria differences + 1)
             
         Returns:
             Criteria dictionary adjusted for the match level
         """
-        # Validate match level against config
-        if match_level not in OptimizerConfig.MATCH_LEVELS:
-            st.error(f"Invalid match level {match_level}, using all criteria")
+        # Special case for only 1 criterion - always include it
+        if len(criteria) == 1:
             return criteria.copy()
             
         # If match level is 1, use all criteria (exact match)
         if match_level == 1:
             return criteria.copy()
             
-        # Special case for only 1 criterion
-        if len(criteria) == 1:
-            # If we only have one criterion, we can't remove any
-            # So we always include it regardless of match level
-            return criteria.copy()
+        # Calculate criteria difference based on match level
+        # Match level 1 = 0 differences, match level 2 = 1 difference, etc.
+        criteria_diff = match_level - 1
         
-        # Handle level 5 (missing 4+ criteria) as a special case
-        if match_level == 5:
-            # For level 5, we want to keep only the most important criteria
-            # Typically this would be genre plus maybe one or two other essential criteria
+        # Special case for extreme fallback (very few criteria)
+        if criteria_diff >= len(criteria):
+            # Keep at least one criterion (most important one)
             result = {}
             
             # Always include genre if it exists
             if 'genre' in criteria:
                 result['genre'] = criteria['genre']
-            
+                return result
+                
             # Classify criteria by importance
             classified = self.field_manager.classify_criteria_by_importance(criteria)
             
-            # Add essential criteria (usually just genre)
-            for field, value in classified['essential'].items():
+            # Try to find at least one criterion to keep, in order of importance
+            if classified['essential']:
+                field, value = next(iter(classified['essential'].items()))
                 result[field] = value
-                
-            # If we don't have any essential criteria, add one core criterion
-            if not result and classified['core']:
+                return result
+            elif classified['core']:
                 field, value = next(iter(classified['core'].items()))
                 result[field] = value
-                
-            # If we still don't have any criteria, add one primary criterion
-            if not result and classified['primary']:
+                return result
+            elif classified['primary']:
                 field, value = next(iter(classified['primary'].items()))
                 result[field] = value
-                
-            # If we still don't have any criteria, add one secondary criterion
-            if not result and classified['secondary']:
+                return result
+            elif classified['secondary']:
                 field, value = next(iter(classified['secondary'].items()))
                 result[field] = value
-                
-            # If we still don't have any criteria, add the first criterion
-            if not result and criteria:
+                return result
+            else:
+                # Last resort: take the first criterion
                 field, value = next(iter(criteria.items()))
                 result[field] = value
-                
-            return result
-        
-        # Get the criteria difference from config
-        level_config = OptimizerConfig.MATCH_LEVELS[match_level]
-        criteria_diff = level_config.get('criteria_diff', 0)
+                return result
         
         # Get the total number of criteria
         total_criteria = len(criteria)
@@ -643,8 +644,12 @@ class Matcher:
         total_criteria = len(OptimizerConfig.CRITERIA_IMPORTANCE)
         criteria_count = len(criteria)
         
-        # Calculate match quality based on match level
-        match_quality = OptimizerConfig.MATCH_LEVELS.get(match_level, {}).get('min_quality', 0.3)
+        # Calculate match quality based on criteria difference
+        # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+        criteria_diff = match_level - 1
+        
+        # Use the OptimizerConfig helper method to get quality score
+        match_quality = OptimizerConfig.get_quality_for_diff(criteria_diff)
         
         # Calculate confidence score using OptimizerConfig
         confidence_score = OptimizerConfig.calculate_confidence_score(
