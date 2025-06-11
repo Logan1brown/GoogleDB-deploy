@@ -444,10 +444,28 @@ def render_network_compatibility(networks: List):
                 # Get network attributes with safe fallbacks
                 network_name = getattr(network, 'network_name', 'Unknown')
                 
-                # Format None values as N/A for display
+                # Get raw values
                 success_prob = getattr(network, 'success_probability', None)
                 compatibility = getattr(network, 'compatibility_score', None)
                 sample_size = getattr(network, 'sample_size', 0)
+                
+                # Ensure numeric values are properly formatted
+                if isinstance(success_prob, (int, float)) and not isinstance(success_prob, bool):
+                    # Keep as float between 0-1 for the ProgressColumn
+                    success_prob = float(success_prob)
+                
+                if isinstance(compatibility, (int, float)) and not isinstance(compatibility, bool):
+                    # Keep as float between 0-1 for the ProgressColumn
+                    compatibility = float(compatibility)
+                
+                # Handle placeholder values
+                if success_prob == 1 and sample_size < 5:
+                    success_prob = None  # Replace placeholder with None for insufficient data
+                if success_prob == '#LOADING' or (isinstance(success_prob, str) and '#LOADING' in success_prob):
+                    success_prob = None  # Replace #LOADING with None
+                    
+                if compatibility == '#LOADING' or compatibility is None or (isinstance(compatibility, (int, float)) and compatibility <= 0) or (isinstance(compatibility, str) and '#LOADING' in compatibility):
+                    compatibility = None  # Replace invalid values with None
                 
                 # Get confidence and use config for display
                 confidence = getattr(network, 'confidence', config.DEFAULT_VALUES['confidence'])
@@ -490,14 +508,14 @@ def render_network_compatibility(networks: List):
             column_config={
                 "Success Probability": st.column_config.ProgressColumn(
                     "Success Probability",
-                    format="%.0f%%",
+                    format="%.1f%%",
                     min_value=0,
                     max_value=1,
                     help="Success probability based on historical data. N/A indicates insufficient data."
                 ),
                 "Compatibility": st.column_config.ProgressColumn(
                     "Compatibility",
-                    format="%.0f%%",
+                    format="%.1f%%",
                     min_value=0,
                     max_value=1,
                     help="How well the network matches your criteria. N/A indicates insufficient matching data."
