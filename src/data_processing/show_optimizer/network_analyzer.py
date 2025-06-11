@@ -57,7 +57,7 @@ class NetworkAnalyzer:
         """
         self.criteria_scorer = criteria_scorer
         self.field_manager = field_manager or criteria_scorer.field_manager
-        self.network_score_calculator = NetworkScoreCalculator(criteria_scorer)
+        self.network_score_calculator = NetworkScoreCalculator()
         self.optimizer_cache = optimizer_cache
         
         # Initialize matcher for network analysis if not provided
