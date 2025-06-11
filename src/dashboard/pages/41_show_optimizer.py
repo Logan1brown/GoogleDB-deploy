@@ -360,7 +360,7 @@ def show():
             if st.button("Invalidate Cache"):
                 optimizer_view.optimizer.invalidate_cache(components=True, data=True)
                 st.success("Cache invalidated successfully. Please refresh the page to see the changes.")
-                st.experimental_rerun()
+                st.rerun()
 
 if __name__ == "__main__":
     show()

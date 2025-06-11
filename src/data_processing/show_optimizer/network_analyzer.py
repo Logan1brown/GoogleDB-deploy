@@ -332,7 +332,8 @@ class NetworkAnalyzer:
                             'rate': None,
                             'sample_size': 0,
                             'has_data': False,
-                            'matching_titles': []
+                            'matching_titles': [],
+                            'matching_shows': pd.DataFrame()  # Always include an empty DataFrame
                         }
                 else:
                     # No matching shows
