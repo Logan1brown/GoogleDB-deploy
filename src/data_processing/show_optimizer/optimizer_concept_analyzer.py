@@ -424,10 +424,7 @@ class ConceptAnalyzer:
             return None, 'none'
             
         except Exception as e:
-            import traceback
-            tb_str = traceback.format_exc()
             st.error(f"Error calculating success probability: {str(e)}")
-            st.code(tb_str, language="python")
             return None, 'none'
     
     def _find_top_networks(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> List[NetworkMatch]:
@@ -446,10 +443,6 @@ class ConceptAnalyzer:
             
             # Get the matching shows that were already found
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data=integrated_data)
-            
-            # Set the matching shows in the NetworkScoreCalculator
-            if hasattr(self.criteria_scorer.network_analyzer.network_score_calculator, 'set_matching_shows'):
-                self.criteria_scorer.network_analyzer.network_score_calculator.set_matching_shows(matching_shows)
             
             # Use NetworkAnalyzer to rank networks by compatibility
             # The limit is controlled by OptimizerConfig.DEFAULT_NETWORK_LIMIT

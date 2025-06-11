@@ -521,14 +521,11 @@ class NetworkScoreCalculator:
                 st.warning("No matching shows available for network score calculation")
                 return []
                 
-            # Validate that we have integrated data
+            # Validate that we have integrated data with network information
             if self._integrated_data is None or 'networks' not in self._integrated_data or self._integrated_data['networks'].empty:
                 st.warning("No network data available for score calculation")
-            # Check if we have network data in the integrated data
-            if 'networks' not in self._integrated_data:
                 if st.session_state.get('debug_mode', False):
                     st.write("Debug: No network data available in integrated_data")
-                st.error("Network data is not available. Please check your data sources.")
                 return []
                 
             # Get network data from integrated data

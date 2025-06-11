@@ -81,17 +81,16 @@ class NetworkAnalyzer:
         if hasattr(self.network_score_calculator, 'set_integrated_data'):
             self.network_score_calculator.set_integrated_data(integrated_data)
             
-    def set_matching_shows(self, matching_shows: pd.DataFrame) -> None:
-        """Set the matching shows to use for network analysis.
+    def set_matching_shows(self, matching_shows: pd.DataFrame):
+        """Set the matching shows for network analysis.
         
         Args:
             matching_shows: DataFrame of shows matching the criteria
         """
         self._matching_shows = matching_shows
         
-        # Also set the matching shows in the network score calculator
-        if hasattr(self.network_score_calculator, 'set_matching_shows'):
-            self.network_score_calculator.set_matching_shows(matching_shows)
+        # Note: We no longer need to set matching_shows in the network_score_calculator
+        # as we now pass it directly to calculate_network_scores
         
     def rank_networks_by_compatibility(self, criteria: Dict[str, Any], 
                                       integrated_data: Dict[str, pd.DataFrame],
