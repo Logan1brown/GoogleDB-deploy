@@ -6,9 +6,9 @@ and generate recommendations for show concept optimization.
 
 import pandas as pd
 import streamlit as st
+import numpy as np
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Tuple, Optional, Set, Union
-import numpy as np
 from functools import lru_cache
 
 from .optimizer_config import OptimizerConfig
@@ -587,9 +587,16 @@ class RecommendationEngine:
                         shows_with_value = successful_shows[successful_shows[criteria_type] == value]
                         avg_success = shows_with_value['success_score'].mean()
                         
-                        # Make sure the key is hashable (convert lists to tuples)
-                        if isinstance(value, list):
-                            hashable_value = tuple(value)
+                        # Make sure the key is hashable (convert lists/arrays to tuples)
+                        if isinstance(value, (list, np.ndarray)):
+                            try:
+                                hashable_value = tuple(value)
+                            except:
+                                # If conversion fails, use string representation
+                                hashable_value = str(value)
+                        elif not isinstance(value, (str, int, float, bool, tuple)) or pd.isna(value):
+                            # Handle any other unhashable types
+                            hashable_value = str(value)
                         else:
                             hashable_value = value
                             

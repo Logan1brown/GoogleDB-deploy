@@ -444,6 +444,21 @@ def render_network_compatibility(networks: List):
                 # Get network attributes with safe fallbacks
                 network_name = getattr(network, 'network_name', 'Unknown')
                 
+                # Fix tuple network names - convert tuple to string if needed
+                if isinstance(network_name, tuple):
+                    if len(network_name) > 0:
+                        network_name = str(network_name[0])  # Take first element of tuple
+                    else:
+                        network_name = 'Unknown'
+                        
+                # Clean up any remaining parentheses or tuple formatting
+                if isinstance(network_name, str) and ('(' in network_name or ',' in network_name):
+                    try:
+                        # Try to extract a clean name from tuple-like strings
+                        network_name = network_name.strip('()').split(',')[0].strip()
+                    except:
+                        pass  # Keep original if extraction fails
+                
                 # Get raw values
                 success_prob = getattr(network, 'success_probability', None)
                 compatibility = getattr(network, 'compatibility_score', None)
