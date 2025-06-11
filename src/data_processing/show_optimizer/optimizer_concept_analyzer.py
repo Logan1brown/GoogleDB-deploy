@@ -49,6 +49,15 @@ class OptimizationSummary:
     match_count: int = 0  # Number of matching shows
     match_counts_by_level: Dict[int, int] = field(default_factory=dict)  # Count of shows by match level
     confidence_info: Dict[str, Any] = field(default_factory=dict)  # Detailed confidence information
+    
+    @property
+    def network_compatibility(self) -> List[NetworkMatch]:
+        """Return the top networks as network compatibility data.
+        
+        This property ensures backward compatibility with UI code that expects
+        a network_compatibility attribute.
+        """
+        return self.top_networks
 
 
 class ConceptAnalyzer:
