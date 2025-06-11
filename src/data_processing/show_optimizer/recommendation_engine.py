@@ -586,7 +586,14 @@ class RecommendationEngine:
                         # Calculate average success score for shows with this value
                         shows_with_value = successful_shows[successful_shows[criteria_type] == value]
                         avg_success = shows_with_value['success_score'].mean()
-                        value_success[value] = avg_success
+                        
+                        # Make sure the key is hashable (convert lists to tuples)
+                        if isinstance(value, list):
+                            hashable_value = tuple(value)
+                        else:
+                            hashable_value = value
+                            
+                        value_success[hashable_value] = avg_success
                         
                     # Sort values by success score
                     sorted_values = sorted(value_success.items(), key=lambda x: x[1], reverse=True)
@@ -599,7 +606,13 @@ class RecommendationEngine:
                         top_success = value_success[top_value]
                         
                         # Calculate impact score based on success difference
-                        current_success = value_success.get(current_value, 0)
+                        # Make sure current_value is hashable for dictionary lookup
+                        if isinstance(current_value, list):
+                            hashable_current = tuple(current_value)
+                        else:
+                            hashable_current = current_value
+                            
+                        current_success = value_success.get(hashable_current, 0)
                         
                         try:
                             # Use configuration for impact scaling factor

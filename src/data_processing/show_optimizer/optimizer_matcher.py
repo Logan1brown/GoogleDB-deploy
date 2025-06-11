@@ -272,9 +272,14 @@ class Matcher:
             # Match shows using the level-specific criteria
             level_matches, match_count = self._match_shows(level_criteria, data)
             
-            # Skip if no matches at this level
+            # Log attempt at each level
+            level_desc = self._get_match_level_description(level)
             if level_matches.empty:
+                st.write(f"Tried level {level} ({level_desc}) - No matches found")
                 continue
+            else:
+                st.write(f"Tried level {level} ({level_desc}) - Found {match_count} matches")
+            
                 
             # Add match_level to the matches
             level_matches['match_level'] = level
