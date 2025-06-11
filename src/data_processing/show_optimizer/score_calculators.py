@@ -563,7 +563,9 @@ class NetworkScoreCalculator:
                 return []
                 
             criteria_data = self._integrated_data['shows']
-            st.write("Using matching shows and integrated data for network scoring")
+            # Only show debug output in debug mode
+            if st.session_state.get('debug_mode', False):
+                st.write("Using matching shows and integrated data for network scoring")
             
             # Validate that matcher exists before using it
             if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
@@ -730,6 +732,7 @@ class NetworkScoreCalculator:
         success_count = len(successful)
         total_count = len(valid_shows)
         
+        # Calculate success rate based on success count and total count
         success_rate = success_count / total_count if total_count > 0 else 0.0
         
         # Update confidence info with success metrics

@@ -437,6 +437,13 @@ def render_network_compatibility(networks: List):
             st.info("No network compatibility data available.")
             return
             
+        # Debug the raw network data (only in debug mode)
+        if st.session_state.get('debug_mode', False):
+            st.write("Raw network data:")
+            for i, network in enumerate(networks):
+                if i < 5:  # Show first 5 networks only
+                    st.write(f"Network {i}: {network.network_name}, Success: {network.success_probability}, Compatibility: {network.compatibility_score}, Sample: {network.sample_size}")
+        
         # Create a dataframe for the networks
         network_data = []
         for network in networks:

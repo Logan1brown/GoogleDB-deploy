@@ -438,7 +438,8 @@ class ConceptAnalyzer:
             List of NetworkMatch objects sorted by compatibility score
         """
         try:
-            st.write("Finding top networks...")
+            if st.session_state.get('debug_mode', False):
+                st.write("Finding top networks...")
             
             # Get the matching shows that were already found
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data=integrated_data)
@@ -449,12 +450,14 @@ class ConceptAnalyzer:
             
             # Use NetworkAnalyzer to rank networks by compatibility
             # The limit is controlled by OptimizerConfig.DEFAULT_NETWORK_LIMIT
-            st.write(f"Using cached matching shows ({len(matching_shows)} shows)")
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Using cached matching shows ({len(matching_shows)} shows)")
             network_matches = self.criteria_scorer.network_analyzer.rank_networks_by_compatibility(
                 criteria, integrated_data, matching_shows
             )
             
-            st.write(f"Found {len(network_matches)} top networks")
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Found {len(network_matches)} top networks")
             return network_matches
             
         except Exception as e:
