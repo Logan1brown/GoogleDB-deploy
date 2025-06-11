@@ -485,17 +485,23 @@ def render_network_compatibility(networks: List):
                 
                 # Ensure numeric values are properly formatted
                 if isinstance(success_prob, (int, float)) and not isinstance(success_prob, bool):
-                    # Keep as float between 0-1 for the ProgressColumn
+                    # Convert to float between 0-1 for the ProgressColumn
                     success_prob = float(success_prob)
-                    # If value is unreasonably high (>1) or low (<0), treat as invalid
-                    if success_prob > 1 or success_prob < 0:
+                    # If value is already a percentage (>1), convert to decimal
+                    if success_prob > 1:
+                        success_prob = success_prob / 100.0
+                    # If value is unreasonably low (<0), treat as invalid
+                    if success_prob < 0:
                         success_prob = None
                 
                 if isinstance(compatibility, (int, float)) and not isinstance(compatibility, bool):
-                    # Keep as float between 0-1 for the ProgressColumn
+                    # Convert to float between 0-1 for the ProgressColumn
                     compatibility = float(compatibility)
-                    # If value is unreasonably high (>1) or low (<0), treat as invalid
-                    if compatibility > 1 or compatibility < 0:
+                    # If value is already a percentage (>1), convert to decimal
+                    if compatibility > 1:
+                        compatibility = compatibility / 100.0
+                    # If value is unreasonably low (<0), treat as invalid
+                    if compatibility < 0:
                         compatibility = None
                 
                 # Handle placeholder values and special cases
@@ -554,14 +560,14 @@ def render_network_compatibility(networks: List):
             column_config={
                 "Success Probability": st.column_config.ProgressColumn(
                     "Success Probability",
-                    format="%.1f%%",
+                    format="%.1f%%",  # Changed back to one decimal place percentage format
                     min_value=0,
                     max_value=1,
                     help="Success probability based on historical data. N/A indicates insufficient data."
                 ),
                 "Compatibility": st.column_config.ProgressColumn(
                     "Compatibility",
-                    format="%.1f%%",
+                    format="%.1f%%",  # Changed back to one decimal place percentage format
                     min_value=0,
                     max_value=1,
                     help="How well the network matches your criteria. N/A indicates insufficient matching data."

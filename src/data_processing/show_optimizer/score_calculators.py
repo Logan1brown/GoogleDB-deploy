@@ -778,37 +778,11 @@ class NetworkScoreCalculator:
             return match_quality * content_only_weight
             
         # Calculate weighted score
-        
-        # Calculate weighted score
         weighted_score = (match_quality * content_match_weight) + (success_history * success_history_weight)
         # Ensure score is in 0-1 range
         return max(0.0, min(1.0, weighted_score))
+    
 
-def _calculate_weighted_compatibility_score(self, match_quality: float, success_history: Optional[float] = None) -> float:
-    """Calculate weighted compatibility score using configuration weights.
-    
-    Args:
-        match_quality: Content match quality score (0-1)
-        success_history: Optional success history score (0-1)
-            
-    Returns:
-        Weighted compatibility score (0-1)
-    """
-    # Get weights from config
-    content_match_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['content_match']
-    success_history_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['success_history']
-    
-    # If success history is not available, use only content match with config weight
-    if success_history is None:
-        # Use content match with weight adjustment from config
-        content_only_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility'].get('content_only', 1.0)
-        return match_quality * content_only_weight
-            
-    # Calculate weighted score
-    weighted_score = (match_quality * content_match_weight) + (success_history * success_history_weight)
-    
-    # Ensure score is in 0-1 range
-    return max(0.0, min(1.0, weighted_score))
 
 def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: List[pd.DataFrame] = None, flexible: bool = True) -> List[Tuple[Optional[float], Dict[str, Any]]]:
     """
