@@ -50,18 +50,38 @@ class Matcher:
             return self._criteria_data
         return data
         
-    def _empty_confidence_info(self):
-        """Return standard empty confidence info dictionary.
+    def _empty_confidence_info(self) -> Dict[str, Any]:
+        """Create an empty confidence info dictionary.
         
         Returns:
-            Dictionary with default confidence metrics
+            Empty confidence info dictionary
         """
         return {
-            'level': 'none', 
-            'score': 0, 
-            'match_quality': 0, 
-            'sample_size': 0
+            'level': 'none',
+            'sample_size': 0,
+            'match_quality': 0.0,
+            'match_level': 0
         }
+        
+    def _get_match_level_description(self, match_level: int) -> str:
+        """Generate a human-readable description for a match level.
+        
+        Args:
+            match_level: The match level (1 = exact match, 2 = missing 1 criterion, etc.)
+            
+        Returns:
+            A human-readable description of the match level
+        """
+        # Match level directly corresponds to criteria differences + 1
+        # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+        diff = match_level - 1
+        
+        if diff == 0:
+            return "All criteria matched"
+        elif diff == 1:
+            return f"Missing {diff} criterion"
+        else:
+            return f"Missing {diff} criteria"
         
     def set_criteria_data(self, criteria_data: pd.DataFrame):
         """Set the criteria data for matching.
@@ -182,10 +202,8 @@ class Matcher:
         # Ensure the match level exists in OptimizerConfig.MATCH_LEVELS
         OptimizerConfig.ensure_match_level_exists(best_level)
         
-        # Generate level name dynamically based on criteria difference
-        diff = best_level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
-        level_name = f"Missing {diff} criteria" if diff > 0 else "All criteria matched"
-        confidence_info['match_level_name'] = level_name
+        # Generate level name dynamically using helper method
+        confidence_info['match_level_name'] = self._get_match_level_description(best_level)
         confidence_info['confidence_level'] = confidence_info.get('level', 'none')  # Ensure confidence_level is set for fallback logic
         
         return result_shows, confidence_info
@@ -276,10 +294,8 @@ class Matcher:
                 else:
                     all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
                 
-                # Log progress
-                diff = level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
-                criteria_text = "criterion" if diff == 1 else "criteria"
-                level_desc = f"All criteria matched" if diff == 0 else f"Missing {diff} {criteria_text}"
+                # Log progress using the helper method for consistent descriptions
+                level_desc = self._get_match_level_description(level)
                 st.write(f"Found {new_unique_count} new matches at level {level} ({level_desc}). Total unique matches: {total_unique_matches}")
             
             # If we've reached the target sample size, we can stop
@@ -298,9 +314,7 @@ class Matcher:
         # Add a summary of the match levels we tried and how many matches we found at each level
         level_summaries = []
         for level, count in all_match_counts.items():
-            diff = level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
-            criteria_text = "criterion" if diff == 1 else "criteria"
-            level_desc = f"All criteria matched" if diff == 0 else f"Missing {diff} {criteria_text}"
+            level_desc = self._get_match_level_description(level)
             level_summaries.append(f"{level_desc}: {count} matches")
         
         confidence_info['match_level_summary'] = level_summaries
@@ -761,7 +775,8 @@ class Matcher:
             'sample_size': sample_size,
             'match_level': actual_match_level,  # Use the validated match level
             'original_match_level': match_level,  # Keep track of the original level
-            'match_level_name': OptimizerConfig.MATCH_LEVELS.get(actual_match_level, {}).get('name', f'Level {actual_match_level}')
+            # Generate level name dynamically based on criteria difference
+            'match_level_name': self._get_match_level_description(actual_match_level)
         }
         
     def _get_relaxed_criteria(self, criteria: Dict[str, Any], relaxation_tier: str) -> List[Dict[str, Any]]:

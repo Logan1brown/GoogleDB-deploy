@@ -160,6 +160,15 @@ class OptimizerConfig:
     # We initialize with level 1 (exact match) and others are created as needed
     MATCH_LEVELS = {}
     
+    # Default match level to use when no specific level is specified
+    DEFAULT_MATCH_LEVEL = 1  # Level 1 = exact match (all criteria)
+    
+    # Initialize the default match level
+    @classmethod
+    def _initialize_default_match_level(cls):
+        """Initialize the default match level in MATCH_LEVELS."""
+        cls.ensure_match_level_exists(cls.DEFAULT_MATCH_LEVEL)
+    
     @classmethod
     def ensure_match_level_exists(cls, level):
         """Ensure that a match level configuration exists for the given level.
@@ -179,13 +188,7 @@ class OptimizerConfig:
         'low_confidence': 10,          # Below this is low confidence
         'medium_confidence': 25,       # Below this is medium confidence
         'high_confidence': 50,         # Above this is high confidence
-        'degradation_factor': 0.9,     # Factor to reduce confidence per missing criteria
-        'match_level_factor': {        # Confidence adjustment factors by match level
-            1: 1.0,                    # No reduction for level 1 (all criteria)
-            2: 0.9,                    # 10% reduction for level 2 (all but one secondary)
-            3: 0.7,                    # 30% reduction for level 3 (core + primary)
-            4: 0.5                     # 50% reduction for level 4 (core only)
-        }
+        'degradation_factor': 0.9      # Factor to reduce confidence per missing criteria
     }
     
     # Confidence score to level mapping thresholds
@@ -436,7 +439,9 @@ class OptimizerConfig:
             return 'none'
             
         # Adjust thresholds based on match level
-        level_factor = cls.CONFIDENCE['match_level_factor'].get(match_level, 0.5)
+        # Ensure the match level exists and get its factor
+        cls.ensure_match_level_exists(match_level)
+        level_factor = cls.MATCH_LEVELS[match_level]['factor']
         adjusted_low = cls.CONFIDENCE['low_confidence'] / level_factor
         adjusted_medium = cls.CONFIDENCE['medium_confidence'] / level_factor
         adjusted_high = cls.CONFIDENCE['high_confidence'] / level_factor
@@ -484,6 +489,12 @@ class OptimizerConfig:
                 criteria_factor *= cls.CONFIDENCE['degradation_factor']
         
         # Apply match level adjustment
-        match_level_factor = cls.CONFIDENCE['match_level_factor'].get(match_level, 0.5)
+        # Ensure the match level exists and get its factor
+        cls.ensure_match_level_exists(match_level)
+        match_level_factor = cls.MATCH_LEVELS[match_level]['factor']
                 
         return base_confidence * criteria_factor * match_level_factor
+
+
+# Initialize the default match level when the module is loaded
+OptimizerConfig._initialize_default_match_level()

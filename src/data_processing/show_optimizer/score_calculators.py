@@ -834,7 +834,7 @@ def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], mat
                     confidence_info = {
                         'sample_size': 0,
                         'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
-                        'match_quality': OptimizerConfig.MATCH_LEVELS[OptimizerConfig.DEFAULT_MATCH_LEVEL]['min_quality'],
+                        'match_quality': OptimizerConfig.ensure_match_level_exists(OptimizerConfig.DEFAULT_MATCH_LEVEL)['min_quality'],
                         'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
                         'success_rate': None
                     }
@@ -873,7 +873,7 @@ def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], mat
             confidence_info = {
                 'sample_size': count,
                 'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
-                'match_quality': OptimizerConfig.MATCH_LEVELS[OptimizerConfig.DEFAULT_MATCH_LEVEL]['min_quality']
+                'match_quality': OptimizerConfig.ensure_match_level_exists(OptimizerConfig.DEFAULT_MATCH_LEVEL)['min_quality']
             }
             success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
             results.append((success_rate, confidence_info))

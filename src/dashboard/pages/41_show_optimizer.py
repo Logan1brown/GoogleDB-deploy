@@ -19,6 +19,7 @@ from src.shared.auth import auth_required
 from src.dashboard.state.session import get_page_state, update_page_state
 from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS
 from src.dashboard.components.optimizer_view import OptimizerView
+from src.data_processing.show_optimizer.optimizer_matcher import Matcher
 from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
 from src.dashboard.components.optimizer_helpers import (
     render_success_metrics, render_network_compatibility, render_recommendations,
@@ -222,18 +223,11 @@ def show():
                             level_counts = match_counts_by_level
                         
                         # Generate fully programmatic descriptions based on match level
+                        # Create a temporary matcher instance just to use its helper method
+                        temp_matcher = Matcher()
                         level_descriptions = {}
                         for level in level_counts.keys():
-                            # Match level directly corresponds to criteria differences + 1
-                            # Level 1 = 0 differences, Level 2 = 1 difference, etc.
-                            diff = level - 1
-                            
-                            if diff == 0:
-                                level_descriptions[level] = "All criteria matched"
-                            elif diff == 1:
-                                level_descriptions[level] = f"Missing {diff} criterion"
-                            else:
-                                level_descriptions[level] = f"Missing {diff} criteria"
+                            level_descriptions[level] = temp_matcher._get_match_level_description(level)
                         
                         # Format the level counts with descriptions
                         formatted_counts = {f"{level_descriptions.get(level, f'Level {level}')}": count 
