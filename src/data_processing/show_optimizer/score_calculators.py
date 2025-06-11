@@ -635,7 +635,18 @@ class NetworkScoreCalculator:
                 match_level = confidence_info.get('match_level', 1)
                 confidence = OptimizerConfig.get_confidence_level(count, match_level) if count > 0 else 'none'
                 
-                # Create NetworkMatch object
+                # Create a details dictionary with all required fields
+                details_dict = {
+                    'criteria': criteria,
+                    'match_level': confidence_info.get('match_level', 1),
+                    'match_quality': confidence_info.get('match_quality', None)
+                }
+                
+                # Only add confidence_info if it's not None to avoid potential issues
+                if confidence_info is not None:
+                    details_dict['confidence_info'] = confidence_info
+                
+                # Create NetworkMatch object with proper initialization of all fields
                 network_match_obj = NetworkMatch(
                     network_id=int(network_id),
                     network_name=network_name,
@@ -643,12 +654,7 @@ class NetworkScoreCalculator:
                     success_probability=success_rate if success_rate is not None else None,
                     sample_size=count if not matching_shows.empty else 0,
                     confidence=confidence,
-                    details={
-                        'criteria': criteria,
-                        'confidence_info': confidence_info,
-                        'match_level': confidence_info.get('match_level', 1),
-                        'match_quality': confidence_info.get('match_quality', None)
-                    }
+                    details=details_dict
                 )
                 
                 results.append(network_match_obj)

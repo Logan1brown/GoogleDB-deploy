@@ -134,13 +134,12 @@ def show():
         render_production_criteria(state, update_criteria_and_analyze)
         render_format_criteria(state, update_criteria_and_analyze)
         
-        # Save criteria to session state before running analysis
+        # Save criteria to session state after running analysis
         criteria = state.get('criteria', {})
         st.session_state.optimizer_criteria = criteria.copy()
         
-        # Run analysis automatically when criteria changes
-        # Always run the analysis, even if criteria is empty
-        optimizer_view.run_analysis(state)
+        # Analysis is already run on line 130 after updating criteria
+        # No need to run it again here
     
     # If we have results, render tabs in the second column
     with col2:
