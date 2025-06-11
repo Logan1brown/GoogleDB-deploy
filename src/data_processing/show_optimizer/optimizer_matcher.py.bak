@@ -251,16 +251,8 @@ class Matcher:
         total_criteria = len(criteria)
         
         # Define the maximum number of criteria we're willing to drop
-        # This is based on the total number of criteria but with a reasonable limit
-        max_possible_drop = total_criteria - 1  # Maximum possible criteria to drop
-        
-        # Set a reasonable maximum - don't drop more than 50% of criteria or 5 criteria, whichever is less
-        # This ensures we get more relevant matches that still resemble the original concept
-        max_criteria_to_drop = min(max_possible_drop, min(int(total_criteria * 0.5), 5))
-        
-        # Ensure we always keep at least 2 criteria if possible
-        if total_criteria > 2 and max_criteria_to_drop > total_criteria - 2:
-            max_criteria_to_drop = total_criteria - 2
+        # This is based on the total number of criteria
+        max_criteria_to_drop = total_criteria - 1  # Keep at least 1 criterion
         
         # Try each possible match level in order, from exact match to progressively fewer criteria
         for level in range(1, max_criteria_to_drop + 2):
@@ -304,12 +296,7 @@ class Matcher:
                 
                 # Log progress using the helper method for consistent descriptions
                 level_desc = self._get_match_level_description(level)
-                
-                # Calculate match quality percentage based on criteria retained
-                criteria_retained = total_criteria - (level - 1)
-                match_quality_pct = round((criteria_retained / total_criteria) * 100)
-                
-                st.write(f"Found {new_unique_count} new matches at level {level} ({level_desc}). Match quality: {match_quality_pct}%. Total unique matches: {total_unique_matches}")
+                st.write(f"Found {new_unique_count} new matches at level {level} ({level_desc}). Total unique matches: {total_unique_matches}")
             
             # If we've reached the target sample size, we can stop
             if total_unique_matches >= target_sample_size:
@@ -676,18 +663,9 @@ class Matcher:
             for field, value in secondary_items:
                 result[field] = value
         
-        # Always prioritize certain critical fields for better matching quality
-        # Genre is especially important for show matching
+        # Ensure we always include genre if it exists (for better matching)
         if 'genre' in criteria and 'genre' not in result:
             result['genre'] = criteria['genre']
-            
-        # Network is also important for show matching if it exists
-        if 'network' in criteria and 'network' not in result and len(result) < criteria_to_include + 1:
-            result['network'] = criteria['network']
-            
-        # Format/type is important for show matching if it exists
-        if 'format' in criteria and 'format' not in result and len(result) < criteria_to_include + 1:
-            result['format'] = criteria['format']
             
         return result
     
