@@ -449,22 +449,53 @@ def render_network_compatibility(networks: List):
                 compatibility = getattr(network, 'compatibility_score', None)
                 sample_size = getattr(network, 'sample_size', 0)
                 
+                # Debug the raw values
+                if st.session_state.get('debug_mode', False):
+                    st.write(f"Debug raw values for {network_name}: success_prob={success_prob}, compatibility={compatibility}, type={type(compatibility)}")
+                
+                # Convert string values to appropriate types
+                if isinstance(success_prob, str):
+                    try:
+                        if success_prob.replace('.', '', 1).isdigit():
+                            success_prob = float(success_prob)
+                    except (ValueError, TypeError):
+                        success_prob = None
+                        
+                if isinstance(compatibility, str):
+                    try:
+                        if compatibility.replace('.', '', 1).isdigit():
+                            compatibility = float(compatibility)
+                    except (ValueError, TypeError):
+                        compatibility = None
+                
                 # Ensure numeric values are properly formatted
                 if isinstance(success_prob, (int, float)) and not isinstance(success_prob, bool):
                     # Keep as float between 0-1 for the ProgressColumn
                     success_prob = float(success_prob)
+                    # If value is unreasonably high (>1) or low (<0), treat as invalid
+                    if success_prob > 1 or success_prob < 0:
+                        success_prob = None
                 
                 if isinstance(compatibility, (int, float)) and not isinstance(compatibility, bool):
                     # Keep as float between 0-1 for the ProgressColumn
                     compatibility = float(compatibility)
+                    # If value is unreasonably high (>1) or low (<0), treat as invalid
+                    if compatibility > 1 or compatibility < 0:
+                        compatibility = None
                 
-                # Handle placeholder values
+                # Handle placeholder values and special cases
                 if success_prob == 1 and sample_size < 5:
                     success_prob = None  # Replace placeholder with None for insufficient data
-                if success_prob == '#LOADING' or (isinstance(success_prob, str) and '#LOADING' in success_prob):
-                    success_prob = None  # Replace #LOADING with None
                     
-                if compatibility == '#LOADING' or compatibility is None or (isinstance(compatibility, (int, float)) and compatibility <= 0) or (isinstance(compatibility, str) and '#LOADING' in compatibility):
+                # Handle #LOADING values
+                if isinstance(success_prob, str) and ('#LOADING' in success_prob or success_prob.strip() == '1'):
+                    success_prob = None  # Replace #LOADING or placeholder '1' with None
+                    
+                if isinstance(compatibility, str) and ('#LOADING' in compatibility or compatibility.strip() == '1'):
+                    compatibility = None  # Replace #LOADING or placeholder '1' with None
+                    
+                # Handle other invalid values
+                if compatibility is None or (isinstance(compatibility, (int, float)) and compatibility <= 0):
                     compatibility = None  # Replace invalid values with None
                 
                 # Get confidence and use config for display
