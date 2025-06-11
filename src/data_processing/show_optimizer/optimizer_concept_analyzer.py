@@ -171,7 +171,7 @@ class ConceptAnalyzer:
             matching_shows=pd.DataFrame(),
             match_count=0,
             match_counts_by_level={},
-            confidence_info={'error': error_message, 'confidence_level': 'none'}
+            confidence_info={'error': error_message, 'level': 'none'}
         )
     
     def analyze_concept(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame], force_refresh: bool = False) -> OptimizationSummary:
@@ -333,7 +333,7 @@ class ConceptAnalyzer:
             # Get shows data from integrated data
             if 'shows' not in integrated_data or integrated_data['shows'].empty:
                 st.error("No shows data available in integrated data")
-                return pd.DataFrame(), {'confidence_level': 'none', 'error': 'No shows data available'}
+                return pd.DataFrame(), {'level': 'none', 'error': 'No shows data available'}
                 
             shows_data = integrated_data['shows']
             st.write(f"Using integrated data with {len(shows_data)} shows")
@@ -371,7 +371,7 @@ class ConceptAnalyzer:
                 'match_quality': 0,
                 'sample_size': 0,
                 'match_level': 0,
-                'confidence_level': 'none'
+                'level': 'none'
             }
     
     def _calculate_success_probability(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> Tuple[Optional[float], str]:
@@ -510,7 +510,7 @@ class ConceptAnalyzer:
             confidence_info = {}
             if 'match_level' in matching_shows.columns:
                 confidence_info['match_level'] = matching_shows['match_level'].max() if not matching_shows.empty else 0
-                confidence_info['confidence_level'] = 'high' if confidence_info['match_level'] >= 3 else 'medium' if confidence_info['match_level'] >= 2 else 'low'
+                confidence_info['level'] = 'high' if confidence_info['match_level'] >= 3 else 'medium' if confidence_info['match_level'] >= 2 else 'low'
             
             # Use CriteriaScorer to calculate component scores with the provided matching shows and integrated data
             component_scores = self.criteria_scorer.calculate_component_scores(

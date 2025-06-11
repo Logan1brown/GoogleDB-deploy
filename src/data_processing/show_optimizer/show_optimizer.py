@@ -453,7 +453,7 @@ class ShowOptimizer:
             matching_shows=None,
             match_count=0,
             match_counts_by_level={},
-            confidence_info={'error': error_message, 'confidence_level': 'none'}
+            confidence_info={'error': error_message, 'level': 'none'}
         )
     
     def _handle_error(self, error_message: str) -> None:

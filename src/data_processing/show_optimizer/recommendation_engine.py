@@ -510,7 +510,7 @@ class RecommendationEngine:
                         suggested_value=None,  # No specific alternative, just suggesting to relax this criterion
                         suggested_name=criteria_name,
                         impact_score=impact_score,
-                        confidence=test_confidence.get('confidence_level', 'medium'),
+                        confidence=test_confidence.get('level', 'medium'),
                         explanation=f"Relaxing the '{criteria_name}' requirement would significantly improve match quality "
                                    f"and increase the sample size from {len(matching_shows)} to {test_count} shows."
                     )
