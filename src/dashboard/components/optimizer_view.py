@@ -115,7 +115,16 @@ class OptimizerView:
         # Check if criteria is empty
         if not criteria:
             st.info("Select criteria to analyze your concept.")
-            return False
+            # Clear any previous results when criteria are empty
+            state['matching_shows'] = pd.DataFrame()
+            state['network_matches'] = []
+            state['component_scores'] = {}
+            state['success_probability'] = None
+            state['recommendations'] = []
+            state['summary'] = None
+            st.session_state['matching_shows'] = pd.DataFrame()
+            st.session_state['optimizer_summary'] = None
+            return True
             
         # Check if optimizer is initialized
         if not self.initialized:
