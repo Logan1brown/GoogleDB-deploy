@@ -254,16 +254,16 @@ class Matcher:
         # This is based on the total number of criteria but with a reasonable limit
         max_possible_drop = total_criteria - 1  # Maximum possible criteria to drop
         
-        # Set a reasonable maximum - don't drop more than 50% of criteria or 5 criteria, whichever is less
-        # This ensures we get more relevant matches that still resemble the original concept
-        max_criteria_to_drop = min(max_possible_drop, min(int(total_criteria * 0.5), 5))
+        # For high-quality matches, don't drop more than 50% of criteria or 5 criteria, whichever is less
+        # This ensures we get relevant matches that still resemble the original concept
+        high_quality_max_drop = min(max_possible_drop, min(int(total_criteria * 0.5), 5))
         
-        # Ensure we always keep at least 2 criteria if possible
-        if total_criteria > 2 and max_criteria_to_drop > total_criteria - 2:
-            max_criteria_to_drop = total_criteria - 2
+        # For additional matches, we can be more permissive but still keep at least 1 criterion
+        # This allows us to find more matches while still having some relevance
+        max_criteria_to_drop = max_possible_drop
         
-        # Try each possible match level in order, from exact match to progressively fewer criteria
-        for level in range(1, max_criteria_to_drop + 2):
+        # Ensure we always keep at least 2 criteria for high-quality matches if possible
+        if total_criteria > 2 and high_quality_max_drop > total_criteria - 2:
             # Get criteria for this match level
             level_criteria = self.get_criteria_for_match_level(criteria, level)
             if not level_criteria:
@@ -280,35 +280,15 @@ class Matcher:
             else:
                 st.write(f"Tried level {level} ({level_desc}) - Found {match_count} matches")
             
-                
             # Add match_level to the matches
             level_matches['match_level'] = level
-            all_match_counts[level] = match_count
             
-            # Calculate confidence for this level if it's the first with matches
-            if not best_confidence_info:
-                best_confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
+            # Calculate match quality as a percentage based on criteria retained
+            match_quality = round(((total_criteria - (level - 1)) / total_criteria) * 100)
+            level_matches['match_quality'] = match_quality
             
-            # Add new unique matches to the result set
-            if 'title' in level_matches.columns:
-                # Filter out duplicates
-                new_matches = level_matches[~level_matches['title'].isin(unique_titles)]
-                
-                # Count new unique matches
-                new_unique_count = len(new_matches)
-                
-                # Add new titles to the set of unique titles
-                unique_titles.update(new_matches['title'].tolist())
-                total_unique_matches += new_unique_count
-                
-                # Add new matches to the result set
-                if all_matches.empty:
-                    all_matches = new_matches
-                else:
-                    all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
-                
-                # Log progress using the helper method for consistent descriptions
-                level_desc = self._get_match_level_description(level)
+            # Add description of the match level
+            level_matches['match_level_desc'] = self._get_match_level_description(level)
                 
                 # Calculate match quality percentage based on criteria retained
                 criteria_retained = total_criteria - (level - 1)
