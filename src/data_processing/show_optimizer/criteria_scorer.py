@@ -117,9 +117,11 @@ class CriteriaScorer:
                     confidence_info['error'] = 'Failed to calculate success score'
                 return None, confidence_info
         except Exception as e:
+            import traceback
+            tb_str = traceback.format_exc()
             st.error(f"Error in success score calculation: {str(e)}")
-            # Display the full exception with traceback
-            st.exception(e)
+            # Display the full traceback as formatted code
+            st.code(tb_str, language="python")
             # Create a basic confidence_info dictionary with error details
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
