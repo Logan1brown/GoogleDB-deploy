@@ -582,20 +582,24 @@ class NetworkScoreCalculator:
                     match_quality = 1.0  # Perfect match quality for direct network matches
                     
                     # Create confidence info
-                    confidence_info = OptimizerConfig.create_confidence_info(
+                    # Calculate confidence score (0-1) based on sample size and other factors
+                    confidence_score = OptimizerConfig.calculate_confidence_score(
                         sample_size=sample_size,
                         match_level=match_level,
                         criteria_count=len(criteria),
                         total_criteria=len(OptimizerConfig.CRITERIA_IMPORTANCE)
                     )
-                    confidence_info['match_quality'] = match_quality
+                    
+                    # Map the confidence score to a confidence level string
+                    confidence_level = OptimizerConfig.map_confidence_score_to_level(confidence_score)
                     
                     network_matches.append({
                         'network_id': network_id,
                         'network_name': network_name,
                         'matching_shows': network_shows,
                         'sample_size': sample_size,
-                        'confidence_info': confidence_info,
+                        'confidence_score': confidence_score,
+                        'confidence_level': confidence_level,
                         'match_quality': match_quality
                     })
             
@@ -614,7 +618,14 @@ class NetworkScoreCalculator:
                 network_name = network_match['network_name']
                 matching_shows = network_match['matching_shows']
                 count = network_match['sample_size']
-                confidence_info = network_match['confidence_info']
+                # Create confidence_info dictionary from confidence_score and confidence_level
+                confidence_info = {
+                    'score': network_match['confidence_score'],
+                    'level': network_match['confidence_level'],
+                    'sample_size': network_match['sample_size'],
+                    'match_level': 1,  # Direct match
+                    'match_quality': network_match['match_quality']
+                }
                 
                 # Calculate weighted compatibility score using config weights
                 compatibility_score = self._calculate_weighted_compatibility_score(
@@ -681,42 +692,6 @@ class NetworkScoreCalculator:
             st.error("Unable to calculate network scores. Please check your criteria and try again.")
             return []
         except Exception as e:
-            st.write(f"Debug: Unexpected error in network score calculation: {str(e)}")
-            st.error("An unexpected error occurred while calculating network scores.")
-            return []
-    
-    def calculate_success_rate(self, shows: pd.DataFrame, threshold: Optional[float] = None, 
-                               confidence_info: Optional[Dict[str, Any]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
-        """Calculate the success rate for a set of shows with confidence information.
-        
-        Args:
-            shows: DataFrame of shows
-            threshold: Success threshold (shows with score >= threshold are considered successful)
-            confidence_info: Optional confidence information from flexible matching
-                
-        Returns:
-            Tuple of (success_rate, confidence_info)
-            - success_rate: Success rate (0-1) or None if success_score is missing
-            - confidence_info: Dictionary with confidence metrics
-        """
-        # Initialize confidence info if not provided
-        if confidence_info is None:
-            sample_size = len(shows) if not shows.empty else 0
-            match_level = OptimizerConfig.DEFAULT_MATCH_LEVEL
-            
-            # Use OptimizerConfig's standardized method to create confidence info
-            confidence_info = OptimizerConfig.create_confidence_info(
-                sample_size=sample_size,
-                match_level=match_level,
-                criteria_count=1,
-                total_criteria=1
-            )
-                
-        # Check if we have shows to analyze
-        if shows.empty:
-            # No shows to analyze
-            confidence_info['success_rate'] = None
-            confidence_info['success_count'] = 0
             confidence_info['total_count'] = 0
             return None, confidence_info
                 
