@@ -477,6 +477,13 @@ def render_network_compatibility(networks: List):
             
         network_df = pd.DataFrame(network_data)
         
+        # Sort by compatibility score (descending), then by success probability if compatibility is equal
+        network_df = network_df.sort_values(
+            by=['Compatibility', 'Success Probability'], 
+            ascending=[False, False],
+            na_position='last'  # Put NaN values at the end
+        )
+        
         # Display as a table
         st.dataframe(
             network_df,
