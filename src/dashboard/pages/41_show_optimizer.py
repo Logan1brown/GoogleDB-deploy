@@ -22,7 +22,8 @@ from src.dashboard.components.optimizer_view import OptimizerView
 from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
 from src.dashboard.components.optimizer_helpers import (
     render_success_metrics, render_network_compatibility, render_recommendations,
-    render_matching_shows, render_component_scores, render_criteria_summary
+    render_content_criteria, render_production_criteria, render_format_criteria,
+    render_success_factors
 )
 
 
