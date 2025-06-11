@@ -26,8 +26,8 @@ class NetworkMatch:
     A data container for network matching results with compatibility and success scores.
     Uses OptimizerConfig for default confidence values.
     """
-    network_id: int
-    network_name: str
+    network_id: int = 0
+    network_name: str = ''
     compatibility_score: Optional[float] = None  # 0-1 score of how well the network matches criteria, None if N/A
     success_probability: Optional[float] = None  # 0-1 probability of success on this network, None if N/A
     sample_size: int = 0  # Number of shows in the sample
@@ -44,7 +44,7 @@ class NetworkMatch:
 @dataclass
 class ComponentScore:
     """Success score for a component (audience, critics, longevity)."""
-    component: str  # audience, critics, or longevity
+    component: str = ''  # audience, critics, or longevity
     score: Optional[float] = None  # 0-1 score, None if N/A
     sample_size: int = 0
     confidence: str = 'none'  # none, low, medium, high
