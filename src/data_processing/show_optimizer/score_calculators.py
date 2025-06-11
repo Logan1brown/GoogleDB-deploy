@@ -594,17 +594,32 @@ class NetworkScoreCalculator:
                     success_history=network_match.get('success_history', None)
                 )
                 
-                # Calculate success probability if we have enough shows
-                if not matching_shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                    # Calculate success rate using our method
-                    success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
-                    
-                    # Get confidence level from config based on sample size and match level
-                    match_level = confidence_info.get('match_level', 1)
-                    confidence = OptimizerConfig.get_confidence_level(count, match_level)
+                # Always try to calculate success probability with available data
+                # Instead of relying on potentially hardcoded values
+                success_rate = None
+                
+                # First check if we have enough shows for this network
+                if not matching_shows.empty:
+                    # Check if we have enough shows for a reliable calculation
+                    if count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                        # Calculate success rate using our method
+                        success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
+                        
+                        # Debug output in debug mode only
+                        if st.session_state.get('debug_mode', False):
+                            st.write(f"Debug: Calculated success rate for {network_name}: {success_rate} with {count} shows")
+                    else:
+                        # Not enough shows for reliable calculation
+                        if st.session_state.get('debug_mode', False):
+                            st.write(f"Debug: Insufficient sample size for {network_name}: {count} shows (min required: {OptimizerConfig.CONFIDENCE['minimum_sample']})")
                 else:
-                    success_rate = None
-                    confidence = 'none'
+                    # No matching shows for this network
+                    if st.session_state.get('debug_mode', False):
+                        st.write(f"Debug: No matching shows for {network_name}")
+                
+                # Get confidence level from config based on sample size and match level
+                match_level = confidence_info.get('match_level', 1)
+                confidence = OptimizerConfig.get_confidence_level(count, match_level) if count > 0 else 'none'
                 
                 # Create NetworkMatch object
                 network_match_obj = NetworkMatch(

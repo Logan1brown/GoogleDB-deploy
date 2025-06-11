@@ -512,8 +512,21 @@ def render_network_compatibility(networks: List):
                         compatibility = None
                 
                 # Handle placeholder values and special cases
-                if isinstance(success_prob, (int, float)) and success_prob == 1 and sample_size < 5:
-                    success_prob = None  # Replace placeholder with None for insufficient data
+                # If success probability is exactly 1.0 and sample size is reasonable, it's likely a hardcoded value
+                if isinstance(success_prob, (int, float)) and success_prob == 1:
+                    # For small sample sizes, definitely treat as placeholder
+                    if sample_size < 5:
+                        success_prob = None  # Replace placeholder with None for insufficient data
+                    # For larger sample sizes, still suspicious - perfect success rate is unlikely
+                    elif sample_size >= 5:
+                        # Check if this is a network with a reasonable number of shows
+                        if sample_size >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                            # Log suspicious value but don't modify it if in debug mode
+                            if st.session_state.get('debug_mode', False):
+                                st.write(f"Debug: Suspicious success probability of 1.0 for {network_name} with sample size {sample_size}")
+                        else:
+                            # For networks with insufficient data, treat as placeholder
+                            success_prob = None
                     
                 # Handle #LOADING values
                 if isinstance(success_prob, str) and ('#LOADING' in success_prob or success_prob.strip() == '1'):

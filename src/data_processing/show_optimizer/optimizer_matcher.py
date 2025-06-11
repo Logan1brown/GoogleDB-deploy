@@ -54,14 +54,81 @@ class Matcher:
         """Create an empty confidence info dictionary.
         
         Returns:
-            Empty confidence info dictionary
+            Empty confidence info dictionary with default values
         """
         return {
-            'level': 'none',
-            'sample_size': 0,
+            'level': OptimizerConfig.CONFIDENCE_LEVELS.get('none', 'none'),
+            'score': 0.0,
             'match_quality': 0.0,
-            'match_level': 0
+            'sample_size': 0,
+            'criteria_coverage': 0.0,
+            'match_level': 0  # Maintain backward compatibility
         }
+        
+    def _calculate_criteria_coverage(self, criteria: Dict[str, Any], shows: pd.DataFrame) -> float:
+        """Calculate what percentage of criteria are covered by the shows.
+        
+        Args:
+            criteria: Dictionary of criteria to check coverage for
+            shows: DataFrame of shows to check against
+            
+        Returns:
+            Criteria coverage as a float between 0 and 1
+        """
+        if not criteria or shows.empty:
+            return 0.0
+            
+        # Get total number of criteria
+        total_criteria = len(criteria)
+        if total_criteria == 0:
+            return 1.0  # No criteria means 100% coverage
+            
+        # Count how many criteria are actually present in the shows
+        matched_criteria = 0
+        
+        for key, value in criteria.items():
+            # Skip empty or None values
+            if value is None or (isinstance(value, (list, str)) and not value):
+                continue
+                
+            # Check if this criterion is present in the shows
+            if key in shows.columns:
+                # For array fields, check if any show has the value
+                if isinstance(value, list):
+                    for item in value:
+                        # For array columns in DataFrame, need special handling
+                        if any(shows[key].apply(lambda x: item in x if isinstance(x, list) else False)):
+                            matched_criteria += 1
+                            break
+                else:
+                    # For scalar values, check if any show matches exactly
+                    if any(shows[key] == value):
+                        matched_criteria += 1
+        
+        # Calculate coverage ratio
+        return matched_criteria / total_criteria if total_criteria > 0 else 1.0
+        
+    def _calculate_match_quality(self, criteria_coverage: float) -> float:
+        """Calculate match quality based on criteria coverage.
+        
+        Args:
+            criteria_coverage: Percentage of criteria covered (0-1)
+            
+        Returns:
+            Match quality score (0-1)
+        """
+        # Map criteria coverage to match quality using OptimizerConfig quality levels
+        # This provides consistency with the rest of the application
+        if criteria_coverage >= 1.0:
+            return OptimizerConfig.get_quality_for_diff(0)  # Perfect match
+        elif criteria_coverage >= 0.75:
+            return OptimizerConfig.get_quality_for_diff(1)  # Missing 1 criterion
+        elif criteria_coverage >= 0.5:
+            return OptimizerConfig.get_quality_for_diff(2)  # Missing 2 criteria
+        elif criteria_coverage >= 0.25:
+            return OptimizerConfig.get_quality_for_diff(3)  # Missing 3 criteria
+        else:
+            return OptimizerConfig.get_quality_for_diff(4)  # Missing 4+ criteria
         
     def _get_match_level_description(self, match_level: int) -> str:
         """Generate a human-readable description for a match level.
@@ -391,11 +458,27 @@ class Matcher:
                         if not network_matching_shows.empty:
                             # We already have matching shows for this network, use them directly
                             matching_shows_for_network = network_matching_shows
+                            
+                            # Calculate actual match quality based on criteria coverage
+                            # Get the original criteria (without network) to assess match quality
+                            base_criteria = criteria.copy()
+                            if 'network' in base_criteria:
+                                del base_criteria['network']
+                                
+                            # Calculate criteria coverage for these shows
+                            criteria_coverage = self._calculate_criteria_coverage(base_criteria, network_matching_shows)
+                            
+                            # Calculate match quality based on criteria coverage
+                            # This is more accurate than hardcoding to 1.0
+                            match_quality = self._calculate_match_quality(criteria_coverage)
+                            
                             confidence_info = {
-                                'match_level': 1,  # Exact match since we're using pre-filtered shows
+                                'match_level': 1,  # Using pre-filtered shows but with calculated match quality
                                 'sample_size': len(matching_shows_for_network),
-                                'match_quality': 1.0,  # Perfect match quality
-                                'criteria_coverage': 1.0  # All criteria covered
+                                'match_quality': match_quality,  # Use calculated match quality instead of hardcoded 1.0
+                                'criteria_coverage': criteria_coverage,  # Store actual criteria coverage
+                                'criteria_count': len(base_criteria),  # Store criteria count for reference
+                                'total_criteria': len(base_criteria)  # Total possible criteria
                             }
                         else:
                             # No matching shows for this network in our pre-filtered set
