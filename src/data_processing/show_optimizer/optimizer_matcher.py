@@ -106,7 +106,7 @@ class Matcher:
         
         # Define the maximum number of criteria we're willing to drop
         # This is based on the total number of criteria
-        max_criteria_to_drop = min(total_criteria - 1, 8)  # Keep at least 1 criterion, max drop 8
+        max_criteria_to_drop = total_criteria - 1  # Keep at least 1 criterion
         
         if flexible:
             # For flexible matching, start with a higher level (more missing criteria)
@@ -193,12 +193,15 @@ class Matcher:
     def find_matches_with_fallback(self, criteria: Dict[str, Any], data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Enhanced version of find_matches that incorporates sophisticated fallback logic.
         
-        This method first tries exact matching (level 1) and then progressively relaxes
-        criteria through match levels 2-4 until we have enough matches. The process:
-        1. Start with exact matches (level 1)
-        2. If insufficient, add close matches (level 2)
-        3. If still insufficient, add partial matches (level 3)
-        4. If still insufficient, add loose matches (level 4)
+        This method starts with exact matching (level 1) and then progressively relaxes
+        criteria by removing one criterion at a time until it reaches the target sample size.
+        The process:
+        1. Start with exact matches (level 1 = all criteria match)
+        2. If insufficient, try missing 1 criterion (level 2)
+        3. If still insufficient, try missing 2 criteria (level 3)
+        4. Continue relaxing criteria until we either:
+           - Reach the target sample size (OptimizerConfig.MAX_RESULTS)
+           - Have tried all possible match levels (down to 1 remaining criterion)
         
         Args:
             criteria: Dictionary of criteria to match against
@@ -208,7 +211,10 @@ class Matcher:
         Returns:
             Tuple of (matching_shows, match_info) with combined matches from all levels needed
         """
-        # Always use MAX_RESULTS as the target sample size
+        # Use config values for sample sizes if not specified
+        if min_sample_size is None:
+            min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample']
+        
         target_sample_size = OptimizerConfig.MAX_RESULTS
         
         # Initialize result variables
@@ -216,16 +222,21 @@ class Matcher:
         best_confidence_info = {}
         all_match_counts = {}
         unique_titles = set()
+        total_unique_matches = 0
+        
+        # Get data for matching
+        data = self._get_data(data)
+        if data.empty:
+            return pd.DataFrame(), self._empty_confidence_info()
         
         # Determine how many criteria we have to work with
         total_criteria = len(criteria)
         
         # Define the maximum number of criteria we're willing to drop
         # This is based on the total number of criteria
-        max_criteria_to_drop = min(total_criteria - 1, 4)  # Keep at least 1 criterion, max drop 4
+        max_criteria_to_drop = total_criteria - 1  # Keep at least 1 criterion
         
         # Try each possible match level in order, from exact match to progressively fewer criteria
-        # Level 1 = exact match, Level 2 = missing 1 criterion, etc.
         for level in range(1, max_criteria_to_drop + 2):
             # Get criteria for this match level
             level_criteria = self.get_criteria_for_match_level(criteria, level)
@@ -251,36 +262,48 @@ class Matcher:
             if 'title' in level_matches.columns:
                 # Filter out duplicates
                 new_matches = level_matches[~level_matches['title'].isin(unique_titles)]
+                
+                # Count new unique matches
+                new_unique_count = len(new_matches)
+                
                 # Add new titles to the set of unique titles
                 unique_titles.update(new_matches['title'].tolist())
+                total_unique_matches += new_unique_count
+                
                 # Add new matches to the result set
                 if all_matches.empty:
                     all_matches = new_matches
                 else:
                     all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
-        
-        # If we didn't find any matches at any level, try level 5 (extremely minimal matching)
-        if all_matches.empty:
-            # Get criteria for level 5
-            level_criteria = self.get_criteria_for_match_level(criteria, 5)
-            if level_criteria:
-                # Match shows using the minimal criteria
-                level_matches, match_count = self._match_shows(level_criteria, data)
                 
-                if not level_matches.empty:
-                    # Add match_level to the matches
-                    level_matches['match_level'] = 5
-                    all_match_counts[5] = match_count
-                    
-                    # Calculate confidence for this level
-                    best_confidence_info = self.calculate_match_confidence(level_matches, 5, criteria)
-                    
-                    # Add matches to the result set
-                    all_matches = level_matches
+                # Log progress
+                diff = level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+                criteria_text = "criterion" if diff == 1 else "criteria"
+                level_desc = f"All criteria matched" if diff == 0 else f"Missing {diff} {criteria_text}"
+                st.write(f"Found {new_unique_count} new matches at level {level} ({level_desc}). Total unique matches: {total_unique_matches}")
+            
+            # If we've reached the target sample size, we can stop
+            if total_unique_matches >= target_sample_size:
+                break
         
         # If we still didn't find any matches at any level
         if all_matches.empty:
             return pd.DataFrame(), self._empty_confidence_info()
+        
+        # Prepare confidence info for the combined results
+        confidence_info = best_confidence_info.copy() if best_confidence_info else self._empty_confidence_info()
+        confidence_info['match_counts_by_level'] = all_match_counts
+        confidence_info['total_unique_matches'] = total_unique_matches
+        
+        # Add a summary of the match levels we tried and how many matches we found at each level
+        level_summaries = []
+        for level, count in all_match_counts.items():
+            diff = level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+            criteria_text = "criterion" if diff == 1 else "criteria"
+            level_desc = f"All criteria matched" if diff == 0 else f"Missing {diff} {criteria_text}"
+            level_summaries.append(f"{level_desc}: {count} matches")
+        
+        confidence_info['match_level_summary'] = level_summaries
         
         # Sort by match_level (ascending) and success_score (descending)
         if 'success_score' in all_matches.columns:
@@ -293,20 +316,7 @@ class Matcher:
         if len(all_matches) > OptimizerConfig.MAX_RESULTS:
             all_matches = all_matches.head(OptimizerConfig.MAX_RESULTS)
         
-        # Add match level counts to confidence info
-        best_confidence_info['match_counts'] = all_match_counts
-        best_level = min(all_match_counts.keys()) if all_match_counts else 1
-        
-        # Ensure the match level exists in OptimizerConfig.MATCH_LEVELS
-        OptimizerConfig.ensure_match_level_exists(best_level)
-        
-        # Generate level name dynamically based on criteria difference
-        diff = best_level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
-        level_name = f"Missing {diff} criteria" if diff > 0 else "All criteria matched"
-        best_confidence_info['match_level_name'] = level_name
-        best_confidence_info['confidence_level'] = best_confidence_info.get('level', 'none')
-        
-        return all_matches, best_confidence_info
+        return all_matches, confidence_info
     
     def find_network_matches(self, criteria: Dict[str, Any], data: pd.DataFrame = None, matching_shows: pd.DataFrame = None) -> List[Dict[str, Any]]:
         """Find shows matching criteria for each available network.

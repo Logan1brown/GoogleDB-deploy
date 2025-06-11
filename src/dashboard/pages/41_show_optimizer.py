@@ -176,12 +176,15 @@ def show():
                             match_counts_by_level = summary.confidence_info['match_counts_by_level']
                         elif hasattr(summary, 'match_counts_by_level'):
                             match_counts_by_level = summary.match_counts_by_level
-                        elif 'match_level' in summary.matching_shows.columns:
-                            # Calculate counts from the DataFrame
-                            for level in range(1, 5):
+                        if 'match_level' in summary.matching_shows.columns:
+                            # Count shows by match level
+                            level_counts = {}
+                            # Get all unique match levels in the data
+                            unique_levels = summary.matching_shows['match_level'].unique()
+                            for level in unique_levels:
                                 count = len(summary.matching_shows[summary.matching_shows['match_level'] == level])
                                 if count > 0:
-                                    match_counts_by_level[level] = count
+                                    level_counts[level] = count
                         
                         # Check if we have confidence_info with validation details
                         if hasattr(summary, 'confidence_info') and summary.confidence_info:
@@ -208,7 +211,9 @@ def show():
                         # Count shows by match level for verification
                         level_counts = {}
                         if 'match_level' in summary.matching_shows.columns:
-                            for level in range(1, 6):
+                            # Get all unique match levels in the data
+                            unique_levels = summary.matching_shows['match_level'].unique()
+                            for level in unique_levels:
                                 count = len(summary.matching_shows[summary.matching_shows['match_level'] == level])
                                 if count > 0:
                                     level_counts[level] = count

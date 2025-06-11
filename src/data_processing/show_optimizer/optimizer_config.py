@@ -131,24 +131,34 @@ class OptimizerConfig:
             return max(0.3, 1.0 - (diff * 0.15))  # Decreases with more missing criteria
     
     @classmethod
+    def get_match_level_factor(cls, diff):
+        """Get confidence adjustment factor based on criteria difference."""
+        if diff == 0:
+            return 1.0  # No reduction for exact matches
+        elif diff == 1:
+            return 0.9  # 10% reduction for missing 1 criterion
+        elif diff == 2:
+            return 0.8  # 20% reduction for missing 2 criteria
+        elif diff == 3:
+            return 0.7  # 30% reduction for missing 3 criteria
+        elif diff == 4:
+            return 0.5  # 50% reduction for missing 4 criteria
+        else:
+            return max(0.2, 1.0 - (diff * 0.15))  # Decreases with more missing criteria
+    
+    @classmethod
     def get_match_level_config(cls, diff):
         """Get match level configuration for a specific criteria difference."""
         return {
             'criteria_diff': diff,
             'confidence': cls.get_confidence_for_diff(diff),
-            'min_quality': cls.get_quality_for_diff(diff)
+            'min_quality': cls.get_quality_for_diff(diff),
+            'factor': cls.get_match_level_factor(diff)
         }
     
-    # Base match level for exact matches
-    # Other levels will be generated dynamically based on criteria differences
-    MATCH_LEVELS = {
-        # Initialize with level 1 (exact match)
-        1: {
-            'criteria_diff': 0,
-            'confidence': 'high',
-            'min_quality': 0.9
-        }
-    }
+    # Match levels are generated dynamically based on criteria differences
+    # We initialize with level 1 (exact match) and others are created as needed
+    MATCH_LEVELS = {}
     
     @classmethod
     def ensure_match_level_exists(cls, level):
@@ -161,6 +171,7 @@ class OptimizerConfig:
             # Calculate the criteria difference (level 1 = 0 diff, level 2 = 1 diff, etc.)
             diff = level - 1
             cls.MATCH_LEVELS[level] = cls.get_match_level_config(diff)
+        return cls.MATCH_LEVELS[level]
     
     # Confidence thresholds for sample sizes
     CONFIDENCE = {
