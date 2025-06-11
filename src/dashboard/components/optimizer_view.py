@@ -382,3 +382,23 @@ class OptimizerView:
         except Exception as e:
             st.write(f"Debug: Error getting criteria name for {criteria_type}: {str(e)}")
             return str(criteria_value)  # Fallback to string representation
+            
+    def invalidate_cache(self):
+        """Invalidate the optimizer cache.
+        
+        This method invalidates both the components cache and the data cache,
+        forcing a refresh on the next request.
+        
+        Returns:
+            True if cache was invalidated successfully, False otherwise
+        """
+        if not self.initialized or not self.optimizer:
+            st.error("Optimizer not initialized. Cannot invalidate cache.")
+            return False
+            
+        try:
+            self.optimizer.invalidate_cache(components=True, data=True)
+            return True
+        except Exception as e:
+            st.error(f"Error invalidating cache: {str(e)}")
+            return False

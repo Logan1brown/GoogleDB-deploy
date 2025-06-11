@@ -348,6 +348,19 @@ def show():
         
     # Save state back to session
     update_page_state("show_optimizer", state)
+    
+    # Add cache status section at the bottom of the page
+    st.markdown("---")
+    with st.expander("Cache Status"):
+        # Display cache status
+        if optimizer_view.optimizer:
+            optimizer_view.optimizer.display_cache_status(show_details=True)
+            
+            # Add button to invalidate cache
+            if st.button("Invalidate Cache"):
+                optimizer_view.optimizer.invalidate_cache(components=True, data=True)
+                st.success("Cache invalidated successfully. Please refresh the page to see the changes.")
+                st.experimental_rerun()
 
 if __name__ == "__main__":
     show()
