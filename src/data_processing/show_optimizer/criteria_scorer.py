@@ -160,13 +160,20 @@ class CriteriaScorer:
                     
                 # Use the calculator to calculate the success rate with the proper threshold
                 threshold = OptimizerConfig.PERFORMANCE.get('success_threshold', None)
-                component_score = calculator.calculate(matching_shows, threshold=threshold)
                 
-                if component_score is None:
+                try:
+                    # Ensure we pass the correct parameters to calculate
+                    component_score = calculator.calculate(matching_shows, threshold=threshold)
+                    
+                    if component_score is None:
+                        results.append(None)
+                    else:
+                        # Extract just the success rate value
+                        results.append(component_score.score)
+                except Exception as calc_error:
+                    # Handle specific calculation errors
+                    st.warning(f"Error in success rate calculation: {str(calc_error)}")
                     results.append(None)
-                else:
-                    # Extract just the success rate value
-                    results.append(component_score.score)
                     
             except Exception as e:
                 st.error(f"Error calculating success rate for criteria {criteria}: {str(e)}")
