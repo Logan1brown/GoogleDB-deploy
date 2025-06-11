@@ -93,36 +93,37 @@ class OptimizerConfig:
     }
     
     # Match level definitions and confidence mapping
+    # Now based on the number of criteria differences rather than percentages
     MATCH_LEVELS = {
         1: {
             'name': 'All criteria matched',
             'confidence': 'high',
             'min_quality': 0.9,
-            'criteria_percent': 1.0  # 100% of criteria must match
+            'criteria_diff': 0  # All criteria match
         },
         2: {
-            'name': 'All but one secondary criterion matched',
+            'name': 'All but 1 criterion matched',
             'confidence': 'medium',
-            'min_quality': 0.7,
-            'criteria_percent': 0.75  # At least 75% of criteria must match
+            'min_quality': 0.8,
+            'criteria_diff': 1  # Missing 1 criterion
         },
         3: {
-            'name': 'Core and primary criteria matched',
-            'confidence': 'low',
-            'min_quality': 0.5,
-            'criteria_percent': 0.5  # At least 50% of criteria must match
+            'name': 'All but 2 criteria matched',
+            'confidence': 'medium-low',
+            'min_quality': 0.7,
+            'criteria_diff': 2  # Missing 2 criteria
         },
         4: {
-            'name': 'Only core criteria matched',
-            'confidence': 'very_low',
-            'min_quality': 0.3,
-            'criteria_percent': 0.25  # At least 25% of criteria must match
+            'name': 'All but 3 criteria matched',
+            'confidence': 'low',
+            'min_quality': 0.5,
+            'criteria_diff': 3  # Missing 3 criteria
         },
         5: {
-            'name': 'Minimal criteria matched',
+            'name': 'All but 4+ criteria matched',
             'confidence': 'minimal',
-            'min_quality': 0.1,
-            'criteria_percent': 0.1  # Extremely minimal matching (typically just genre)
+            'min_quality': 0.3,
+            'criteria_diff': 4  # Missing 4 or more criteria
         }
     }
     

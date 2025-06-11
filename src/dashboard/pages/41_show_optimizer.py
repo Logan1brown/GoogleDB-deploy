@@ -216,13 +216,13 @@ def show():
                             # Use match_counts_by_level if available
                             level_counts = match_counts_by_level
                         
-                        # Display match level counts with clear percentage-based descriptions
+                        # Display match level counts with criteria-difference based descriptions
                         level_descriptions = {
-                            1: "100% criteria",
-                            2: "75% criteria",
-                            3: "50% criteria",
-                            4: "25% criteria",
-                            5: "minimal criteria"
+                            1: "All criteria matched",
+                            2: "All but 1 criterion",
+                            3: "All but 2 criteria",
+                            4: "All but 3 criteria",
+                            5: "All but 4+ criteria"
                         }
                         
                         # Format the level counts with descriptions

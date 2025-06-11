@@ -499,14 +499,14 @@ class Matcher:
         """Get criteria adjusted for a specific match level.
         
         Match levels are defined in OptimizerConfig.MATCH_LEVELS:
-        1 - Exact match with all criteria (100%)
-        2 - Match with most criteria (75%)
-        3 - Match with about half of criteria (50%)
-        4 - Match with minimal essential criteria (25%)
-        5 - Extremely minimal matching (genre only)
+        1 - Exact match with all criteria (all criteria match)
+        2 - Match with all but 1 criterion (missing 1 criterion)
+        3 - Match with all but 2 criteria (missing 2 criteria)
+        4 - Match with all but 3 criteria (missing 3 criteria)
+        5 - Match with all but 4+ criteria (missing 4 or more criteria)
         
-        This implementation uses a percentage-based approach that adapts to the number of criteria selected,
-        with special handling for level 5 which ensures at least some shows are found.
+        This implementation uses a criteria difference approach that removes a specific number of criteria
+        based on their importance, with special handling for level 5 which ensures at least some shows are found.
         
         Args:
             criteria: Dictionary of criteria
@@ -515,54 +515,69 @@ class Matcher:
         Returns:
             Criteria dictionary adjusted for the match level
         """
-        # Handle level 5 (extremely minimal matching - genre only)
-        if match_level == 5:
-            # Only include genre if it exists, otherwise include the most essential criterion
-            result = {}
-            if 'genre' in criteria:
-                result['genre'] = criteria['genre']
-                return result
-            
-            # If no genre, try to find the most essential criterion
-            classified = self.field_manager.classify_criteria_by_importance(criteria)
-            if classified['essential']:
-                # Take the first essential criterion
-                field, value = next(iter(classified['essential'].items()))
-                result[field] = value
-                return result
-            elif classified['core']:
-                # Take the first core criterion
-                field, value = next(iter(classified['core'].items()))
-                result[field] = value
-                return result
-            else:
-                # Take the first criterion of any type
-                field, value = next(iter(criteria.items()))
-                result[field] = value
-                return result
-        
         # Validate match level against config
         if match_level not in OptimizerConfig.MATCH_LEVELS:
             st.error(f"Invalid match level {match_level}, using all criteria")
             return criteria.copy()
             
-        # If match level is 1, use all criteria
+        # If match level is 1, use all criteria (exact match)
         if match_level == 1:
             return criteria.copy()
             
         # Special case for only 1 criterion
         if len(criteria) == 1:
-            return criteria.copy()  # Always include the only criterion
+            # If we only have one criterion, we can't remove any
+            # So we always include it regardless of match level
+            return criteria.copy()
         
-        # Get the percentage from config
+        # Handle level 5 (missing 4+ criteria) as a special case
+        if match_level == 5:
+            # For level 5, we want to keep only the most important criteria
+            # Typically this would be genre plus maybe one or two other essential criteria
+            result = {}
+            
+            # Always include genre if it exists
+            if 'genre' in criteria:
+                result['genre'] = criteria['genre']
+            
+            # Classify criteria by importance
+            classified = self.field_manager.classify_criteria_by_importance(criteria)
+            
+            # Add essential criteria (usually just genre)
+            for field, value in classified['essential'].items():
+                result[field] = value
+                
+            # If we don't have any essential criteria, add one core criterion
+            if not result and classified['core']:
+                field, value = next(iter(classified['core'].items()))
+                result[field] = value
+                
+            # If we still don't have any criteria, add one primary criterion
+            if not result and classified['primary']:
+                field, value = next(iter(classified['primary'].items()))
+                result[field] = value
+                
+            # If we still don't have any criteria, add one secondary criterion
+            if not result and classified['secondary']:
+                field, value = next(iter(classified['secondary'].items()))
+                result[field] = value
+                
+            # If we still don't have any criteria, add the first criterion
+            if not result and criteria:
+                field, value = next(iter(criteria.items()))
+                result[field] = value
+                
+            return result
+        
+        # Get the criteria difference from config
         level_config = OptimizerConfig.MATCH_LEVELS[match_level]
-        criteria_percent = level_config.get('criteria_percent', 1.0)
+        criteria_diff = level_config.get('criteria_diff', 0)
         
         # Get the total number of criteria
         total_criteria = len(criteria)
         
-        # Calculate how many criteria to include based on percentage
-        criteria_to_include = max(1, int(total_criteria * criteria_percent + 0.5))  # Round up
+        # Calculate how many criteria to include
+        criteria_to_include = max(1, total_criteria - criteria_diff)
         
         # Classify criteria by importance
         classified = self.field_manager.classify_criteria_by_importance(criteria)
