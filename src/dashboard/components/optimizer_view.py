@@ -285,6 +285,11 @@ class OptimizerView:
         # Add debug output
         if st.session_state.get('debug_mode', False):
             st.write(f"Debug: Formatting {len(network_matches) if network_matches else 0} network matches")
+            if network_matches and len(network_matches) > 0:
+                st.write(f"Debug: First network match type: {type(network_matches[0]).__name__}")
+                st.write(f"Debug: First network match dir: {dir(network_matches[0])}")
+                st.write(f"Debug: First network match network_id: {getattr(network_matches[0], 'network_id', 'Not found')}")
+                st.write(f"Debug: First network match network_name: {getattr(network_matches[0], 'network_name', 'Not found')}")
             
         formatted = []
         

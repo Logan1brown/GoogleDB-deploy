@@ -73,6 +73,11 @@ def show():
     
     # Initialize state if needed
     
+    # Add debug mode toggle in sidebar
+    with st.sidebar.expander("Developer Options", expanded=False):
+        debug_mode = st.checkbox("Debug Mode", value=st.session_state.get('debug_mode', False))
+        st.session_state['debug_mode'] = debug_mode
+    
     # Initialize the optimizer
     optimizer_view = OptimizerView()
     
@@ -356,7 +361,8 @@ def show():
                                 st.write(f"Debug: networks data length: {len(summary.formatted_data['networks'])}")
                     
                     # Check for network compatibility data
-                    if hasattr(summary, 'top_networks') and summary.top_networks:
+                    if (hasattr(summary, 'top_networks') and summary.top_networks) or \
+                       (hasattr(summary, 'network_compatibility') and summary.network_compatibility):
                         # Add a note about match level
                         match_level = getattr(summary, 'match_level', 0)
                         if match_level > 1:

@@ -571,7 +571,8 @@ class NetworkScoreCalculator:
             # Get unique networks from the matching shows
             if 'network_id' in matching_shows.columns:
                 network_ids = matching_shows['network_id'].dropna().unique()
-                # Process each network ID
+                
+            # Process each network ID
             for network_id in network_ids:
                 # Ensure network_id is an integer for proper lookup
                 if isinstance(network_id, str) and network_id.isdigit():
