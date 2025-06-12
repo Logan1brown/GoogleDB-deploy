@@ -423,7 +423,7 @@ def render_success_factors(success_factors: List):
                 st.markdown(titles_html, unsafe_allow_html=True)
 
 
-def render_network_compatibility(networks: List):
+def render_network_compatibility(networks):
     """Render network compatibility table.
     
     Args:
@@ -435,6 +435,15 @@ def render_network_compatibility(networks: List):
         
         if not networks:
             st.info("No network compatibility data available.")
+            if st.session_state.get('debug_mode', False):
+                st.write("Debug: Empty networks list passed to render_network_compatibility")
+            return
+            
+        # Check if networks is the correct type
+        if not isinstance(networks, list):
+            st.info("Invalid network compatibility data format.")
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Expected list but got {type(networks)} in render_network_compatibility")
             return
             
         # Debug the raw network data (only in debug mode)
@@ -442,7 +451,15 @@ def render_network_compatibility(networks: List):
             st.write("Raw network data:")
             for i, network in enumerate(networks):
                 if i < 5:  # Show first 5 networks only
-                    st.write(f"Network {i}: {network.network_name}, Success: {network.success_probability}, Compatibility: {network.compatibility_score}, Sample: {network.sample_size}")
+                    try:
+                        network_name = getattr(network, 'network_name', 'Unknown')
+                        success_prob = getattr(network, 'success_probability', None)
+                        compatibility = getattr(network, 'compatibility_score', None)
+                        sample_size = getattr(network, 'sample_size', 0)
+                        confidence = getattr(network, 'confidence', 'unknown')
+                        st.write(f"Network {i}: {network_name}, Success: {success_prob}, Compatibility: {compatibility}, Sample: {sample_size}, Confidence: {confidence}")
+                    except Exception as e:
+                        st.write(f"Debug: Error accessing network {i} attributes: {str(e)}")
         
         # Create a dataframe for the networks
         network_data = []
@@ -451,19 +468,32 @@ def render_network_compatibility(networks: List):
                 # Get network attributes with safe fallbacks
                 network_name = getattr(network, 'network_name', 'Unknown')
                 
+                # Debug network name type
+                if st.session_state.get('debug_mode', False) and not isinstance(network_name, str):
+                    st.write(f"Debug: Non-string network name: {network_name} (type: {type(network_name)})")
+                
                 # Fix tuple network names - convert tuple to string if needed
                 if isinstance(network_name, tuple):
                     if len(network_name) > 0:
                         network_name = str(network_name[0])  # Take first element of tuple
+                        if st.session_state.get('debug_mode', False):
+                            st.write(f"Debug: Converted tuple network name to string: {network_name}")
                     else:
                         network_name = 'Unknown'
+                        if st.session_state.get('debug_mode', False):
+                            st.write("Debug: Empty tuple network name converted to 'Unknown'")
                         
                 # Clean up any remaining parentheses or tuple formatting
                 if isinstance(network_name, str) and ('(' in network_name or ',' in network_name):
                     try:
                         # Try to extract a clean name from tuple-like strings
+                        original_name = network_name
                         network_name = network_name.strip('()').split(',')[0].strip()
-                    except:
+                        if st.session_state.get('debug_mode', False):
+                            st.write(f"Debug: Cleaned up network name from '{original_name}' to '{network_name}'")
+                    except Exception as e:
+                        if st.session_state.get('debug_mode', False):
+                            st.write(f"Debug: Error cleaning network name: {str(e)}")
                         pass  # Keep original if extraction fails
                 
                 # Get success probability and compatibility from network object
@@ -571,6 +601,9 @@ def render_network_compatibility(networks: List):
             
         if not network_data:
             st.info("No valid network data available.")
+            if st.session_state.get('debug_mode', False):
+                st.write("Debug: No valid network data after processing all networks")
+                st.write(f"Debug: Original networks list length: {len(networks)}")
             return
             
         network_df = pd.DataFrame(network_data)
@@ -604,7 +637,10 @@ def render_network_compatibility(networks: List):
             hide_index=True
         )
     except Exception as e:
-        st.write(f"Debug: Error rendering network compatibility: {str(e)}")
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug: Error rendering network compatibility: {str(e)}")
+            import traceback
+            st.write(f"Debug: Traceback: {traceback.format_exc()}")
         st.error("Unable to display network compatibility due to an error.")
         # Show empty table as fallback
         st.dataframe(

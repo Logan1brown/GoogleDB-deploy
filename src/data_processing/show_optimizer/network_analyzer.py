@@ -154,9 +154,9 @@ class NetworkAnalyzer:
             return []
     
     def get_network_tiers(self, criteria: Dict[str, Any], 
-                        integrated_data: Dict[str, pd.DataFrame],
-                        matching_shows: pd.DataFrame = None,
-                        min_confidence: str = 'low') -> Dict[str, NetworkTier]:
+                         integrated_data: Dict[str, pd.DataFrame],
+                         matching_shows: pd.DataFrame = None,
+                         min_confidence: str = 'low') -> Dict[str, NetworkTier]:
         """Group networks into tiers based on compatibility with criteria.
         
         Args:
@@ -169,21 +169,48 @@ class NetworkAnalyzer:
             Dictionary mapping tier names to NetworkTier objects
         """
         try:
+            # Validate inputs
+            if integrated_data is None:
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: No integrated data provided to get_network_tiers")
+                return {}
+                
+            if matching_shows is None or matching_shows.empty:
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: No matching shows provided to get_network_tiers")
+                    st.write("Debug: This may result in less accurate network tier calculations")
+            
             # Set the integrated data in the network score calculator
             self.set_integrated_data(integrated_data)
+            
+            # Debug output before calculating network scores
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Getting network tiers with min_confidence={min_confidence}")
+                if matching_shows is not None:
+                    st.write(f"Debug: Using {len(matching_shows)} matching shows for network tier calculation")
             
             # Get network matches from NetworkScoreCalculator (always use matching_shows if provided)
             network_matches = self.network_score_calculator.calculate_network_scores(criteria, matching_shows=matching_shows)
             
+            # Debug output after getting network matches
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Got {len(network_matches)} network matches for tier calculation")
+            
             # Filter by confidence
             confidence_levels = {'none': 0, 'low': 1, 'medium': 2, 'high': 3}
             min_confidence_level = confidence_levels.get(min_confidence.lower(), 0)
+            
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Filtering networks with minimum confidence level: {min_confidence} (level {min_confidence_level})")
             
             # More efficient list comprehension instead of loop
             filtered_matches = [
                 match for match in network_matches
                 if confidence_levels.get(match.confidence.lower(), 0) >= min_confidence_level
             ]
+            
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: After confidence filtering: {len(filtered_matches)} networks remain")
             
             # Sort by compatibility score (descending)
             filtered_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
@@ -193,6 +220,9 @@ class NetworkAnalyzer:
             
             # Get tier thresholds directly from OptimizerConfig
             tier_thresholds = OptimizerConfig.NETWORK_TIERS
+            
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Using tier thresholds: {tier_thresholds}")
             
             # Use a more efficient approach to create tiers
             tier_definitions = [
@@ -212,9 +242,18 @@ class NetworkAnalyzer:
                         min_score=min_score,
                         max_score=max_score
                     )
+                    if st.session_state.get('debug_mode', False):
+                        st.write(f"Debug: Created '{tier_id}' tier with {len(matches)} networks")
             
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Created {len(tiers)} network tiers")
+                
             return tiers
         except Exception as e:
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Error grouping networks into tiers: {str(e)}")
+                import traceback
+                st.write(f"Debug: Traceback: {traceback.format_exc()}")
             st.error(f"Error grouping networks into tiers: {str(e)}")
             # Return empty tiers dictionary on error
             return {}

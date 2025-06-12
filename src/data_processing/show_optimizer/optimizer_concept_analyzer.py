@@ -438,25 +438,69 @@ class ConceptAnalyzer:
             List of NetworkMatch objects sorted by compatibility score
         """
         try:
+            # Validate inputs
+            if not criteria:
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: No criteria provided to _find_top_networks")
+                return []
+                
+            if not integrated_data:
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: No integrated data provided to _find_top_networks")
+                return []
+                
             if st.session_state.get('debug_mode', False):
                 st.write("Finding top networks...")
+                st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
+                st.write(f"Debug: Integrated data keys: {list(integrated_data.keys())}")
             
             # Get the matching shows that were already found
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data=integrated_data)
             
+            if matching_shows is None or matching_shows.empty:
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: No matching shows found for network analysis")
+                return []
+            
             # Use NetworkAnalyzer to rank networks by compatibility
             # The limit is controlled by OptimizerConfig.DEFAULT_NETWORK_LIMIT
             if st.session_state.get('debug_mode', False):
-                st.write(f"Using cached matching shows ({len(matching_shows)} shows)")
+                st.write(f"Debug: Using cached matching shows ({len(matching_shows)} shows) for network ranking")
+                if 'network_id' in matching_shows.columns:
+                    network_counts = matching_shows['network_id'].value_counts()
+                    st.write(f"Debug: Top 5 networks in matching shows: {network_counts.head()}")
+                elif 'network' in matching_shows.columns:
+                    network_counts = matching_shows['network'].value_counts()
+                    st.write(f"Debug: Top 5 networks in matching shows: {network_counts.head()}")
+            
+            # Check if network_analyzer is available
+            if self.criteria_scorer.network_analyzer is None:
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: NetworkAnalyzer is not available")
+                return []
+                
+            # Call rank_networks_by_compatibility with proper error handling
             network_matches = self.criteria_scorer.network_analyzer.rank_networks_by_compatibility(
                 criteria, integrated_data, matching_shows
             )
             
+            if network_matches is None:
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: rank_networks_by_compatibility returned None")
+                return []
+            
             if st.session_state.get('debug_mode', False):
-                st.write(f"Found {len(network_matches)} top networks")
+                st.write(f"Debug: Found {len(network_matches)} top networks")
+                if len(network_matches) > 0:
+                    st.write(f"Debug: Top network: {network_matches[0].network_name} with compatibility score {network_matches[0].compatibility_score}")
+            
             return network_matches
             
         except Exception as e:
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Error finding top networks: {str(e)}")
+                import traceback
+                st.write(f"Debug: Traceback: {traceback.format_exc()}")
             st.error(f"Error finding top networks: {str(e)}")
             return []
             
