@@ -127,12 +127,24 @@ class ScoreCalculator:
         if shows.empty:
             result_info['warning'] = f"No shows provided for {self.component_name} score calculation"
             return False, None, result_info
+        
+        # Debug information about filtering
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"Debug: Filtering {len(shows)} shows for {self.component_name} component")
             
         if filter_condition:
+            if OptimizerConfig.DEBUG_MODE:
+                filter_result = filter_condition(shows)
+                st.write(f"Debug: Custom filter condition matched {filter_result.sum()} shows out of {len(shows)}")
             valid_shows = shows[filter_condition(shows)]
         elif data_col and data_col in shows.columns:
+            if OptimizerConfig.DEBUG_MODE:
+                non_null_count = shows[data_col].notna().sum()
+                st.write(f"Debug: Default filter (non-null {data_col}) matched {non_null_count} shows out of {len(shows)}")
             valid_shows = shows[shows[data_col].notna()]
         else:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: No filtering applied for {self.component_name} component")
             valid_shows = shows
             
         # Calculate sample size and coverage
@@ -194,6 +206,10 @@ class SuccessScoreCalculator(ScoreCalculator):
                     max_score = shows['success_score'].max()
                     mean_score = shows['success_score'].mean()
                     st.write(f"Debug: Success score range: min={min_score}, max={max_score}, mean={mean_score}")
+                    # Count shows that meet the filter criteria
+                    filter_min = OptimizerConfig.SCORE_NORMALIZATION['success_filter_min']
+                    valid_count = ((shows['success_score'].notna()) & (shows['success_score'] > filter_min)).sum()
+                    st.write(f"Debug: Found {valid_count} shows with success_score > {filter_min}")
             else:
                 st.write("Debug: 'success_score' column not found in shows DataFrame")
                 st.write(f"Debug: Available columns: {list(shows.columns)}")
