@@ -192,6 +192,9 @@ class OptimizerView:
             # Format success probability for display
             formatted_success = self._format_success_probability(summary.overall_success_probability, summary.confidence)
             
+            # Format success factors for display
+            formatted_success_factors = self._format_success_factors(summary.success_factors)
+            
             # Format recommendations for display
             formatted_recommendations = self._format_recommendations(summary.recommendations)
             
@@ -212,6 +215,7 @@ class OptimizerView:
             # Return formatted data
             return {
                 "success_probability": formatted_success,
+                "success_factors": formatted_success_factors,
                 "recommendations": formatted_recommendations,
                 "networks": formatted_networks,
                 "component_scores": formatted_scores,
@@ -387,6 +391,63 @@ class OptimizerView:
                 "sample_size": score.sample_size
             }
             
+        return formatted
+        
+    def _get_confidence_level(self, confidence: str) -> int:
+        """Convert confidence string to numeric level for sorting.
+        
+        Args:
+            confidence: Confidence string (none, low, medium, high)
+            
+        Returns:
+            Numeric confidence level (0-3)
+        """
+        confidence_levels = {
+            'none': 0,
+            'low': 1,
+            'medium': 2,
+            'high': 3
+        }
+        return confidence_levels.get(confidence.lower(), 0)
+    
+    def _format_success_factors(self, success_factors: List) -> List[Dict[str, Any]]:
+        """Format success factors for display.
+        
+        Args:
+            success_factors: List of SuccessFactor objects
+            
+        Returns:
+            List of formatted success factor dictionaries ready for direct display in UI
+        """
+        if not success_factors:
+            return []
+            
+        formatted = []
+        
+        for factor in success_factors:
+            # Get proper display name for criteria type using field_manager
+            criteria_type_display = factor.criteria_type.replace("_", " ").title()
+            
+            # Format the success factor with all data needed for UI display
+            formatted.append({
+                # Display values
+                "Type": criteria_type_display,
+                "Name": factor.criteria_name,
+                "Impact": factor.impact_score,
+                "ImpactDisplay": f"{factor.impact_score:.2f}",
+                "Confidence": factor.confidence.capitalize(),
+                "Sample": factor.sample_size,
+                "SampleDisplay": f"Sample: {factor.sample_size}",
+                
+                # Raw data for charts and sorting
+                "_impact_raw": factor.impact_score,
+                "_confidence_level": self._get_confidence_level(factor.confidence),
+                "_matching_titles": factor.matching_titles if hasattr(factor, 'matching_titles') else []
+            })
+        
+        # Sort by absolute impact (descending)
+        formatted.sort(key=lambda x: abs(x["_impact_raw"]), reverse=True)
+        
         return formatted
     
     def _format_match_quality(self, match_level: int, match_count: int, 

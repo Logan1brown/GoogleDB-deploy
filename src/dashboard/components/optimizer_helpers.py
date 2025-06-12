@@ -357,32 +357,18 @@ def render_success_metrics(summary: Any):
             render_metric_card("Critical Reception", "N/A", "Error in data")
 
 
-def render_success_factors(success_factors: List):
-    """Render success factors chart.
+def render_success_factors(formatted_factors: List[Dict[str, Any]]):
+    """Render success factors chart using pre-formatted data from OptimizerView.
     
     Args:
-        success_factors: List of success factors
+        formatted_factors: List of pre-formatted success factor dictionaries
     """
-    if not success_factors:
+    if not formatted_factors:
         st.info("No significant success factors identified.")
         return
         
-    # Create a dataframe for the factors
-    factor_data = []
-    for factor in success_factors:
-        # Format sample size for display - directly access sample_size attribute
-        sample_size_display = f"Sample: {factor.sample_size}" if factor.sample_size > 0 else "Sample: Unknown"
-        
-        factor_data.append({
-            "Type": factor.criteria_type.replace("_", " ").title(),
-            "Name": factor.criteria_name,
-            "Impact": factor.impact_score,
-            "Confidence": factor.confidence.capitalize(),
-            "Sample": factor.sample_size,  # Directly access sample_size attribute
-            "SampleDisplay": sample_size_display
-        })
-        
-    factor_df = pd.DataFrame(factor_data)
+    # Create a dataframe from the pre-formatted data
+    factor_df = pd.DataFrame(formatted_factors)
     
     # Create a bar chart with sample size information
     chart = alt.Chart(factor_df).mark_bar().encode(
@@ -392,9 +378,9 @@ def render_success_factors(success_factors: List):
             domain=[-0.5, 0, 0.5],
             range=['#f77', '#ddd', '#7d7']
         )),
-        tooltip=['Type', 'Name', 'Impact', 'Confidence', 'SampleDisplay']
+        tooltip=['Type', 'Name', 'ImpactDisplay', 'Confidence', 'SampleDisplay']
     ).properties(
-        height=30 * len(factor_data)
+        height=30 * len(formatted_factors)
     )
     
     # Display the chart
@@ -406,18 +392,18 @@ def render_success_factors(success_factors: List):
     # Display a table with detailed information including sample sizes
     with st.expander("View detailed success factors data"):
         # Create a more readable table for display
-        display_df = factor_df[['Name', 'Type', 'Impact', 'Sample', 'Confidence']].copy()
-        display_df['Impact'] = display_df['Impact'].apply(lambda x: f"{x:.2f}")
+        display_df = factor_df[['Name', 'Type', 'ImpactDisplay', 'Sample', 'Confidence']].copy()
         display_df.columns = ['Factor', 'Category', 'Impact Score', 'Sample Size', 'Confidence']
         st.dataframe(display_df, use_container_width=True)
         
     # Display matching show titles in an expander
-    for factor in success_factors:
-        if factor.matching_titles:  # Directly access matching_titles attribute
-            with st.expander(f"Shows matching '{factor.criteria_name}' ({len(factor.matching_titles)} shows)"):
+    for factor in formatted_factors:
+        matching_titles = factor.get('_matching_titles', [])
+        if matching_titles:
+            with st.expander(f"Shows matching '{factor['Name']}' ({len(matching_titles)} shows)"):
                 # Display titles in a scrollable container with fixed height
                 titles_html = "<div style='max-height: 300px; overflow-y: auto;'><ul>"
-                for title in factor.matching_titles:
+                for title in matching_titles:
                     titles_html += f"<li>{title}</li>"
                 titles_html += "</ul></div>"
                 st.markdown(titles_html, unsafe_allow_html=True)

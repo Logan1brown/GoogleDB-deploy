@@ -439,9 +439,13 @@ def show():
                 # Tab 3: Recommendations
                 with tab3:
                     # Display success factors if available
-                    if hasattr(summary, 'success_factors') and summary.success_factors:
+                    if hasattr(summary, 'formatted_data') and 'success_factors' in summary.formatted_data:
                         st.subheader("Success Factors")
-                        # Display success factors using our helper function
+                        # Display success factors using our helper function with pre-formatted data
+                        render_success_factors(summary.formatted_data['success_factors'])
+                    elif hasattr(summary, 'success_factors') and summary.success_factors:
+                        # Fallback to old method if formatted data is not available
+                        st.subheader("Success Factors")
                         render_success_factors(summary.success_factors)
                     
                     # Display recommendations if available
