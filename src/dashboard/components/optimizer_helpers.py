@@ -441,13 +441,17 @@ def group_recommendations(recommendations: List) -> Dict[str, List]:
         grouped['remove'] = []
     
     for rec in recommendations:
+        # Check if this is a valid Recommendation object with required attributes
+        if not hasattr(rec, 'recommendation_type') and not hasattr(rec, 'rec_type'):
+            # Skip invalid recommendations
+            continue
+            
         # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
         rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
         
         if rec_type and rec_type in grouped:
             grouped[rec_type].append(rec)
         elif rec_type:
-            # If we have an unrecognized type, add it to the dictionary
             if rec_type not in grouped:
                 grouped[rec_type] = []
             grouped[rec_type].append(rec)

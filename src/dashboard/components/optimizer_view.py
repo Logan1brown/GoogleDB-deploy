@@ -259,13 +259,13 @@ class OptimizerView:
         formatted = []
         
         for rec in recommendations:
-            # Format the recommendation
+            # Format the recommendation using the actual attributes from the Recommendation class
             formatted.append({
-                "title": rec.title,
-                "description": rec.description,
-                "importance": rec.importance,
-                "category": rec.category,
-                "impact": rec.impact
+                "title": f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}",
+                "description": rec.explanation,
+                "importance": rec.confidence,
+                "category": rec.recommendation_type,
+                "impact": rec.impact_score
             })
             
         return formatted
