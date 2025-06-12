@@ -388,20 +388,37 @@ class ConceptAnalyzer:
         try:
             # Calculate success probability
             
+            # Always show debug info for this critical calculation
+            st.write(f"DEBUG SUCCESS CALC: Received {len(matching_shows)} matching shows for success probability calculation")
+            if 'success_score' in matching_shows.columns:
+                non_null_count = matching_shows['success_score'].notna().sum()
+                st.write(f"DEBUG SUCCESS CALC: Found {non_null_count} shows with non-null success_score values")
+                if non_null_count > 0:
+                    min_threshold = self.config.SCORE_NORMALIZATION['success_filter_min']
+                    above_min = (matching_shows['success_score'] > min_threshold).sum()
+                    st.write(f"DEBUG SUCCESS CALC: Found {above_min} shows with success_score > {min_threshold}")
+            else:
+                st.write("DEBUG SUCCESS CALC: No 'success_score' column found in matching shows")
+            
             # If no matching shows, return None
             if matching_shows.empty:
                 st.warning("No matching shows found for success probability calculation")
                 return None, 'none'
             
             # Use CriteriaScorer to calculate success rate
+            st.write("DEBUG SUCCESS CALC: Calling criteria_scorer.calculate_success_rate")
             success_rate, confidence_info = self.criteria_scorer.calculate_success_rate(
                 matching_shows, 
                 threshold=self.config.PERFORMANCE['success_threshold']
             )
             
+            # Always show the result of calculate_success_rate
+            st.write(f"DEBUG SUCCESS CALC: calculate_success_rate returned success_rate={success_rate}, confidence_info={confidence_info}")
+            
             if success_rate is not None:
                 # Get sample size from confidence info or use the number of matching shows
                 sample_size = confidence_info.get('sample_size', len(matching_shows))
+                st.write(f"DEBUG SUCCESS CALC: Using sample_size={sample_size} for confidence calculation")
                 
                 # Determine confidence level based on sample size
                 if sample_size >= self.config.CONFIDENCE['high_confidence']:
@@ -418,7 +435,9 @@ class ConceptAnalyzer:
                 # Override with confidence level from confidence_info if available
                 if 'confidence' in confidence_info:
                     confidence_level = confidence_info['confidence']
+                    st.write(f"DEBUG SUCCESS CALC: Overriding confidence_level with {confidence_level} from confidence_info")
                 
+                st.write(f"DEBUG SUCCESS CALC: Final success_rate={success_rate}, confidence_level={confidence_level}")
                 # Success probability calculated successfully
                 return success_rate, confidence_level
             
@@ -427,6 +446,8 @@ class ConceptAnalyzer:
             
         except Exception as e:
             st.error(f"Error calculating success probability: {str(e)}")
+            import traceback
+            st.write(f"DEBUG SUCCESS CALC ERROR: {traceback.format_exc()}")
             return None, 'none'
     
     def _find_top_networks(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> List[NetworkMatch]:
