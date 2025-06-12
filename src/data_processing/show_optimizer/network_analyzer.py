@@ -93,9 +93,9 @@ class NetworkAnalyzer:
         # as we now pass it directly to calculate_network_scores
         
     def rank_networks_by_compatibility(self, criteria: Dict[str, Any], 
-                                      integrated_data: Dict[str, pd.DataFrame],
-                                      matching_shows: pd.DataFrame,
-                                      limit: int = None) -> List[NetworkMatch]:
+                                       integrated_data: Dict[str, pd.DataFrame],
+                                       matching_shows: pd.DataFrame,
+                                       limit: int = None) -> List[NetworkMatch]:
         """Rank networks by compatibility with the given criteria.
         
         Args:
@@ -108,11 +108,33 @@ class NetworkAnalyzer:
             List of NetworkMatch objects sorted by compatibility score
         """
         try:
+            # Validate inputs
+            if matching_shows is None or matching_shows.empty:
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: No matching shows provided to rank_networks_by_compatibility")
+                return []
+                
+            if integrated_data is None:
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: No integrated data provided to rank_networks_by_compatibility")
+                return []
+                
             # Set the integrated data in the network score calculator
             self.set_integrated_data(integrated_data)
             
+            # Debug output before calculating network scores
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Calculating network scores with {len(matching_shows)} matching shows")
+                if 'network_id' in matching_shows.columns:
+                    network_count = matching_shows['network_id'].nunique()
+                    st.write(f"Debug: Found {network_count} unique networks in matching shows")
+            
             # Pass matching_shows directly to NetworkScoreCalculator
             network_matches = self.network_score_calculator.calculate_network_scores(criteria, matching_shows=matching_shows)
+            
+            # Debug output after calculating network scores
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Got {len(network_matches)} network matches from calculate_network_scores")
             
             # Sort by compatibility score (descending)
             network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
@@ -124,6 +146,10 @@ class NetworkAnalyzer:
             # Return top networks
             return network_matches[:limit]
         except Exception as e:
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Error ranking networks: {str(e)}")
+                import traceback
+                st.write(f"Debug: Traceback: {traceback.format_exc()}")
             st.error(f"Error ranking networks: {str(e)}")
             return []
     

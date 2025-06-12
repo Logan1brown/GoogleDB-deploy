@@ -528,50 +528,83 @@ class NetworkScoreCalculator:
         try:
             # matching_shows is now a required parameter, no need to check if it's None
                 
-            # Validate that we have matching shows
-            if matching_shows is None or matching_shows.empty:
-                st.warning("No matching shows available for network score calculation")
-                return []
+            # Check if we have network_id in the matching shows
+            if 'network_id' not in matching_shows.columns:
+                # Try to find an alternative network ID column
+                network_id_alternatives = ['network', 'network_name']
+                found_alternative = False
                 
-            # Validate that we have integrated data with network information
-            if self._integrated_data is None:
-                st.warning("No integrated data available for network score calculation")
-                return []
+                for alt_col in network_id_alternatives:
+                    if alt_col in matching_shows.columns:
+                        if st.session_state.get('debug_mode', False):
+                            st.write(f"Debug: Using alternative column '{alt_col}' for network identification")
+                        # Create a temporary network_id column
+                        matching_shows['network_id'] = matching_shows[alt_col]
+                        found_alternative = True
+                        break
                 
-            # Check if networks data is available (either directly or via reference_data)
-            if 'networks' not in self._integrated_data or self._integrated_data['networks'].empty:
-                st.warning("No network data available for score calculation")
-                if st.session_state.get('debug_mode', False):
-                    st.write("Debug: Network data missing or empty. Check reference_data['network'] in integrated_data")
-                return []
+                if not found_alternative:
+                    st.warning("No network_id column in matching shows. Cannot calculate network scores.")
+                    if st.session_state.get('debug_mode', False):
+                        st.write("Debug: Missing network_id column in matching shows")
+                        st.write(f"Debug: Available columns: {matching_shows.columns.tolist()}")
+                    return []
                 
-            # Get network data from integrated data
-            network_data = self._integrated_data['networks']
+            # Get unique network IDs from matching shows
+            network_ids = matching_shows['network_id'].dropna().unique()
             
-            # Process network matches directly using the matching shows
-            # This is a simplified version of what find_network_matches would do
+            # Check if we found any network IDs
+            if len(network_ids) == 0:
+                st.warning("No valid network IDs found in matching shows")
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: No valid network IDs found in matching shows")
+                return []
+                
+            # Debug message about network IDs found
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Found {len(network_ids)} unique network IDs in matching shows")
+            
+            # Initialize results list and network matches list
+            results = []
             network_matches = []
             
             # Get unique networks from the matching shows
             if 'network_id' in matching_shows.columns:
                 network_ids = matching_shows['network_id'].dropna().unique()
-                
-                for network_id in network_ids:
-                    try:
-                        # Get network name from network data
-                        if not network_data.empty and 'id' in network_data.columns and 'network' in network_data.columns:
-                            matching_networks = network_data[network_data['id'] == network_id]
-                            if not matching_networks.empty:
-                                network_name = matching_networks['network'].iloc[0]
-                            else:
-                                network_name = f"Network {network_id}"
-                        else:
-                            network_name = f"Network {network_id}"
-                    except Exception as e:
-                        # Fallback if there's any error getting the network name
+                # Process each network ID
+            for network_id in network_ids:
+                try:
+                    # Get network name from network data
+                    network_name = None
+                    
+                    # Try to find the network name in the network data
+                    if 'id' in network_data.columns and 'name' in network_data.columns:
+                        network_row = network_data[network_data['id'] == network_id]
+                        if not network_row.empty:
+                            network_name = network_row.iloc[0]['name']
+                    
+                    # If we couldn't find the network name, try alternative columns
+                    if network_name is None and 'network_name' in network_data.columns:
+                        network_row = network_data[network_data['network_id'] == network_id]
+                        if not network_row.empty:
+                            network_name = network_row.iloc[0]['network_name']
+                    
+                    # If we still couldn't find the network name, check if network_id is actually a name
+                    if network_name is None and isinstance(network_id, str):
+                        network_name = network_id
+                    
+                    # If we still couldn't find the network name, use a default
+                    if network_name is None:
                         network_name = f"Network {network_id}"
-                        if st.session_state.get('debug_mode', False):
-                            st.write(f"Debug: Error getting network name for ID {network_id}: {str(e)}")
+                        
+                    if st.session_state.get('debug_mode', False):
+                        st.write(f"Debug: Found network name '{network_name}' for ID {network_id}")
+                        
+                except Exception as e:
+                    # Fallback if there's any error getting the network name
+                    network_name = f"Network {network_id}"
+                    if st.session_state.get('debug_mode', False):
+                        st.write(f"Debug: Error getting network name for ID {network_id}: {str(e)}")
                     
                     # Get shows for this network
                     network_shows = matching_shows[matching_shows['network_id'] == network_id]
@@ -606,6 +639,11 @@ class NetworkScoreCalculator:
             # If we didn't find any networks in the matching shows, log a message
             if not network_matches and st.session_state.get('debug_mode', False):
                 st.write("Debug: No networks found in matching shows")
+                # Check if there are any network IDs in the data
+                if 'network_id' in matching_shows.columns:
+                    network_id_counts = matching_shows['network_id'].value_counts()
+                    if not network_id_counts.empty:
+                        st.write(f"Debug: Network ID distribution: {network_id_counts.to_dict()}")
                 
             # Add a debug message about the number of network matches
             if st.session_state.get('debug_mode', False):
@@ -694,6 +732,8 @@ class NetworkScoreCalculator:
         except Exception as e:
             if st.session_state.get('debug_mode', False):
                 st.write(f"Debug: Unexpected error in network score calculation: {str(e)}")
+                import traceback
+                st.write(f"Debug: Traceback: {traceback.format_exc()}")
             return []
             
     def calculate_success_rate(self, shows: pd.DataFrame, confidence_info: Dict[str, Any] = None, threshold: Optional[float] = None) -> Tuple[Optional[float], Dict[str, Any]]:
