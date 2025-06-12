@@ -189,9 +189,9 @@ class OptimizerView:
             The formatted optimization summary with attached formatted_data
         """
         try:
-            # Initialize formatted_data as a dictionary if it doesn't exist or isn't a dict
-            if not hasattr(summary, 'formatted_data') or not isinstance(summary.formatted_data, dict):
-                summary.formatted_data = {}
+            # Create a new formatted_data dictionary - don't try to modify an existing one
+            # This ensures we always have a fresh dictionary
+            summary.formatted_data = {}
             
             # Add debug output to help diagnose issues
             if st.session_state.get('debug_mode', False):
@@ -200,7 +200,11 @@ class OptimizerView:
                 
             # Format network matches if available
             if hasattr(summary, 'top_networks') and summary.top_networks:
-                summary.formatted_data['networks'] = self._format_network_matches(summary.top_networks)
+                formatted_networks = self._format_network_matches(summary.top_networks)
+                if formatted_networks:
+                    summary.formatted_data['networks'] = formatted_networks
+                    if st.session_state.get('debug_mode', False):
+                        st.write(f"Debug: Added {len(formatted_networks)} formatted networks to formatted_data")
                 
             # Format component scores if available
             if hasattr(summary, 'component_scores') and summary.component_scores:
@@ -239,6 +243,11 @@ class OptimizerView:
                     "subtitle": subtitle
                 }
             
+            # Final verification that formatted_data is a dictionary
+            if not isinstance(summary.formatted_data, dict):
+                st.error("Error: formatted_data is not a dictionary after formatting")
+                summary.formatted_data = {}
+                
             return summary
             
         except Exception as e:
@@ -246,8 +255,7 @@ class OptimizerView:
             import traceback
             st.write(f"Error details: {traceback.format_exc()}")
             # Ensure formatted_data is a dictionary even after an error
-            if not hasattr(summary, 'formatted_data') or not isinstance(summary.formatted_data, dict):
-                summary.formatted_data = {}
+            summary.formatted_data = {}
             return summary
     
     def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, Any]:

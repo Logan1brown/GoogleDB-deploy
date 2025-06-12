@@ -404,20 +404,26 @@ def show():
                         if match_level > 1:
                             st.info(f"Network compatibility is based on flexible matching (level {match_level}). Results may vary with exact matches.")
                         
+                        # Add debug info about formatted_data
+                        st.write(f"Debug: formatted_data type: {type(summary.formatted_data) if hasattr(summary, 'formatted_data') else 'Not available'}")
+                        
                         # Display the formatted network data directly
-                        if hasattr(summary, 'formatted_data') and 'networks' in summary.formatted_data and summary.formatted_data['networks']:
-                            st.subheader("Network Compatibility")
-                            # Convert to DataFrame for display
-                            network_df = pd.DataFrame(summary.formatted_data['networks'])
+                        if hasattr(summary, 'formatted_data') and isinstance(summary.formatted_data, dict) and 'networks' in summary.formatted_data:
+                            st.write(f"Debug: networks data type: {type(summary.formatted_data['networks'])}")
                             
-                            # Remove sorting columns before display
-                            display_columns = [col for col in network_df.columns if not col.startswith('_')]
-                            
-                            # Display the network compatibility table
-                            st.dataframe(
-                                network_df[display_columns],
-                                use_container_width=True,
-                                hide_index=True
+                            if summary.formatted_data['networks']:
+                                st.subheader("Network Compatibility")
+                                # Convert to DataFrame for display
+                                network_df = pd.DataFrame(summary.formatted_data['networks'])
+                                
+                                # Remove sorting columns before display
+                                display_columns = [col for col in network_df.columns if not col.startswith('_')]
+                                
+                                # Display the network compatibility table
+                                st.dataframe(
+                                    network_df[display_columns],
+                                    use_container_width=True,
+                                    hide_index=True
                             )
                             
                             # Display network-specific recommendations if available
