@@ -915,7 +915,12 @@ class RecommendationEngine:
                 st.write(f"Debug: Criteria: {criteria_type}, Network rate: {network_rate:.2f}, Overall rate: {overall_rate:.2f}, Difference: {difference:.2f}")
                 st.write(f"Debug: Significant threshold: {OptimizerConfig.THRESHOLDS['significant_difference']}, Is significant: {abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']}")
                 
-                if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']:
+                # Check if we have enough data for this network
+                sample_size = network_rate_data.get('sample_size', 0)
+                has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
+                
+                # Generate recommendation if difference is significant OR if we have sufficient data and any difference
+                if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or (has_sufficient_data and abs(difference) > 0.01):
                     current_value = criteria[criteria_type]
                     current_name = self._get_criteria_name(criteria_type, current_value)
                     suggested_value = None
