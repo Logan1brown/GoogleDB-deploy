@@ -391,9 +391,20 @@ class Matcher:
         # Sort only by match_level (ascending) - no success score sorting during selection
         all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
         
-        # Always limit to MAX_RESULTS
+        # Apply random sampling within each match level if we have more than MAX_RESULTS
         if len(all_matches) > OptimizerConfig.MAX_RESULTS:
-            all_matches = all_matches.head(OptimizerConfig.MAX_RESULTS)
+            # Group by match level and randomly sample within each group
+            sampled_matches = all_matches.groupby('match_level').apply(
+                lambda x: x.sample(min(len(x), max(1, int(OptimizerConfig.MAX_RESULTS * len(x) / len(all_matches)))), 
+                                  random_state=42)
+            ).reset_index(drop=True)
+            
+            # If we still have more than MAX_RESULTS after sampling each group
+            if len(sampled_matches) > OptimizerConfig.MAX_RESULTS:
+                sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
+                
+            all_matches = sampled_matches
+        # If we have fewer matches than MAX_RESULTS, keep them all
         
         return all_matches, confidence_info
     
