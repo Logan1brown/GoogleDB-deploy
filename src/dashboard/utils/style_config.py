@@ -73,17 +73,19 @@ def render_metric_card(title, value, subtitle=None):
         unsafe_allow_html=True
     )
 
-def render_info_card(title, content):
+def render_info_card(title, content, color=None):
     """Render an info card with a title and content.
     
     Args:
         title: Title of the card
         content: Content to display
+        color: Optional custom color for the title (defaults to accent color)
     """
+    title_color = color if color else COLORS['accent']
     st.markdown(
         f"""
         <div style="padding: 10px; border-radius: 5px; border: 1px solid #eee; background-color: white; margin-bottom: 10px;">
-            <h4 style="margin: 0; color: {COLORS['accent']}; font-size: 16px;">{title}</h4>
+            <h4 style="margin: 0; color: {title_color}; font-size: 16px;">{title}</h4>
             <div style="font-size: 14px; color: {COLORS['text']['primary']}; margin-top: 5px;">{content}</div>
         </div>
         """,

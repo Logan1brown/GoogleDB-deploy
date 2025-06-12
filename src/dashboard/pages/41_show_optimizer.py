@@ -17,7 +17,7 @@ if src_path not in sys.path:
 
 from src.shared.auth import auth_required
 from src.dashboard.state.session import get_page_state, update_page_state
-from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS
+from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS, render_metric_card, render_info_card
 from src.dashboard.components.optimizer_view import OptimizerView
 from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
 from src.dashboard.components.optimizer_helpers import (
@@ -422,17 +422,60 @@ def show():
                             
                             # Display network-specific recommendations if available
                             if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
+                                # Network-specific recommendations are stored directly in the recommendations dictionary
                                 network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
                                 if network_recs:
                                     st.subheader("Network-Specific Recommendations")
                                     st.write("These recommendations highlight criteria where specific networks have significantly different success rates.")
                                     
-                                    # Display each network recommendation
+                                    # Group recommendations by network for better organization
+                                    network_grouped_recs = {}
                                     for rec in network_recs:
-                                        render_info_card(
-                                            rec['title'],
-                                            rec['description']
-                                        )
+                                        # Extract network name from description
+                                        network_name = None
+                                        if 'description' in rec and 'Network ' in rec['description']:
+                                            parts = rec['description'].split('Network ')
+                                            if len(parts) > 1:
+                                                network_parts = parts[1].split(' has')
+                                                if network_parts:
+                                                    network_name = network_parts[0]
+                                        
+                                        if not network_name:
+                                            network_name = "Unknown Network"
+                                            
+                                        if network_name not in network_grouped_recs:
+                                            network_grouped_recs[network_name] = []
+                                        network_grouped_recs[network_name].append(rec)
+                                    
+                                    # Display recommendations grouped by network
+                                    for network_name, recs in network_grouped_recs.items():
+                                        st.write(f"**{network_name}**")
+                                        
+                                        for rec in recs:
+                                            # Get impact color based on the impact score
+                                            impact_score = rec.get('_impact_raw', 0)
+                                            impact_color = COLORS['positive'] if impact_score > 0 else COLORS['negative']
+                                            impact_text = f"+{impact_score:.0%}" if impact_score > 0 else f"{impact_score:.0%}"
+                                            
+                                            # Create a more detailed description
+                                            criteria_type = rec.get('criteria_type', '').replace('_', ' ').title()
+                                            description = f"**Impact:** {impact_text} - {criteria_type}"
+                                            
+                                            if 'importance' in rec:
+                                                description += f" (Confidence: {rec['importance'].capitalize()})"
+                                                
+                                            # Use render_info_card for consistent UI
+                                            render_info_card(
+                                                rec['title'],
+                                                description,
+                                                color=impact_color
+                                            )
+                                        st.write("")
+                                else:
+                                    st.info("No network-specific recommendations available. This may indicate that the selected networks have similar success patterns for your show concept.")
+                            else:
+                                st.info("Network-specific recommendations will appear here after analyzing your show concept.")
+                                
                         else:
                             # This should not happen if top_networks exists but formatted_data['networks'] doesn't
                             st.info("Network data was found but could not be formatted properly.")
