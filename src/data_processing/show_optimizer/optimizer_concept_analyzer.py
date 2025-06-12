@@ -549,10 +549,20 @@ class ConceptAnalyzer:
             st.write("Analyzing component scores...")
             
             # Get confidence info from the matching shows
-            confidence_info = {}
-            if 'match_level' in matching_shows.columns:
-                confidence_info['match_level'] = matching_shows['match_level'].max() if not matching_shows.empty else 0
-                confidence_info['level'] = 'high' if confidence_info['match_level'] >= 3 else 'medium' if confidence_info['match_level'] >= 2 else 'low'
+            confidence_info = {'match_level': 1}  # Default to exact match level
+            
+            # Extract match level from matching_shows if available
+            if not matching_shows.empty:
+                if 'match_level' in matching_shows.columns:
+                    confidence_info['match_level'] = matching_shows['match_level'].max()
+                    confidence_info['level'] = 'high' if confidence_info['match_level'] <= 1 else 'medium' if confidence_info['match_level'] <= 2 else 'low'
+                # Also include match count for better confidence calculation
+                confidence_info['match_count'] = len(matching_shows)
+                
+                # Add summary of match levels for debugging
+                if 'match_level' in matching_shows.columns:
+                    level_counts = matching_shows['match_level'].value_counts().to_dict()
+                    confidence_info['level_counts'] = level_counts
             
             # Use CriteriaScorer to calculate component scores with the provided matching shows and integrated data
             component_scores = self.criteria_scorer.calculate_component_scores(
