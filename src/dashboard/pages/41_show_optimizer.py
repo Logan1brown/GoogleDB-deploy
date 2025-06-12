@@ -354,11 +354,25 @@ def show():
                         st.write(f"Debug: summary has top_networks attribute: {hasattr(summary, 'top_networks')}")
                         if hasattr(summary, 'top_networks'):
                             st.write(f"Debug: top_networks length: {len(summary.top_networks)}")
+                            if len(summary.top_networks) > 0:
+                                st.write(f"Debug: First network match type: {type(summary.top_networks[0]).__name__}")
+                                st.write(f"Debug: First network match dir: {dir(summary.top_networks[0])}")
+                                st.write(f"Debug: First network match network_id: {getattr(summary.top_networks[0], 'network_id', 'Not found')}")
+                                st.write(f"Debug: First network match network_name: {getattr(summary.top_networks[0], 'network_name', 'Not found')}")
+                        
+                        st.write(f"Debug: summary has network_compatibility attribute: {hasattr(summary, 'network_compatibility')}")
+                        if hasattr(summary, 'network_compatibility'):
+                            st.write(f"Debug: network_compatibility length: {len(summary.network_compatibility)}")
+                            
                         st.write(f"Debug: summary has formatted_data attribute: {hasattr(summary, 'formatted_data')}")
                         if hasattr(summary, 'formatted_data'):
                             st.write(f"Debug: formatted_data keys: {list(summary.formatted_data.keys())}")
                             if 'networks' in summary.formatted_data:
                                 st.write(f"Debug: networks data length: {len(summary.formatted_data['networks'])}")
+                                if len(summary.formatted_data['networks']) > 0:
+                                    st.write(f"Debug: First formatted network: {summary.formatted_data['networks'][0]}")
+                            else:
+                                st.write("Debug: 'networks' key not found in formatted_data")
                     
                     # Check for network compatibility data
                     if (hasattr(summary, 'top_networks') and summary.top_networks) or \
