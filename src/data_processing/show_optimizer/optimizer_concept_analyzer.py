@@ -59,6 +59,9 @@ class OptimizationSummary:
         """
         return self.top_networks
         
+    # Private attribute to store formatted data
+    _formatted_data_dict: Dict[str, Any] = field(default_factory=dict)
+    
     @property
     def formatted_data(self) -> Dict[str, Any]:
         """Format data for UI display.
@@ -66,6 +69,11 @@ class OptimizationSummary:
         Returns a dictionary with formatted networks and recommendations data
         ready for display in the UI.
         """
+        # If _formatted_data_dict has been set, return it
+        if self._formatted_data_dict:
+            return self._formatted_data_dict
+            
+        # Otherwise generate formatted data
         formatted = {
             'networks': [],
             'recommendations': {
@@ -108,6 +116,15 @@ class OptimizationSummary:
                     formatted['recommendations']['general'].append(rec_dict)
         
         return formatted
+        
+    @formatted_data.setter
+    def formatted_data(self, value: Dict[str, Any]):
+        """Set formatted data.
+        
+        Args:
+            value: Dictionary with formatted data
+        """
+        self._formatted_data_dict = value
 
 
 class ConceptAnalyzer:
