@@ -405,7 +405,7 @@ def show():
                             st.info(f"Network compatibility is based on flexible matching (level {match_level}). Results may vary with exact matches.")
                         
                         # Display the formatted network data directly
-                        if hasattr(summary, 'formatted_data') and isinstance(summary.formatted_data, dict) and 'networks' in summary.formatted_data and summary.formatted_data['networks']:
+                        if hasattr(summary, 'formatted_data') and 'networks' in summary.formatted_data and summary.formatted_data['networks']:
                             st.subheader("Network Compatibility")
                             # Convert to DataFrame for display
                             network_df = pd.DataFrame(summary.formatted_data['networks'])

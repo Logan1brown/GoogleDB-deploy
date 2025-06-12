@@ -157,11 +157,8 @@ class OptimizerView:
                 
                 # Store results in state
                 if summary:
-                    # Format the summary for UI display
-                    formatted_data = self.format_optimization_summary(summary)
-                    
-                    # Attach the formatted data to the summary for easy access
-                    summary.formatted_data = formatted_data
+                    # Format the summary for UI display - this method already sets summary.formatted_data
+                    summary = self.format_optimization_summary(summary)
                     
                     # No backward compatibility or fallbacks - rely solely on top_networks and formatted_data
                     
