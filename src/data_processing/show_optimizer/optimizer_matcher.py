@@ -45,7 +45,9 @@ class Matcher:
         """
         if data is None:
             if self._criteria_data is None:
-                st.error("No criteria data available and none provided")
+                # Critical error - keep this visible
+                if OptimizerConfig.DEBUG_MODE:
+                    st.error("No criteria data available and none provided")
                 return pd.DataFrame()
             return self._criteria_data
         return data
@@ -242,11 +244,13 @@ class Matcher:
                         if match_count >= min_sample_size:
                             break
             except Exception as e:
-                st.error(f"Error in match level {level}: {e}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.error(f"Error in match level {level}: {e}")
         
         # If we didn't find any matches at any level
         if not all_matches_by_level:
-            st.error("No matches found at any level")
+            if OptimizerConfig.DEBUG_MODE:
+                st.error("No matches found at any level")
             return pd.DataFrame(), self._empty_confidence_info()
         
         # Combine shows from all match levels, starting with best match level
@@ -325,13 +329,9 @@ class Matcher:
             # Match shows using the level-specific criteria
             level_matches, match_count = self._match_shows(level_criteria, data)
             
-            # Log attempt at each level
-            level_desc = self._get_match_level_description(level)
+            # Skip if no matches at this level
             if level_matches.empty:
-                st.write(f"Tried level {level} ({level_desc}) - No matches found")
                 continue
-            else:
-                st.write(f"Tried level {level} ({level_desc}) - Found {match_count} matches")
             
             # Add match_level to the matches
             level_matches['match_level'] = level
@@ -353,9 +353,7 @@ class Matcher:
             new_matches = level_matches[~level_matches['title'].isin(unique_titles)]
             new_unique_count = len(new_matches)
             
-            # Log the number of new matches found at this level
-            if not new_matches.empty:
-                st.write(f"Found {new_unique_count} new matches at level {level} ({level_desc}). Match quality: {match_quality_pct}%. Total unique matches: {total_unique_matches + new_unique_count}")
+            # Process new matches if any were found
             
             # Add new matches to our results
             if all_matches.empty:
@@ -511,7 +509,8 @@ class Matcher:
                     })
                     
                 except Exception as e:
-                    st.error(f"Error matching network {network_name} (ID: {network_id}): {str(e)}")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.error(f"Error matching network {network_name} (ID: {network_id}): {str(e)}")
                     # Add empty result to maintain network in results
                     empty_confidence = self._empty_confidence_info()
                     empty_confidence['match_level'] = 0  # Add match_level for network results
@@ -528,7 +527,8 @@ class Matcher:
             return results
             
         except Exception as e:
-            st.error(f"Error in network matching: {str(e)}")
+            if OptimizerConfig.DEBUG_MODE:
+                st.error(f"Error in network matching: {str(e)}")
             return []
     
     def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int]:
@@ -544,7 +544,8 @@ class Matcher:
         # Use helper method to get data
         data = self._get_data(data)
         if data.empty:
-            st.error("Empty criteria data provided")
+            if OptimizerConfig.DEBUG_MODE:
+                st.error("Empty criteria data provided")
             return pd.DataFrame(), 0
             
         # Clean up criteria - remove None or empty values to make matching more lenient
@@ -603,7 +604,8 @@ class Matcher:
                 
                 # If column doesn't exist, skip this field
                 if field_column is None:
-                    st.error(f"Field '{field_name}' not found in data columns")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.error(f"Field '{field_name}' not found in data columns")
                     continue
                     
                 # Check if the column contains lists or is itself a list
@@ -628,7 +630,8 @@ class Matcher:
             for field_id, value in scalar_fields.items():
                 # Check if field exists in data
                 if field_id not in matches.columns:
-                    st.error(f"Field '{field_id}' not found in data columns")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.error(f"Field '{field_id}' not found in data columns")
                     continue
                     
                 if isinstance(value, list):
@@ -644,7 +647,8 @@ class Matcher:
             # Matching complete
             return matches, len(matches)
         except Exception as e:
-            st.error(f"Error matching shows: {e}")
+            if OptimizerConfig.DEBUG_MODE:
+                st.error(f"Error matching shows: {e}")
             return pd.DataFrame(), 0
     
     def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
@@ -830,7 +834,8 @@ class Matcher:
                         
                     # Check if this column exists in the data
                     if field_column not in shows.columns:
-                        st.error(f"Field '{field_column}' not found in shows data")
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.error(f"Field '{field_column}' not found in shows data")
                         actual_match_level = 2  # Downgrade to level 2 if field is missing
                         continue
                         
@@ -859,7 +864,8 @@ class Matcher:
                         
                     # Check if this column exists in the data
                     if field_id not in shows.columns:
-                        st.error(f"Field '{field_id}' not found in shows data")
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.error(f"Field '{field_id}' not found in shows data")
                         actual_match_level = 2  # Downgrade to level 2 if field is missing
                         continue
                             

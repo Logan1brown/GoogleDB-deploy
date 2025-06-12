@@ -62,11 +62,6 @@ class NetworkAnalyzer:
         self.network_score_calculator = NetworkScoreCalculator()
         self.network_score_calculator.field_manager = self.field_manager
         
-        # Debug output
-        if st.session_state.get('debug_mode', False):
-            st.write(f"Debug: Initialized NetworkScoreCalculator with field_manager: {type(self.field_manager).__name__}")
-            st.write(f"Debug: NetworkScoreCalculator has field_manager: {hasattr(self.network_score_calculator, 'field_manager')}")
-            st.write(f"Debug: NetworkScoreCalculator field_manager is same as NetworkAnalyzer's: {self.network_score_calculator.field_manager is self.field_manager}")
         self.optimizer_cache = optimizer_cache
         
         # Initialize matcher for network analysis if not provided
@@ -119,31 +114,20 @@ class NetworkAnalyzer:
         try:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
-                if st.session_state.get('debug_mode', False):
-                    st.write("Debug: No matching shows provided to rank_networks_by_compatibility")
                 return []
                 
             if integrated_data is None:
-                if st.session_state.get('debug_mode', False):
-                    st.write("Debug: No integrated data provided to rank_networks_by_compatibility")
                 return []
                 
             # Set the integrated data in the network score calculator
             self.set_integrated_data(integrated_data)
             
-            # Debug output before calculating network scores
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Calculating network scores with {len(matching_shows)} matching shows")
-                if 'network_id' in matching_shows.columns:
-                    network_count = matching_shows['network_id'].nunique()
-                    st.write(f"Debug: Found {network_count} unique networks in matching shows")
+            network_count = 0
+            if 'network_id' in matching_shows.columns:
+                network_count = matching_shows['network_id'].nunique()
             
             # Pass matching_shows directly to NetworkScoreCalculator
             network_matches = self.network_score_calculator.calculate_network_scores(criteria, matching_shows=matching_shows)
-            
-            # Debug output after calculating network scores
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Got {len(network_matches)} network matches from calculate_network_scores")
             
             # Sort by compatibility score (descending)
             network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
@@ -156,9 +140,8 @@ class NetworkAnalyzer:
             return network_matches[:limit]
         except Exception as e:
             if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Error ranking networks: {str(e)}")
-                import traceback
-                st.write(f"Debug: Traceback: {traceback.format_exc()}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Error ranking networks: {str(e)}")
             st.error(f"Error ranking networks: {str(e)}")
             return []
     
@@ -180,46 +163,26 @@ class NetworkAnalyzer:
         try:
             # Validate inputs
             if integrated_data is None:
-                if st.session_state.get('debug_mode', False):
-                    st.write("Debug: No integrated data provided to get_network_tiers")
                 return {}
                 
             if matching_shows is None or matching_shows.empty:
-                if st.session_state.get('debug_mode', False):
-                    st.write("Debug: No matching shows provided to get_network_tiers")
-                    st.write("Debug: This may result in less accurate network tier calculations")
+                pass
             
             # Set the integrated data in the network score calculator
             self.set_integrated_data(integrated_data)
             
-            # Debug output before calculating network scores
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Getting network tiers with min_confidence={min_confidence}")
-                if matching_shows is not None:
-                    st.write(f"Debug: Using {len(matching_shows)} matching shows for network tier calculation")
-            
             # Get network matches from NetworkScoreCalculator (always use matching_shows if provided)
             network_matches = self.network_score_calculator.calculate_network_scores(criteria, matching_shows=matching_shows)
-            
-            # Debug output after getting network matches
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Got {len(network_matches)} network matches for tier calculation")
             
             # Filter by confidence
             confidence_levels = {'none': 0, 'low': 1, 'medium': 2, 'high': 3}
             min_confidence_level = confidence_levels.get(min_confidence.lower(), 0)
-            
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Filtering networks with minimum confidence level: {min_confidence} (level {min_confidence_level})")
             
             # More efficient list comprehension instead of loop
             filtered_matches = [
                 match for match in network_matches
                 if confidence_levels.get(match.confidence.lower(), 0) >= min_confidence_level
             ]
-            
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: After confidence filtering: {len(filtered_matches)} networks remain")
             
             # Sort by compatibility score (descending)
             filtered_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
@@ -229,9 +192,6 @@ class NetworkAnalyzer:
             
             # Get tier thresholds directly from OptimizerConfig
             tier_thresholds = OptimizerConfig.NETWORK_TIERS
-            
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Using tier thresholds: {tier_thresholds}")
             
             # Use a more efficient approach to create tiers
             tier_definitions = [
@@ -251,18 +211,12 @@ class NetworkAnalyzer:
                         min_score=min_score,
                         max_score=max_score
                     )
-                    if st.session_state.get('debug_mode', False):
-                        st.write(f"Debug: Created '{tier_id}' tier with {len(matches)} networks")
-            
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Created {len(tiers)} network tiers")
-                
+
             return tiers
         except Exception as e:
             if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Error grouping networks into tiers: {str(e)}")
-                import traceback
-                st.write(f"Debug: Traceback: {traceback.format_exc()}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Error grouping networks into tiers: {str(e)}")
             st.error(f"Error grouping networks into tiers: {str(e)}")
             # Return empty tiers dictionary on error
             return {}
@@ -438,7 +392,8 @@ class NetworkAnalyzer:
         """
         try:
             if concept_analyzer is None or not hasattr(concept_analyzer, 'recommendation_engine'):
-                st.write("Warning: ConceptAnalyzer not provided or missing RecommendationEngine. Cannot generate network recommendations.")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Warning: ConceptAnalyzer not provided or missing RecommendationEngine. Cannot generate network recommendations.")
                 return []
                 
             # Get the RecommendationEngine from the ConceptAnalyzer

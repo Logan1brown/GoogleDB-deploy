@@ -245,7 +245,8 @@ class RecommendationEngine:
                                 if len(matching_titles) > 100:
                                     matching_titles = matching_titles[:100]
                         except Exception as e:
-                            st.error(f"Unable to retrieve matching titles for success factor: {criteria_type}={criteria_value}")
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.error(f"Unable to retrieve matching titles for success factor: {criteria_type}={criteria_value}")
                             matching_titles = []
                         try:
                             # Get recommendation type from impact data if available
@@ -274,7 +275,8 @@ class RecommendationEngine:
                         processed_count += 1
                     except Exception as e:
                         # Debug output removed: Error in inner loop
-                        st.error("Unable to create success factor for criteria value")
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.error("Unable to create success factor for criteria value")
                         continue
             return success_factors
         except Exception as main_e:
@@ -312,12 +314,14 @@ class RecommendationEngine:
             if criteria is None:
                 criteria = {}
                 # Log this as a debug message, not an error that stops execution
-                st.write("Debug: No criteria provided for recommendation generation, using empty dict")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: No criteria provided for recommendation generation, using empty dict")
                 
             if matching_shows is None:
                 matching_shows = pd.DataFrame()
                 # Log this as a debug message, not an error that stops execution
-                st.write("Debug: No matching shows provided for recommendation generation, using empty DataFrame")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: No matching shows provided for recommendation generation, using empty DataFrame")
                 
             recommendations = []
             
@@ -326,8 +330,10 @@ class RecommendationEngine:
                 missing_criteria_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
                 recommendations.extend(missing_criteria_recs)
             except Exception as e:
-                st.write(f"Debug: Error analyzing missing criteria: {str(e)}")
-                st.error("Unable to analyze some criteria. Results may be incomplete.")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Error analyzing missing criteria: {str(e)}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.error("Unable to analyze some criteria. Results may be incomplete.")
             
             # Identify limiting criteria that restrict match quality
             if confidence_info and confidence_info.get('match_level', 1) > 1:
@@ -335,8 +341,10 @@ class RecommendationEngine:
                     limiting_criteria_recs = self._identify_limiting_criteria(criteria, matching_shows, confidence_info)
                     recommendations.extend(limiting_criteria_recs)
                 except Exception as e:
-                    st.write(f"Debug: Error identifying limiting criteria: {str(e)}")
-                    st.error("Unable to analyze criteria limitations. Some recommendations may be missing.")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: Error identifying limiting criteria: {str(e)}")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.error("Unable to analyze criteria limitations. Some recommendations may be missing.")
             
             # Analyze successful patterns in the matched shows
             try:
@@ -344,8 +352,10 @@ class RecommendationEngine:
                     pattern_recs = self._analyze_successful_patterns(criteria, matching_shows)
                     recommendations.extend(pattern_recs)
             except Exception as e:
-                st.write(f"Debug: Error analyzing successful patterns: {str(e)}")
-                st.error("Unable to analyze successful patterns. Some recommendations may be missing.")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Error analyzing successful patterns: {str(e)}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.error("Unable to analyze successful patterns. Some recommendations may be missing.")
             
             # Generate fallback recommendations if needed
             # Only do this if we don't have enough high-quality recommendations already
@@ -354,8 +364,10 @@ class RecommendationEngine:
                     fallback_recs = self._generate_fallback_recommendations(criteria, matching_shows, confidence_info)
                     recommendations.extend(fallback_recs)
                 except Exception as e:
-                    st.write(f"Debug: Error generating fallback recommendations: {str(e)}")
-                    st.error("Unable to generate additional recommendations.")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: Error generating fallback recommendations: {str(e)}")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.error("Unable to generate additional recommendations.")
             
             # Sort by impact score (absolute value, as negative impacts are also important)
             recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
@@ -368,7 +380,8 @@ class RecommendationEngine:
             return recommendations
             
         except Exception as e:
-            st.write(f"Debug: Error generating recommendations: {str(e)}")
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Error generating recommendations: {str(e)}")
             st.error("Unable to generate recommendations based on your criteria.")
             return []
     
@@ -559,9 +572,17 @@ class RecommendationEngine:
                 if criteria_type in criteria:
                     current_value = criteria[criteria_type]
                     
-                    # Make current_value hashable if it's a list
-                    if isinstance(current_value, (list, np.ndarray)):
-                        current_value = tuple(current_value)
+                    # Make current_value hashable using the same logic as for other values
+                    try:
+                        if isinstance(current_value, (list, np.ndarray)):
+                            current_value = tuple(current_value)
+                        elif isinstance(current_value, dict):
+                            current_value = str(current_value)
+                        elif not isinstance(current_value, (str, int, float, bool, tuple)) or pd.isna(current_value):
+                            current_value = str(current_value)
+                    except:
+                        # If conversion fails, use string representation
+                        current_value = str(current_value)
                     
                     # Calculate success rate for each value of this criteria
                     value_success = {}
@@ -574,10 +595,19 @@ class RecommendationEngine:
                         avg_success = shows_with_value['success_score'].mean()
                         
                         # Make sure the key is hashable
-                        if isinstance(value, (list, np.ndarray)):
-                            hashable_value = tuple(value)
-                        else:
-                            hashable_value = value
+                        try:
+                            if isinstance(value, (list, np.ndarray)):
+                                hashable_value = tuple(value)
+                            elif isinstance(value, dict):
+                                # Convert dict to a frozen set of items
+                                hashable_value = str(value)
+                            elif not isinstance(value, (str, int, float, bool, tuple)) or pd.isna(value):
+                                hashable_value = str(value)
+                            else:
+                                hashable_value = value
+                        except:
+                            # If conversion fails, use string representation
+                            hashable_value = str(value)
                             
                         value_success[hashable_value] = avg_success
                         
@@ -654,7 +684,8 @@ class RecommendationEngine:
             try:
                 common_successful_criteria = self.shows_analyzer.get_common_successful_criteria(limit=5)
             except Exception as inner_e:
-                st.write(f"Debug: Error retrieving common successful criteria: {str(inner_e)}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Error retrieving common successful criteria: {str(inner_e)}")
                 st.error("Unable to retrieve common successful patterns.")
                 return []
             

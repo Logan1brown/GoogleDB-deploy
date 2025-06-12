@@ -392,12 +392,14 @@ class CriteriaScorer:
                 # Check if option_matching_shows_map was provided
                 if option_matching_shows_map is None:
                     # Instead of showing an error, just return empty results and continue
-                    st.write("No option matching shows map available for impact score calculation - skipping")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write("No option matching shows map available for impact score calculation - skipping")
                     return {}
                 else:
                     # Only log a warning if we attempted to process fields but got no results
                     # If fields_to_process was empty (e.g. field_name was already in base_criteria), this is not an error
-                    st.write("Could not calculate any impact scores with the given criteria configuration - continuing")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write("Could not calculate any impact scores with the given criteria configuration - continuing")
                     return {}
                 
             return impact_scores
@@ -447,13 +449,15 @@ class CriteriaScorer:
                 original_match_level = confidence_info.get('original_match_level', actual_match_level)
                 
                 if actual_match_level != original_match_level and st.session_state.get('debug_mode', False):
-                    st.write(f"Note: Match level adjusted from {original_match_level} to {actual_match_level} for component score calculation")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Note: Match level adjusted from {original_match_level} to {actual_match_level} for component score calculation")
                     
                 # If we have array fields like character_types in our criteria, make sure they're properly matched
                 # This helps ensure component scores are calculated based on shows that actually match the criteria
                 array_fields = [field for field, value in criteria.items() if isinstance(value, list) and value]
                 if array_fields and actual_match_level > 1 and st.session_state.get('debug_mode', False):
-                    st.write(f"Note: Array criteria matching relaxed to level {actual_match_level} for fields: {array_fields}")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Note: Array criteria matching relaxed to level {actual_match_level} for fields: {array_fields}")
             
             # Ensure all required data is available in the matching_shows DataFrame
             # This prevents each calculator from having to find matches again
@@ -466,7 +470,8 @@ class CriteriaScorer:
             
             # Log once at the beginning rather than for each calculator
             if st.session_state.get('debug_mode', False):
-                st.write(f"Using {match_count} matched shows for all component score calculations")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Using {match_count} matched shows for all component score calculations")
 
         except Exception as e:
             st.error(f"Optimizer Error: Failed to prepare for component score calculation. Criteria: {criteria}. Details: {e}")
