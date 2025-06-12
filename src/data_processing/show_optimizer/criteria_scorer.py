@@ -76,22 +76,13 @@ class CriteriaScorer:
         Returns:
             Tuple of success rate and confidence information
         """
-        # Always show debug info for this critical calculation
-        st.write(f"DEBUG SUCCESS RATE: _calculate_success_rate called with {len(shows) if shows is not None else 0} shows")
-        if shows is not None and 'success_score' in shows.columns:
-            non_null_count = shows['success_score'].notna().sum()
-            st.write(f"DEBUG SUCCESS RATE: Input shows have {non_null_count} non-null success_score values")
-            
         # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
         if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data and not integrated_data['shows'].empty:
             shows = integrated_data['shows']
-            st.write(f"DEBUG SUCCESS RATE: Using integrated_data['shows'] with {len(shows)} shows")
-            if 'success_score' in shows.columns:
-                non_null_count = shows['success_score'].notna().sum()
-                st.write(f"DEBUG SUCCESS RATE: Integrated shows have {non_null_count} non-null success_score values")
                 
         if shows is None or shows.empty:
-            st.write("DEBUG SUCCESS RATE: No shows available for success rate calculation")
+            if OptimizerConfig.DEBUG_MODE:
+                st.warning("No shows available for success rate calculation")
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0}
             return None, confidence_info
@@ -103,7 +94,6 @@ class CriteriaScorer:
         def success_filter(df):
             return (df['success_score'].notna()) & (df['success_score'] > OptimizerConfig.SCORE_NORMALIZATION['success_filter_min'])
         
-        st.write(f"DEBUG SUCCESS RATE: Calling validate_and_prepare_data with success_filter")
         is_valid, validated_data, validation_info = calculator.validate_and_prepare_data(
             shows, 
             required_columns=['success_score'],
@@ -112,14 +102,9 @@ class CriteriaScorer:
             filter_condition=success_filter
         )
         
-        st.write(f"DEBUG SUCCESS RATE: validate_and_prepare_data returned is_valid={is_valid}, validation_info={validation_info}")
-        if validated_data is not None:
-            st.write(f"DEBUG SUCCESS RATE: validated_data has {len(validated_data)} rows")
-        else:
-            st.write("DEBUG SUCCESS RATE: validated_data is None")
-        
         if not is_valid or validated_data is None or validated_data.empty:
-            st.write(f"DEBUG SUCCESS RATE: No valid success score data found: {validation_info.get('error', 'Unknown error')}")
+            if OptimizerConfig.DEBUG_MODE:
+                st.warning(f"No valid success score data found: {validation_info.get('error', 'Unknown error')}")
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': validation_info.get('error', 'Unknown error')}
             else:
@@ -132,23 +117,22 @@ class CriteriaScorer:
         
         # Let the calculator handle the actual calculation
         try:
-            st.write(f"DEBUG SUCCESS RATE: Calling calculator.calculate with {len(validated_data)} validated shows")
             component_score = calculator.calculate(validated_data, threshold=threshold)
             
             if component_score is None:
-                st.write("DEBUG SUCCESS RATE: calculator.calculate returned None")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.warning("Failed to calculate success score")
                 if confidence_info is None:
                     confidence_info = {'level': 'none', 'score': 0.0, 'error': 'Failed to calculate success score'}
                 else:
                     confidence_info['error'] = 'Failed to calculate success score'
                 return None, confidence_info
-                
-            st.write(f"DEBUG SUCCESS RATE: calculator.calculate returned component_score with score={component_score.score}, confidence={component_score.confidence}")
             
         except Exception as e:
             st.error(f"Error in success score calculation: {str(e)}")
-            import traceback
-            st.write(f"DEBUG SUCCESS RATE ERROR: {traceback.format_exc()}")
+            if OptimizerConfig.DEBUG_MODE:
+                import traceback
+                st.write(f"Error details: {traceback.format_exc()}")
             # Create a basic confidence_info dictionary with error details
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
@@ -158,7 +142,6 @@ class CriteriaScorer:
         
         # Extract success rate and metadata from component score
         success_rate = component_score.score
-        st.write(f"DEBUG SUCCESS RATE: Extracted success_rate={success_rate} from component_score")
         
         # Update confidence information
         if confidence_info is None:
@@ -168,7 +151,6 @@ class CriteriaScorer:
         for key, value in component_score.details.items():
             confidence_info[key] = value
         
-        st.write(f"DEBUG SUCCESS RATE: Returning success_rate={success_rate}, confidence_info={confidence_info}")
         return success_rate, confidence_info
 
    
