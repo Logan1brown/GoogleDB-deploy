@@ -680,8 +680,8 @@ class NetworkScoreCalculator:
                 
                 # Calculate weighted compatibility score using config weights
                 compatibility_score = self._calculate_weighted_compatibility_score(
-                    match_quality=network_match['match_quality'],
-                    success_history=network_match.get('success_history', None)
+                    match_quality=network_match.details.get('match_quality'),
+                    success_history=None  # NetworkMatch objects don't have success_history
                 )
                 
                 # Always try to calculate success probability with available data
@@ -722,14 +722,32 @@ class NetworkScoreCalculator:
                 if confidence_info is not None:
                     details_dict['confidence_info'] = confidence_info
                 
-                # Update the existing NetworkMatch object with success probability
+                # Update the existing NetworkMatch object with success probability and confidence
                 network_match.success_probability = success_rate if success_rate is not None else None
+                network_match.confidence = confidence
+                
+                # Update details dictionary with additional information
+                network_match.details.update(details_dict)
+                if confidence_info is not None:
+                    network_match.details['confidence_info'] = confidence_info
                 
                 # Debug output in debug mode
                 if st.session_state.get('debug_mode', False):
                     st.write(f"Debug: Updated network match for {network_name} with success probability: {success_rate}")
+                    st.write(f"Debug: Network match now has compatibility_score: {network_match.compatibility_score}, success_probability: {network_match.success_probability}")
                     
                 # No need to create a new object, we're updating the existing one in the list
+                
+            # Add final debug output about the network matches
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Final network_matches count: {len(network_matches)}")
+                if network_matches:
+                    st.write(f"Debug: First network match: {network_matches[0].network_name} (ID: {network_matches[0].network_id})")
+                    st.write(f"Debug: First network match compatibility: {network_matches[0].compatibility_score}")
+                    st.write(f"Debug: First network match success probability: {network_matches[0].success_probability}")
+                    
+            # Sort network matches by compatibility score (descending)
+            network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
                 
             # Return the network_matches list that we've been updating
             return network_matches
