@@ -58,6 +58,56 @@ class OptimizationSummary:
         a network_compatibility attribute.
         """
         return self.top_networks
+        
+    @property
+    def formatted_data(self) -> Dict[str, Any]:
+        """Format data for UI display.
+        
+        Returns a dictionary with formatted networks and recommendations data
+        ready for display in the UI.
+        """
+        formatted = {
+            'networks': [],
+            'recommendations': {
+                'general': [],
+                'network_specific': []
+            }
+        }
+        
+        # Format networks data
+        if self.top_networks:
+            for network in self.top_networks:
+                formatted['networks'].append({
+                    'network_id': network.network_id,
+                    'network_name': network.network_name,
+                    'compatibility_score': network.compatibility_score,
+                    'success_probability': network.success_probability,
+                    'sample_size': network.sample_size,
+                    'confidence': network.confidence
+                })
+        
+        # Format recommendations data
+        if self.recommendations:
+            for rec in self.recommendations:
+                rec_dict = {
+                    'recommendation_type': rec.recommendation_type,
+                    'criteria_type': rec.criteria_type,
+                    'current_value': rec.current_value,
+                    'current_name': rec.current_name,
+                    'suggested_value': rec.suggested_value,
+                    'suggested_name': rec.suggested_name,
+                    'impact_score': rec.impact_score,
+                    'confidence': rec.confidence,
+                    'description': rec.explanation
+                }
+                
+                # Categorize recommendations
+                if rec.recommendation_type.startswith('network_'):
+                    formatted['recommendations']['network_specific'].append(rec_dict)
+                else:
+                    formatted['recommendations']['general'].append(rec_dict)
+        
+        return formatted
 
 
 class ConceptAnalyzer:

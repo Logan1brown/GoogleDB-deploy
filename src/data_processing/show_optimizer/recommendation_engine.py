@@ -889,13 +889,13 @@ class RecommendationEngine:
                     
                     # Create recommendation
                     recommendations.append(Recommendation(
-                        recommendation_type=f"network_{rec_type}",
+                        recommendation_type=f"network_{rec_type}",  # Ensure network_ prefix for proper categorization
                         criteria_type=criteria_type,
                         current_value=current_value,
                         current_name=current_name,
                         suggested_value=None,  # No specific suggestion for network recommendations
                         suggested_name="",
-                        impact_score=abs(difference),  # Use absolute value for impact score
+                        impact_score=difference,  # Keep sign for positive/negative impact
                         confidence=network_rate_data.get('confidence', 'medium'),
                         explanation=explanation
                     ))

@@ -7,6 +7,12 @@ from abc import ABC, abstractmethod
 
 from .optimizer_config import OptimizerConfig
 
+# Helper function to only show warnings in debug mode
+def debug_warning(message):
+    """Display a warning only if DEBUG_MODE is enabled"""
+    if OptimizerConfig.DEBUG_MODE:
+        st.warning(message)
+
 __all__ = [
     'ComponentScore',
     'NetworkMatch',
@@ -156,27 +162,7 @@ class ScoreCalculator:
         
         # Handle case where no shows have valid data
         if sample_size == 0:
-            import traceback
-            import os
-            # Get the current call stack
-            stack = traceback.extract_stack()
-            # Format a more readable traceback
-            formatted_trace = []
-            for filename, lineno, name, line in stack[-10:]:  # Get last 10 frames
-                short_filename = os.path.basename(filename)
-                formatted_trace.append(f"  File '{short_filename}', line {lineno}, in {name}\n    {line}")
-            
-            trace_str = '\n'.join(formatted_trace)
             result_info['warning'] = f"No shows with valid data found for {self.component_name} score"
-            if OptimizerConfig.DEBUG_MODE:
-                result_info['trace'] = trace_str
-                st.write(f"DEBUG: No valid data for {self.component_name} score.\nCall stack:\n{trace_str}")
-                # Also print the shape and columns of the input shows DataFrame for debugging
-                if shows is not None:
-                    st.write(f"Input shows shape: {shows.shape}, columns: {list(shows.columns)}")
-                    if 'success_score' in shows.columns:
-                        non_null = shows['success_score'].notna().sum()
-                        st.write(f"Non-null success_score values: {non_null} out of {len(shows)}")
             return False, None, result_info
             
         return True, valid_shows, result_info

@@ -541,9 +541,77 @@ def show():
                     
                     # Display recommendations if available
                     if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
-                        st.subheader("Recommendations")
-                        # Use our improved helper function to render recommendations with pre-formatted data
-                        render_recommendations(summary.formatted_data['recommendations'], on_click_handler=None)
+                        # Get general and network-specific recommendations
+                        general_recs = summary.formatted_data['recommendations'].get('general', [])
+                        network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
+                        
+                        # Group recommendations by type for better organization
+                        grouped_recs = {}
+                        
+                        # Process general recommendations
+                        if general_recs:
+                            st.subheader("General Recommendations")
+                            for rec in general_recs:
+                                rec_type = rec.get('recommendation_type', 'other')
+                                if rec_type not in grouped_recs:
+                                    grouped_recs[rec_type] = []
+                                grouped_recs[rec_type].append(rec)
+                            
+                            # Use our improved helper function to render recommendations with pre-formatted data
+                            render_recommendations({"grouped": grouped_recs}, on_click_handler=None)
+                        else:
+                            st.info("No general recommendations available for your current criteria.")
+                        
+                        # Process network-specific recommendations
+                        if network_recs:
+                            st.subheader("Network-Specific Recommendations")
+                            st.write("These recommendations highlight criteria where specific networks have significantly different success rates.")
+                            
+                            # Group recommendations by network for better organization
+                            network_grouped_recs = {}
+                            for rec in network_recs:
+                                # Extract network name from description
+                                network_name = None
+                                if 'description' in rec and 'Network ' in rec['description']:
+                                    parts = rec['description'].split('Network ')
+                                    if len(parts) > 1:
+                                        network_parts = parts[1].split(' has')
+                                        if network_parts:
+                                            network_name = network_parts[0]
+                                
+                                if not network_name:
+                                    network_name = "Unknown Network"
+                                    
+                                if network_name not in network_grouped_recs:
+                                    network_grouped_recs[network_name] = []
+                                network_grouped_recs[network_name].append(rec)
+                            
+                            # Display recommendations grouped by network
+                            for network_name, recs in network_grouped_recs.items():
+                                st.write(f"### {network_name}")
+                                for rec in recs:
+                                    # Determine color based on impact score
+                                    if 'impact_score' in rec:
+                                        color = COLORS['success'] if rec['impact_score'] > 0 else COLORS['warning']
+                                    else:
+                                        color = None
+                                        
+                                    # Create a title that includes the impact
+                                    if 'impact_score' in rec and rec['impact_score'] != 0:
+                                        impact_direction = "Positive" if rec['impact_score'] > 0 else "Negative"
+                                        impact_percent = abs(rec['impact_score'] * 100)
+                                        title = f"{impact_direction} Impact: {impact_percent:.1f}%"
+                                    else:
+                                        title = "Network-Specific Insight"
+                                        
+                                    # Display the recommendation using an info card
+                                    render_info_card(
+                                        title=title,
+                                        content=rec.get('description', 'No description available.'),
+                                        color=color
+                                    )
+                        else:
+                            st.info("No network-specific recommendations available for your current criteria.")
                     elif hasattr(summary, 'recommendations') and summary.recommendations:
                         # Fallback to old method if formatted data is not available
                         st.subheader("Recommendations")
