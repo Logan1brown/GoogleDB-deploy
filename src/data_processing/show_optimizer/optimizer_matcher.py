@@ -343,6 +343,7 @@ class Matcher:
             level_matches['match_quality'] = match_quality_pct
             
             # Add description of the match level
+            level_desc = self._get_match_level_description(level)
             level_matches['match_level_desc'] = level_desc
             
             # Calculate confidence for this level if it's the first with matches
