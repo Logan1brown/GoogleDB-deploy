@@ -629,21 +629,31 @@ class NetworkScoreCalculator:
                 confidence_level = OptimizerConfig.map_confidence_score_to_level(confidence_score)
                 
                 # Create a proper NetworkMatch object instead of a dictionary
+                # Initialize with empty details dictionary to ensure it's properly created
                 network_match_obj = NetworkMatch(
                     network_id=network_id,
                     network_name=network_name,
                     compatibility_score=match_quality,  # Use match_quality as compatibility score
                     success_probability=None,  # Will be calculated later
                     sample_size=sample_size,
-                    confidence=confidence_level,
-                    details={
-                        'criteria': criteria,
-                        'match_level': match_level,
-                        'match_quality': match_quality,
-                        'confidence_score': confidence_score,
-                        'matching_shows': network_shows
-                    }
+                    confidence=confidence_level
                 )
+                
+                # Add details separately to ensure the dictionary is properly initialized
+                network_match_obj.details = {
+                    'criteria': criteria,
+                    'match_level': match_level,
+                    'match_quality': match_quality,
+                    'confidence_score': confidence_score,
+                    'matching_shows': network_shows
+                }
+                
+                # Debug output to verify the details dictionary
+                if st.session_state.get('debug_mode', False):
+                    st.write(f"Debug: Created network match for {network_name} with details type: {type(network_match_obj.details)}")
+                    st.write(f"Debug: Match quality in details: {network_match_obj.details.get('match_quality')}")
+                    st.write(f"Debug: Compatibility score: {network_match_obj.compatibility_score}")
+                
                 
                 network_matches.append(network_match_obj)
             
@@ -679,8 +689,16 @@ class NetworkScoreCalculator:
                 }
                 
                 # Calculate weighted compatibility score using config weights
+                # Access match_quality directly from the details dictionary
+                match_quality = network_match.details.get('match_quality') if isinstance(network_match.details, dict) else None
+                
+                # Debug output to help diagnose issues
+                if st.session_state.get('debug_mode', False):
+                    st.write(f"Debug: network_match.details type: {type(network_match.details)}")
+                    st.write(f"Debug: match_quality from details: {match_quality}")
+                
                 compatibility_score = self._calculate_weighted_compatibility_score(
-                    match_quality=network_match.details.get('match_quality'),
+                    match_quality=match_quality,
                     success_history=None  # NetworkMatch objects don't have success_history
                 )
                 
