@@ -345,8 +345,20 @@ def show():
                         if match_level > 1:
                             st.info(f"Network compatibility is based on flexible matching (level {match_level}). Results may vary with exact matches.")
                         
-                        # Use the formatted networks from the optimizer view
-                        render_network_compatibility(summary.formatted_data['networks'])
+                        # Display the formatted network data directly
+                        if 'networks' in summary.formatted_data and summary.formatted_data['networks']:
+                            # Convert to DataFrame for display
+                            network_df = pd.DataFrame(summary.formatted_data['networks'])
+                            
+                            # Remove sorting columns before display
+                            display_columns = [col for col in network_df.columns if not col.startswith('_')]
+                            
+                            # Display the network compatibility table
+                            st.dataframe(
+                                network_df[display_columns],
+                                use_container_width=True,
+                                hide_index=True
+                            )
                     else:
                         st.info("No network compatibility data available.")
                 

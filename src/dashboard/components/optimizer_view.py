@@ -275,7 +275,7 @@ class OptimizerView:
             network_matches: List of NetworkMatch objects
             
         Returns:
-            List of formatted network match dictionaries
+            List of formatted network match dictionaries ready for direct display in UI
         """
         formatted = []
         
@@ -297,27 +297,42 @@ class OptimizerView:
                 # Ensure we're working with a proper decimal value
                 compatibility_value = float(match.compatibility_score)
                 compatibility_display = f"{compatibility_value*100:.1f}%"
+                # Store raw value for sorting
+                compatibility_raw = compatibility_value
             else:
                 compatibility_display = "N/A"
+                compatibility_raw = 0
                 
             if match.success_probability is not None:
                 # Ensure we're working with a proper decimal value
                 success_value = float(match.success_probability)
                 success_display = f"{success_value*100:.1f}%"
+                # Store raw value for sorting
+                success_raw = success_value
             else:
                 success_display = "N/A"
+                success_raw = 0
+                
+            # Get confidence display text from config
+            confidence = match.confidence or "unknown"
+            confidence_display = self.config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
             
-            # Format the network match with proper values
+            # Format the network match with all data needed for UI display
             formatted.append({
-                "network_id": match.network_id,
-                "network_name": network_name,
-                "compatibility": match.compatibility_score,  # Raw value for sorting
-                "compatibility_display": compatibility_display,  # Formatted for display
-                "success_probability": match.success_probability,  # Raw value for sorting
-                "success_probability_display": success_display,  # Formatted for display
-                "sample_size": match.sample_size,
-                "confidence": match.confidence
+                # Display values
+                'Network': network_name,
+                'Compatibility': compatibility_display,
+                'Success Probability': success_display,
+                'Sample Size': match.sample_size,
+                'Confidence': confidence_display,
+                
+                # Raw values for sorting (not displayed)
+                '_compatibility_raw': compatibility_raw,
+                '_success_prob_raw': success_raw
             })
+            
+        # Sort the formatted data by compatibility (descending), then by success probability
+        formatted.sort(key=lambda x: (x['_compatibility_raw'] or 0, x['_success_prob_raw'] or 0), reverse=True)
             
         return formatted
     
