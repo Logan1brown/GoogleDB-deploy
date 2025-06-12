@@ -390,12 +390,65 @@ class Matcher:
         # Sort only by match_level (ascending) - no success score sorting during selection
         all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
         
-        # Apply random sampling within each match level if we have more than MAX_RESULTS
+        # Apply prioritized sampling within each match level if we have more than MAX_RESULTS
         if len(all_matches) > OptimizerConfig.MAX_RESULTS:
-            # Group by match level and randomly sample within each group
+            # Define a function to prioritize shows with RT and TMDB data
+            def prioritize_shows(group_df):
+                # Calculate the target sample size for this group
+                target_size = min(len(group_df), max(1, int(OptimizerConfig.MAX_RESULTS * len(group_df) / len(all_matches))))
+                
+                # Check if we have RT and TMDB columns to prioritize
+                has_rt = 'rt_score' in group_df.columns
+                has_tmdb = 'tmdb_score' in group_df.columns
+                
+                if has_rt and has_tmdb:
+                    # First prioritize shows with both RT and TMDB data
+                    both_data = group_df[(group_df['rt_score'].notna()) & (group_df['tmdb_score'].notna())]
+                    if len(both_data) >= target_size:
+                        return both_data.head(target_size)
+                    
+                    # If we need more, add shows with at least one data source
+                    remaining = target_size - len(both_data)
+                    one_data = group_df[(group_df['rt_score'].notna()) | (group_df['tmdb_score'].notna())]
+                    one_data = one_data[~one_data.index.isin(both_data.index)]
+                    
+                    if len(both_data) + len(one_data) >= target_size:
+                        return pd.concat([both_data, one_data.head(remaining)])
+                    
+                    # If we still need more, add remaining shows
+                    remaining = target_size - len(both_data) - len(one_data)
+                    no_data = group_df[(group_df['rt_score'].isna()) & (group_df['tmdb_score'].isna())]
+                    return pd.concat([both_data, one_data, no_data.head(remaining)])
+                
+                elif has_rt:
+                    # Prioritize shows with RT data
+                    rt_data = group_df[group_df['rt_score'].notna()]
+                    if len(rt_data) >= target_size:
+                        return rt_data.head(target_size)
+                    
+                    # If we need more, add shows without RT data
+                    remaining = target_size - len(rt_data)
+                    no_rt = group_df[group_df['rt_score'].isna()]
+                    return pd.concat([rt_data, no_rt.head(remaining)])
+                
+                elif has_tmdb:
+                    # Prioritize shows with TMDB data
+                    tmdb_data = group_df[group_df['tmdb_score'].notna()]
+                    if len(tmdb_data) >= target_size:
+                        return tmdb_data.head(target_size)
+                    
+                    # If we need more, add shows without TMDB data
+                    remaining = target_size - len(tmdb_data)
+                    no_tmdb = group_df[group_df['tmdb_score'].isna()]
+                    return pd.concat([tmdb_data, no_tmdb.head(remaining)])
+                
+                # If no RT or TMDB columns, fall back to random sampling
+                return group_df.sample(target_size, random_state=42)
+            
+            # Group by match level and apply prioritized sampling within each group
             sampled_matches = all_matches.groupby('match_level').apply(
-                lambda x: x.sample(min(len(x), max(1, int(OptimizerConfig.MAX_RESULTS * len(x) / len(all_matches)))), 
-                                  random_state=42)
+                prioritize_shows,
+                include_groups=False
             ).reset_index(drop=True)
             
             # If we still have more than MAX_RESULTS after sampling each group
