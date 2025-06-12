@@ -388,12 +388,8 @@ class Matcher:
         
         confidence_info['match_level_summary'] = level_summaries
         
-        # Sort by match_level (ascending) and success_score (descending)
-        if 'success_score' in all_matches.columns:
-            all_matches = all_matches.sort_values(by=['match_level', 'success_score'], 
-                                                 ascending=[True, False])
-        else:
-            all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
+        # Sort only by match_level (ascending) - no success score sorting during selection
+        all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
         
         # Always limit to MAX_RESULTS
         if len(all_matches) > OptimizerConfig.MAX_RESULTS:
