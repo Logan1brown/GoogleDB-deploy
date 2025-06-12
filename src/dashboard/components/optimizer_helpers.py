@@ -445,20 +445,21 @@ def group_recommendations(recommendations: List) -> Dict[str, List]:
     return grouped
 
 
-def render_recommendations(recommendations: List, on_click_handler=None):
-    """Render recommendations.
+def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_handler=None):
+    """Render recommendations using pre-formatted data from OptimizerView.
     
     Args:
-        recommendations: List of recommendations
+        formatted_recommendations: Dictionary with formatted recommendation data
         on_click_handler: Function to call when recommendation button is clicked
     """
     try:
-        if not recommendations:
+        # Check if we have any recommendations
+        if not formatted_recommendations or not formatted_recommendations.get("grouped"):
             st.info("No recommendations available.")
             return
             
-        # Group recommendations by type
-        grouped = group_recommendations(recommendations)
+        # Get the grouped recommendations
+        grouped = formatted_recommendations.get("grouped", {})
         
         # Render each group that has recommendations
         for rec_type, recs in grouped.items():
@@ -475,12 +476,12 @@ def render_recommendations(recommendations: List, on_click_handler=None):
         # No fallback UI needed as the error message is sufficient
 
 
-def render_recommendation_group(rec_type: str, recommendations: List, on_click_handler=None, limit: int = 3):
+def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, Any]], on_click_handler=None, limit: int = 3):
     """Render a group of recommendations with appropriate UI elements.
     
     Args:
         rec_type: Type of recommendation (add, replace, remove, consider, etc.)
-        recommendations: List of recommendations of this type
+        recommendations: List of pre-formatted recommendations of this type
         on_click_handler: Function to call when recommendation button is clicked
         limit: Maximum number of recommendations to show
     """
@@ -539,28 +540,28 @@ def render_recommendation_group(rec_type: str, recommendations: List, on_click_h
             with col1:
                 if on_click_handler:
                     st.button(
-                        f"{button_prefix} {rec.suggested_name}",
-                        key=f"{rec_type}_{rec.criteria_type}_{rec.suggested_value or rec.current_value}",
+                        f"{button_prefix} {rec['suggested_name']}",
+                        key=f"{rec_type}_{rec['criteria_type']}_{rec['suggested_value'] or rec['current_value']}",
                         on_click=on_click_handler,
                         args=(rec,)
                     )
             with col2:
                 if use_info_card:
                     render_info_card(
-                        f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}",
-                        rec.explanation
+                        rec['title'],
+                        rec['description']
                     )
                 else:
                     # For remove recommendations, use warning style
                     st.markdown(f"""
                     <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
-                        <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}</p>
-                        <p style="font-size: 14px; margin-top: 0;">{rec.explanation}</p>
+                        <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec['title']}</p>
+                        <p style="font-size: 14px; margin-top: 0;">{rec['description']}</p>
                     </div>
                     """, unsafe_allow_html=True)
         else:
             # Just show info card with no button
             render_info_card(
-                f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}",
-                rec.explanation
+                rec['title'],
+                rec['description']
             )

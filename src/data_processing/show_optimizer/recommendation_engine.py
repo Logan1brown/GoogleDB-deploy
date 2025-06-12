@@ -590,6 +590,17 @@ class RecommendationEngine:
                 if criteria_type in criteria:
                     current_value = criteria[criteria_type]
                     
+                    # Make current_value hashable if it's a list
+                    if isinstance(current_value, (list, np.ndarray)):
+                        try:
+                            current_value = tuple(current_value)
+                        except:
+                            # If conversion fails, use string representation
+                            current_value = str(current_value)
+                    elif not isinstance(current_value, (str, int, float, bool, tuple)) or pd.isna(current_value):
+                        # Handle any other unhashable types
+                        current_value = str(current_value)
+                    
                     # Check if current value is among the most successful values
                     value_success = {}
                     for value in successful_shows[criteria_type].unique():

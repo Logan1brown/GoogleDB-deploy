@@ -406,6 +406,7 @@ def show():
                         
                         # Display the formatted network data directly
                         if hasattr(summary, 'formatted_data') and 'networks' in summary.formatted_data and summary.formatted_data['networks']:
+                            st.subheader("Network Compatibility")
                             # Convert to DataFrame for display
                             network_df = pd.DataFrame(summary.formatted_data['networks'])
                             
@@ -418,6 +419,20 @@ def show():
                                 use_container_width=True,
                                 hide_index=True
                             )
+                            
+                            # Display network-specific recommendations if available
+                            if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
+                                network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
+                                if network_recs:
+                                    st.subheader("Network-Specific Recommendations")
+                                    st.write("These recommendations highlight criteria where specific networks have significantly different success rates.")
+                                    
+                                    # Display each network recommendation
+                                    for rec in network_recs:
+                                        render_info_card(
+                                            rec['title'],
+                                            rec['description']
+                                        )
                         else:
                             # This should not happen if top_networks exists but formatted_data['networks'] doesn't
                             st.info("Network data was found but could not be formatted properly.")
@@ -449,10 +464,14 @@ def show():
                         render_success_factors(summary.success_factors)
                     
                     # Display recommendations if available
-                    if hasattr(summary, 'recommendations') and summary.recommendations:
+                    if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
                         st.subheader("Recommendations")
-                        # Use our improved helper function to render recommendations
-                        render_recommendations(summary.recommendations, on_click_handler=None)
+                        # Use our improved helper function to render recommendations with pre-formatted data
+                        render_recommendations(summary.formatted_data['recommendations'], on_click_handler=None)
+                    elif hasattr(summary, 'recommendations') and summary.recommendations:
+                        # Fallback to old method if formatted data is not available
+                        st.subheader("Recommendations")
+                        render_recommendations({"grouped": group_recommendations(summary.recommendations)}, on_click_handler=None)
                     else:
                         st.info("No recommendations available for the selected criteria.")
                 

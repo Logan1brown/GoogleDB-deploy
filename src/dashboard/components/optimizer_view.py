@@ -179,52 +179,47 @@ class OptimizerView:
             st.write(f"Error details: {traceback.format_exc()}")
             return False
         
-    def format_optimization_summary(self, summary: OptimizationSummary) -> Dict[str, Any]:
-        """Format an OptimizationSummary for UI display.
+    def format_optimization_summary(self, summary: OptimizationSummary) -> OptimizationSummary:
+        """Format the optimization summary for display.
         
         Args:
-            summary: OptimizationSummary to format
+            summary: The optimization summary to format
             
         Returns:
-            Dictionary with formatted data for UI display
+            The formatted optimization summary with attached formatted_data
         """
         try:
-            # Format success probability for display
-            formatted_success = self._format_success_probability(summary.overall_success_probability, summary.confidence)
+            # Initialize formatted_data if it doesn't exist
+            if not hasattr(summary, 'formatted_data'):
+                summary.formatted_data = {}
+                
+            # Format network matches if available
+            if hasattr(summary, 'top_networks') and summary.top_networks:
+                summary.formatted_data['networks'] = self._format_network_matches(summary.top_networks)
+                
+            # Format component scores if available
+            if hasattr(summary, 'component_scores') and summary.component_scores:
+                summary.formatted_data['component_scores'] = self._format_component_scores(summary.component_scores)
+                
+            # Format match quality if available
+            if hasattr(summary, 'match_quality') and summary.match_quality:
+                summary.formatted_data['match_quality'] = self._format_match_quality(summary.match_quality)
+                
+            # Format success factors if available
+            if hasattr(summary, 'success_factors') and summary.success_factors:
+                summary.formatted_data['success_factors'] = self._format_success_factors(summary.success_factors)
+                
+            # Format recommendations if available
+            if hasattr(summary, 'recommendations') and summary.recommendations:
+                summary.formatted_data['recommendations'] = self._format_recommendations(summary.recommendations)
             
-            # Format success factors for display
-            formatted_success_factors = self._format_success_factors(summary.success_factors)
+            return summary
             
-            # Format recommendations for display
-            formatted_recommendations = self._format_recommendations(summary.recommendations)
-            
-            # Format network matches for display
-            formatted_networks = self._format_network_matches(summary.top_networks)
-            
-            # Format component scores for display
-            formatted_scores = self._format_component_scores(summary.component_scores)
-            
-            # Format match quality information
-            match_quality_info = self._format_match_quality(
-                summary.match_level, 
-                summary.match_count,
-                summary.match_counts_by_level,
-                summary.confidence_score
-            )
-            
-            # Return formatted data
-            return {
-                "success_probability": formatted_success,
-                "success_factors": formatted_success_factors,
-                "recommendations": formatted_recommendations,
-                "networks": formatted_networks,
-                "component_scores": formatted_scores,
-                "match_quality": match_quality_info,
-                "matching_titles": summary.matching_titles[:10] if summary.matching_titles else []
-            }
         except Exception as e:
             st.error(f"Error formatting optimization summary: {str(e)}")
-            return {}
+            import traceback
+            st.write(f"Error details: {traceback.format_exc()}")
+            return summary
     
     def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, Any]:
         """Format success probability for display.
@@ -251,28 +246,76 @@ class OptimizerView:
             "confidence_level": confidence
         }
     
-    def _format_recommendations(self, recommendations: List[Recommendation]) -> List[Dict[str, Any]]:
+    def _format_recommendations(self, recommendations: List[Recommendation]) -> Dict[str, Any]:
         """Format recommendations for display.
         
         Args:
             recommendations: List of Recommendation objects
             
         Returns:
-            List of formatted recommendation dictionaries
+            Dictionary with formatted recommendations grouped by type
         """
-        formatted = []
+        # Initialize with keys from OptimizerConfig.RECOMMENDATION_TYPES
+        config = OptimizerConfig()
+        grouped = {rec_type: [] for rec_type in config.RECOMMENDATION_TYPES.keys()}
+        
+        # Add backward compatibility for 'remove' type which might be used in UI
+        if 'remove' not in grouped:
+            grouped['remove'] = []
+            
+        # Track network-specific recommendations separately
+        network_specific = []
         
         for rec in recommendations:
-            # Format the recommendation using the actual attributes from the Recommendation class
-            formatted.append({
+            # Skip invalid recommendations
+            if not hasattr(rec, 'recommendation_type') and not hasattr(rec, 'rec_type'):
+                continue
+                
+            # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
+            rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
+            
+            # Format the recommendation with all data needed for UI display
+            formatted_rec = {
+                # Display values
                 "title": f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}",
                 "description": rec.explanation,
                 "importance": rec.confidence,
-                "category": rec.recommendation_type,
-                "impact": rec.impact_score
-            })
+                "category": rec_type,
+                "impact": rec.impact_score,
+                "criteria_type": rec.criteria_type,
+                "suggested_name": rec.suggested_name,
+                "current_value": rec.current_value,
+                "suggested_value": rec.suggested_value,
+                
+                # Raw data for sorting and filtering
+                "_impact_raw": rec.impact_score,
+                "_confidence_level": self._get_confidence_level(rec.confidence),
+                "_rec_type": rec_type
+            }
             
-        return formatted
+            # Add to appropriate group
+            if rec_type == 'network_specific':
+                network_specific.append(formatted_rec)
+            elif rec_type in grouped:
+                grouped[rec_type].append(formatted_rec)
+            else:
+                # Create group if it doesn't exist
+                if rec_type not in grouped:
+                    grouped[rec_type] = []
+                grouped[rec_type].append(formatted_rec)
+        
+        # Sort each group by impact score (descending)
+        for rec_type in grouped:
+            grouped[rec_type].sort(key=lambda x: abs(x["_impact_raw"]), reverse=True)
+            
+        # Sort network-specific recommendations by impact score
+        network_specific.sort(key=lambda x: abs(x["_impact_raw"]), reverse=True)
+        
+        return {
+            "grouped": grouped,
+            "network_specific": network_specific,
+            "all": [rec for group in grouped.values() for rec in group] + network_specific
+        }
     
     def _format_network_matches(self, network_matches: List[NetworkMatch]) -> List[Dict[str, Any]]:
         """Format network matches for display.
