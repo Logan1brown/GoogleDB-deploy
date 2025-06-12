@@ -235,10 +235,10 @@ def render_format_criteria(state: Dict, update_callback: Callable) -> None:
 
 
 def render_success_metrics(summary: Any):
-    """Render success probability metrics.
+    """Render success probability metrics using pre-formatted data from OptimizerView.
     
     Args:
-        summary: Optimization summary
+        summary: Optimization summary with formatted_data attribute
     """
     try:
         # Get config for consistent display
@@ -246,9 +246,21 @@ def render_success_metrics(summary: Any):
         
         col1, col2, col3, col4 = st.columns(4)
         
+        # Check if we have pre-formatted component scores
+        has_formatted_data = hasattr(summary, 'formatted_data') and 'component_scores' in summary.formatted_data
+        
+        # Success Probability
         with col1:
-            # Check for overall_success_probability attribute
-            if hasattr(summary, 'overall_success_probability'):
+            if has_formatted_data and 'success_probability' in summary.formatted_data:
+                # Use pre-formatted success probability data
+                success_data = summary.formatted_data['success_probability']
+                render_metric_card(
+                    "Success Probability", 
+                    success_data.get('display', 'N/A'), 
+                    success_data.get('subtitle', 'Data unavailable')
+                )
+            elif hasattr(summary, 'overall_success_probability'):
+                # Fallback to raw data
                 probability = summary.overall_success_probability
                 
                 if probability is None:
@@ -270,79 +282,125 @@ def render_success_metrics(summary: Any):
             else:
                 st.info("Overall success probability not available.")
         
-        # Component scores
+        # Audience Score
         with col2:
-            # Check if component_scores exists
-            try:
-                if hasattr(summary, 'component_scores') and summary.component_scores:
-                    audience_score = summary.component_scores.get("audience", None)
-                    if audience_score and hasattr(audience_score, 'score'):
-                        score = audience_score.score
-                        if score is not None:
-                            sample_size = getattr(audience_score, 'sample_size', 'N/A')
-                            render_metric_card(
-                                "Audience Appeal", 
-                                f"{score:.0%}", 
-                                f"Sample: {sample_size}"
-                            )
+            if has_formatted_data and 'audience' in summary.formatted_data['component_scores']:
+                # Use pre-formatted audience score data
+                audience_data = summary.formatted_data['component_scores']['audience']
+                score = audience_data.get('score')
+                sample_size = audience_data.get('sample_size', 'N/A')
+                
+                if score is not None:
+                    render_metric_card(
+                        "Audience Appeal", 
+                        f"{score:.0%}", 
+                        f"Sample: {sample_size}"
+                    )
+                else:
+                    render_metric_card("Audience Appeal", "N/A", "Data unavailable")
+            else:
+                # Fallback to raw data
+                try:
+                    if hasattr(summary, 'component_scores') and summary.component_scores:
+                        audience_score = summary.component_scores.get("audience", None)
+                        if audience_score and hasattr(audience_score, 'score'):
+                            score = audience_score.score
+                            if score is not None:
+                                sample_size = getattr(audience_score, 'sample_size', 'N/A')
+                                render_metric_card(
+                                    "Audience Appeal", 
+                                    f"{score:.0%}", 
+                                    f"Sample: {sample_size}"
+                                )
+                            else:
+                                render_metric_card("Audience Appeal", "N/A", "Data unavailable")
                         else:
                             render_metric_card("Audience Appeal", "N/A", "Data unavailable")
                     else:
                         render_metric_card("Audience Appeal", "N/A", "Data unavailable")
-                else:
-                    render_metric_card("Audience Appeal", "N/A", "Data unavailable")
-            except Exception as e:
-                st.write(f"Debug: Error rendering audience score: {str(e)}")
-                render_metric_card("Audience Appeal", "N/A", "Error in data")
+                except Exception as e:
+                    st.write(f"Debug: Error rendering audience score: {str(e)}")
+                    render_metric_card("Audience Appeal", "N/A", "Error in data")
         
-        # Critics score
+        # Critics Score
         with col3:
-            # Check if component_scores exists
-            try:
-                if hasattr(summary, 'component_scores') and summary.component_scores:
-                    critics_score = summary.component_scores.get("critics", None)
-                    if critics_score and hasattr(critics_score, 'score'):
-                        score = critics_score.score
-                        if score is not None:
-                            sample_size = getattr(critics_score, 'sample_size', 'N/A')
-                            render_metric_card(
-                                "Critical Reception", 
-                                f"{score:.0%}", 
-                                f"Sample: {sample_size}"
-                            )
+            if has_formatted_data and 'critics' in summary.formatted_data['component_scores']:
+                # Use pre-formatted critics score data
+                critics_data = summary.formatted_data['component_scores']['critics']
+                score = critics_data.get('score')
+                sample_size = critics_data.get('sample_size', 'N/A')
+                
+                if score is not None:
+                    render_metric_card(
+                        "Critical Reception", 
+                        f"{score:.0%}", 
+                        f"Sample: {sample_size}"
+                    )
+                else:
+                    render_metric_card("Critical Reception", "N/A", "Data unavailable")
+            else:
+                # Fallback to raw data
+                try:
+                    if hasattr(summary, 'component_scores') and summary.component_scores:
+                        critics_score = summary.component_scores.get("critics", None)
+                        if critics_score and hasattr(critics_score, 'score'):
+                            score = critics_score.score
+                            if score is not None:
+                                sample_size = getattr(critics_score, 'sample_size', 'N/A')
+                                render_metric_card(
+                                    "Critical Reception", 
+                                    f"{score:.0%}", 
+                                    f"Sample: {sample_size}"
+                                )
+                            else:
+                                render_metric_card("Critical Reception", "N/A", "Data unavailable")
                         else:
                             render_metric_card("Critical Reception", "N/A", "Data unavailable")
                     else:
                         render_metric_card("Critical Reception", "N/A", "Data unavailable")
-                else:
-                    render_metric_card("Critical Reception", "N/A", "Data unavailable")
-            except Exception as e:
-                st.write(f"Debug: Error rendering critics score: {str(e)}")
-                render_metric_card("Critical Reception", "N/A", "Error in data")
+                except Exception as e:
+                    st.write(f"Debug: Error rendering critics score: {str(e)}")
+                    render_metric_card("Critical Reception", "N/A", "Error in data")
         
-        # Longevity score
+        # Longevity Score
         with col4:
-            try:
-                if hasattr(summary, 'component_scores') and summary.component_scores:
-                    longevity_score = summary.component_scores.get("longevity", None)
-                    if longevity_score and hasattr(longevity_score, 'score'):
-                        score = longevity_score.score
-                        if score is not None:
-                            sample_size = getattr(longevity_score, 'sample_size', 'N/A')
-                            render_metric_card(
-                                "Longevity", 
-                                f"{score:.0%}", 
-                                f"Sample: {sample_size}"
-                            )
+            if has_formatted_data and 'longevity' in summary.formatted_data['component_scores']:
+                # Use pre-formatted longevity score data
+                longevity_data = summary.formatted_data['component_scores']['longevity']
+                score = longevity_data.get('score')
+                sample_size = longevity_data.get('sample_size', 'N/A')
+                
+                if score is not None:
+                    render_metric_card(
+                        "Longevity", 
+                        f"{score:.0%}", 
+                        f"Sample: {sample_size}"
+                    )
+                else:
+                    render_metric_card("Longevity", "N/A", "Data unavailable")
+            else:
+                # Fallback to raw data
+                try:
+                    if hasattr(summary, 'component_scores') and summary.component_scores:
+                        longevity_score = summary.component_scores.get("longevity", None)
+                        if longevity_score and hasattr(longevity_score, 'score'):
+                            score = longevity_score.score
+                            if score is not None:
+                                sample_size = getattr(longevity_score, 'sample_size', 'N/A')
+                                render_metric_card(
+                                    "Longevity", 
+                                    f"{score:.0%}", 
+                                    f"Sample: {sample_size}"
+                                )
+                            else:
+                                render_metric_card("Longevity", "N/A", "Data unavailable")
                         else:
                             render_metric_card("Longevity", "N/A", "Data unavailable")
                     else:
                         render_metric_card("Longevity", "N/A", "Data unavailable")
-                else:
-                    render_metric_card("Longevity", "N/A", "Data unavailable")
-            except Exception as e:
-                st.write(f"Debug: Error rendering longevity score: {str(e)}")
-                render_metric_card("Longevity", "N/A", "Error in data")
+                except Exception as e:
+                    st.write(f"Debug: Error rendering longevity score: {str(e)}")
+                    render_metric_card("Longevity", "N/A", "Error in data")
     
     except Exception as e:
         st.write(f"Debug: Error rendering success metrics: {str(e)}")

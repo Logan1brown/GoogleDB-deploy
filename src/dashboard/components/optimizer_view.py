@@ -213,6 +213,27 @@ class OptimizerView:
             if hasattr(summary, 'recommendations') and summary.recommendations:
                 summary.formatted_data['recommendations'] = self._format_recommendations(summary.recommendations)
             
+            # Format success probability if available
+            if hasattr(summary, 'overall_success_probability'):
+                probability = summary.overall_success_probability
+                confidence = summary.confidence if hasattr(summary, 'confidence') else self.config.DEFAULT_VALUES['confidence']
+                
+                # Format the success probability
+                if probability is not None:
+                    display = f"{probability:.0%}"
+                    confidence_display = self.config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
+                    subtitle = f"Confidence: {confidence_display}"
+                else:
+                    display = "N/A"
+                    subtitle = "Data unavailable"
+                
+                summary.formatted_data['success_probability'] = {
+                    "value": probability,
+                    "display": display,
+                    "confidence": confidence,
+                    "subtitle": subtitle
+                }
+            
             return summary
             
         except Exception as e:
@@ -493,29 +514,41 @@ class OptimizerView:
         
         return formatted
     
-    def _format_match_quality(self, match_level: int, match_count: int, 
-                             match_counts_by_level: Dict[int, int], confidence_score: float) -> Dict[str, Any]:
+    def _format_match_quality(self, match_quality: Any) -> Dict[str, Any]:
         """Format match quality information for display.
         
         Args:
-            match_level: Match level used (1-4)
-            match_count: Total number of matching shows
-            match_counts_by_level: Dictionary mapping match levels to counts
-            confidence_score: Confidence score (0-1)
+            match_quality: Match quality object with match level, count, and confidence information
             
         Returns:
             Dictionary with formatted match quality data
         """
-        # Get match level name from config
-        match_level_name = self.config.MATCH_LEVELS.get(match_level, {}).get('name', f"Level {match_level}")
-        
-        return {
-            "match_level": match_level,
-            "match_level_name": match_level_name,
-            "match_count": match_count,
-            "match_counts_by_level": match_counts_by_level,
-            "confidence_score": confidence_score
-        }
+        try:
+            # Extract required fields from match_quality object
+            match_level = getattr(match_quality, 'match_level', 0)
+            match_count = getattr(match_quality, 'match_count', 0)
+            match_counts_by_level = getattr(match_quality, 'match_counts_by_level', {})
+            confidence_score = getattr(match_quality, 'confidence_score', 0.0)
+            
+            # Get match level name from config
+            match_level_name = self.config.MATCH_LEVELS.get(match_level, {}).get('name', f"Level {match_level}")
+            
+            return {
+                "match_level": match_level,
+                "match_level_name": match_level_name,
+                "match_count": match_count,
+                "match_counts_by_level": match_counts_by_level,
+                "confidence_score": confidence_score
+            }
+        except Exception as e:
+            st.write(f"Debug: Error formatting match quality: {str(e)}")
+            return {
+                "match_level": 0,
+                "match_level_name": "Unknown",
+                "match_count": 0,
+                "match_counts_by_level": {},
+                "confidence_score": 0.0
+            }
         
     def format_criteria_display(self, criteria: Dict[str, Any]) -> Dict[str, str]:
         """Format criteria for display.
