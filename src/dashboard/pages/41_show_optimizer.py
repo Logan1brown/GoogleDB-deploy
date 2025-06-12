@@ -74,9 +74,17 @@ def show():
     # Initialize state if needed
     
     # Add debug mode toggle in sidebar
-    with st.sidebar.expander("Developer Options", expanded=False):
+    with st.sidebar.expander("Developer Options", expanded=True):
         debug_mode = st.checkbox("Debug Mode", value=st.session_state.get('debug_mode', False))
         st.session_state['debug_mode'] = debug_mode
+        
+        # Show debug mode status
+        if debug_mode:
+            st.write("Debug mode is ON")
+            # Force debug output to appear in the main content area too
+            st.write("Debug mode is active - detailed debug information will be shown")
+        else:
+            st.write("Debug mode is OFF")
     
     # Initialize the optimizer
     optimizer_view = OptimizerView()
@@ -348,8 +356,26 @@ def show():
                 
                 # Tab 2: Network Analysis
                 with tab2:
+                    # Always show debug header to confirm we're in the right tab
+                    st.write("## Network Compatibility Analysis")
+                    
+                    # Force debug output to always appear
+                    st.write("Debug Status: " + ("ON" if st.session_state.get('debug_mode', False) else "OFF"))
+                    
                     # Display network compatibility data
-                    if st.session_state.get('debug_mode', False):
+                    debug_mode = st.session_state.get('debug_mode', False)
+                    
+                    # Always show some basic debug info regardless of debug mode
+                    st.write(f"Basic debug: summary object exists: {summary is not None}")
+                    if summary is not None:
+                        st.write(f"Basic debug: summary has top_networks: {hasattr(summary, 'top_networks')}")
+                        if hasattr(summary, 'top_networks'):
+                            st.write(f"Basic debug: top_networks length: {len(summary.top_networks)}")
+                    
+                    # More detailed debug info when debug mode is on
+                    if debug_mode:
+                        st.write("---")
+                        st.write("### Detailed Debug Information")
                         st.write("Debug: Checking network compatibility data")
                         st.write(f"Debug: summary has top_networks attribute: {hasattr(summary, 'top_networks')}")
                         if hasattr(summary, 'top_networks'):
@@ -360,10 +386,6 @@ def show():
                                 st.write(f"Debug: First network match network_id: {getattr(summary.top_networks[0], 'network_id', 'Not found')}")
                                 st.write(f"Debug: First network match network_name: {getattr(summary.top_networks[0], 'network_name', 'Not found')}")
                         
-                        st.write(f"Debug: summary has network_compatibility attribute: {hasattr(summary, 'network_compatibility')}")
-                        if hasattr(summary, 'network_compatibility'):
-                            st.write(f"Debug: network_compatibility length: {len(summary.network_compatibility)}")
-                            
                         st.write(f"Debug: summary has formatted_data attribute: {hasattr(summary, 'formatted_data')}")
                         if hasattr(summary, 'formatted_data'):
                             st.write(f"Debug: formatted_data keys: {list(summary.formatted_data.keys())}")
@@ -373,6 +395,7 @@ def show():
                                     st.write(f"Debug: First formatted network: {summary.formatted_data['networks'][0]}")
                             else:
                                 st.write("Debug: 'networks' key not found in formatted_data")
+                        st.write("---")
                     
                     # Check for network compatibility data
                     if hasattr(summary, 'top_networks') and summary.top_networks:

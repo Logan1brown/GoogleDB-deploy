@@ -619,15 +619,24 @@ class NetworkScoreCalculator:
                 # Map the confidence score to a confidence level string
                 confidence_level = OptimizerConfig.map_confidence_score_to_level(confidence_score)
                 
-                network_matches.append({
-                    'network_id': network_id,
-                    'network_name': network_name,
-                    'matching_shows': network_shows,
-                    'sample_size': sample_size,
-                    'confidence_score': confidence_score,
-                    'confidence_level': confidence_level,
-                    'match_quality': match_quality
-                })
+                # Create a proper NetworkMatch object instead of a dictionary
+                network_match_obj = NetworkMatch(
+                    network_id=network_id,
+                    network_name=network_name,
+                    compatibility_score=match_quality,  # Use match_quality as compatibility score
+                    success_probability=None,  # Will be calculated later
+                    sample_size=sample_size,
+                    confidence=confidence_level,
+                    details={
+                        'criteria': criteria,
+                        'match_level': match_level,
+                        'match_quality': match_quality,
+                        'confidence_score': confidence_score,
+                        'matching_shows': network_shows
+                    }
+                )
+                
+                network_matches.append(network_match_obj)
             
             # If we didn't find any networks in the matching shows, log a message
             if not network_matches and st.session_state.get('debug_mode', False):
@@ -643,19 +652,21 @@ class NetworkScoreCalculator:
                 st.write(f"Debug: Found {len(network_matches)} network matches using {len(matching_shows)} matching shows")
 
             
-            # Process each network match
-            for network_match in network_matches:
-                network_id = network_match['network_id']
-                network_name = network_match['network_name']
-                matching_shows = network_match['matching_shows']
-                count = network_match['sample_size']
-                # Create confidence_info dictionary from confidence_score and confidence_level
+            # Process each network match to calculate success probability
+            for i, network_match in enumerate(network_matches):
+                # Access attributes directly from NetworkMatch object
+                network_id = network_match.network_id
+                network_name = network_match.network_name
+                matching_shows = network_match.details.get('matching_shows', pd.DataFrame())
+                count = network_match.sample_size
+                
+                # Create confidence_info dictionary from details
                 confidence_info = {
-                    'score': network_match['confidence_score'],
-                    'level': network_match['confidence_level'],
-                    'sample_size': network_match['sample_size'],
-                    'match_level': 1,  # Direct match
-                    'match_quality': network_match['match_quality']
+                    'score': network_match.details.get('confidence_score'),
+                    'level': network_match.confidence,
+                    'sample_size': network_match.sample_size,
+                    'match_level': network_match.details.get('match_level', 1),  # Direct match
+                    'match_quality': network_match.details.get('match_quality')
                 }
                 
                 # Calculate weighted compatibility score using config weights
@@ -702,20 +713,17 @@ class NetworkScoreCalculator:
                 if confidence_info is not None:
                     details_dict['confidence_info'] = confidence_info
                 
-                # Create NetworkMatch object with proper initialization of all fields
-                network_match_obj = NetworkMatch(
-                    network_id=int(network_id),
-                    network_name=network_name,
-                    compatibility_score=compatibility_score,
-                    success_probability=success_rate if success_rate is not None else None,
-                    sample_size=count if not matching_shows.empty else 0,
-                    confidence=confidence,
-                    details=details_dict
-                )
+                # Update the existing NetworkMatch object with success probability
+                network_match.success_probability = success_rate if success_rate is not None else None
                 
-                results.append(network_match_obj)
+                # Debug output in debug mode
+                if st.session_state.get('debug_mode', False):
+                    st.write(f"Debug: Updated network match for {network_name} with success probability: {success_rate}")
+                    
+                # No need to create a new object, we're updating the existing one in the list
                 
-            return results
+            # Return the network_matches list that we've been updating
+            return network_matches
 
         except ValueError as ve:
             # Use consistent error handling - st.write for debug, st.error for user-facing

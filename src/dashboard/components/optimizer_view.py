@@ -279,14 +279,19 @@ class OptimizerView:
         Returns:
             List of formatted network match dictionaries ready for direct display in UI
         """
-        # Add debug output
+        # Always add some basic debug output
+        st.write(f"OptimizerView: Formatting {len(network_matches) if network_matches else 0} network matches")
+        
+        # Add detailed debug output
         if st.session_state.get('debug_mode', False):
+            st.write("### Debug: Network Match Formatting")
             st.write(f"Debug: Formatting {len(network_matches) if network_matches else 0} network matches")
             if network_matches and len(network_matches) > 0:
                 st.write(f"Debug: First network match type: {type(network_matches[0]).__name__}")
                 st.write(f"Debug: First network match dir: {dir(network_matches[0])}")
                 st.write(f"Debug: First network match network_id: {getattr(network_matches[0], 'network_id', 'Not found')}")
                 st.write(f"Debug: First network match network_name: {getattr(network_matches[0], 'network_name', 'Not found')}")
+            st.write("---")
             
         formatted = []
         
@@ -295,7 +300,7 @@ class OptimizerView:
             if st.session_state.get('debug_mode', False):
                 st.write("Debug: No network matches to format")
             return []
-            
+        
         for match in network_matches:
             # Get network name from field manager - simple, direct approach
             network_id = match.network_id
