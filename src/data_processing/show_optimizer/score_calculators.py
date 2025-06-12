@@ -573,38 +573,18 @@ class NetworkScoreCalculator:
                 network_ids = matching_shows['network_id'].dropna().unique()
                 # Process each network ID
             for network_id in network_ids:
-                try:
-                    # Get network name from network data
-                    network_name = None
+                # Ensure network_id is an integer for proper lookup
+                if isinstance(network_id, str) and network_id.isdigit():
+                    network_id = int(network_id)
+                elif isinstance(network_id, float):
+                    network_id = int(network_id)
                     
-                    # Try to find the network name in the network data
-                    if 'id' in network_data.columns and 'name' in network_data.columns:
-                        network_row = network_data[network_data['id'] == network_id]
-                        if not network_row.empty:
-                            network_name = network_row.iloc[0]['name']
-                    
-                    # If we couldn't find the network name, try alternative columns
-                    if network_name is None and 'network_name' in network_data.columns:
-                        network_row = network_data[network_data['network_id'] == network_id]
-                        if not network_row.empty:
-                            network_name = network_row.iloc[0]['network_name']
-                    
-                    # If we still couldn't find the network name, check if network_id is actually a name
-                    if network_name is None and isinstance(network_id, str):
-                        network_name = network_id
-                    
-                    # If we still couldn't find the network name, use a default
-                    if network_name is None:
-                        network_name = f"Network {network_id}"
-                        
-                    if st.session_state.get('debug_mode', False):
-                        st.write(f"Debug: Found network name '{network_name}' for ID {network_id}")
-                        
-                except Exception as e:
-                    # Fallback if there's any error getting the network name
+                # Get network name directly from field manager - no fallbacks
+                if self.criteria_scorer and self.criteria_scorer.field_manager:
+                    network_name = self.criteria_scorer.field_manager.get_name('network', network_id)
+                else:
+                    # If field manager is not available (should never happen in normal operation)
                     network_name = f"Network {network_id}"
-                    if st.session_state.get('debug_mode', False):
-                        st.write(f"Debug: Error getting network name for ID {network_id}: {str(e)}")
                     
                     # Get shows for this network
                     network_shows = matching_shows[matching_shows['network_id'] == network_id]
@@ -868,14 +848,23 @@ class NetworkScoreCalculator:
         content_match_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['content_match']
         success_history_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['success_history']
         
-        # If success history is not available, use only content match with config weight
+        # Debug output to help diagnose issues
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug: Calculating compatibility score with match_quality={match_quality}, success_history={success_history}")
+        
+        # If success history is not available, use only content match with adjusted weight
         if success_history is None:
-            # Use content match with weight adjustment from config
-            content_only_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility'].get('content_only', 1.0)
-            return match_quality * content_only_weight
+            # Use match_quality directly as the score, with a scaling factor to ensure distribution
+            # This ensures we don't get uniform scores for all networks
+            return match_quality
             
         # Calculate weighted score
         weighted_score = (match_quality * content_match_weight) + (success_history * success_history_weight)
+        
+        # Debug output for the final score
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug: Calculated weighted score: {weighted_score}")
+            
         # Ensure score is in 0-1 range
         return max(0.0, min(1.0, weighted_score))
     

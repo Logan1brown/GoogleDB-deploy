@@ -280,14 +280,32 @@ class OptimizerView:
         formatted = []
         
         for match in network_matches:
-            # Get network name from field manager
-            network_name = "Unknown Network"
-            if self.field_manager and match.network_id:
-                network_name = self.field_manager.get_name('network', match.network_id) or "Unknown Network"
+            # Get network name from field manager - simple, direct approach
+            network_id = match.network_id
             
-            # Format compatibility score and success probability as percentages
-            compatibility_display = f"{match.compatibility_score*100:.1f}%" if match.compatibility_score is not None else "N/A"
-            success_display = f"{match.success_probability*100:.1f}%" if match.success_probability is not None else "N/A"
+            # Ensure network_id is an integer for proper lookup
+            if isinstance(network_id, str) and network_id.isdigit():
+                network_id = int(network_id)
+            elif isinstance(network_id, float):
+                network_id = int(network_id)
+                
+            # Get name directly from field manager - no fallbacks
+            network_name = self.field_manager.get_name('network', network_id)
+            
+            # Format compatibility score and success probability as percentages with proper rounding
+            if match.compatibility_score is not None:
+                # Ensure we're working with a proper decimal value
+                compatibility_value = float(match.compatibility_score)
+                compatibility_display = f"{compatibility_value*100:.1f}%"
+            else:
+                compatibility_display = "N/A"
+                
+            if match.success_probability is not None:
+                # Ensure we're working with a proper decimal value
+                success_value = float(match.success_probability)
+                success_display = f"{success_value*100:.1f}%"
+            else:
+                success_display = "N/A"
             
             # Format the network match with proper values
             formatted.append({
