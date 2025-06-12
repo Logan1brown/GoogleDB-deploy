@@ -926,7 +926,7 @@ class RecommendationEngine:
                     overall_percent = overall_rate * 100
                     diff_percent = abs(difference) * 100
                     
-                    explanation = f"Network {network.display_name} has a {direction} success rate for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
+                    explanation = f"Network {network.network_name} has a {direction} success rate for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
                     
                     # Add recommendation if the difference is significant
                     if difference > 0:
