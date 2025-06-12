@@ -604,17 +604,73 @@ class NetworkScoreCalculator:
                 match_level = 1  # Direct match
                 
                 # Calculate a more meaningful match quality based on how well shows match on this network
-                # Use success score if available, otherwise calculate based on sample size
-                if 'success_score' in network_shows.columns:
-                    # Use average success score as a component of match quality
-                    avg_success = network_shows['success_score'].mean()
-                    # Scale to ensure we get a reasonable distribution between 0.3-1.0
-                    match_quality = max(0.3, min(1.0, avg_success))
+                # This uses a nuanced approach that considers match levels of individual shows
+                
+                # Base calculation on match levels if available
+                if 'match_level' in network_shows.columns:
+                    # Calculate weighted average match quality based on match levels
+                    # Level 1 = perfect match (100%), Level 2 = missing 1 criterion (lower %), etc.
+                    total_weight = 0
+                    weighted_match_quality = 0
+                    
+                    # Get total number of criteria from the criteria dictionary
+                    total_criteria = len(criteria) if isinstance(criteria, dict) else 3  # Default to 3 if unknown
+                    
+                    # Calculate weighted match quality for each show
+                    for _, show in network_shows.iterrows():
+                        # Get match level (1 = perfect match, higher = more criteria missing)
+                        level = show.get('match_level', 1)
+                        
+                        # Calculate match quality for this show (decreases as level increases)
+                        # Level 1: 100%, Level 2: 67%, Level 3: 33%, etc. based on criteria matched
+                        criteria_matched = max(0, total_criteria - (level - 1))
+                        show_match_quality = criteria_matched / total_criteria if total_criteria > 0 else 0
+                        
+                        # Weight by show's success score if available
+                        show_weight = show.get('success_score', 1.0)
+                        
+                        # Add to weighted average
+                        weighted_match_quality += show_match_quality * show_weight
+                        total_weight += show_weight
+                    
+                    # Calculate final weighted average
+                    if total_weight > 0:
+                        match_quality = weighted_match_quality / total_weight
+                    else:
+                        match_quality = 0.3  # Default base value
+                        
+                    # Ensure we have a reasonable minimum value
+                    match_quality = max(0.3, match_quality)
+                    
+                    # Debug output to help diagnose issues
+                    if st.session_state.get('debug_mode', False):
+                        st.write(f"Debug: Network {network_name} match quality calculation:")
+                        st.write(f"- Shows: {sample_size}")
+                        st.write(f"- Match levels: {network_shows['match_level'].value_counts().to_dict() if 'match_level' in network_shows.columns else 'N/A'}")
+                        st.write(f"- Final match quality: {match_quality:.2f}")
+                
+                # Fallback to simpler calculation if match_level not available
                 else:
-                    # Calculate based on sample size relative to total matching shows
-                    # This ensures networks with more matching shows get higher scores
-                    relative_size = min(1.0, sample_size / max(1, len(matching_shows)))
-                    match_quality = 0.3 + (0.7 * relative_size)  # Scale between 0.3-1.0
+                    if 'success_score' in network_shows.columns:
+                        # Use average success score as a component of match quality
+                        avg_success = network_shows['success_score'].mean()
+                        # Scale to ensure we get a reasonable distribution between 0.3-1.0
+                        match_quality = max(0.3, min(1.0, avg_success))
+                    else:
+                        # Calculate based on sample size relative to total matching shows
+                        relative_size = min(1.0, sample_size / max(1, len(matching_shows)))
+                        
+                        # Add a genre-based factor to differentiate networks
+                        genre_factor = 0.0
+                        if 'genre' in criteria and network_shows.shape[0] > 0:
+                            target_genre = criteria.get('genre')
+                            if target_genre and 'genre' in network_shows.columns:
+                                # Calculate percentage of shows on this network that match the target genre
+                                genre_matches = network_shows[network_shows['genre'] == target_genre].shape[0]
+                                genre_factor = min(0.3, genre_matches / max(1, network_shows.shape[0]) * 0.3)
+                        
+                        # Combine relative size with genre factor for a more differentiated score
+                        match_quality = 0.3 + (0.4 * relative_size) + genre_factor
                 
                 # Create confidence info
                 # Calculate confidence score (0-1) based on sample size and other factors
@@ -647,12 +703,6 @@ class NetworkScoreCalculator:
                     'confidence_score': confidence_score,
                     'matching_shows': network_shows
                 }
-                
-                # Debug output to verify the details dictionary
-                if st.session_state.get('debug_mode', False):
-                    st.write(f"Debug: Created network match for {network_name} with details type: {type(network_match_obj.details)}")
-                    st.write(f"Debug: Match quality in details: {network_match_obj.details.get('match_quality')}")
-                    st.write(f"Debug: Compatibility score: {network_match_obj.compatibility_score}")
                 
                 
                 network_matches.append(network_match_obj)
