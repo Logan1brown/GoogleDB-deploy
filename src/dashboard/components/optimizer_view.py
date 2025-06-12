@@ -189,38 +189,29 @@ class OptimizerView:
             The formatted optimization summary with attached formatted_data
         """
         try:
-            # Create a new formatted_data dictionary - don't try to modify an existing one
-            # This ensures we always have a fresh dictionary
-            summary.formatted_data = {}
+            # Create a new formatted_data attribute as a dictionary
+            # Important: Use a different attribute name to avoid recursive reference
+            setattr(summary, '_formatted_data_dict', {})
             
-            # Add debug output to help diagnose issues
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Formatting optimization summary for {summary.__class__.__name__}")
-                st.write(f"Debug: formatted_data type: {type(summary.formatted_data)}")
-                
             # Format network matches if available
             if hasattr(summary, 'top_networks') and summary.top_networks:
-                formatted_networks = self._format_network_matches(summary.top_networks)
-                if formatted_networks:
-                    summary.formatted_data['networks'] = formatted_networks
-                    if st.session_state.get('debug_mode', False):
-                        st.write(f"Debug: Added {len(formatted_networks)} formatted networks to formatted_data")
+                summary._formatted_data_dict['networks'] = self._format_network_matches(summary.top_networks)
                 
             # Format component scores if available
             if hasattr(summary, 'component_scores') and summary.component_scores:
-                summary.formatted_data['component_scores'] = self._format_component_scores(summary.component_scores)
+                summary._formatted_data_dict['component_scores'] = self._format_component_scores(summary.component_scores)
                 
             # Format match quality if available
             if hasattr(summary, 'match_quality') and summary.match_quality:
-                summary.formatted_data['match_quality'] = self._format_match_quality(summary.match_quality)
+                summary._formatted_data_dict['match_quality'] = self._format_match_quality(summary.match_quality)
                 
             # Format success factors if available
             if hasattr(summary, 'success_factors') and summary.success_factors:
-                summary.formatted_data['success_factors'] = self._format_success_factors(summary.success_factors)
+                summary._formatted_data_dict['success_factors'] = self._format_success_factors(summary.success_factors)
                 
             # Format recommendations if available
             if hasattr(summary, 'recommendations') and summary.recommendations:
-                summary.formatted_data['recommendations'] = self._format_recommendations(summary.recommendations)
+                summary._formatted_data_dict['recommendations'] = self._format_recommendations(summary.recommendations)
             
             # Format success probability if available
             if hasattr(summary, 'overall_success_probability'):
@@ -236,24 +227,20 @@ class OptimizerView:
                     display = "N/A"
                     subtitle = "Data unavailable"
                 
-                summary.formatted_data['success_probability'] = {
+                summary._formatted_data_dict['success_probability'] = {
                     "value": probability,
                     "display": display,
                     "confidence": confidence,
                     "subtitle": subtitle
                 }
             
-            # Final verification that formatted_data is a dictionary
-            if not isinstance(summary.formatted_data, dict):
-                st.error("Error: formatted_data is not a dictionary after formatting")
-                summary.formatted_data = {}
-                
+            # Set the formatted_data property to the dictionary
+            summary.formatted_data = summary._formatted_data_dict
+            
             return summary
             
         except Exception as e:
             st.error(f"Error formatting optimization summary: {str(e)}")
-            import traceback
-            st.write(f"Error details: {traceback.format_exc()}")
             # Ensure formatted_data is a dictionary even after an error
             summary.formatted_data = {}
             return summary

@@ -244,17 +244,9 @@ def render_success_metrics(summary: Any):
         # Get config for consistent display
         config = OptimizerConfig()
         
-        # Add debug output
-        st.write(f"Debug: render_success_metrics - summary type: {type(summary).__name__}")
-        st.write(f"Debug: has formatted_data: {hasattr(summary, 'formatted_data')}")
-        if hasattr(summary, 'formatted_data'):
-            st.write(f"Debug: formatted_data type: {type(summary.formatted_data).__name__}")
-            if isinstance(summary.formatted_data, dict):
-                st.write(f"Debug: formatted_data keys: {list(summary.formatted_data.keys())}")
-        
         col1, col2, col3, col4 = st.columns(4)
         
-        # Check if we have pre-formatted component scores - with extra type checking
+        # Check if we have pre-formatted component scores - with proper type checking
         has_formatted_data = (hasattr(summary, 'formatted_data') and 
                             isinstance(summary.formatted_data, dict) and 
                             'component_scores' in summary.formatted_data)
