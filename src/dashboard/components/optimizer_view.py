@@ -163,10 +163,7 @@ class OptimizerView:
                     # Attach the formatted data to the summary for easy access
                     summary.formatted_data = formatted_data
                     
-                    # Add network_compatibility attribute for backward compatibility with the UI
-                    # This ensures the network compatibility tab will display properly
-                    if hasattr(summary, 'top_networks') and summary.top_networks:
-                        summary.network_compatibility = summary.top_networks
+                    # No backward compatibility or fallbacks - rely solely on top_networks and formatted_data
                     
                     state['summary'] = summary
                     # Also store in session state for persistence

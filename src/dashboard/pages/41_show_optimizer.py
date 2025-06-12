@@ -375,8 +375,7 @@ def show():
                                 st.write("Debug: 'networks' key not found in formatted_data")
                     
                     # Check for network compatibility data
-                    if (hasattr(summary, 'top_networks') and summary.top_networks) or \
-                       (hasattr(summary, 'network_compatibility') and summary.network_compatibility):
+                    if hasattr(summary, 'top_networks') and summary.top_networks:
                         # Add a note about match level
                         match_level = getattr(summary, 'match_level', 0)
                         if match_level > 1:

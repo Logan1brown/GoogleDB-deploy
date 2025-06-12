@@ -251,10 +251,7 @@ class ConceptAnalyzer:
                 confidence_info=confidence_info
             )
             
-            # Add network_compatibility attribute for backward compatibility with the UI
-            # This ensures the network compatibility tab will display properly
-            if top_networks:
-                summary.network_compatibility = top_networks
+            # No backward compatibility or fallbacks - rely solely on top_networks
                 
             st.write(f"Analysis complete: Found {match_count} matching shows with confidence level '{confidence}'")
             return summary
