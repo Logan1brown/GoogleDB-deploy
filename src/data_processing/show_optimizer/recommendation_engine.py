@@ -829,6 +829,20 @@ class RecommendationEngine:
                 matching_shows_data = None
                 if 'matching_shows' in network_rate_data:
                     matching_shows_data = network_rate_data['matching_shows']
+                    # Ensure matching_shows_data is a DataFrame if it's not None
+                    if matching_shows_data is not None and not isinstance(matching_shows_data, pd.DataFrame):
+                        # Convert to DataFrame or create empty DataFrame if conversion not possible
+                        try:
+                            if isinstance(matching_shows_data, dict) and 'data' in matching_shows_data:
+                                matching_shows_data = pd.DataFrame(matching_shows_data['data'])
+                            elif isinstance(matching_shows_data, list) and len(matching_shows_data) > 0:
+                                matching_shows_data = pd.DataFrame(matching_shows_data)
+                            else:
+                                matching_shows_data = pd.DataFrame()
+                        except Exception:
+                            matching_shows_data = pd.DataFrame()
+                        # Update the reference in network_rate_data
+                        network_rate_data['matching_shows'] = matching_shows_data
                 else:
                     # Use the matching_shows parameter as fallback
                     matching_shows_data = matching_shows
