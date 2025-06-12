@@ -156,7 +156,12 @@ class ScoreCalculator:
         
         # Handle case where no shows have valid data
         if sample_size == 0:
+            import traceback
+            trace_str = traceback.format_stack()
             result_info['warning'] = f"No shows with valid data found for {self.component_name} score"
+            if OptimizerConfig.DEBUG_MODE:
+                result_info['trace'] = trace_str
+                st.write(f"DEBUG: No valid data for {self.component_name} score. Call stack:\n{''.join(trace_str[-5:])}")
             return False, None, result_info
             
         return True, valid_shows, result_info

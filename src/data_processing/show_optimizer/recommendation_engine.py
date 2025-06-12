@@ -803,6 +803,13 @@ class RecommendationEngine:
             if not isinstance(network_rates, dict):
                 return []
                 
+            # Ensure all matching_shows in network_rates are DataFrames
+            for criteria_type, rate_data in network_rates.items():
+                if isinstance(rate_data, dict) and 'matching_shows' in rate_data:
+                    if not isinstance(rate_data['matching_shows'], pd.DataFrame):
+                        # Replace with empty DataFrame
+                        rate_data['matching_shows'] = pd.DataFrame()
+                
             # Get overall success rates for each criteria
             overall_rates = {}
             for criteria_type in network_rates.keys():
@@ -825,24 +832,9 @@ class RecommendationEngine:
                 # Check if we have valid data
                 has_data = network_rate_data.get('has_data', False)
                 
-                # Handle the 'matching_shows' key safely
-                matching_shows_data = None
+                # Handle the matching_shows key
                 if 'matching_shows' in network_rate_data:
                     matching_shows_data = network_rate_data['matching_shows']
-                    # Ensure matching_shows_data is a DataFrame if it's not None
-                    if matching_shows_data is not None and not isinstance(matching_shows_data, pd.DataFrame):
-                        # Convert to DataFrame or create empty DataFrame if conversion not possible
-                        try:
-                            if isinstance(matching_shows_data, dict) and 'data' in matching_shows_data:
-                                matching_shows_data = pd.DataFrame(matching_shows_data['data'])
-                            elif isinstance(matching_shows_data, list) and len(matching_shows_data) > 0:
-                                matching_shows_data = pd.DataFrame(matching_shows_data)
-                            else:
-                                matching_shows_data = pd.DataFrame()
-                        except Exception:
-                            matching_shows_data = pd.DataFrame()
-                        # Update the reference in network_rate_data
-                        network_rate_data['matching_shows'] = matching_shows_data
                 else:
                     # Use the matching_shows parameter as fallback
                     matching_shows_data = matching_shows
@@ -850,13 +842,9 @@ class RecommendationEngine:
                     network_rate_data['matching_shows'] = matching_shows_data
                 
                 # Check if matching_shows_data is empty
-                is_empty = False
-                if matching_shows_data is None:
-                    is_empty = True
-                elif isinstance(matching_shows_data, pd.DataFrame):
-                    is_empty = matching_shows_data.empty
-                elif isinstance(matching_shows_data, (dict, list)):
-                    is_empty = len(matching_shows_data) == 0
+                is_empty = matching_shows_data is None or (
+                    isinstance(matching_shows_data, pd.DataFrame) and matching_shows_data.empty
+                )
                 
                 # Skip if no data available
                 if is_empty and not has_data:
