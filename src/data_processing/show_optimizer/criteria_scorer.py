@@ -371,7 +371,9 @@ class CriteriaScorer:
                     for i, (option_id, option_name) in enumerate(option_data):
                         option_rate = rates[i]
                         if option_rate is not None:
-                            match_count = len(base_matching_shows)
+                            # Use the actual matching shows count for this option
+                            match_count = len(matching_shows_list[i]) if i < len(matching_shows_list) and not matching_shows_list[i].empty else 0
+                            # Calculate impact based on difference from base rate
                             impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
                             # Get the recommendation type for this option
                             rec_type = recommendation_types[i] if i < len(recommendation_types) else 'add'
