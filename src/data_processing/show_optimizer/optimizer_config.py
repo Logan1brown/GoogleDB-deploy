@@ -282,7 +282,7 @@ class OptimizerConfig:
     
     # Threshold values for various comparisons
     THRESHOLDS = {
-        'significant_difference': 0.1,  # 10% difference is considered significant
+        'significant_difference': 0.05,  # 5% difference is considered significant (lowered from 10% to account for clustered scores)
         'major_difference': 0.2,        # 20% difference is considered major
         'minimum_compatibility': 0.3,   # Minimum compatibility score for recommendations
         'strong_compatibility': 0.7,    # Strong compatibility threshold

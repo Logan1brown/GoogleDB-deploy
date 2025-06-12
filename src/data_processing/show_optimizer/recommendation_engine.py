@@ -851,6 +851,10 @@ class RecommendationEngine:
             # Get network-specific success rates for each criteria using integrated data
             network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(criteria, network.network_id, integrated_data)
             
+            # Debug output for network rates
+            st.write(f"Debug: Network-specific rates for {network.display_name} (ID: {network.network_id})")
+            st.write(f"Debug: Network rates keys: {list(network_rates.keys()) if isinstance(network_rates, dict) else 'Not a dict'}")
+            
             # Defensive: If network_rates is not a dict, error and return
             if not isinstance(network_rates, dict):
                 st.error("NetworkAnalyzer.get_network_specific_success_rates did not return a dict. Cannot generate recommendations.")
@@ -906,12 +910,29 @@ class RecommendationEngine:
                 network_rate = network_rate_data['rate']
                 overall_rate = overall_rates[criteria_type]
                 difference = network_rate - overall_rate
+                
+                # Debug output for rates and differences
+                st.write(f"Debug: Criteria: {criteria_type}, Network rate: {network_rate:.2f}, Overall rate: {overall_rate:.2f}, Difference: {difference:.2f}")
+                st.write(f"Debug: Significant threshold: {OptimizerConfig.THRESHOLDS['significant_difference']}, Is significant: {abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']}")
+                
                 if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']:
                     current_value = criteria[criteria_type]
                     current_name = self._get_criteria_name(criteria_type, current_value)
                     suggested_value = None
                     suggested_name = ""
-                    explanation = f"Network {network.display_name} has a significantly different success rate for {criteria_type}."
+                    # Create a more detailed explanation with percentages
+                    direction = "higher" if difference > 0 else "lower"
+                    network_percent = network_rate * 100
+                    overall_percent = overall_rate * 100
+                    diff_percent = abs(difference) * 100
+                    
+                    explanation = f"Network {network.display_name} has a {direction} success rate for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
+                    
+                    # Add recommendation if the difference is significant
+                    if difference > 0:
+                        explanation += f" This criteria performs better on this network than average."
+                    else:
+                        explanation += f" Consider adjusting this criteria or exploring alternatives for this network."
                     impact_score = difference
                     confidence = network_rate_data.get('confidence', 'unknown')
                     recommendations.append(Recommendation(

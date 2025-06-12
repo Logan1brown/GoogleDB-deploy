@@ -395,6 +395,20 @@ def show():
                                     st.write(f"Debug: First formatted network: {summary.formatted_data['networks'][0]}")
                             else:
                                 st.write("Debug: 'networks' key not found in formatted_data")
+                        st.write(f"Debug: summary has recommendations attribute: {hasattr(summary, 'recommendations')}")
+                        if hasattr(summary, 'recommendations'):
+                            st.write(f"Debug: recommendations length: {len(summary.recommendations) if summary.recommendations else 0}")
+                            st.write(f"Debug: recommendations types: {[getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', 'unknown')) for rec in summary.recommendations[:5]] if summary.recommendations else []}")
+                                
+                        # Debug network-specific recommendations in formatted_data
+                        if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
+                            st.write(f"Debug: formatted_data['recommendations'] keys: {list(summary.formatted_data['recommendations'].keys())}")
+                            if 'network_specific' in summary.formatted_data['recommendations']:
+                                st.write(f"Debug: network_specific recommendations length: {len(summary.formatted_data['recommendations']['network_specific'])}")
+                                if summary.formatted_data['recommendations']['network_specific']:
+                                    st.write(f"Debug: First network-specific recommendation: {summary.formatted_data['recommendations']['network_specific'][0]}")
+                        else:
+                            st.write("Debug: No recommendations in formatted_data")
                         st.write("---")
                     
                     # Check for network compatibility data
@@ -449,33 +463,52 @@ def show():
                                     
                                     # Display recommendations grouped by network
                                     for network_name, recs in network_grouped_recs.items():
-                                        st.write(f"**{network_name}**")
-                                        
+                                        st.write(f"### {network_name}")
                                         for rec in recs:
-                                            # Get impact color based on the impact score
-                                            impact_score = rec.get('_impact_raw', 0)
-                                            impact_color = COLORS['positive'] if impact_score > 0 else COLORS['negative']
-                                            impact_text = f"+{impact_score:.0%}" if impact_score > 0 else f"{impact_score:.0%}"
-                                            
-                                            # Create a more detailed description
-                                            criteria_type = rec.get('criteria_type', '').replace('_', ' ').title()
-                                            description = f"**Impact:** {impact_text} - {criteria_type}"
-                                            
-                                            if 'importance' in rec:
-                                                description += f" (Confidence: {rec['importance'].capitalize()})"
+                                            # Determine color based on impact score
+                                            if 'impact_score' in rec:
+                                                color = COLORS['success'] if rec['impact_score'] > 0 else COLORS['warning']
+                                            else:
+                                                color = None
                                                 
-                                            # Use render_info_card for consistent UI
+                                            # Create a title that includes the impact
+                                            if 'impact_score' in rec and rec['impact_score'] != 0:
+                                                impact_direction = "Positive" if rec['impact_score'] > 0 else "Negative"
+                                                impact_percent = abs(rec['impact_score'] * 100)
+                                                title = f"{impact_direction} Impact: {impact_percent:.1f}%"
+                                            else:
+                                                title = "Network-Specific Insight"
+                                                
+                                            # Display the recommendation using an info card
                                             render_info_card(
-                                                rec['title'],
-                                                description,
-                                                color=impact_color
+                                                title=title,
+                                                content=rec.get('description', 'No description available.'),
+                                                color=color
                                             )
-                                        st.write("")
                                 else:
-                                    st.info("No network-specific recommendations available. This may indicate that the selected networks have similar success patterns for your show concept.")
+                                    # Display a more informative message when no network-specific recommendations are available
+                                    st.info("No network-specific recommendations are currently available.")
+                                    
+                                    # Explain why recommendations might not be available
+                                    with st.expander("Why aren't there network-specific recommendations?"):
+                                        st.write("""
+                                        Network-specific recommendations are generated when there are significant differences in how criteria perform on specific networks 
+                                        compared to their overall performance. Some reasons you might not see recommendations:
+                                        
+                                        1. **Limited data variance**: The success rates across different networks may be too similar to generate meaningful recommendations.
+                                        
+                                        2. **Insufficient network-specific data**: There may not be enough shows on specific networks that match your criteria.
+                                        
+                                        3. **Try adding more criteria**: Adding more specific criteria to your concept may help identify network-specific patterns.
+                                        
+                                        4. **Explore different combinations**: Try different combinations of criteria to see if network-specific patterns emerge.
+                                        """)
+                                        
+                                    # Show the network compatibility table as a reminder
+                                    st.write("Review the network compatibility table above to see which networks best match your current concept.")
                             else:
-                                st.info("Network-specific recommendations will appear here after analyzing your show concept.")
-                                
+                                st.write("Network-specific recommendations will appear here after analyzing your show concept.")
+                                st.write("Complete your concept criteria and click 'Analyze' to see recommendations.")
                         else:
                             # This should not happen if top_networks exists but formatted_data['networks'] doesn't
                             st.info("Network data was found but could not be formatted properly.")
