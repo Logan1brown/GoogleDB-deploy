@@ -74,23 +74,18 @@ class ScoreCalculator:
         if component_name:
             self.component_name = component_name
     
-    def validate_and_prepare_data(self, shows: pd.DataFrame, required_columns=None, optional_columns=None, 
-                                  data_column=None, filter_condition=None) -> Tuple[bool, Optional[pd.DataFrame], Dict[str, Any]]:
-        """
-        Validate and prepare data for score calculation.
+    def validate_and_prepare_data(self, shows: pd.DataFrame, required_columns: List[str], optional_columns: List[str], data_column: str = None, filter_condition: Callable = None) -> Tuple[bool, Optional[pd.DataFrame], Dict[str, Any]]:
+        """Validate and prepare data for calculation.
         
         Args:
             shows: DataFrame of shows
-            required_columns: List of required column names (overrides class attribute)
-            optional_columns: List of optional column names (overrides class attribute)
-            data_column: Key data column to check presence of (typically the main score/metric column)
-            filter_condition: Optional callable that takes a DataFrame and returns a boolean Series for filtering
-                             Default is to filter for non-null values in data_column
+            required_columns: List of required columns
+            optional_columns: List of optional columns
+            data_column: Column to check for data presence
+            filter_condition: Optional function to filter shows
             
         Returns:
-            Tuple of (is_success, valid_shows, result_info)
-            - is_success: True if validation succeeded and data is ready for scoring
-            - valid_shows: Filtered DataFrame with valid data, or None if validation failed
+            Tuple of (is_success, filtered_shows, result_info)
             - result_info: Dictionary with validation results and metadata for error reporting
         """
         # Initialize result info
