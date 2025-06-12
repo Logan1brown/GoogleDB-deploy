@@ -852,7 +852,7 @@ class RecommendationEngine:
             network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(criteria, network.network_id, integrated_data)
             
             # Debug output for network rates
-            st.write(f"Debug: Network-specific rates for {network.display_name} (ID: {network.network_id})")
+            st.write(f"Debug: Network-specific rates for {network.network_name} (ID: {network.network_id})")
             st.write(f"Debug: Network rates keys: {list(network_rates.keys()) if isinstance(network_rates, dict) else 'Not a dict'}")
             
             # Defensive: If network_rates is not a dict, error and return
