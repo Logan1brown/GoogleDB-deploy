@@ -25,6 +25,7 @@ class SuccessFactor:
     confidence: str      # none, low, medium, high
     sample_size: int = 0
     matching_titles: List[str] = field(default_factory=list)  # List of show titles matching this criteria
+    recommendation_type: str = 'add'  # add, remove, change - default to 'add' for backward compatibility
 
 
 @dataclass
@@ -247,6 +248,9 @@ class RecommendationEngine:
                             st.error(f"Unable to retrieve matching titles for success factor: {criteria_type}={criteria_value}")
                             matching_titles = []
                         try:
+                            # Get recommendation type from impact data if available
+                            rec_type = impact_data.get('recommendation_type', 'add')
+                            
                             factor = SuccessFactor(
                                 criteria_type=criteria_type,
                                 criteria_value=criteria_value,
@@ -254,7 +258,8 @@ class RecommendationEngine:
                                 impact_score=impact,
                                 confidence=confidence,
                                 sample_size=sample_size,
-                                matching_titles=matching_titles
+                                matching_titles=matching_titles,
+                                recommendation_type=rec_type
                             )
                             try:
                                 hash((criteria_type, criteria_value))
@@ -374,7 +379,7 @@ class RecommendationEngine:
         
         Args:
             criteria: Dictionary of criteria
-            success_factors: List of success factors
+            success_factors: List of success factors with recommendation_type
             matching_shows: DataFrame of shows matching the criteria
             
         Returns:
@@ -383,57 +388,57 @@ class RecommendationEngine:
         try:
             recommendations = []
             
-            # Find high-impact criteria types that are not in the current criteria
-            for factor in success_factors:
-                if factor.impact_score <= 0:
-                    continue  # Skip negative or neutral factors
-                    
-                if factor.criteria_type not in criteria:
-                    # This is a missing criteria type with positive impact
-                    recommendation = Recommendation(
-                        recommendation_type="add",
-                        criteria_type=factor.criteria_type,
-                        current_value=None,
-                        suggested_value=factor.criteria_value,
-                        suggested_name=factor.criteria_name,
-                        impact_score=factor.impact_score,
-                        confidence=factor.confidence,
-                        explanation=f"Adding '{factor.criteria_name}' could improve success probability by approximately {factor.impact_score:.0%}."
-                    )
-                    recommendations.append(recommendation)
-                elif factor.criteria_type in criteria and factor.criteria_value != criteria[factor.criteria_type]:
-                    # This criteria type exists but with a different value
-                    current_name = str(criteria[factor.criteria_type])
-                    options = self.field_manager.get_options(factor.criteria_type)
-                    for option in options:
-                        if option.id == criteria[factor.criteria_type]:
-                            current_name = option.name
-                            break
-                    
-                    # Get the human-readable field name from the field manager
-                    field_display_name = factor.criteria_type
-                    if factor.criteria_type in self.field_manager.FIELD_CONFIGS:
-                        # Use the name from the field config
-                        field_config = self.field_manager.FIELD_CONFIGS[factor.criteria_type]
-                        field_display_name = field_config.name_field.replace('_', ' ').title()
-                            
-                    recommendation = Recommendation(
-                        recommendation_type="replace",
-                        criteria_type=factor.criteria_type,
-                        current_value=criteria[factor.criteria_type],
-                        current_name=current_name,
-                        suggested_value=factor.criteria_value,
-                        suggested_name=factor.criteria_name,
-                        impact_score=factor.impact_score,
-                        confidence=factor.confidence,
-                        explanation=f"Replacing '{current_name}' with '{factor.criteria_name}' could improve success probability by approximately {factor.impact_score:.0%}."
-                    )
-                    recommendations.append(recommendation)
+            # Filter success factors by recommendation type and positive impact
+            add_factors = [f for f in success_factors if f.recommendation_type == 'add' and f.impact_score > 0]
+            change_factors = [f for f in success_factors if f.recommendation_type == 'change' and f.impact_score > 0]
+            
+            # Process 'add' recommendations (criteria not in current concept)
+            for factor in add_factors:
+                recommendation = Recommendation(
+                    recommendation_type="add",
+                    criteria_type=factor.criteria_type,
+                    current_value=None,
+                    suggested_value=factor.criteria_value,
+                    suggested_name=factor.criteria_name,
+                    impact_score=factor.impact_score,
+                    confidence=factor.confidence,
+                    explanation=f"Adding '{factor.criteria_name}' could improve success probability by approximately {factor.impact_score:.0%}."
+                )
+                recommendations.append(recommendation)
+            
+            # Process 'change' recommendations (criteria with different value)
+            for factor in change_factors:
+                # Get current value name for better explanation
+                current_name = str(criteria[factor.criteria_type])
+                options = self.field_manager.get_options(factor.criteria_type)
+                for option in options:
+                    if option.id == criteria[factor.criteria_type]:
+                        current_name = option.name
+                        break
+                
+                # Get the human-readable field name from the field manager
+                field_display_name = factor.criteria_type
+                if factor.criteria_type in self.field_manager.FIELD_CONFIGS:
+                    # Use the name from the field config
+                    field_config = self.field_manager.FIELD_CONFIGS[factor.criteria_type]
+                    field_display_name = field_config.name_field.replace('_', ' ').title()
+                        
+                recommendation = Recommendation(
+                    recommendation_type="change",
+                    criteria_type=factor.criteria_type,
+                    current_value=criteria[factor.criteria_type],
+                    current_name=current_name,
+                    suggested_value=factor.criteria_value,
+                    suggested_name=factor.criteria_name,
+                    impact_score=factor.impact_score,
+                    confidence=factor.confidence,
+                    explanation=f"Changing '{current_name}' to '{factor.criteria_name}' could improve success probability by approximately {factor.impact_score:.0%}."
+                )
+                recommendations.append(recommendation)
             
             return recommendations
         except Exception as e:
-            st.write(f"Debug: Error recommending missing criteria: {str(e)}")
-            st.error("Unable to generate criteria recommendations.")
+            st.error(f"Error recommending missing criteria: {str(e)}")
             return []
     
     def _identify_limiting_criteria(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, 
@@ -473,8 +478,7 @@ class RecommendationEngine:
                 try:
                     test_matches, test_count, test_confidence = self.criteria_scorer._get_matching_shows(
                         test_criteria, flexible=True)
-                except Exception as inner_e:
-                    st.write(f"Debug: Error testing criteria relaxation for {criteria_type}: {str(inner_e)}")
+                except Exception as e:
                     continue  # Skip this criterion but continue with others
                     
                 # If removing this criterion improves match level or significantly increases sample size
@@ -482,48 +486,40 @@ class RecommendationEngine:
                         test_count > len(matching_shows) * 2):  # At least double the sample size
                         
                     # Get the name of the criterion for the explanation
-                    if isinstance(criteria_value, (list, np.ndarray)):
-                        try:
-                            criteria_names = [self._get_criteria_name(criteria_type, v) for v in criteria_value]
-                            criteria_name = ", ".join(criteria_names)
-                        except:
-                            # If iteration fails, use string representation
-                            criteria_name = str(criteria_value)
-                    else:
-                        criteria_name = self._get_criteria_name(criteria_type, criteria_value)
+                    criteria_name = self._get_criteria_name(criteria_type, criteria_value)
                         
-                    # Calculate impact score based on how much the match improves
-                    impact_score = 0.1  # Base impact
-                    if test_confidence.get('match_level', match_level) < match_level:
-                        impact_score += 0.1  # Additional impact for improving match level
+                    # Get the human-readable field name
+                    field_display_name = criteria_type
+                    if criteria_type in self.field_manager.FIELD_CONFIGS:
+                        field_config = self.field_manager.FIELD_CONFIGS[criteria_type]
+                        field_display_name = field_config.name_field.replace('_', ' ').title()
                     
-                    # Add impact based on sample size increase
-                    sample_increase_factor = test_count / max(1, len(matching_shows))
-                    if sample_increase_factor > 1:
-                        impact_score += min(0.2, (sample_increase_factor - 1) * 0.1)  # Cap at 0.2
-                        
-                    # Create recommendation
+                    # Calculate the impact score based on the improvement in match quality
+                    impact_score = 0.2  # Default impact score
+                    if test_count > 0 and len(matching_shows) > 0:
+                        # Impact based on increase in sample size
+                        impact_score = min(0.5, (test_count - len(matching_shows)) / len(matching_shows))
+                    
                     recommendation = Recommendation(
-                        recommendation_type="relax",
+                        recommendation_type="remove",
                         criteria_type=criteria_type,
                         current_value=criteria_value,
-                        suggested_value=None,  # No specific alternative, just suggesting to relax this criterion
-                        suggested_name=criteria_name,
+                        current_name=criteria_name,
+                        suggested_value=None,
+                        suggested_name=f"Remove {field_display_name}",
                         impact_score=impact_score,
-                        confidence=test_confidence.get('level', 'medium'),
-                        explanation=f"Relaxing the '{criteria_name}' requirement would significantly improve match quality "
-                                   f"and increase the sample size from {len(matching_shows)} to {test_count} shows."
+                        confidence="medium",
+                        explanation=f"Removing '{criteria_name}' could increase your potential matches from {len(matching_shows)} to {test_count} shows."
                     )
                     recommendations.append(recommendation)
             
             return recommendations
         except Exception as e:
-            st.write(f"Debug: Error identifying limiting criteria: {str(e)}")
-            st.error("Unable to identify criteria limitations.")
+            st.error(f"Error identifying limiting criteria: {str(e)}")
             return []
     
     def _analyze_successful_patterns(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[Recommendation]:
-        """Analyze successful patterns in matching shows and generate recommendations.
+        """Analyze patterns in successful shows and suggest criteria changes.
         
         Args:
             criteria: Dictionary of criteria
@@ -533,54 +529,27 @@ class RecommendationEngine:
             List of Recommendation objects based on successful patterns
         """
         try:
-            # Handle missing inputs gracefully
-            if criteria is None:
-                criteria = {}
-                
-            if matching_shows is None:
-                matching_shows = pd.DataFrame()
-                
-            if isinstance(matching_shows, pd.DataFrame) and matching_shows.empty:
-                # Just return empty list, no need for error message
+            # Skip if we don't have enough data
+            if matching_shows is None or matching_shows.empty or len(matching_shows) < self.config.CONFIDENCE.get('minimum_sample', 10):
                 return []
                 
-            # Check if we have enough data for meaningful analysis
-            try:
-                min_sample = self.config.CONFIDENCE.get('minimum_sample')
-                if min_sample is None:  # If config value is missing, don't block execution
-                    st.write("Debug: Missing minimum_sample configuration")
-                elif len(matching_shows) < min_sample:
-                    return []
-            except Exception as e:
-                st.write(f"Debug: Issue accessing configuration: {str(e)}")
-                # Continue execution rather than blocking with hardcoded defaults
+            # Get success threshold from config
+            success_threshold = self.config.PERFORMANCE.get('success_threshold', 0.7)
+                
+            # Skip if success_score column is missing
+            if 'success_score' not in matching_shows.columns:
+                return []
+                
+            # Get successful shows
+            successful_shows = matching_shows[matching_shows['success_score'] >= success_threshold].copy()
+            
+            # Need at least a few successful shows for analysis
+            if len(successful_shows) < 5:
+                return []
                 
             recommendations = []
             
-            # Get successful shows from the matching set
-            try:
-                # Use PERFORMANCE settings for success threshold
-                success_threshold = self.config.PERFORMANCE.get('success_threshold')
-                if success_threshold is None:  # If config value is missing, log it but continue
-                    st.write("Debug: Missing success_threshold configuration")
-                    # Don't use hardcoded default, just continue with empty recommendations
-                    return []
-                    
-                if 'success_score' not in matching_shows.columns:
-                    st.write("Debug: Missing success_score column in matching shows data")
-                    return []
-                    
-                successful_shows = matching_shows[matching_shows['success_score'] >= success_threshold].copy()
-                
-                if len(successful_shows) < 5:  # Need at least a few successful shows for analysis
-                    return []
-            except Exception as e:
-                st.write(f"Debug: Error filtering successful shows: {str(e)}")
-                st.error("Unable to analyze successful shows.")
-                return []
-                
             # Analyze patterns in successful shows
-            # 1. Look for common combinations of criteria
             for criteria_type in OptimizerConfig.CRITERIA_IMPORTANCE:
                 # Skip criteria not present in the dataset
                 if criteria_type not in successful_shows.columns:
@@ -592,16 +561,9 @@ class RecommendationEngine:
                     
                     # Make current_value hashable if it's a list
                     if isinstance(current_value, (list, np.ndarray)):
-                        try:
-                            current_value = tuple(current_value)
-                        except:
-                            # If conversion fails, use string representation
-                            current_value = str(current_value)
-                    elif not isinstance(current_value, (str, int, float, bool, tuple)) or pd.isna(current_value):
-                        # Handle any other unhashable types
-                        current_value = str(current_value)
+                        current_value = tuple(current_value)
                     
-                    # Check if current value is among the most successful values
+                    # Calculate success rate for each value of this criteria
                     value_success = {}
                     for value in successful_shows[criteria_type].unique():
                         if pd.isna(value) or value == '':
@@ -611,16 +573,9 @@ class RecommendationEngine:
                         shows_with_value = successful_shows[successful_shows[criteria_type] == value]
                         avg_success = shows_with_value['success_score'].mean()
                         
-                        # Make sure the key is hashable (convert lists/arrays to tuples)
+                        # Make sure the key is hashable
                         if isinstance(value, (list, np.ndarray)):
-                            try:
-                                hashable_value = tuple(value)
-                            except:
-                                # If conversion fails, use string representation
-                                hashable_value = str(value)
-                        elif not isinstance(value, (str, int, float, bool, tuple)) or pd.isna(value):
-                            # Handle any other unhashable types
-                            hashable_value = str(value)
+                            hashable_value = tuple(value)
                         else:
                             hashable_value = value
                             
@@ -636,37 +591,15 @@ class RecommendationEngine:
                         top_value = top_values[0]
                         top_success = value_success[top_value]
                         
-                        # Calculate impact score based on success difference
-                        # Make sure current_value is hashable for dictionary lookup
-                        if isinstance(current_value, (list, np.ndarray)):
-                            try:
-                                hashable_current = tuple(current_value)
-                            except:
-                                hashable_current = str(current_value)
-                        elif not isinstance(current_value, (str, int, float, bool, tuple)) or pd.isna(current_value):
-                            # Handle any other unhashable types
-                            hashable_current = str(current_value)
-                        else:
-                            hashable_current = current_value
-                            
-                        current_success = value_success.get(hashable_current, 0)
+                        # Get current success rate
+                        current_success = value_success.get(current_value, 0)
                         
-                        try:
-                            # Use configuration for impact scaling factor
-                            impact_score = (top_success - current_success)
-                            
-                            # Get minimum impact threshold from config
-                            min_impact = self.config.SUGGESTIONS.get('minimum_impact')
-                            if min_impact is None:
-                                st.write("Debug: Missing minimum_impact configuration")
-                                continue
-                                
-                            # Skip low-impact recommendations
-                            if impact_score < min_impact:
-                                continue
-                        except Exception as impact_e:
-                            # Log the issue but continue execution
-                            st.write(f"Debug: Issue calculating impact score: {str(impact_e)}")
+                        # Calculate impact score
+                        impact_score = (top_success - current_success)
+                        
+                        # Skip low-impact recommendations
+                        min_impact = self.config.SUGGESTIONS.get('minimum_impact', 0.05)
+                        if impact_score < min_impact:
                             continue
                             
                         # Get names
@@ -674,33 +607,15 @@ class RecommendationEngine:
                         suggested_name = self._get_criteria_name(criteria_type, top_value)
                         
                         # Determine confidence level based on sample size
-                        try:
-                            # Get sample size for this recommendation
-                            sample_size = len(shows_with_value)
-                            
-                            # Determine confidence based on sample size thresholds from config
-                            confidence = "medium"  # Default if we can't determine from config
-                            
-                            # Try to get confidence thresholds from config
-                            high_threshold = self.config.CONFIDENCE.get('high_confidence')
-                            medium_threshold = self.config.CONFIDENCE.get('medium_confidence')
-                            
-                            if high_threshold is not None and sample_size >= high_threshold:
-                                confidence = "high"
-                            elif medium_threshold is not None and sample_size >= medium_threshold:
-                                confidence = "medium"
-                            else:
-                                confidence = "low"
-                        except Exception as conf_e:
-                            # If there's an issue with confidence calculation, use a safe default
-                            st.write(f"Debug: Issue determining confidence: {str(conf_e)}")
-                            confidence = "medium"  # Safe default
+                        sample_size = len(successful_shows[successful_shows[criteria_type] == top_value])
+                        confidence = self.config.get_confidence_level(sample_size)
                         
                         # Create recommendation
                         recommendation = Recommendation(
                             recommendation_type="change",
                             criteria_type=criteria_type,
                             current_value=current_value,
+                            current_name=current_name,
                             suggested_value=top_value,
                             suggested_name=suggested_name,
                             impact_score=impact_score,
@@ -712,8 +627,7 @@ class RecommendationEngine:
             
             return recommendations
         except Exception as e:
-            st.write(f"Debug: Error analyzing successful patterns: {str(e)}")
-            st.error("Unable to analyze successful patterns.")
+            st.error(f"Error analyzing successful patterns: {str(e)}")
             return []
     
     def _generate_fallback_recommendations(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, 
@@ -834,7 +748,8 @@ class RecommendationEngine:
                                                network: NetworkMatch,
                                                matching_shows: pd.DataFrame,
                                                integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
-        """Generate network-specific recommendations.
+        """
+        Generate network-specific recommendations.
         
         Args:
             criteria: Dictionary of criteria
@@ -846,22 +761,17 @@ class RecommendationEngine:
             List of Recommendation objects specific to the network
         """
         try:
-            recommendations = []
-            
-            # Get network-specific success rates for each criteria using integrated data
-            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(criteria, network.network_id, integrated_data)
-            
-            # Debug output for network rates
-            st.write(f"Debug: Network-specific rates for {network.network_name} (ID: {network.network_id})")
-            st.write(f"Debug: Network rates keys: {list(network_rates.keys()) if isinstance(network_rates, dict) else 'Not a dict'}")
-            
-            # Defensive: If network_rates is not a dict, error and return
-            if not isinstance(network_rates, dict):
-                st.error("NetworkAnalyzer.get_network_specific_success_rates did not return a dict. Cannot generate recommendations.")
+            # Skip if we don't have valid criteria or network
+            if not criteria or not network:
                 return []
                 
-            # Process each criteria type in the network rates
-            
+            # Get network-specific success rates for each criteria using integrated data
+            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
+                criteria, network.network_id, integrated_data)
+                
+            if not isinstance(network_rates, dict):
+                return []
+                
             # Get overall success rates for each criteria
             overall_rates = {}
             for criteria_type in network_rates.keys():
@@ -873,102 +783,93 @@ class RecommendationEngine:
                 )
                 overall_rates[criteria_type] = overall_rate
             
+            recommendations = []
+            
             # Find criteria where network rate differs significantly from overall rate
             for criteria_type, network_rate_data in network_rates.items():
-                if criteria_type not in overall_rates:
-                    continue
-                if not isinstance(network_rate_data, dict):
-                    st.error(f"Network rate data for {criteria_type} is not a dict: {network_rate_data}")
+                # Skip if criteria not in overall rates or network data is invalid
+                if criteria_type not in overall_rates or not isinstance(network_rate_data, dict):
                     continue
                     
-                # Check if we have valid data before proceeding
-                try:
-                    # First check if we have any data at all
-                    has_data = network_rate_data.get('has_data', False)
-                    
-                    # Get the matching_shows data - we know it's always there now
+                # Check if we have valid data
+                has_data = network_rate_data.get('has_data', False)
+                
+                # Handle the 'matching_shows' key safely
+                matching_shows_data = None
+                if 'matching_shows' in network_rate_data:
                     matching_shows_data = network_rate_data['matching_shows']
-                    
-                    # Check if it's empty
-                    is_empty = False
-                    if matching_shows_data is None:
-                        is_empty = True
-                    elif isinstance(matching_shows_data, pd.DataFrame):
-                        is_empty = matching_shows_data.empty
-                    elif isinstance(matching_shows_data, dict) or isinstance(matching_shows_data, list):
-                        is_empty = len(matching_shows_data) == 0
-                    
-                    # Only skip if we have no data at all
-                    if is_empty and not has_data:
-                        continue
-                        
-                except Exception as e:
-                    # If there's any error in checking the data, skip this criteria
+                else:
+                    # Use the matching_shows parameter as fallback
+                    matching_shows_data = matching_shows
+                    # Store it for future reference
+                    network_rate_data['matching_shows'] = matching_shows_data
+                
+                # Check if matching_shows_data is empty
+                is_empty = False
+                if matching_shows_data is None:
+                    is_empty = True
+                elif isinstance(matching_shows_data, pd.DataFrame):
+                    is_empty = matching_shows_data.empty
+                elif isinstance(matching_shows_data, (dict, list)):
+                    is_empty = len(matching_shows_data) == 0
+                
+                # Skip if no data available
+                if is_empty and not has_data:
                     continue
-                if not network_rate_data.get('has_data') or network_rate_data.get('rate') is None:
+                    
+                # Skip if rate data is missing
+                network_rate = network_rate_data.get('rate')
+                if network_rate is None:
                     continue
-                network_rate = network_rate_data['rate']
+                    
                 overall_rate = overall_rates[criteria_type]
                 difference = network_rate - overall_rate
-                
-                # Debug output for rates and differences
-                st.write(f"Debug: Criteria: {criteria_type}, Network rate: {network_rate:.2f}, Overall rate: {overall_rate:.2f}, Difference: {difference:.2f}")
-                st.write(f"Debug: Significant threshold: {OptimizerConfig.THRESHOLDS['significant_difference']}, Is significant: {abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']}")
                 
                 # Check if we have enough data for this network
                 sample_size = network_rate_data.get('sample_size', 0)
                 has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
                 
-                # Generate recommendation if difference is significant OR if we have sufficient data and any difference
-                if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or (has_sufficient_data and abs(difference) > 0.01):
+                # Generate recommendation if difference is significant
+                if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or \
+                   (has_sufficient_data and abs(difference) > 0.01):
+                    
                     current_value = criteria[criteria_type]
                     current_name = self._get_criteria_name(criteria_type, current_value)
-                    suggested_value = None
-                    suggested_name = ""
-                    # Create a more detailed explanation with percentages
+                    
+                    # Format percentages for explanation
                     direction = "higher" if difference > 0 else "lower"
                     network_percent = network_rate * 100
                     overall_percent = overall_rate * 100
                     diff_percent = abs(difference) * 100
                     
-                    explanation = f"Network {network.network_name} has a {direction} success rate for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
+                    # Create explanation
+                    explanation = f"Network {network.network_name} has a {direction} success rate for '{criteria_type}' "
+                    explanation += f"({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
                     
-                    # Add recommendation if the difference is significant
+                    # Determine recommendation type based on difference direction
+                    rec_type = "keep" if difference > 0 else "change"
+                    
                     if difference > 0:
-                        explanation += f" This criteria performs better on this network than average."
+                        explanation += f" This criteria performs well on this network."
                     else:
-                        explanation += f" Consider adjusting this criteria or exploring alternatives for this network."
-                    impact_score = difference
-                    confidence = network_rate_data.get('confidence', 'unknown')
+                        explanation += f" Consider adjusting this criteria for better results on this network."
+                    
+                    # Create recommendation
                     recommendations.append(Recommendation(
-                        recommendation_type="network_specific",
+                        recommendation_type=f"network_{rec_type}",
                         criteria_type=criteria_type,
                         current_value=current_value,
-                        suggested_value=suggested_value,
-                        suggested_name=suggested_name,
-                        impact_score=impact_score,
-                        confidence=confidence,
-                        explanation=explanation,
-                        current_name=current_name
+                        current_name=current_name,
+                        suggested_value=None,  # No specific suggestion for network recommendations
+                        suggested_name="",
+                        impact_score=abs(difference),  # Use absolute value for impact score
+                        confidence=network_rate_data.get('confidence', 'medium'),
+                        explanation=explanation
                     ))
-                    # The following block should be inside the previous else branch, not at this indentation level
-                    # If you want to suggest alternatives when difference < 0, do so inside an else block
-                    # Example fix:
-                    # else:
-                    #     options = self.field_manager.get_options(criteria_type)
-                    #     if options:
-                    #         ...
-
             
             return recommendations
         except Exception as e:
-            # Log the error with more specific information but don't display in UI
-            # This prevents the three repeated error messages
-            if 'empty' in str(e):
-                # This is a common error we've fixed, so just log it without showing to user
-                print(f"Handled error in network recommendations: {str(e)}")
-            else:
-                # For other errors, show in UI
-                st.error(f"Error generating network-specific recommendations: {str(e)}")
-            # Return an empty list to avoid further errors
+            # Only show error in UI if it's not the known 'empty' attribute error
+            if 'empty' not in str(e):
+                st.error(f"Error generating network recommendations: {str(e)}")
             return []

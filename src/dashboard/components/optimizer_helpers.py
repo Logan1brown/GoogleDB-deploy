@@ -556,21 +556,13 @@ def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, A
         button_prefix = "Add"
         use_button = True
         use_info_card = True
-    elif rec_type == "replace":
-        st.subheader(config.RECOMMENDATION_TYPES.get('replace', "Consider Replacing"))
-        button_prefix = "Replace with"
-        use_button = True
-        use_info_card = True
+    # 'replace' type has been consolidated into 'change'
     elif rec_type == "remove":
         st.subheader("Consider Removing")
         button_prefix = "Remove"
         use_button = True
         use_info_card = False
-    elif rec_type == "relax":
-        st.subheader(config.RECOMMENDATION_TYPES.get('relax', "Limiting Criteria"))
-        button_prefix = "Relax"
-        use_button = True
-        use_info_card = True
+    # 'relax' type has been consolidated into 'remove'
     elif rec_type == "change":
         st.subheader(config.RECOMMENDATION_TYPES.get('change', "Successful Pattern"))
         button_prefix = "Change to"
@@ -583,6 +575,16 @@ def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, A
     elif rec_type == "fallback":
         st.subheader(config.RECOMMENDATION_TYPES.get('fallback', "Fallback Recommendation"))
         button_prefix = "Add"
+        use_button = True
+        use_info_card = True
+    elif rec_type == "network_keep":
+        st.subheader(config.RECOMMENDATION_TYPES.get('network_keep', "Network Strengths"))
+        button_prefix = "Keep"
+        use_button = False
+        use_info_card = True
+    elif rec_type == "network_change":
+        st.subheader(config.RECOMMENDATION_TYPES.get('network_change', "Network Adjustments"))
+        button_prefix = "Adjust"
         use_button = True
         use_info_card = True
     else:

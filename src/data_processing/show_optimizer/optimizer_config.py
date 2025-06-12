@@ -318,11 +318,12 @@ class OptimizerConfig:
     # Recommendation type display names
     RECOMMENDATION_TYPES = {
         'add': "Missing Criteria",
-        'replace': "Criteria Replacement",
-        'relax': "Limiting Criteria",
+        'remove': "Consider Removing",
         'change': "Successful Pattern",
         'consider': "Consider Adding",
-        'fallback': "Fallback Recommendation"
+        'fallback': "Fallback Recommendation",
+        'network_keep': "Network Strengths",
+        'network_change': "Network Adjustments"
     }
     
     # Confidence level display names

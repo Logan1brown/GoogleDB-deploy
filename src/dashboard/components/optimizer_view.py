@@ -280,9 +280,13 @@ class OptimizerView:
         config = OptimizerConfig()
         grouped = {rec_type: [] for rec_type in config.RECOMMENDATION_TYPES.keys()}
         
-        # Add backward compatibility for 'remove' type which might be used in UI
+        # Add backward compatibility for types which might be used in UI
         if 'remove' not in grouped:
             grouped['remove'] = []
+            
+        # Add backward compatibility for 'network_specific' type
+        if 'network_specific' not in grouped:
+            grouped['network_specific'] = []
             
         # Track network-specific recommendations separately
         network_specific = []
@@ -315,8 +319,18 @@ class OptimizerView:
             }
             
             # Add to appropriate group
-            if rec_type == 'network_specific':
+            if rec_type.startswith('network_'):
+                # Handle all network-specific recommendation types
                 network_specific.append(formatted_rec)
+                
+                # Also add to the appropriate group based on type
+                if rec_type in grouped:
+                    grouped[rec_type].append(formatted_rec)
+                else:
+                    # Create group if it doesn't exist
+                    if rec_type not in grouped:
+                        grouped[rec_type] = []
+                    grouped[rec_type].append(formatted_rec)
             elif rec_type in grouped:
                 grouped[rec_type].append(formatted_rec)
             else:

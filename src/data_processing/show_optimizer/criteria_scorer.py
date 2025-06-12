@@ -237,9 +237,7 @@ class CriteriaScorer:
                 return val
             
             for current_field in fields_to_process:
-                # Skip fields already in base criteria
-                if current_field in base_criteria:
-                    continue
+                # Process both fields in base criteria (for Remove/Change) and not in base criteria (for Add)
                 
                 is_array_field = current_field in array_fields
                 options = self.field_manager.get_options(current_field)
@@ -247,22 +245,70 @@ class CriteriaScorer:
                 # Prepare batch criteria for all options
                 batch_criteria = []
                 option_data = []
+                recommendation_types = []
                 
-                for option in options:
-                    new_criteria = base_criteria.copy()
-                    # For array fields, always use tuple of ints as the key
-                    if is_array_field:
-                        if isinstance(option.id, list):
-                            option_key = tuple(sorted(int(x) for x in option.id))
-                            new_criteria[current_field] = list(option_key)
+                # Check if this field is already in the base criteria
+                field_in_base = current_field in base_criteria
+                current_value = base_criteria.get(current_field) if field_in_base else None
+                
+                if field_in_base:
+                    # For fields already in criteria, we'll calculate both Remove and Change recommendations
+                    
+                    # 1. First, create a "Remove" recommendation by removing this field
+                    remove_criteria = base_criteria.copy()
+                    del remove_criteria[current_field]
+                    batch_criteria.append(remove_criteria)
+                    option_data.append(('remove', 'Remove ' + current_field))
+                    recommendation_types.append('remove')
+                    
+                    # 2. Then create "Change" recommendations for each alternative option
+                    for option in options:
+                        # Skip the current value since that wouldn't be a change
+                        if is_array_field:
+                            if isinstance(option.id, list):
+                                option_key = tuple(sorted(int(x) for x in option.id))
+                                if list(option_key) == current_value:
+                                    continue
+                            else:
+                                option_key = (int(option.id),)
+                                if [option.id] == current_value:
+                                    continue
                         else:
-                            option_key = (int(option.id),)
-                            new_criteria[current_field] = [option.id]
-                    else:
-                        option_key = int(option.id)
-                        new_criteria[current_field] = option_key
-                    batch_criteria.append(new_criteria)
-                    option_data.append((option_key, option.name))
+                            option_key = int(option.id)
+                            if option_key == current_value:
+                                continue
+                        
+                        # Create criteria with this option
+                        change_criteria = base_criteria.copy()
+                        if is_array_field:
+                            if isinstance(option.id, list):
+                                change_criteria[current_field] = list(option_key)
+                            else:
+                                change_criteria[current_field] = [option.id]
+                        else:
+                            change_criteria[current_field] = option_key
+                            
+                        batch_criteria.append(change_criteria)
+                        option_data.append((option_key, option.name))
+                        recommendation_types.append('change')
+                else:
+                    # For fields not in criteria, create "Add" recommendations for each option
+                    for option in options:
+                        new_criteria = base_criteria.copy()
+                        # For array fields, always use tuple of ints as the key
+                        if is_array_field:
+                            if isinstance(option.id, list):
+                                option_key = tuple(sorted(int(x) for x in option.id))
+                                new_criteria[current_field] = list(option_key)
+                            else:
+                                option_key = (int(option.id),)
+                                new_criteria[current_field] = [option.id]
+                        else:
+                            option_key = int(option.id)
+                            new_criteria[current_field] = option_key
+                        batch_criteria.append(new_criteria)
+                        option_data.append((option_key, option.name))
+                        recommendation_types.append('add')
                 
                 # Process each option using the provided option_matching_shows_map
                 field_impact = {}
@@ -290,31 +336,52 @@ class CriteriaScorer:
                             match_count = len(option_shows)
                             impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
                             
+                            # Get the recommendation type for this option
+                            rec_type = recommendation_types[i] if i < len(recommendation_types) else 'add'
+                            
                             field_impact[option_id] = {
                                 "impact": impact, 
                                 "sample_size": match_count, 
                                 "option_name": option_name,
-                                "success_rate": option_rate
+                                "success_rate": option_rate,
+                                "recommendation_type": rec_type
                             }
                 else:
-                    # Default: batch calculate using batch_criteria and matching_shows_list
-                    # (Assume batch_criteria and batch calculation is available)
+                    # For accurate impact calculation, we need to find matching shows for each criteria option
+                    # combined with the base criteria (for adding criteria) or with criteria removed (for removing criteria)
                     matching_shows_list = []
-                    for crit in batch_criteria:
-                        # This should be replaced with actual logic to get matching shows for each crit
-                        # For now, just use base_matching_shows as a placeholder
-                        matching_shows_list.append(base_matching_shows)
+                    
+                    if self.matcher:
+                        # For each criteria option, we want to see how it affects the base criteria
+                        for crit in batch_criteria:
+                            try:
+                                # This is the key difference - we're using the combined criteria
+                                # (base + new option) to find matching shows, not just the option alone
+                                option_shows, _, _ = self._get_matching_shows(crit)
+                                matching_shows_list.append(option_shows)
+                            except Exception as e:
+                                # If matching fails for this option, use an empty DataFrame
+                                matching_shows_list.append(pd.DataFrame())
+                    else:
+                        # If no matcher is available, we can't calculate impact scores
+                        for _ in batch_criteria:
+                            matching_shows_list.append(pd.DataFrame())
+                    
                     rates = self._batch_calculate_success_rates(batch_criteria, matching_shows_list)
                     for i, (option_id, option_name) in enumerate(option_data):
                         option_rate = rates[i]
                         if option_rate is not None:
                             match_count = len(base_matching_shows)
                             impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
+                            # Get the recommendation type for this option
+                            rec_type = recommendation_types[i] if i < len(recommendation_types) else 'add'
+                            
                             field_impact[option_id] = {
                                 "impact": impact,
                                 "sample_size": match_count,
                                 "option_name": option_name,
-                                "success_rate": option_rate
+                                "success_rate": option_rate,
+                                "recommendation_type": rec_type
                             }
                 if field_impact:
                     impact_scores[current_field] = field_impact
