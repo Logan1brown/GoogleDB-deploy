@@ -274,14 +274,32 @@ class OptimizerView:
         formatted = []
         
         for match in network_matches:
-            # Format the network match
+            # Get proper network name from field manager if available
+            network_name = match.network_name
+            if self.field_manager and match.network_id:
+                try:
+                    # Try to get the proper network name from field manager
+                    mapped_name = self.field_manager.get_name('network', match.network_id)
+                    if mapped_name:
+                        network_name = mapped_name
+                except Exception as e:
+                    if st.session_state.get('debug_mode', False):
+                        st.write(f"Debug: Error mapping network name: {str(e)}")
+            
+            # Format compatibility score and success probability as percentages
+            compatibility_display = f"{match.compatibility_score*100:.1f}%" if match.compatibility_score is not None else "N/A"
+            success_display = f"{match.success_probability*100:.1f}%" if match.success_probability is not None else "N/A"
+            
+            # Format the network match with proper values
             formatted.append({
                 "network_id": match.network_id,
-                "network_name": match.network_name,
-                "score": match.score,
+                "network_name": network_name,
+                "compatibility": match.compatibility_score,  # Raw value for sorting
+                "compatibility_display": compatibility_display,  # Formatted for display
+                "success_probability": match.success_probability,  # Raw value for sorting
+                "success_probability_display": success_display,  # Formatted for display
                 "sample_size": match.sample_size,
-                "confidence": match.confidence,
-                "match_quality": match.match_quality
+                "confidence": match.confidence
             })
             
         return formatted

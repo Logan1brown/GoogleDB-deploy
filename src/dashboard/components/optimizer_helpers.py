@@ -496,10 +496,22 @@ def render_network_compatibility(networks):
                             st.write(f"Debug: Error cleaning network name: {str(e)}")
                         pass  # Keep original if extraction fails
                 
-                # Get success probability and compatibility from network object
-                success_prob = getattr(network, 'success_probability', None)
-                compatibility = getattr(network, 'compatibility_score', None)
-                sample_size = getattr(network, 'sample_size', 0)
+                # Check if we're getting data from the optimizer view (dictionary format)
+                if isinstance(network, dict):
+                    # Use the pre-formatted data from optimizer view
+                    success_prob = network.get('success_probability')
+                    compatibility = network.get('compatibility')
+                    sample_size = network.get('sample_size', 0)
+                    # Use pre-formatted display values if available
+                    success_prob_display = network.get('success_probability_display')
+                    compatibility_display = network.get('compatibility_display')
+                else:
+                    # Legacy format - get from object attributes
+                    success_prob = getattr(network, 'success_probability', None)
+                    compatibility = getattr(network, 'compatibility_score', None)
+                    sample_size = getattr(network, 'sample_size', 0)
+                    success_prob_display = None
+                    compatibility_display = None
                 
                 # Only show debug output in debug mode
                 if st.session_state.get('debug_mode', False):
@@ -581,13 +593,32 @@ def render_network_compatibility(networks):
                 confidence = getattr(network, 'confidence', config.DEFAULT_VALUES['confidence'])
                 confidence_display = config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
                 
-                network_data.append({
+                # Use pre-formatted display values if available, otherwise use raw values
+                network_entry = {
                     "Network": network_name,
-                    "Success Probability": success_prob,
-                    "Compatibility": compatibility,
                     "Sample Size": sample_size,
                     "Confidence": confidence_display
-                })
+                }
+                
+                # Add success probability - use pre-formatted value if available
+                if success_prob_display:
+                    network_entry["Success Probability"] = success_prob_display
+                    # Also store raw value for sorting
+                    network_entry["_success_prob_raw"] = success_prob
+                else:
+                    network_entry["Success Probability"] = success_prob
+                    network_entry["_success_prob_raw"] = success_prob
+                    
+                # Add compatibility - use pre-formatted value if available
+                if compatibility_display:
+                    network_entry["Compatibility"] = compatibility_display
+                    # Also store raw value for sorting
+                    network_entry["_compatibility_raw"] = compatibility
+                else:
+                    network_entry["Compatibility"] = compatibility
+                    network_entry["_compatibility_raw"] = compatibility
+                    
+                network_data.append(network_entry)
             except Exception as e:
                 st.write(f"Debug: Error processing network {getattr(network, 'network_name', 'Unknown')}: {str(e)}")
                 # Add a row with error information
@@ -608,13 +639,33 @@ def render_network_compatibility(networks):
             
         network_df = pd.DataFrame(network_data)
         
-        # Sort by compatibility score (descending), then by success probability if compatibility is equal
-        network_df = network_df.sort_values(
-            by=['Compatibility', 'Success Probability'], 
-            ascending=[False, False],
-            na_position='last'  # Put NaN values at the end
-        )
+        # Sort by raw compatibility score (descending), then by raw success probability if compatibility is equal
+        # Use the raw values for sorting to ensure proper numeric ordering
+        sort_columns = []
+        if '_compatibility_raw' in network_df.columns:
+            sort_columns.append('_compatibility_raw')
+        elif 'Compatibility' in network_df.columns:
+            sort_columns.append('Compatibility')
+            
+        if '_success_prob_raw' in network_df.columns:
+            sort_columns.append('_success_prob_raw')
+        elif 'Success Probability' in network_df.columns:
+            sort_columns.append('Success Probability')
+            
+        # Only sort if we have columns to sort by
+        if sort_columns:
+            network_df = network_df.sort_values(
+                by=sort_columns,
+                ascending=[False] * len(sort_columns),
+                na_position='last'  # Put NaN values at the end
+            )
         
+        # Remove raw sorting columns before display
+        if '_compatibility_raw' in network_df.columns:
+            network_df = network_df.drop('_compatibility_raw', axis=1)
+        if '_success_prob_raw' in network_df.columns:
+            network_df = network_df.drop('_success_prob_raw', axis=1)
+            
         # Display as a table
         st.dataframe(
             network_df,

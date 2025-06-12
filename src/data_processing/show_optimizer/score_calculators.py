@@ -612,7 +612,19 @@ class NetworkScoreCalculator:
                     # Calculate match quality and confidence info
                     sample_size = len(network_shows)
                     match_level = 1  # Direct match
-                    match_quality = 1.0  # Perfect match quality for direct network matches
+                    
+                    # Calculate a more meaningful match quality based on how well shows match on this network
+                    # Use success score if available, otherwise calculate based on sample size
+                    if 'success_score' in network_shows.columns:
+                        # Use average success score as a component of match quality
+                        avg_success = network_shows['success_score'].mean()
+                        # Scale to ensure we get a reasonable distribution between 0.3-1.0
+                        match_quality = max(0.3, min(1.0, avg_success))
+                    else:
+                        # Calculate based on sample size relative to total matching shows
+                        # This ensures networks with more matching shows get higher scores
+                        relative_size = min(1.0, sample_size / max(1, len(matching_shows)))
+                        match_quality = 0.3 + (0.7 * relative_size)  # Scale between 0.3-1.0
                     
                     # Create confidence info
                     # Calculate confidence score (0-1) based on sample size and other factors
