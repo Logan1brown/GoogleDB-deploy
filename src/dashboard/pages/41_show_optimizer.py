@@ -117,9 +117,14 @@ def show():
             # Update the state in session state
             update_page_state("show_optimizer", state)
             
-            # Also update session state for compatibility
-            if "optimizer_criteria" not in st.session_state:
-                st.session_state.optimizer_criteria = {}
+            # Initialize session state variables if not already set
+            if 'optimizer_summary' not in st.session_state:
+                st.session_state['optimizer_summary'] = None
+            
+            # Add debug mode toggle
+            with st.sidebar.expander("Developer Options", expanded=False):
+                debug_mode = st.checkbox("Debug Mode", value=st.session_state.get('debug_mode', False))
+                st.session_state['debug_mode'] = debug_mode
             
             # Keep the session_state.optimizer_criteria in sync with state['criteria']
             st.session_state.optimizer_criteria = state['criteria'].copy()
@@ -338,15 +343,27 @@ def show():
                 
                 # Tab 2: Network Analysis
                 with tab2:
-                    # Display network compatibility using our helper function
-                    if hasattr(summary, 'network_compatibility'):
+                    # Display network compatibility data
+                    if st.session_state.get('debug_mode', False):
+                        st.write("Debug: Checking network compatibility data")
+                        st.write(f"Debug: summary has top_networks attribute: {hasattr(summary, 'top_networks')}")
+                        if hasattr(summary, 'top_networks'):
+                            st.write(f"Debug: top_networks length: {len(summary.top_networks)}")
+                        st.write(f"Debug: summary has formatted_data attribute: {hasattr(summary, 'formatted_data')}")
+                        if hasattr(summary, 'formatted_data'):
+                            st.write(f"Debug: formatted_data keys: {list(summary.formatted_data.keys())}")
+                            if 'networks' in summary.formatted_data:
+                                st.write(f"Debug: networks data length: {len(summary.formatted_data['networks'])}")
+                    
+                    # Check for network compatibility data
+                    if hasattr(summary, 'top_networks') and summary.top_networks:
                         # Add a note about match level
                         match_level = getattr(summary, 'match_level', 0)
                         if match_level > 1:
                             st.info(f"Network compatibility is based on flexible matching (level {match_level}). Results may vary with exact matches.")
                         
                         # Display the formatted network data directly
-                        if 'networks' in summary.formatted_data and summary.formatted_data['networks']:
+                        if hasattr(summary, 'formatted_data') and 'networks' in summary.formatted_data and summary.formatted_data['networks']:
                             # Convert to DataFrame for display
                             network_df = pd.DataFrame(summary.formatted_data['networks'])
                             
@@ -359,8 +376,23 @@ def show():
                                 use_container_width=True,
                                 hide_index=True
                             )
+                        else:
+                            # This should not happen if top_networks exists but formatted_data['networks'] doesn't
+                            st.info("Network data was found but could not be formatted properly.")
+                            if st.session_state.get('debug_mode', False):
+                                st.write(f"Debug: top_networks exists with {len(summary.top_networks)} items but formatted_data['networks'] is empty or missing")
+                                # Show the first network match to help diagnose
+                                if summary.top_networks:
+                                    st.write("Debug: First network match details:")
+                                    first_match = summary.top_networks[0]
+                                    st.write(f"  Network ID: {first_match.network_id}")
+                                    st.write(f"  Network Name: {first_match.network_name}")
+                                    st.write(f"  Compatibility Score: {first_match.compatibility_score}")
+                                    st.write(f"  Success Probability: {first_match.success_probability}")
                     else:
                         st.info("No network compatibility data available.")
+                        if st.session_state.get('debug_mode', False):
+                            st.write("Debug: No top_networks attribute or it is empty")
                 
                 # Tab 3: Recommendations
                 with tab3:

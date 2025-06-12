@@ -163,6 +163,11 @@ class OptimizerView:
                     # Attach the formatted data to the summary for easy access
                     summary.formatted_data = formatted_data
                     
+                    # Add network_compatibility attribute for backward compatibility with the UI
+                    # This ensures the network compatibility tab will display properly
+                    if hasattr(summary, 'top_networks') and summary.top_networks:
+                        summary.network_compatibility = summary.top_networks
+                    
                     state['summary'] = summary
                     # Also store in session state for persistence
                     st.session_state["optimizer_summary"] = summary
@@ -277,8 +282,18 @@ class OptimizerView:
         Returns:
             List of formatted network match dictionaries ready for direct display in UI
         """
+        # Add debug output
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug: Formatting {len(network_matches) if network_matches else 0} network matches")
+            
         formatted = []
         
+        # Check if network_matches is None or empty
+        if not network_matches:
+            if st.session_state.get('debug_mode', False):
+                st.write("Debug: No network matches to format")
+            return []
+            
         for match in network_matches:
             # Get network name from field manager - simple, direct approach
             network_id = match.network_id
@@ -291,6 +306,9 @@ class OptimizerView:
                 
             # Get name directly from field manager - no fallbacks
             network_name = self.field_manager.get_name('network', network_id)
+            
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Formatting network {network_id} -> {network_name}")
             
             # Format compatibility score and success probability as percentages with proper rounding
             if match.compatibility_score is not None:
@@ -333,6 +351,9 @@ class OptimizerView:
             
         # Sort the formatted data by compatibility (descending), then by success probability
         formatted.sort(key=lambda x: (x['_compatibility_raw'] or 0, x['_success_prob_raw'] or 0), reverse=True)
+        
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug: Returning {len(formatted)} formatted network matches")
             
         return formatted
     
