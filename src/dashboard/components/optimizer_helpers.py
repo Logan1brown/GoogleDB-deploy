@@ -247,7 +247,7 @@ def render_success_metrics(summary: Any):
         col1, col2, col3, col4 = st.columns(4)
         
         # Check if we have pre-formatted component scores
-        has_formatted_data = hasattr(summary, 'formatted_data') and 'component_scores' in summary.formatted_data
+        has_formatted_data = hasattr(summary, 'formatted_data') and isinstance(summary.formatted_data, dict) and 'component_scores' in summary.formatted_data
         
         # Success Probability
         with col1:

@@ -189,9 +189,14 @@ class OptimizerView:
             The formatted optimization summary with attached formatted_data
         """
         try:
-            # Initialize formatted_data if it doesn't exist
-            if not hasattr(summary, 'formatted_data'):
+            # Initialize formatted_data as a dictionary if it doesn't exist or isn't a dict
+            if not hasattr(summary, 'formatted_data') or not isinstance(summary.formatted_data, dict):
                 summary.formatted_data = {}
+            
+            # Add debug output to help diagnose issues
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Formatting optimization summary for {summary.__class__.__name__}")
+                st.write(f"Debug: formatted_data type: {type(summary.formatted_data)}")
                 
             # Format network matches if available
             if hasattr(summary, 'top_networks') and summary.top_networks:
@@ -240,6 +245,9 @@ class OptimizerView:
             st.error(f"Error formatting optimization summary: {str(e)}")
             import traceback
             st.write(f"Error details: {traceback.format_exc()}")
+            # Ensure formatted_data is a dictionary even after an error
+            if not hasattr(summary, 'formatted_data') or not isinstance(summary.formatted_data, dict):
+                summary.formatted_data = {}
             return summary
     
     def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, Any]:
