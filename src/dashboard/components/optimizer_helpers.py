@@ -250,9 +250,21 @@ def render_success_metrics(summary: Any):
         has_formatted_data = (hasattr(summary, 'formatted_data') and 
                             'component_scores' in summary.formatted_data)
         
+        if not has_formatted_data:
+            # No formatted data available - show N/A for all metrics
+            with col1:
+                render_metric_card("Success Probability", "N/A", "Data unavailable")
+            with col2:
+                render_metric_card("Audience Appeal", "N/A", "Data unavailable")
+            with col3:
+                render_metric_card("Critical Reception", "N/A", "Data unavailable")
+            with col4:
+                render_metric_card("Longevity", "N/A", "Data unavailable")
+            return
+        
         # Success Probability
         with col1:
-            if has_formatted_data and 'success_probability' in summary.formatted_data:
+            if 'success_probability' in summary.formatted_data:
                 # Use pre-formatted success probability data
                 success_data = summary.formatted_data['success_probability']
                 render_metric_card(
@@ -260,32 +272,12 @@ def render_success_metrics(summary: Any):
                     success_data.get('display', 'N/A'), 
                     success_data.get('subtitle', 'Data unavailable')
                 )
-            elif hasattr(summary, 'overall_success_probability'):
-                # Fallback to raw data
-                probability = summary.overall_success_probability
-                
-                if probability is None:
-                    render_metric_card(
-                        "Success Probability", 
-                        "N/A", 
-                        "Data unavailable"
-                    )
-                else:
-                    # Get confidence and use config for display
-                    confidence = summary.confidence if hasattr(summary, 'confidence') else config.DEFAULT_VALUES['confidence']
-                    confidence_display = config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
-                    
-                    render_metric_card(
-                        "Success Probability", 
-                        f"{probability:.0%}", 
-                        f"Confidence: {confidence_display}"
-                    )
             else:
-                st.info("Overall success probability not available.")
+                render_metric_card("Success Probability", "N/A", "Data unavailable")
         
         # Audience Score
         with col2:
-            if has_formatted_data and 'audience' in summary.formatted_data['component_scores']:
+            if 'audience' in summary.formatted_data['component_scores']:
                 # Use pre-formatted audience score data
                 audience_data = summary.formatted_data['component_scores']['audience']
                 score = audience_data.get('score')
@@ -300,32 +292,11 @@ def render_success_metrics(summary: Any):
                 else:
                     render_metric_card("Audience Appeal", "N/A", "Data unavailable")
             else:
-                # Fallback to raw data
-                try:
-                    if hasattr(summary, 'component_scores') and summary.component_scores:
-                        audience_score = summary.component_scores.get("audience", None)
-                        if audience_score and hasattr(audience_score, 'score'):
-                            score = audience_score.score
-                            if score is not None:
-                                sample_size = getattr(audience_score, 'sample_size', 'N/A')
-                                render_metric_card(
-                                    "Audience Appeal", 
-                                    f"{score:.0%}", 
-                                    f"Sample: {sample_size}"
-                                )
-                            else:
-                                render_metric_card("Audience Appeal", "N/A", "Data unavailable")
-                        else:
-                            render_metric_card("Audience Appeal", "N/A", "Data unavailable")
-                    else:
-                        render_metric_card("Audience Appeal", "N/A", "Data unavailable")
-                except Exception as e:
-                    st.write(f"Debug: Error rendering audience score: {str(e)}")
-                    render_metric_card("Audience Appeal", "N/A", "Error in data")
+                render_metric_card("Audience Appeal", "N/A", "Data unavailable")
         
         # Critics Score
         with col3:
-            if has_formatted_data and 'critics' in summary.formatted_data['component_scores']:
+            if 'critics' in summary.formatted_data['component_scores']:
                 # Use pre-formatted critics score data
                 critics_data = summary.formatted_data['component_scores']['critics']
                 score = critics_data.get('score')
@@ -340,32 +311,11 @@ def render_success_metrics(summary: Any):
                 else:
                     render_metric_card("Critical Reception", "N/A", "Data unavailable")
             else:
-                # Fallback to raw data
-                try:
-                    if hasattr(summary, 'component_scores') and summary.component_scores:
-                        critics_score = summary.component_scores.get("critics", None)
-                        if critics_score and hasattr(critics_score, 'score'):
-                            score = critics_score.score
-                            if score is not None:
-                                sample_size = getattr(critics_score, 'sample_size', 'N/A')
-                                render_metric_card(
-                                    "Critical Reception", 
-                                    f"{score:.0%}", 
-                                    f"Sample: {sample_size}"
-                                )
-                            else:
-                                render_metric_card("Critical Reception", "N/A", "Data unavailable")
-                        else:
-                            render_metric_card("Critical Reception", "N/A", "Data unavailable")
-                    else:
-                        render_metric_card("Critical Reception", "N/A", "Data unavailable")
-                except Exception as e:
-                    st.write(f"Debug: Error rendering critics score: {str(e)}")
-                    render_metric_card("Critical Reception", "N/A", "Error in data")
+                render_metric_card("Critical Reception", "N/A", "Data unavailable")
         
         # Longevity Score
         with col4:
-            if has_formatted_data and 'longevity' in summary.formatted_data['component_scores']:
+            if 'longevity' in summary.formatted_data['component_scores']:
                 # Use pre-formatted longevity score data
                 longevity_data = summary.formatted_data['component_scores']['longevity']
                 score = longevity_data.get('score')
@@ -380,40 +330,21 @@ def render_success_metrics(summary: Any):
                 else:
                     render_metric_card("Longevity", "N/A", "Data unavailable")
             else:
-                # Fallback to raw data
-                try:
-                    if hasattr(summary, 'component_scores') and summary.component_scores:
-                        longevity_score = summary.component_scores.get("longevity", None)
-                        if longevity_score and hasattr(longevity_score, 'score'):
-                            score = longevity_score.score
-                            if score is not None:
-                                sample_size = getattr(longevity_score, 'sample_size', 'N/A')
-                                render_metric_card(
-                                    "Longevity", 
-                                    f"{score:.0%}", 
-                                    f"Sample: {sample_size}"
-                                )
-                            else:
-                                render_metric_card("Longevity", "N/A", "Data unavailable")
-                        else:
-                            render_metric_card("Longevity", "N/A", "Data unavailable")
-                    else:
-                        render_metric_card("Longevity", "N/A", "Data unavailable")
-                except Exception as e:
-                    st.write(f"Debug: Error rendering longevity score: {str(e)}")
-                    render_metric_card("Longevity", "N/A", "Error in data")
+                render_metric_card("Longevity", "N/A", "Data unavailable")
     
     except Exception as e:
         st.write(f"Debug: Error rendering success metrics: {str(e)}")
         st.error("Unable to display success metrics due to an error.")
         # Render empty cards as fallback
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             render_metric_card("Success Probability", "N/A", "Error in data")
         with col2:
             render_metric_card("Audience Appeal", "N/A", "Error in data")
         with col3:
             render_metric_card("Critical Reception", "N/A", "Error in data")
+        with col4:
+            render_metric_card("Longevity", "N/A", "Error in data")
 
 
 def render_success_factors(formatted_factors: List[Dict[str, Any]]):
