@@ -57,7 +57,16 @@ class NetworkAnalyzer:
         """
         self.criteria_scorer = criteria_scorer
         self.field_manager = field_manager or criteria_scorer.field_manager
+        
+        # Initialize NetworkScoreCalculator with the field_manager
         self.network_score_calculator = NetworkScoreCalculator()
+        self.network_score_calculator.field_manager = self.field_manager
+        
+        # Debug output
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug: Initialized NetworkScoreCalculator with field_manager: {type(self.field_manager).__name__}")
+            st.write(f"Debug: NetworkScoreCalculator has field_manager: {hasattr(self.network_score_calculator, 'field_manager')}")
+            st.write(f"Debug: NetworkScoreCalculator field_manager is same as NetworkAnalyzer's: {self.network_score_calculator.field_manager is self.field_manager}")
         self.optimizer_cache = optimizer_cache
         
         # Initialize matcher for network analysis if not provided

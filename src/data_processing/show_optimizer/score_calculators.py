@@ -581,11 +581,20 @@ class NetworkScoreCalculator:
                     network_id = int(network_id)
                     
                 # Get network name directly from field manager - no fallbacks
-                if self.criteria_scorer and self.criteria_scorer.field_manager:
-                    network_name = self.criteria_scorer.field_manager.get_name('network', network_id)
+                if hasattr(self, 'field_manager') and self.field_manager:
+                    network_name = self.field_manager.get_name('network', network_id)
                 else:
-                    # If field manager is not available (should never happen in normal operation)
+                    # If field manager is not available, use a default name
                     network_name = f"Network {network_id}"
+                    
+                    # Debug output
+                    if st.session_state.get('debug_mode', False):
+                        st.write(f"Debug: No field manager available for network ID {network_id}, using default name")
+                        st.write(f"Debug: NetworkScoreCalculator attributes: {dir(self)}")
+                        st.write(f"Debug: NetworkScoreCalculator has field_manager: {hasattr(self, 'field_manager')}")
+                        st.write(f"Debug: NetworkScoreCalculator field_manager type: {type(getattr(self, 'field_manager', None))}")
+                        st.write(f"Debug: NetworkScoreCalculator field_manager dir: {dir(getattr(self, 'field_manager', None)) if hasattr(self, 'field_manager') else 'N/A'}")
+                        st.write("---")
                 
                 # Get shows for this network
                 network_shows = matching_shows[matching_shows['network_id'] == network_id]
