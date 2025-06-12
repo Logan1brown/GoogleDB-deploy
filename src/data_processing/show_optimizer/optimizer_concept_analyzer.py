@@ -683,7 +683,7 @@ class ConceptAnalyzer:
                                 recommendations.extend(network_recommendations)
                         except Exception as network_error:
                             # Use a more specific error message that includes the network name
-                            st.error(f"Error generating recommendations for network {network.display_name}: {str(network_error)}")
+                            st.error(f"Error generating recommendations for network {network.network_name}: {str(network_error)}")
             
             return recommendations
             
