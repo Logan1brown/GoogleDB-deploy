@@ -345,8 +345,8 @@ def show():
                         if match_level > 1:
                             st.info(f"Network compatibility is based on flexible matching (level {match_level}). Results may vary with exact matches.")
                         
-                        # Use the helper function to render network compatibility
-                        render_network_compatibility(summary.network_compatibility)
+                        # Use the formatted networks from the optimizer view
+                        render_network_compatibility(summary.formatted_data['networks'])
                     else:
                         st.info("No network compatibility data available.")
                 

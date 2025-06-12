@@ -157,6 +157,12 @@ class OptimizerView:
                 
                 # Store results in state
                 if summary:
+                    # Format the summary for UI display
+                    formatted_data = self.format_optimization_summary(summary)
+                    
+                    # Attach the formatted data to the summary for easy access
+                    summary.formatted_data = formatted_data
+                    
                     state['summary'] = summary
                     # Also store in session state for persistence
                     st.session_state["optimizer_summary"] = summary
