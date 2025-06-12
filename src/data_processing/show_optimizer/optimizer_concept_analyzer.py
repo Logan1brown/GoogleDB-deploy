@@ -574,25 +574,13 @@ class ConceptAnalyzer:
                 return component_scores
             else:
                 st.warning("No component scores could be calculated")
-                return self._create_placeholder_component_scores()
+                return {}
             
         except Exception as e:
             st.error(f"Error calculating component scores: {str(e)}")
-            return self._create_placeholder_component_scores()
+            return {}
     
-    def _create_placeholder_component_scores(self) -> Dict[str, ComponentScore]:
-        """Create placeholder component scores with None values.
-        
-        Returns:
-            Dictionary of placeholder component scores
-        """
-        return {
-            'critics': ComponentScore(component="critics", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
-            'audience': ComponentScore(component="audience", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
-            'longevity': ComponentScore(component="longevity", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'}),
-            'completion': ComponentScore(component="completion", score=None, sample_size=0, confidence='none', details={'status': 'insufficient_data'})
-        }
-        
+    
     def _get_confidence_level(self, sample_size: int, match_level: int = 1) -> str:
         """Get confidence level based on sample size and match level.
         
