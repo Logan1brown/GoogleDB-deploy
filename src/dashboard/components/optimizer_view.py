@@ -210,8 +210,16 @@ class OptimizerView:
             if hasattr(summary, 'recommendations') and summary.recommendations:
                 summary._formatted_data_dict['recommendations'] = self._format_recommendations(summary.recommendations)
             
-            # Format success probability if available
-            if hasattr(summary, 'overall_success_probability'):
+            # Format success probability if available AND we have valid component scores
+            has_valid_component_scores = (
+                hasattr(summary, 'component_scores') and 
+                summary.component_scores and 
+                'success' in summary.component_scores and 
+                summary.component_scores['success'] is not None and
+                summary.component_scores['success'].score is not None
+            )
+            
+            if has_valid_component_scores and hasattr(summary, 'overall_success_probability'):
                 probability = summary.overall_success_probability
                 confidence = summary.confidence if hasattr(summary, 'confidence') else self.config.DEFAULT_VALUES['confidence']
                 
@@ -458,8 +466,8 @@ class OptimizerView:
         formatted = {}
         
         for component, score in component_scores.items():
-            # Skip None scores
-            if score is None:
+            # Skip None scores or scores with None values
+            if score is None or score.score is None:
                 continue
                 
             # Format the score

@@ -188,6 +188,21 @@ class SuccessScoreCalculator(ScoreCalculator):
         super().__init__(component_name='success')
 
     def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
+        # Debug information about the shows DataFrame
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"Debug: SuccessScoreCalculator received {len(shows)} shows")
+            if 'success_score' in shows.columns:
+                non_null_count = shows['success_score'].notna().sum()
+                st.write(f"Debug: Found {non_null_count} shows with non-null success_score values")
+                if non_null_count > 0:
+                    min_score = shows['success_score'].min()
+                    max_score = shows['success_score'].max()
+                    mean_score = shows['success_score'].mean()
+                    st.write(f"Debug: Success score range: min={min_score}, max={max_score}, mean={mean_score}")
+            else:
+                st.write("Debug: 'success_score' column not found in shows DataFrame")
+                st.write(f"Debug: Available columns: {list(shows.columns)}")
+        
         # Get required and optional columns from config
         required_columns = OptimizerConfig.REQUIRED_COLUMNS['base'] + OptimizerConfig.REQUIRED_COLUMNS['success']
         optional_columns = OptimizerConfig.OPTIONAL_COLUMNS['success']
