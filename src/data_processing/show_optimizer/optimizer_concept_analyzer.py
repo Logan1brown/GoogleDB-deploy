@@ -279,14 +279,6 @@ class ConceptAnalyzer:
                 confidence_info=confidence_info
             )
             
-            # Debug: Final check of matching_shows before returning to OptimizerView
-            if OptimizerConfig.DEBUG_MODE and not matching_shows.empty:
-                st.write(f"Debug: FINAL CHECK - Before returning to OptimizerView, matching_shows columns: {matching_shows.columns.tolist()}")
-                if 'match_level' in matching_shows.columns:
-                    st.write(f"Debug: FINAL CHECK - match_level values: {matching_shows['match_level'].value_counts().to_dict()}")
-                else:
-                    st.write("Debug: FINAL CHECK - WARNING - match_level column is missing from matching_shows DataFrame before returning to OptimizerView!")
-            
             # No backward compatibility or fallbacks - rely solely on top_networks
                 
             st.write(f"Analysis complete: Found {match_count} matching shows with confidence level '{confidence}'")

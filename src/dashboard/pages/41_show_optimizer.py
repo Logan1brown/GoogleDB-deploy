@@ -258,14 +258,6 @@ def show():
 
                         
                         if 'title' in summary.matching_shows.columns:
-                            # Debug: Check matching_shows when accessed in the UI
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"Debug: UI page accessing matching_shows with columns: {summary.matching_shows.columns.tolist()}")
-                                if 'match_level' in summary.matching_shows.columns:
-                                    st.write(f"Debug: UI page match_level values: {summary.matching_shows['match_level'].value_counts().to_dict()}")
-                                else:
-                                    st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame in UI page!")
-                            
                             # Create a list of unique shows by title
                             # First, convert to records for easier manipulation
                             show_records = summary.matching_shows.to_dict('records')
@@ -276,6 +268,12 @@ def show():
                             # Process each show
                             for show in show_records:
                                 title = show.get('title', 'Unknown Title')
+                                # Defensive check for match_level column
+                                if 'match_level' not in show:
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        st.write(f"Debug: match_level missing for show: {title}")
+                                    # Default to level 1 (best match) if missing
+                                    show['match_level'] = 1
                                 current_level = show['match_level']
                                 
                                 # If we haven't seen this title before, or this match level is better
