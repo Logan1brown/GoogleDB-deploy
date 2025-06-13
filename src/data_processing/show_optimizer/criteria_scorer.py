@@ -11,7 +11,6 @@ import numpy as np
 import ast
 import streamlit as st
 import time
-from functools import lru_cache
 from datetime import datetime, timedelta
 
 from .field_manager import FieldManager

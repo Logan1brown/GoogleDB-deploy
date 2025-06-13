@@ -9,7 +9,6 @@ import streamlit as st
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Tuple, Optional, Set, Union
-from functools import lru_cache
 
 from .optimizer_config import OptimizerConfig
 from .score_calculators import NetworkMatch

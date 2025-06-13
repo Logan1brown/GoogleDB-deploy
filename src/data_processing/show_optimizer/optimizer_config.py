@@ -223,12 +223,16 @@ class OptimizerConfig:
     
     # Performance settings
     PERFORMANCE = {
-        'cache_duration': 60,          # Cache duration in seconds (1 minute for testing)
         'success_threshold': 0.6,      # Default threshold for success rate calculation
         'min_criteria_coverage': 0.5,  # Minimum criteria coverage for valid analysis
         'min_confidence_score': 0.3,   # Minimum confidence score for valid results
-        'max_cached_combinations': 100, # Maximum number of cached criteria combinations
-        'incremental_threshold': 0.7    # Threshold for incremental vs full recalculation
+        'incremental_threshold': 0.7,  # Threshold for incremental vs full recalculation
+        
+        # Cache TTL settings (in seconds)
+        'data_cache_ttl': 3600,        # 1 hour for base data
+        'matcher_cache_ttl': 1800,     # 30 minutes for matching results
+        'analysis_cache_ttl': 1800,    # 30 minutes for analysis results
+        'recommendation_cache_ttl': 900 # 15 minutes for recommendations
     }
     
     

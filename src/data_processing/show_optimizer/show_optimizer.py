@@ -19,7 +19,7 @@ Key responsibilities:
    - Format results for UI presentation
 
 3. Performance:
-   - Cache results for performance
+
    - Support incremental updates for real-time UI
    - Handle partial criteria sets
 """
@@ -31,7 +31,7 @@ from datetime import datetime, timedelta
 import streamlit as st
 
 from .optimizer_concept_analyzer import ConceptAnalyzer, OptimizationSummary
-from .optimizer_cache import OptimizerCache
+
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
@@ -73,186 +73,154 @@ class ShowOptimizer:
         self.optimizer_view = None
         self.recommendation_engine = None
         
-        # Cache management
-        self.cache = OptimizerCache()
-        
-    def fetch_and_integrate_data(self, force_refresh: bool = False) -> Dict[str, Any]:
-        """Fetch and integrate data from different sources with caching.
+    def fetch_and_integrate_data(self) -> Dict[str, Any]:
+        """Fetch and integrate data from different sources.
         
         This method centralizes data fetching and integration to ensure all components
         work with the same dataset. It fetches show data from shows_analyzer and success
         metrics from success_analyzer, then integrates them into a unified dataset.
         
-        The method implements caching to avoid redundant data fetching operations.
-        Data is only refreshed when force_refresh is True or when the cache has expired.
-        
-        Args:
-            force_refresh: Whether to force a refresh of the data regardless of cache
-            
         Returns:
             Dictionary containing integrated data sets needed for optimization
         """
         try:
-            # Check if we need to refresh the data using the cache manager
-            if not self.cache.is_data_cache_valid(force_refresh):
-                
-                st.write("Fetching and integrating show data...")
-                
-                # Get show data
-                shows_df = self.shows_analyzer.fetch_optimizer_data()
-                if shows_df.empty:
-                    st.error("No show data available")
-                    return {}
-                
-                # Get reference data (genres, networks, etc.)
-                reference_data = self.shows_analyzer.get_reference_data()
-                
-                # Get success metrics
-                success_df = self.success_analyzer.success_data
-                
-                # Integrate the data
-                # First, ensure we have the necessary columns for integration
-                # The api_show_comp_data view uses 'id' as the show identifier
-                if 'id' in shows_df.columns:
-                    # Create a copy to avoid modifying the original
-                    integrated_shows = shows_df.copy()
-                    
-                    # Rename 'id' to 'show_id' for consistency
-                    if 'show_id' not in integrated_shows.columns:
-                        integrated_shows['show_id'] = integrated_shows['id']
-                    
-                    # Merge with success metrics if available
-                    if not success_df.empty:
-                        # Reset index to make show_id a column again if it's the index
-                        if success_df.index.name == 'show_id':
-                            success_df = success_df.reset_index()
-                        
-                        # Only keep success metrics that have matching shows
-                        if 'show_id' in success_df.columns and 'show_id' in integrated_shows.columns:
-                            success_df = success_df[success_df['show_id'].isin(integrated_shows['show_id'])]
-                            
-                            # Check for duplicate columns that might cause conflicts
-                            # tmdb_status exists in both datasets, so we'll drop it from success_df
-                            conflict_columns = ['tmdb_status', 'tmdb_seasons']
-                            for col in conflict_columns:
-                                if col in success_df.columns and col in integrated_shows.columns:
-                                    success_df = success_df.drop(columns=[col])
-                            
-                            # Now merge the datasets
-                            if not success_df.empty:
-                                # Only merge columns from success_df that are not present in shows_df (except for 'show_id')
-                                shows_columns = set(integrated_shows.columns)
-                                merge_columns = [col for col in success_df.columns if col not in shows_columns and col != 'id']
-                                # Always include 'show_id' for the join
-                                columns_to_merge = ['show_id'] + merge_columns
-                                integrated_shows = pd.merge(
-                                    integrated_shows,
-                                    success_df[columns_to_merge],
-                                    on='show_id',
-                                    how='left'
-                                )
-                    else:
-                        st.warning("Could not integrate success metrics: missing 'show_id' column")
-                    
-                    # Create the integrated data dictionary
-                    integrated_data = {
-                        'shows': integrated_shows,
-                        'reference_data': reference_data
-                    }
-                    
-                    # Update the cache
-                    self.cache.update_data_cache(integrated_data)
-                    
-                    st.write(f"Data integrated successfully: {len(integrated_shows)} shows")
-                else:
-                    st.error("Show data missing required columns for integration")
-                    return {}
-            else:
-                st.write("Using cached data...")
+            st.write("Fetching and integrating show data...")
             
-            # Get the cached data
-            return self.cache.get_integrated_data()
+            # Get show data
+            shows_df = self.shows_analyzer.fetch_optimizer_data()
+            if shows_df.empty:
+                st.error("No show data available")
+                return {}
+            
+            # Get reference data (genres, networks, etc.)
+            reference_data = self.shows_analyzer.get_reference_data()
+            
+            # Get success metrics
+            success_df = self.success_analyzer.success_data
+            
+            # Integrate the data
+            # First, ensure we have the necessary columns for integration
+            # The api_show_comp_data view uses 'id' as the show identifier
+            if 'id' in shows_df.columns:
+                # Create a copy to avoid modifying the original
+                integrated_shows = shows_df.copy()
+                
+                # Rename 'id' to 'show_id' for consistency
+                if 'show_id' not in integrated_shows.columns:
+                    integrated_shows['show_id'] = integrated_shows['id']
+                
+                # Merge with success metrics if available
+                if not success_df.empty:
+                    # Reset index to make show_id a column again if it's the index
+                    if success_df.index.name == 'show_id':
+                        success_df = success_df.reset_index()
+                    
+                    # Only keep success metrics that have matching shows
+                    if 'show_id' in success_df.columns and 'show_id' in integrated_shows.columns:
+                        success_df = success_df[success_df['show_id'].isin(integrated_shows['show_id'])]
+                        
+                        # Check for duplicate columns that might cause conflicts
+                        # tmdb_status exists in both datasets, so we'll drop it from success_df
+                        conflict_columns = ['tmdb_status', 'tmdb_seasons']
+                        for col in conflict_columns:
+                            if col in success_df.columns and col in integrated_shows.columns:
+                                success_df = success_df.drop(columns=[col])
+                        
+                        # Now merge the datasets
+                        if not success_df.empty:
+                            # Only merge columns from success_df that are not present in shows_df (except for 'show_id')
+                            shows_columns = set(integrated_shows.columns)
+                            merge_columns = [col for col in success_df.columns if col not in shows_columns and col != 'id']
+                            # Always include 'show_id' for the join
+                            columns_to_merge = ['show_id'] + merge_columns
+                            integrated_shows = pd.merge(
+                                integrated_shows,
+                                success_df[columns_to_merge],
+                                on='show_id',
+                                how='left'
+                            )
+                else:
+                    st.warning("Could not integrate success metrics: missing 'show_id' column")
+                
+                # Create the integrated data dictionary
+                integrated_data = {
+                    'shows': integrated_shows,
+                    'reference_data': reference_data
+                }
+                
+                st.write(f"Data integrated successfully: {len(integrated_shows)} shows")
+                return integrated_data
+            else:
+                st.error("Show data missing required columns for integration")
+                return {}
             
         except Exception as e:
             st.error(f"Error fetching and integrating data: {str(e)}")
             return {}
             
-    def initialize(self, force_refresh: bool = False) -> bool:
+    def initialize(self) -> bool:
         """Initialize all components and analyzers.
         
         This method initializes all required components for the show optimizer,
         including the field manager, criteria scorer, and concept analyzer.
         It also fetches and integrates the necessary data.
         
-        Args:
-            force_refresh: Whether to force a refresh of the data
-            
         Returns:
             True if initialization was successful, False otherwise
         """
         try:
-            # Check if we need to refresh using the cache manager
-            if not self.cache.is_components_cache_valid(force_refresh):
-                
-                st.write("Initializing Show Optimizer components...")
-                
-                # Initialize analyzers first
-                self.shows_analyzer = ShowsAnalyzer()
-                self.success_analyzer = SuccessAnalyzer(shows_analyzer=self.shows_analyzer)
-                
-                # Now fetch and integrate data
-                integrated_data = self.fetch_and_integrate_data(force_refresh)
-                if not integrated_data:
-                    st.error("Failed to fetch and integrate data")
-                    return False
-                
-                # Initialize field manager
-                reference_data = self.shows_analyzer.get_reference_data()
-                self.field_manager = FieldManager(reference_data)
-                
-                # Initialize criteria scorer
-                self.criteria_scorer = CriteriaScorer(self.field_manager)
-                
-                # Initialize network analyzer
-                from .network_analyzer import NetworkAnalyzer
-                self.network_analyzer = NetworkAnalyzer(
-                    criteria_scorer=self.criteria_scorer,
-                    field_manager=self.field_manager,
-                    optimizer_cache=self.cache
-                )
-                
-                # Set the network_analyzer and matcher in the criteria_scorer
-                self.criteria_scorer.network_analyzer = self.network_analyzer
-                self.criteria_scorer.matcher = self.network_analyzer.matcher
-                
-                # Initialize recommendation engine
-                self.recommendation_engine = RecommendationEngine(
-                    shows_analyzer=self.shows_analyzer,
-                    success_analyzer=self.success_analyzer,
-                    field_manager=self.field_manager,
-                    criteria_scorer=self.criteria_scorer
-                )
-                
-                # Initialize concept analyzer with all required components
-                self.concept_analyzer = ConceptAnalyzer(
-                    shows_analyzer=self.shows_analyzer,
-                    success_analyzer=self.success_analyzer,
-                    matcher=self.network_analyzer.matcher,  # Use the matcher from network analyzer
-                    field_manager=self.field_manager,
-                    criteria_scorer=self.criteria_scorer,
-                    optimizer_cache=self.cache  # Pass the cache instance
-                )
-                
-                # Initialize optimizer view for formatting results
-                self.optimizer_view = OptimizerView(self)
-                
-                # Update the components cache
-                self.cache.update_components_cache()
-                
-                st.write("Show Optimizer initialized successfully")
-                
-            # Return true if components are initialized
-            return self.cache.is_components_cache_valid()
+            st.write("Initializing Show Optimizer components...")
+            
+            # Initialize analyzers first
+            self.shows_analyzer = ShowsAnalyzer()
+            self.success_analyzer = SuccessAnalyzer(shows_analyzer=self.shows_analyzer)
+            
+            # Now fetch and integrate data
+            integrated_data = self.fetch_and_integrate_data()
+            if not integrated_data:
+                st.error("Failed to fetch and integrate data")
+                return False
+            
+            # Initialize field manager
+            reference_data = self.shows_analyzer.get_reference_data()
+            self.field_manager = FieldManager(reference_data)
+            
+            # Initialize criteria scorer
+            self.criteria_scorer = CriteriaScorer(self.field_manager)
+            
+            # Initialize network analyzer
+            from .network_analyzer import NetworkAnalyzer
+            self.network_analyzer = NetworkAnalyzer(
+                criteria_scorer=self.criteria_scorer,
+                field_manager=self.field_manager
+            )
+            
+            # Set the network_analyzer and matcher in the criteria_scorer
+            self.criteria_scorer.network_analyzer = self.network_analyzer
+            self.criteria_scorer.matcher = self.network_analyzer.matcher
+            
+            # Initialize recommendation engine
+            self.recommendation_engine = RecommendationEngine(
+                shows_analyzer=self.shows_analyzer,
+                success_analyzer=self.success_analyzer,
+                field_manager=self.field_manager,
+                criteria_scorer=self.criteria_scorer
+            )
+            
+            # Initialize concept analyzer with all required components
+            self.concept_analyzer = ConceptAnalyzer(
+                shows_analyzer=self.shows_analyzer,
+                success_analyzer=self.success_analyzer,
+                matcher=self.network_analyzer.matcher,
+                field_manager=self.field_manager,
+                criteria_scorer=self.criteria_scorer
+            )
+            
+            # Initialize optimizer view for formatting results
+            self.optimizer_view = OptimizerView(self)
+            
+            st.write("Show Optimizer initialized successfully")
+            return True
             
         except Exception as e:
             st.error(f"Error initializing Show Optimizer: {str(e)}")
@@ -266,8 +234,8 @@ class ShowOptimizer:
         Returns:
             Tuple of (success, error_message)
         """
-        # Check if initialized using the cache manager
-        if not self.cache.is_components_cache_valid():
+        # Check if components are initialized
+        if self.concept_analyzer is None:
             st.write("Show Optimizer not initialized. Initializing now...")
             if not self.initialize():
                 return False, "Failed to initialize Show Optimizer"
@@ -449,12 +417,11 @@ class ShowOptimizer:
         
         return normalized_criteria, integrated_data, True
     
-    def analyze_concept(self, criteria: Dict[str, Any], force_refresh: bool = False) -> OptimizationSummary:
+    def analyze_concept(self, criteria: Dict[str, Any]) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
         
         Args:
             criteria: Dictionary of criteria for the show concept
-            force_refresh: Whether to force a refresh of cached data
             
         Returns:
             OptimizationSummary containing analysis results or error information
@@ -476,7 +443,6 @@ class ShowOptimizer:
             # Note: ConceptAnalyzer will print its own analysis message
             analysis_result = self.concept_analyzer.analyze_concept(
                 criteria=normalized_criteria,
-                force_refresh=force_refresh,
                 integrated_data=integrated_data
             )
             

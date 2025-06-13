@@ -23,7 +23,7 @@ import pandas as pd
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .optimizer_config import OptimizerConfig
-from .optimizer_cache import OptimizerCache
+
 from .optimizer_matcher import Matcher
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
@@ -136,7 +136,7 @@ class ConceptAnalyzer:
     recommendations.
     """
     
-    def __init__(self, shows_analyzer, success_analyzer, matcher, field_manager, criteria_scorer, optimizer_cache=None):
+    def __init__(self, shows_analyzer, success_analyzer, matcher, field_manager, criteria_scorer):
         """Initialize the ConceptAnalyzer.
         
         Args:
@@ -145,7 +145,7 @@ class ConceptAnalyzer:
             matcher: Matcher instance for finding matching shows
             field_manager: FieldManager instance for field mapping
             criteria_scorer: CriteriaScorer instance for scoring components
-            optimizer_cache: OptimizerCache instance for caching results (optional)
+
         """
         self.shows_analyzer = shows_analyzer
         self.success_analyzer = success_analyzer
@@ -153,7 +153,7 @@ class ConceptAnalyzer:
         self.field_manager = field_manager
         self.criteria_scorer = criteria_scorer
         self.config = OptimizerConfig
-        self.optimizer_cache = optimizer_cache
+
         
         # Initialize the recommendation engine
         self.recommendation_engine = RecommendationEngine(
@@ -163,11 +163,7 @@ class ConceptAnalyzer:
             criteria_scorer=criteria_scorer
         )
         
-        # Initialize matching shows cache
-        self._matching_shows_cache = {}
-        self._matching_shows_last_update = None
-        
-    # Cache invalidation method removed
+
     
     def _handle_analysis_error(self, error_message: str) -> OptimizationSummary:
         """Handle analysis errors and return a minimal summary.
@@ -198,7 +194,7 @@ class ConceptAnalyzer:
             confidence_info={'error': error_message, 'level': 'none'}
         )
     
-    def analyze_concept(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame], force_refresh: bool = False) -> OptimizationSummary:
+    def analyze_concept(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
         
         This is the main entry point for concept analysis, coordinating the entire
@@ -207,7 +203,7 @@ class ConceptAnalyzer:
         Args:
             criteria: Dictionary of criteria defining the show concept
             integrated_data: Dictionary of integrated data frames from ShowOptimizer
-            force_refresh: Whether to force a refresh of cached data
+
             
         Returns:
             OptimizationSummary with success probability, recommendations, etc.
@@ -216,7 +212,7 @@ class ConceptAnalyzer:
             st.write("Analyzing show concept...")
             
             # Step 1: Find matching shows using integrated data
-            matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data, force_refresh=force_refresh)
+            matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data)
             
             # Extract match information
             match_count = len(matching_shows) if not matching_shows.empty else 0
@@ -287,74 +283,19 @@ class ConceptAnalyzer:
             st.write(f"Error details: {traceback.format_exc()}")
             return self._handle_analysis_error(f"Unexpected error: {str(e)}")
     
-    def _get_criteria_hash(self, criteria: Dict[str, Any]) -> str:
-        """Generate a hash for criteria to use as a cache key.
-        
-        Args:
-            criteria: Dictionary of criteria
-            
-        Returns:
-            String hash representing the criteria
-        """
-        # Create a sorted string representation of the criteria for consistent hashing
-        criteria_str = str(sorted([(k, str(v)) for k, v in criteria.items()]))
-        return str(hash(criteria_str))
+
     
-    def _is_matching_shows_cache_valid(self, criteria_hash: str, force_refresh: bool = False) -> bool:
-        """Check if the matching shows cache is valid for the given criteria.
-        
-        Args:
-            criteria_hash: Hash of the criteria
-            force_refresh: If True, ignore cache and return False
-            
-        Returns:
-            True if cache is valid, False otherwise
-        """
-        # If no optimizer_cache is available, always return False
-        if self.optimizer_cache is None:
-            return False
-            
-        try:
-            if force_refresh:
-                return False
-                
-            # Check if we have a cache for these criteria
-            if (criteria_hash in self._matching_shows_cache and 
-                self._matching_shows_last_update is not None):
-                
-                current_time = datetime.now()
-                cache_age = (current_time - self._matching_shows_last_update).total_seconds()
-                cache_valid = cache_age <= self.optimizer_cache.cache_duration
-                return cache_valid
-            
-            return False
-        except Exception as e:
-            st.error(f"Matching shows cache validation error: {str(e)}")
-            # If there's an error, assume cache is invalid to force refresh
-            return False
-    
-    def _find_matching_shows(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame], force_refresh: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    def _find_matching_shows(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Find shows matching the given criteria with fallback strategies.
-        
-        This method uses caching when available to avoid redundant matching operations.
         
         Args:
             criteria: Dictionary of criteria
             integrated_data: Dictionary of integrated data frames from ShowOptimizer
-            force_refresh: If True, bypass cache and force a new search
             
         Returns:
             Tuple of (matching_shows DataFrame, confidence_info dictionary)
         """
         try:
-            # Generate a hash for the criteria to use as cache key
-            criteria_hash = self._get_criteria_hash(criteria)
-            
-            # Check if we have a valid cache for these criteria
-            if not force_refresh and self._is_matching_shows_cache_valid(criteria_hash):
-                cached_result = self._matching_shows_cache[criteria_hash]
-                st.write(f"Using cached matching shows ({len(cached_result[0])} shows)")
-                return cached_result
             
             # Get shows data from integrated data
             if 'shows' not in integrated_data or integrated_data['shows'].empty:
@@ -381,10 +322,7 @@ class ConceptAnalyzer:
             st.write(f"Found {match_count} matching shows with confidence level '{confidence_info.get('level', 'unknown')}'")
             # Check columns in matching_shows
             
-            # Cache the results if we have a cache manager
-            if self.optimizer_cache is not None:
-                self._matching_shows_cache[criteria_hash] = (matching_shows, confidence_info)
-                self._matching_shows_last_update = datetime.now()
+            # Match results logged above
             
             return matching_shows, confidence_info
             
@@ -494,7 +432,7 @@ class ConceptAnalyzer:
             # Use NetworkAnalyzer to rank networks by compatibility
             # The limit is controlled by OptimizerConfig.DEFAULT_NETWORK_LIMIT
             if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Using cached matching shows ({len(matching_shows)} shows) for network ranking")
+                st.write(f"Debug: Using matching shows ({len(matching_shows)} shows) for network ranking")
                 if 'network_id' in matching_shows.columns:
                     network_counts = matching_shows['network_id'].value_counts()
                     st.write(f"Debug: Top 5 networks in matching shows: {network_counts.head()}")

@@ -22,7 +22,6 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from datetime import datetime
-from functools import lru_cache
 
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
@@ -30,7 +29,7 @@ from .optimizer_config import OptimizerConfig
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
 from .score_calculators import NetworkMatch, NetworkScoreCalculator
-from .optimizer_cache import OptimizerCache
+
 from .optimizer_matcher import Matcher
 
 
@@ -46,13 +45,13 @@ class NetworkTier:
 class NetworkAnalyzer:
     """Specialized analyzer for network compatibility and recommendations."""
     
-    def __init__(self, criteria_scorer: CriteriaScorer, field_manager: FieldManager = None, optimizer_cache: Optional[OptimizerCache] = None, matcher: Optional[Matcher] = None):
+    def __init__(self, criteria_scorer: CriteriaScorer, field_manager: FieldManager = None, matcher: Optional[Matcher] = None):
         """Initialize the network analyzer.
         
         Args:
             criteria_scorer: CriteriaScorer instance for scoring calculations
             field_manager: Optional FieldManager instance for field mapping
-            optimizer_cache: Optional OptimizerCache instance for caching
+            matcher: Optional Matcher instance for finding matches
             matcher: Optional Matcher instance for finding network matches
         """
         self.criteria_scorer = criteria_scorer
@@ -62,7 +61,7 @@ class NetworkAnalyzer:
         self.network_score_calculator = NetworkScoreCalculator()
         self.network_score_calculator.field_manager = self.field_manager
         
-        self.optimizer_cache = optimizer_cache
+
         
         # Initialize matcher for network analysis if not provided
         if matcher is None:

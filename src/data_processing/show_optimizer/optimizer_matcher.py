@@ -32,24 +32,18 @@ class Matcher:
             field_manager: FieldManager instance for field mapping and validation
         """
         self.field_manager = field_manager
-        self._criteria_data = None  # Cache for criteria data
         
     def _get_data(self, data=None):
-        """Get data for matching, falling back to cached criteria data if None.
+        """Get data for matching.
         
         Args:
-            data: DataFrame of shows to match against (uses cached data if None)
+            data: DataFrame of shows to match against
             
         Returns:
             DataFrame of shows, or empty DataFrame if no data available
         """
-        if data is None:
-            if self._criteria_data is None:
-                # Critical error - keep this visible
-                if OptimizerConfig.DEBUG_MODE:
-                    st.error("No criteria data available and none provided")
-                return pd.DataFrame()
-            return self._criteria_data
+        if data is None or data.empty:
+            return pd.DataFrame()
         return data
         
     def _empty_confidence_info(self) -> Dict[str, Any]:
