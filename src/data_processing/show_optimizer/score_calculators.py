@@ -633,7 +633,13 @@ class NetworkScoreCalculator:
                 
                 # Calculate match quality and confidence info
                 sample_size = len(network_shows)
-                match_level = 1  # Direct match
+                
+                # Use the most common match_level from the shows for this network
+                # instead of hardcoding to 1, to preserve the original match levels
+                if 'match_level' in network_shows.columns and not network_shows.empty:
+                    match_level = network_shows['match_level'].mode().iloc[0]
+                else:
+                    match_level = 1  # Default if match_level column is missing
                 
                 # Calculate a more meaningful match quality based on how well shows match on this network
                 # This uses a nuanced approach that considers match levels of individual shows

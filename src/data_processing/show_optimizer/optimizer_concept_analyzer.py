@@ -231,8 +231,8 @@ class ConceptAnalyzer:
             # Step 2: Calculate success probability
             success_probability, confidence = self._calculate_success_probability(criteria, matching_shows)
             
-            # Step 3: Find top networks
-            top_networks = self._find_top_networks(criteria, integrated_data=integrated_data)
+            # Step 3: Find top networks - pass the existing matching_shows to avoid redundant matching
+            top_networks = self._find_top_networks(criteria, integrated_data=integrated_data, matching_shows=matching_shows)
             
             # Step 4: Calculate component scores
             component_scores = self._get_component_scores(criteria, matching_shows, integrated_data)
@@ -421,13 +421,15 @@ class ConceptAnalyzer:
                 st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
                 st.write(f"Debug: Integrated data keys: {list(integrated_data.keys())}")
             
-            # Get the matching shows that were already found
-            matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data=integrated_data)
-            
+            # Use the matching shows that were passed in, or get them if not provided
             if matching_shows is None or matching_shows.empty:
-                if st.session_state.get('debug_mode', False):
-                    st.write("Debug: No matching shows found for network analysis")
-                return []
+                # Only call _find_matching_shows if we don't already have matching shows
+                matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data=integrated_data)
+                
+                if matching_shows is None or matching_shows.empty:
+                    if st.session_state.get('debug_mode', False):
+                        st.write("Debug: No matching shows found for network analysis")
+                    return []
             
             # Use NetworkAnalyzer to rank networks by compatibility
             # The limit is controlled by OptimizerConfig.DEFAULT_NETWORK_LIMIT
