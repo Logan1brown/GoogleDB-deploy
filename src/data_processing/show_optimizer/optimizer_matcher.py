@@ -179,10 +179,8 @@ class Matcher:
         # Get data for matching
         data = self._get_data(data)
         if data.empty:
-            # Create an empty DataFrame with the required columns
-            empty_df = pd.DataFrame(columns=['title', 'match_level', 'match_quality', 'match_level_desc'])
-            # Return the empty DataFrame with the required columns
-            return empty_df, self._empty_confidence_info()
+            # Return an empty DataFrame without trying to add specific columns
+            return pd.DataFrame(), self._empty_confidence_info()
         
         # Determine how many criteria we have to work with
         total_criteria = len(criteria)
@@ -244,10 +242,8 @@ class Matcher:
         
         # If we still didn't find any matches at any level
         if all_matches.empty:
-            # Create an empty DataFrame with the required columns
-            empty_df = pd.DataFrame(columns=['title', 'match_level', 'match_quality', 'match_level_desc'])
-            # Return the empty DataFrame with the required columns
-            return empty_df, self._empty_confidence_info()
+            # Return an empty DataFrame without trying to add specific columns
+            return pd.DataFrame(), self._empty_confidence_info()
         
         # Prepare confidence info for the combined results
         confidence_info = best_confidence_info.copy() if best_confidence_info else self._empty_confidence_info()
@@ -387,78 +383,73 @@ class Matcher:
         if not clean_criteria:
             return data, len(data)
             
-        try:
-            # Start with all shows
-            matches = data.copy()
+        # Start with all shows
+        matches = data.copy()
+        
+        # Separate array fields from scalar fields
+        scalar_fields = {}
+        array_fields_to_filter = {}
+        
+        for field_name, value in clean_criteria.items():
+            # Use field_manager to determine the field type
+            field_type = self.field_manager.get_field_type(field_name)
             
-            # Separate array fields from scalar fields
-            scalar_fields = {}
-            array_fields_to_filter = {}
+            if field_type == 'array':
+                array_fields_to_filter[field_name] = value
+            else:
+                # For scalar fields, determine the actual column name using field_manager
+                field_id = self.field_manager.map_field_name(field_name, matches.columns)
+                scalar_fields[field_id] = value
+        
+        # Process array fields (these require apply functions)
+        for field_name, value in array_fields_to_filter.items():
+            # Use field_manager to get the correct column name
+            field_column = self.field_manager.get_field_column_name(field_name, matches.columns)
             
-            for field_name, value in clean_criteria.items():
-                # Use field_manager to determine the field type
-                field_type = self.field_manager.get_field_type(field_name)
+            # If column doesn't exist, skip this field
+            if field_column is None:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.error(f"Field '{field_name}' not found in data columns")
+                continue
                 
-                if field_type == 'array':
-                    array_fields_to_filter[field_name] = value
-                else:
-                    # For scalar fields, determine the actual column name using field_manager
-                    field_id = self.field_manager.map_field_name(field_name, matches.columns)
-                    scalar_fields[field_id] = value
+            # Check if the column contains lists or is itself a list
+            sample = matches[field_column].iloc[0] if not matches.empty else None
             
-            # Process array fields (these require apply functions)
-            for field_name, value in array_fields_to_filter.items():
-                # Use field_manager to get the correct column name
-                field_column = self.field_manager.get_field_column_name(field_name, matches.columns)
-                
-                # If column doesn't exist, skip this field
-                if field_column is None:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.error(f"Field '{field_name}' not found in data columns")
-                    continue
-                    
-                # Check if the column contains lists or is itself a list
-                sample = matches[field_column].iloc[0] if not matches.empty else None
-                
-                # Convert value to set for faster lookups
-                value_set = set(value)  
-                
-                # Handle different data formats
-                if isinstance(sample, list):
-                    # If the column contains lists, use list intersection
-                    mask = matches[field_column].apply(
-                        lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
-                else:
-                    # If the column isn't storing lists, use standard filtering
-                    mask = matches[field_column].isin(value)
-                    
-                # Apply filter
-                matches = matches[mask]
+            # Convert value to set for faster lookups
+            value_set = set(value)  
             
-            # Process scalar fields (these can use vectorized operations)
-            for field_id, value in scalar_fields.items():
-                # Check if field exists in data
-                if field_id not in matches.columns:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.error(f"Field '{field_id}' not found in data columns")
-                    continue
-                    
-                if isinstance(value, list):
-                    # Multiple values: any show with any of the values matches
-                    mask = matches[field_id].isin(value)
-                else:
-                    # Single value: exact match
-                    mask = matches[field_id] == value
-                    
-                # Apply filter
-                matches = matches[mask]
+            # Handle different data formats
+            if isinstance(sample, list):
+                # If the column contains lists, use list intersection
+                mask = matches[field_column].apply(
+                    lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
+            else:
+                # If the column isn't storing lists, use standard filtering
+                mask = matches[field_column].isin(value)
                 
-            # Matching complete
-            return matches, len(matches)
-        except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                st.error(f"Error matching shows: {e}")
-            return pd.DataFrame(), 0
+            # Apply filter
+            matches = matches[mask]
+        
+        # Process scalar fields (these can use vectorized operations)
+        for field_id, value in scalar_fields.items():
+            # Check if field exists in data
+            if field_id not in matches.columns:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.error(f"Field '{field_id}' not found in data columns")
+                continue
+                
+            if isinstance(value, list):
+                # Multiple values: any show with any of the values matches
+                mask = matches[field_id].isin(value)
+            else:
+                # Single value: exact match
+                mask = matches[field_id] == value
+                
+            # Apply filter
+            matches = matches[mask]
+            
+        # Matching complete
+        return matches, len(matches)
     
     def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
         """Get criteria adjusted for a specific match level.

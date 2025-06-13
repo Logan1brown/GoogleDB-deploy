@@ -222,12 +222,6 @@ class OptimizerView:
                 # Format the matching shows for UI display
                 formatted_shows = self._format_matching_shows(summary.matching_shows)
                 
-                # Verify match_level is present after formatting
-                if 'match_level' not in formatted_shows.columns:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write("Debug: Adding match_level column after formatting")
-                    formatted_shows['match_level'] = summary.match_level if hasattr(summary, 'match_level') else 1
-                
                 # Store the formatted shows in the summary
                 summary._formatted_data_dict['matching_shows'] = formatted_shows
                 

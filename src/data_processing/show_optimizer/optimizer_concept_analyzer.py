@@ -303,56 +303,42 @@ class ConceptAnalyzer:
         Returns:
             Tuple of (matching_shows DataFrame, confidence_info dictionary)
         """
-        try:
+        # Get shows data from integrated data
+        if 'shows' not in integrated_data or integrated_data['shows'].empty:
+            st.error("No shows data available in integrated data")
+            return pd.DataFrame(), {'level': 'none', 'error': 'No shows data available'}
             
-            # Get shows data from integrated data
-            if 'shows' not in integrated_data or integrated_data['shows'].empty:
-                st.error("No shows data available in integrated data")
-                return pd.DataFrame(), {'level': 'none', 'error': 'No shows data available'}
-                
-            shows_data = integrated_data['shows']
-            st.write(f"Using integrated data with {len(shows_data)} shows")
-            
-            # Set the criteria data in the matcher
-            self.matcher.set_criteria_data(shows_data)
-            
-            # Get minimum sample size from config
-            min_sample_size = self.config.CONFIDENCE['minimum_sample']
-            
-            # Find matches with fallback
-            st.write("Finding shows matching your criteria...")
-            matching_shows, confidence_info = self.matcher.find_matches_with_fallback(
-                criteria, shows_data, min_sample_size
-            )
-            
-            # Log the match results
-            match_count = len(matching_shows) if not matching_shows.empty else 0
-            st.write(f"Found {match_count} matching shows with confidence level '{confidence_info.get('level', 'unknown')}'")
-            
-            # Debug: Check columns in matching_shows
-            if OptimizerConfig.DEBUG_MODE and not matching_shows.empty:
-                st.write(f"Debug: matching_shows columns: {matching_shows.columns.tolist()}")
-                if 'match_level' in matching_shows.columns:
-                    st.write(f"Debug: match_level values: {matching_shows['match_level'].value_counts().to_dict()}")
-                else:
-                    st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame!")
-            # End debug check
-            
-            # Match results logged above
-            
-            return matching_shows, confidence_info
-            
-        except Exception as e:
-            st.error(f"Error finding matching shows: {str(e)}")
-            # Return empty DataFrame and minimal confidence info
-            return pd.DataFrame(), {
-                'level': 'none',
-                'score': 0,
-                'match_quality': 0,
-                'sample_size': 0,
-                'match_level': 0,
-                'level': 'none'
-            }
+        shows_data = integrated_data['shows']
+        st.write(f"Using integrated data with {len(shows_data)} shows")
+        
+        # Set the criteria data in the matcher
+        self.matcher.set_criteria_data(shows_data)
+        
+        # Get minimum sample size from config
+        min_sample_size = self.config.CONFIDENCE['minimum_sample']
+        
+        # Find matches with fallback
+        st.write("Finding shows matching your criteria...")
+        matching_shows, confidence_info = self.matcher.find_matches_with_fallback(
+            criteria, shows_data, min_sample_size
+        )
+        
+        # Log the match results
+        match_count = len(matching_shows) if not matching_shows.empty else 0
+        st.write(f"Found {match_count} matching shows with confidence level '{confidence_info.get('level', 'unknown')}'")
+        
+        # Debug: Check columns in matching_shows
+        if OptimizerConfig.DEBUG_MODE and not matching_shows.empty:
+            st.write(f"Debug: matching_shows columns: {matching_shows.columns.tolist()}")
+            if 'match_level' in matching_shows.columns:
+                st.write(f"Debug: match_level values: {matching_shows['match_level'].value_counts().to_dict()}")
+            else:
+                st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame!")
+        # End debug check
+        
+        # Match results logged above
+        
+        return matching_shows, confidence_info
     
     def _calculate_success_probability(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> Tuple[Optional[float], str]:
         """Calculate the success probability based on matching shows.

@@ -557,193 +557,196 @@ class NetworkScoreCalculator:
         Returns:
             List of NetworkMatch objects with compatibility and success scores
         """
-        try:
-            # matching_shows is now a required parameter, no need to check if it's None
+        # Check if we have any matching shows
+        if matching_shows is None or matching_shows.empty:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("Debug: Empty matching_shows provided to calculate_network_scores")
+            return []
                 
-            # Check if we have network_id in the matching shows
-            if 'network_id' not in matching_shows.columns:
-                # Try to find an alternative network ID column
-                network_id_alternatives = ['network', 'network_name']
-                found_alternative = False
-                
-                for alt_col in network_id_alternatives:
-                    if alt_col in matching_shows.columns:
-                        if st.session_state.get('debug_mode', False):
-                            st.write(f"Debug: Using alternative column '{alt_col}' for network identification")
-                        # Create a temporary network_id column
-                        matching_shows['network_id'] = matching_shows[alt_col]
-                        found_alternative = True
-                        break
-                
-                if not found_alternative:
-                    st.warning("No network_id column in matching shows. Cannot calculate network scores.")
+        # Check if we have network_id in the matching shows
+        if 'network_id' not in matching_shows.columns:
+            # Try to find an alternative network ID column
+            network_id_alternatives = ['network', 'network_name']
+            found_alternative = False
+            
+            for alt_col in network_id_alternatives:
+                if alt_col in matching_shows.columns:
                     if st.session_state.get('debug_mode', False):
-                        st.write("Debug: Missing network_id column in matching shows")
-                        st.write(f"Debug: Available columns: {matching_shows.columns.tolist()}")
-                    return []
-                
-            # Get unique network IDs from matching shows
+                        st.write(f"Debug: Using alternative column '{alt_col}' for network identification")
+                    # Create a temporary network_id column
+                    matching_shows['network_id'] = matching_shows[alt_col]
+                    found_alternative = True
+                    break
+            
+            if not found_alternative:
+                st.warning("No network_id column in matching shows. Cannot calculate network scores.")
+                if st.session_state.get('debug_mode', False):
+                    st.write("Debug: Missing network_id column in matching shows")
+                    st.write(f"Debug: Available columns: {matching_shows.columns.tolist()}")
+                return []
+            
+        # Get unique network IDs from matching shows
+        network_ids = matching_shows['network_id'].dropna().unique()
+        
+        # Check if we found any network IDs
+        if len(network_ids) == 0:
+            st.warning("No valid network IDs found in matching shows")
+            if st.session_state.get('debug_mode', False):
+                st.write("Debug: No valid network IDs found in matching shows")
+            return []
+            
+        # Debug message about network IDs found
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug: Found {len(network_ids)} unique network IDs in matching shows")
+        
+        # Initialize results list and network matches list
+        results = []
+        network_matches = []
+        
+        # Get unique networks from the matching shows
+        if 'network_id' in matching_shows.columns:
             network_ids = matching_shows['network_id'].dropna().unique()
             
-            # Check if we found any network IDs
-            if len(network_ids) == 0:
-                st.warning("No valid network IDs found in matching shows")
+        # Process each network ID
+        for network_id in network_ids:
+            # Ensure network_id is an integer for proper lookup
+            if isinstance(network_id, str) and network_id.isdigit():
+                network_id = int(network_id)
+            elif isinstance(network_id, float):
+                network_id = int(network_id)
+                
+            # Get network name directly from field manager - no fallbacks
+            if hasattr(self, 'field_manager') and self.field_manager:
+                network_name = self.field_manager.get_name('network', network_id)
+            else:
+                # If field manager is not available, use a default name
+                network_name = f"Network {network_id}"
+                
+                # Debug output
                 if st.session_state.get('debug_mode', False):
-                    st.write("Debug: No valid network IDs found in matching shows")
-                return []
-                
-            # Debug message about network IDs found
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Found {len(network_ids)} unique network IDs in matching shows")
+                    st.write(f"Debug: No field manager available for network ID {network_id}, using default name")
+                    st.write(f"Debug: NetworkScoreCalculator attributes: {dir(self)}")
+                    st.write(f"Debug: NetworkScoreCalculator has field_manager: {hasattr(self, 'field_manager')}")
+                    st.write(f"Debug: NetworkScoreCalculator field_manager type: {type(getattr(self, 'field_manager', None))}")
+                    st.write(f"Debug: NetworkScoreCalculator field_manager dir: {dir(getattr(self, 'field_manager', None)) if hasattr(self, 'field_manager') else 'N/A'}")
+                    st.write("---")
             
-            # Initialize results list and network matches list
-            results = []
-            network_matches = []
+            # Get shows for this network
+            network_shows = matching_shows[matching_shows['network_id'] == network_id]
             
-            # Get unique networks from the matching shows
-            if 'network_id' in matching_shows.columns:
-                network_ids = matching_shows['network_id'].dropna().unique()
+            # Calculate match quality and confidence info
+            sample_size = len(network_shows)
+            
+            # Use the most common match_level from the shows for this network
+            # instead of hardcoding to 1, to preserve the original match levels
+            if 'match_level' in network_shows.columns and not network_shows.empty:
+                match_level = network_shows['match_level'].mode().iloc[0]
+            else:
+                match_level = 1  # Default if match_level column is missing
+            
+            # Calculate a more meaningful match quality based on how well shows match on this network
+            # This uses a nuanced approach that considers match levels of individual shows
+            
+            # Base calculation on match levels if available
+            if 'match_level' in network_shows.columns:
+                # Calculate weighted average match quality based on match levels
+                # Level 1 = perfect match (100%), Level 2 = missing 1 criterion (lower %), etc.
+                total_weight = 0
+                weighted_match_quality = 0
                 
-            # Process each network ID
-            for network_id in network_ids:
-                # Ensure network_id is an integer for proper lookup
-                if isinstance(network_id, str) and network_id.isdigit():
-                    network_id = int(network_id)
-                elif isinstance(network_id, float):
-                    network_id = int(network_id)
+                # Get total number of criteria from the criteria dictionary
+                total_criteria = len(criteria) if isinstance(criteria, dict) else 3  # Default to 3 if unknown
+                
+                # Calculate weighted match quality for each show
+                for _, show in network_shows.iterrows():
+                    # Get match level (1 = perfect match, higher = more criteria missing)
+                    level = show.get('match_level', 1)
                     
-                # Get network name directly from field manager - no fallbacks
-                if hasattr(self, 'field_manager') and self.field_manager:
-                    network_name = self.field_manager.get_name('network', network_id)
+                    # Calculate match quality for this show (decreases as level increases)
+                    # Level 1: 100%, Level 2: 67%, Level 3: 33%, etc. based on criteria matched
+                    criteria_matched = max(0, total_criteria - (level - 1))
+                    show_match_quality = criteria_matched / total_criteria if total_criteria > 0 else 0
+                    
+                    # Weight by show's success score if available
+                    show_weight = show.get('success_score', 1.0)
+                    
+                    # Add to weighted average
+                    weighted_match_quality += show_match_quality * show_weight
+                    total_weight += show_weight
+                
+                # Calculate final weighted average
+                if total_weight > 0:
+                    match_quality = weighted_match_quality / total_weight
                 else:
-                    # If field manager is not available, use a default name
-                    network_name = f"Network {network_id}"
+                    match_quality = 0.3  # Default base value
                     
-                    # Debug output
-                    if st.session_state.get('debug_mode', False):
-                        st.write(f"Debug: No field manager available for network ID {network_id}, using default name")
-                        st.write(f"Debug: NetworkScoreCalculator attributes: {dir(self)}")
-                        st.write(f"Debug: NetworkScoreCalculator has field_manager: {hasattr(self, 'field_manager')}")
-                        st.write(f"Debug: NetworkScoreCalculator field_manager type: {type(getattr(self, 'field_manager', None))}")
-                        st.write(f"Debug: NetworkScoreCalculator field_manager dir: {dir(getattr(self, 'field_manager', None)) if hasattr(self, 'field_manager') else 'N/A'}")
-                        st.write("---")
+                # Ensure we have a reasonable minimum value
+                match_quality = max(0.3, match_quality)
                 
-                # Get shows for this network
-                network_shows = matching_shows[matching_shows['network_id'] == network_id]
-                
-                # Calculate match quality and confidence info
-                sample_size = len(network_shows)
-                
-                # Use the most common match_level from the shows for this network
-                # instead of hardcoding to 1, to preserve the original match levels
-                if 'match_level' in network_shows.columns and not network_shows.empty:
-                    match_level = network_shows['match_level'].mode().iloc[0]
+                # Debug output to help diagnose issues
+                if st.session_state.get('debug_mode', False):
+                    st.write(f"Debug: Network {network_name} match quality calculation:")
+                    st.write(f"- Shows: {sample_size}")
+                    st.write(f"- Match levels: {network_shows['match_level'].value_counts().to_dict() if 'match_level' in network_shows.columns else 'N/A'}")
+                    st.write(f"- Final match quality: {match_quality:.2f}")
+            
+            # Fallback to simpler calculation if match_level not available
+            else:
+                if 'success_score' in network_shows.columns:
+                    # Use average success score as a component of match quality
+                    avg_success = network_shows['success_score'].mean()
+                    # Scale to ensure we get a reasonable distribution between 0.3-1.0
+                    match_quality = max(0.3, min(1.0, avg_success))
                 else:
-                    match_level = 1  # Default if match_level column is missing
-                
-                # Calculate a more meaningful match quality based on how well shows match on this network
-                # This uses a nuanced approach that considers match levels of individual shows
-                
-                # Base calculation on match levels if available
-                if 'match_level' in network_shows.columns:
-                    # Calculate weighted average match quality based on match levels
-                    # Level 1 = perfect match (100%), Level 2 = missing 1 criterion (lower %), etc.
-                    total_weight = 0
-                    weighted_match_quality = 0
+                    # Calculate based on sample size relative to total matching shows
+                    relative_size = min(1.0, sample_size / max(1, len(matching_shows)))
                     
-                    # Get total number of criteria from the criteria dictionary
-                    total_criteria = len(criteria) if isinstance(criteria, dict) else 3  # Default to 3 if unknown
+                    # Add a genre-based factor to differentiate networks
+                    genre_factor = 0.0
+                    if 'genre' in criteria and network_shows.shape[0] > 0:
+                        target_genre = criteria.get('genre')
+                        if target_genre and 'genre' in network_shows.columns:
+                            # Calculate percentage of shows on this network that match the target genre
+                            genre_matches = network_shows[network_shows['genre'] == target_genre].shape[0]
+                            genre_factor = min(0.3, genre_matches / max(1, network_shows.shape[0]) * 0.3)
                     
-                    # Calculate weighted match quality for each show
-                    for _, show in network_shows.iterrows():
-                        # Get match level (1 = perfect match, higher = more criteria missing)
-                        level = show.get('match_level', 1)
-                        
-                        # Calculate match quality for this show (decreases as level increases)
-                        # Level 1: 100%, Level 2: 67%, Level 3: 33%, etc. based on criteria matched
-                        criteria_matched = max(0, total_criteria - (level - 1))
-                        show_match_quality = criteria_matched / total_criteria if total_criteria > 0 else 0
-                        
-                        # Weight by show's success score if available
-                        show_weight = show.get('success_score', 1.0)
-                        
-                        # Add to weighted average
-                        weighted_match_quality += show_match_quality * show_weight
-                        total_weight += show_weight
-                    
-                    # Calculate final weighted average
-                    if total_weight > 0:
-                        match_quality = weighted_match_quality / total_weight
-                    else:
-                        match_quality = 0.3  # Default base value
-                        
-                    # Ensure we have a reasonable minimum value
-                    match_quality = max(0.3, match_quality)
-                    
-                    # Debug output to help diagnose issues
-                    if st.session_state.get('debug_mode', False):
-                        st.write(f"Debug: Network {network_name} match quality calculation:")
-                        st.write(f"- Shows: {sample_size}")
-                        st.write(f"- Match levels: {network_shows['match_level'].value_counts().to_dict() if 'match_level' in network_shows.columns else 'N/A'}")
-                        st.write(f"- Final match quality: {match_quality:.2f}")
-                
-                # Fallback to simpler calculation if match_level not available
-                else:
-                    if 'success_score' in network_shows.columns:
-                        # Use average success score as a component of match quality
-                        avg_success = network_shows['success_score'].mean()
-                        # Scale to ensure we get a reasonable distribution between 0.3-1.0
-                        match_quality = max(0.3, min(1.0, avg_success))
-                    else:
-                        # Calculate based on sample size relative to total matching shows
-                        relative_size = min(1.0, sample_size / max(1, len(matching_shows)))
-                        
-                        # Add a genre-based factor to differentiate networks
-                        genre_factor = 0.0
-                        if 'genre' in criteria and network_shows.shape[0] > 0:
-                            target_genre = criteria.get('genre')
-                            if target_genre and 'genre' in network_shows.columns:
-                                # Calculate percentage of shows on this network that match the target genre
-                                genre_matches = network_shows[network_shows['genre'] == target_genre].shape[0]
-                                genre_factor = min(0.3, genre_matches / max(1, network_shows.shape[0]) * 0.3)
-                        
-                        # Combine relative size with genre factor for a more differentiated score
-                        match_quality = 0.3 + (0.4 * relative_size) + genre_factor
-                
-                # Create confidence info
-                # Calculate confidence score (0-1) based on sample size and other factors
-                confidence_score = OptimizerConfig.calculate_confidence_score(
-                    sample_size=sample_size,
-                    match_level=match_level,
-                    criteria_count=len(criteria),
-                    total_criteria=len(OptimizerConfig.CRITERIA_IMPORTANCE)
-                )
-                
-                # Map the confidence score to a confidence level string
-                confidence_level = OptimizerConfig.map_confidence_score_to_level(confidence_score)
-                
-                # Create a proper NetworkMatch object instead of a dictionary
-                # Initialize with empty details dictionary to ensure it's properly created
-                network_match_obj = NetworkMatch(
-                    network_id=network_id,
-                    network_name=network_name,
-                    compatibility_score=match_quality,  # Use match_quality as compatibility score
-                    success_probability=None,  # Will be calculated later
-                    sample_size=sample_size,
-                    confidence=confidence_level
-                )
-                
-                # Add details separately to ensure the dictionary is properly initialized
-                network_match_obj.details = {
-                    'criteria': criteria,
-                    'match_level': match_level,
-                    'match_quality': match_quality,
-                    'confidence_score': confidence_score,
-                    'matching_shows': network_shows
-                }
-                
-                
-                network_matches.append(network_match_obj)
+                    # Combine relative size with genre factor for a more differentiated score
+                    match_quality = 0.3 + (0.4 * relative_size) + genre_factor
+            
+            # Create confidence info
+            # Calculate confidence score (0-1) based on sample size and other factors
+            confidence_score = OptimizerConfig.calculate_confidence_score(
+                sample_size=sample_size,
+                match_level=match_level,
+                criteria_count=len(criteria),
+                total_criteria=len(OptimizerConfig.CRITERIA_IMPORTANCE)
+            )
+            
+            # Map the confidence score to a confidence level string
+            confidence_level = OptimizerConfig.map_confidence_score_to_level(confidence_score)
+            
+            # Create a proper NetworkMatch object instead of a dictionary
+            # Initialize with empty details dictionary to ensure it's properly created
+            network_match_obj = NetworkMatch(
+                network_id=network_id,
+                network_name=network_name,
+                compatibility_score=match_quality,  # Use match_quality as compatibility score
+                success_probability=None,  # Will be calculated later
+                sample_size=sample_size,
+                confidence=confidence_level
+            )
+            
+            # Add details separately to ensure the dictionary is properly initialized
+            network_match_obj.details = {
+                'criteria': criteria,
+                'match_level': match_level,
+                'match_quality': match_quality,
+                'confidence_score': confidence_score,
+                'matching_shows': network_shows
+            }
+            
+            
+            network_matches.append(network_match_obj)
             
             # If we didn't find any networks in the matching shows, log a message
             if not network_matches and st.session_state.get('debug_mode', False):
@@ -857,18 +860,6 @@ class NetworkScoreCalculator:
                 
             # Return the network_matches list that we've been updating
             return network_matches
-
-        except ValueError as ve:
-            # Use consistent error handling - st.write for debug, st.error for user-facing
-            st.write(f"Debug: Network score calculation error: {str(ve)}")
-            st.error("Unable to calculate network scores. Please check your criteria and try again.")
-            return []
-        except Exception as e:
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Unexpected error in network score calculation: {str(e)}")
-                import traceback
-                st.write(f"Debug: Traceback: {traceback.format_exc()}")
-            return []
             
     def calculate_success_rate(self, shows: pd.DataFrame, confidence_info: Dict[str, Any] = None, threshold: Optional[float] = None) -> Tuple[Optional[float], Dict[str, Any]]:
         """Calculate success rate for a set of shows with confidence information.
