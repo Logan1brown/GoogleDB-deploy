@@ -242,8 +242,9 @@ class Matcher:
         
         # If we still didn't find any matches at any level
         if all_matches.empty:
-            # Return an empty DataFrame without trying to add specific columns
-            return pd.DataFrame(), self._empty_confidence_info()
+            # Create an empty DataFrame with the required columns
+            empty_df = pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc'])
+            return empty_df, self._empty_confidence_info()
         
         # Prepare confidence info for the combined results
         confidence_info = best_confidence_info.copy() if best_confidence_info else self._empty_confidence_info()
@@ -259,7 +260,9 @@ class Matcher:
         confidence_info['match_level_summary'] = level_summaries
         
         # Sort only by match_level (ascending) - no success score sorting during selection
-        all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
+        # Make sure the DataFrame is not empty and has the match_level column before sorting
+        if not all_matches.empty and 'match_level' in all_matches.columns:
+            all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
         
         # Apply prioritized sampling within each match level if we have more than MAX_RESULTS
         if len(all_matches) > OptimizerConfig.MAX_RESULTS:
@@ -318,15 +321,24 @@ class Matcher:
                 return group_df.sample(target_size, random_state=42)
             
             # Group by match level and apply prioritized sampling within each group
-            sampled_matches = all_matches.groupby('match_level').apply(
-                prioritize_shows,
-                include_groups=False
-            ).reset_index(drop=True)
+            # Make sure the DataFrame has the match_level column before grouping
+            if 'match_level' in all_matches.columns:
+                sampled_matches = all_matches.groupby('match_level').apply(
+                    prioritize_shows,
+                    include_groups=False
+                ).reset_index(drop=True)
+            else:
+                # If match_level is missing, just use the dataframe as is
+                sampled_matches = all_matches.copy()
+                # Add match_level column with default value of 1 (direct match)
+                sampled_matches['match_level'] = 1
             
             # If we still have more than MAX_RESULTS after sampling each group
             if len(sampled_matches) > OptimizerConfig.MAX_RESULTS:
                 # Sort by match_level first to ensure we prioritize better matches
-                sampled_matches = sampled_matches.sort_values(by=['match_level'], ascending=[True])
+                # Make sure the DataFrame has the match_level column before sorting
+                if 'match_level' in sampled_matches.columns:
+                    sampled_matches = sampled_matches.sort_values(by=['match_level'], ascending=[True])
                 sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
                 
             all_matches = sampled_matches
