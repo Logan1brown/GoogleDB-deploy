@@ -332,8 +332,6 @@ class ConceptAnalyzer:
             st.write(f"Debug: matching_shows columns: {matching_shows.columns.tolist()}")
             if 'match_level' in matching_shows.columns:
                 st.write(f"Debug: match_level values: {matching_shows['match_level'].value_counts().to_dict()}")
-            else:
-                st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame!")
         # End debug check
         
         # Match results logged above

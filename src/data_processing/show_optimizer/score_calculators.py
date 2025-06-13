@@ -637,81 +637,52 @@ class NetworkScoreCalculator:
             # Calculate match quality and confidence info
             sample_size = len(network_shows)
             
-            # Use the most common match_level from the shows for this network
-            # instead of hardcoding to 1, to preserve the original match levels
-            if 'match_level' in network_shows.columns and not network_shows.empty:
-                match_level = network_shows['match_level'].mode().iloc[0]
+            # Get the best match level from shows on this network (lowest value = best match)
+            if not network_shows.empty and 'match_level' in network_shows.columns:
+                match_level = network_shows['match_level'].min()  # Best match level (lowest number)
             else:
-                match_level = 1  # Default if match_level column is missing
+                match_level = 1  # Default to direct match if no data available
             
-            # Calculate a more meaningful match quality based on how well shows match on this network
-            # This uses a nuanced approach that considers match levels of individual shows
+            # Calculate match quality based on shows for this network
+            if network_shows.empty:
+                match_quality = 0.3  # Default base value
             
-            # Base calculation on match levels if available
-            if 'match_level' in network_shows.columns:
-                # Calculate weighted average match quality based on match levels
-                # Level 1 = perfect match (100%), Level 2 = missing 1 criterion (lower %), etc.
-                total_weight = 0
-                weighted_match_quality = 0
-                
-                # Get total number of criteria from the criteria dictionary
-                total_criteria = len(criteria) if isinstance(criteria, dict) else 3  # Default to 3 if unknown
-                
-                # Calculate weighted match quality for each show
-                for _, show in network_shows.iterrows():
-                    # Get match level (1 = perfect match, higher = more criteria missing)
-                    level = show.get('match_level', 1)
-                    
-                    # Calculate match quality for this show (decreases as level increases)
-                    # Level 1: 100%, Level 2: 67%, Level 3: 33%, etc. based on criteria matched
-                    criteria_matched = max(0, total_criteria - (level - 1))
-                    show_match_quality = criteria_matched / total_criteria if total_criteria > 0 else 0
-                    
-                    # Weight by show's success score if available
-                    show_weight = show.get('success_score', 1.0)
-                    
-                    # Add to weighted average
-                    weighted_match_quality += show_match_quality * show_weight
-                    total_weight += show_weight
-                
-                # Calculate final weighted average
-                if total_weight > 0:
-                    match_quality = weighted_match_quality / total_weight
-                else:
-                    match_quality = 0.3  # Default base value
-                    
-                # Ensure we have a reasonable minimum value
-                match_quality = max(0.3, match_quality)
-                
-                # Debug output to help diagnose issues
-                if st.session_state.get('debug_mode', False):
-                    st.write(f"Debug: Network {network_name} match quality calculation:")
-                    st.write(f"- Shows: {sample_size}")
-                    st.write(f"- Match levels: {network_shows['match_level'].value_counts().to_dict() if 'match_level' in network_shows.columns else 'N/A'}")
-                    st.write(f"- Final match quality: {match_quality:.2f}")
+            # Get total number of criteria from the criteria dictionary
+            total_criteria = len(criteria) if isinstance(criteria, dict) else 3
             
-            # Fallback to simpler calculation if match_level not available
+            # Calculate weighted match quality for each show
+            total_weight = 0
+            weighted_match_quality = 0
+            
+            for _, show in network_shows.iterrows():
+                # Get match level from the show data
+                level = show['match_level'] if 'match_level' in show else 1
+                
+                # Calculate match quality based on criteria matched
+                criteria_matched = max(0, total_criteria - (level - 1))
+                show_match_quality = criteria_matched / total_criteria if total_criteria > 0 else 0
+                
+                # Weight by success score if available
+                show_weight = show['success_score'] if 'success_score' in show else 1.0
+                
+                # Add to weighted average
+                weighted_match_quality += show_match_quality * show_weight
+                total_weight += show_weight
+            
+            # Calculate final match quality
+            if total_weight > 0:
+                match_quality = weighted_match_quality / total_weight
             else:
-                if 'success_score' in network_shows.columns:
-                    # Use average success score as a component of match quality
-                    avg_success = network_shows['success_score'].mean()
-                    # Scale to ensure we get a reasonable distribution between 0.3-1.0
-                    match_quality = max(0.3, min(1.0, avg_success))
-                else:
-                    # Calculate based on sample size relative to total matching shows
-                    relative_size = min(1.0, sample_size / max(1, len(matching_shows)))
-                    
-                    # Add a genre-based factor to differentiate networks
-                    genre_factor = 0.0
-                    if 'genre' in criteria and network_shows.shape[0] > 0:
-                        target_genre = criteria.get('genre')
-                        if target_genre and 'genre' in network_shows.columns:
-                            # Calculate percentage of shows on this network that match the target genre
-                            genre_matches = network_shows[network_shows['genre'] == target_genre].shape[0]
-                            genre_factor = min(0.3, genre_matches / max(1, network_shows.shape[0]) * 0.3)
-                    
-                    # Combine relative size with genre factor for a more differentiated score
-                    match_quality = 0.3 + (0.4 * relative_size) + genre_factor
+                match_quality = 0.3  # Default base value
+            
+            # Ensure reasonable minimum value
+            match_quality = max(0.3, match_quality)
+            
+            # Debug output
+            if st.session_state.get('debug_mode', False):
+                st.write(f"Debug: Network {network_name} match quality calculation:")
+                st.write(f"- Shows: {sample_size}")
+                st.write(f"- Final match quality: {match_quality:.2f}")
             
             # Create confidence info
             # Calculate confidence score (0-1) based on sample size and other factors
