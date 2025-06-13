@@ -152,7 +152,4 @@ def display_profiling_results():
             callers.sort(key=lambda x: x['Calls'], reverse=True)
             st.table(callers)
     
-    # Add a reset button
-    if st.button("Reset Profiling Data"):
-        reset_profiling()
-        st.experimental_rerun()
+    # Reset button is now in the sidebar Developer Options panel
