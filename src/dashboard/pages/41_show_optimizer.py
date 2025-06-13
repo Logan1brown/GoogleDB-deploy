@@ -17,7 +17,7 @@ if src_path not in sys.path:
 
 from src.shared.auth import auth_required
 from src.dashboard.state.session import get_page_state, update_page_state
-from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS, render_metric_card, render_info_card
+from src.dashboard.utils.style_config import COLORS, FONTS, CHART_DEFAULTS, render_metric_card, render_info_card, get_match_level_color
 from src.dashboard.components.optimizer_view import OptimizerView
 from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
 from src.dashboard.components.optimizer_helpers import (
@@ -178,14 +178,7 @@ def show():
                         match_level_name = OptimizerConfig.get_match_level_description(match_level)
                         sample_size = len(summary.matching_shows)
                         
-                        # Use colors from style guide for match levels
-                        match_level_colors = {
-                            1: COLORS['success']['high'],     # Dark purple for exact matches
-                            2: COLORS['success']['medium'],   # Green for missing 1 criterion
-                            3: COLORS['success']['low'],      # Yellow for missing 2 criteria
-                            4: COLORS['text']['secondary'],   # Gray for missing 3 criteria
-                            5: COLORS['success']['none']      # Light gray for missing 4+ criteria
-                        }
+                        # Use get_match_level_color function from style_config to get colors for match levels
                         
                         # Use OptimizerConfig.get_match_level_description for consistent descriptions
                         level_descriptions = {}
@@ -329,8 +322,8 @@ def show():
                                 for show in shows:
                                     title = show['title']
                                     
-                                    # Get color based on match level
-                                    color = match_level_colors[level]
+                                    # Get color based on match level using style_config function
+                                    color = get_match_level_color(level)
                                     
                                     # Format based on match level
                                     if level == 1:

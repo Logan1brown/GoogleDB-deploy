@@ -708,7 +708,7 @@ class NetworkScoreCalculator:
                         st.write(f"Debug: Network ID distribution: {network_id_counts.to_dict()}")
                 
             # Add a debug message about the number of network matches
-            if st.session_state.get('debug_mode', False):
+            if OptimizerConfig.DEBUG_MODE:
                 st.write(f"Debug: Found {len(network_matches)} network matches using {len(matching_shows)} matching shows")
 
             
@@ -734,7 +734,7 @@ class NetworkScoreCalculator:
                 match_quality = network_match.details.get('match_quality') if isinstance(network_match.details, dict) else None
                 
                 # Debug output to help diagnose issues
-                if st.session_state.get('debug_mode', False):
+                if OptimizerConfig.DEBUG_MODE:
                     st.write(f"Debug: network_match.details type: {type(network_match.details)}")
                     st.write(f"Debug: match_quality from details: {match_quality}")
                 
@@ -755,15 +755,16 @@ class NetworkScoreCalculator:
                         success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
                         
                         # Debug output in debug mode only
-                        if st.session_state.get('debug_mode', False):
+                        if OptimizerConfig.DEBUG_MODE:
                             st.write(f"Debug: Calculated success rate for {network_name}: {success_rate} with {count} shows")
                     else:
                         # Not enough shows for reliable calculation
-                        if st.session_state.get('debug_mode', False):
+                        if OptimizerConfig.DEBUG_MODE:
                             st.write(f"Debug: Insufficient sample size for {network_name}: {count} shows (min required: {OptimizerConfig.CONFIDENCE['minimum_sample']})")
+                            # Since we've lowered the minimum sample in the config, this message will only show for truly empty datasets
                 else:
                     # No matching shows for this network
-                    if st.session_state.get('debug_mode', False):
+                    if OptimizerConfig.DEBUG_MODE:
                         st.write(f"Debug: No matching shows for {network_name}")
                 
                 # Get confidence level from config based on sample size and match level
@@ -791,7 +792,7 @@ class NetworkScoreCalculator:
                     network_match.details['confidence_info'] = confidence_info
                 
                 # Debug output in debug mode
-                if st.session_state.get('debug_mode', False):
+                if OptimizerConfig.DEBUG_MODE:
                     st.write(f"Debug: Updated network match for {network_name} with success probability: {success_rate}")
                     st.write(f"Debug: Network match now has compatibility_score: {network_match.compatibility_score}, success_probability: {network_match.success_probability}")
                     

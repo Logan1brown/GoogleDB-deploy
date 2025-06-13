@@ -54,6 +54,28 @@ DIMENSIONS = {
 # UI Utility Functions
 import streamlit as st
 
+def get_match_level_color(level):
+    """Get color for a specific match level.
+    
+    Args:
+        level: Integer match level (1 = exact match, higher = more criteria missing)
+        
+    Returns:
+        Color string from the success color palette or default text color
+    """
+    if level == 1:
+        return COLORS['success']['high']     # Dark purple for exact matches
+    elif level == 2:
+        return COLORS['success']['medium']   # Green for missing 1 criterion
+    elif level == 3:
+        return COLORS['success']['low']      # Yellow for missing 2 criteria
+    elif level == 4:
+        return COLORS['text']['secondary']   # Gray for missing 3 criteria
+    elif level == 5:
+        return COLORS['success']['none']     # Light gray for missing 4 criteria
+    else:
+        return COLORS['text']['primary']     # Default text color for anything beyond level 5
+
 def render_metric_card(title, value, subtitle=None):
     """Render a metric card with a title, value, and optional subtitle.
     

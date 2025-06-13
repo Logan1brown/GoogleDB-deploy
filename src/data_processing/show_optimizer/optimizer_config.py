@@ -187,7 +187,7 @@ class OptimizerConfig:
     
     # Confidence thresholds for sample sizes
     CONFIDENCE = {
-        'minimum_sample': 5,           # Minimum shows needed for any analysis
+        'minimum_sample': 1,           # Minimum shows needed for any analysis (lowered from 5)
         'low_confidence': 10,          # Below this is low confidence
         'medium_confidence': 25,       # Below this is medium confidence
         'high_confidence': 50,         # Above this is high confidence
