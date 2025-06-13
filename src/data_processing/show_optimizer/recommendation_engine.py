@@ -795,9 +795,10 @@ class RecommendationEngine:
             if not criteria or not network:
                 return []
                 
-            # Get network-specific success rates for each criteria using integrated data
+            # Get network-specific success rates for each criteria using matching_shows
+            # The method only accepts matching_shows and network_id parameters
             network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
-                criteria, network.network_id, integrated_data)
+                matching_shows, network.network_id)
                 
             if not isinstance(network_rates, dict):
                 return []
