@@ -229,7 +229,7 @@ def show():
                         match_level_summary = []
                         for level in range(1, 6):
                             if level in match_counts_by_level and match_counts_by_level[level] > 0:
-                                level_name = match_level_names.get(level, f"Level {level}")
+                                level_name = level_descriptions.get(level, f"Level {level}")
                                 count = match_counts_by_level[level]
                                 match_level_summary.append(f"{count} {level_name}")
                         
@@ -311,14 +311,7 @@ def show():
                                     shows_by_level[level] = []
                                 shows_by_level[level].append(show)
                             
-                            # Define colors for different match levels
-                            match_level_colors = {
-                                1: "#000000",  # Black for exact matches
-                                2: "#333333",  # Dark gray for missing 1 criterion
-                                3: "#666666",  # Medium gray for missing 2 criteria
-                                4: "#999999",  # Light gray for missing 3 criteria
-                                5: "#BBBBBB"   # Very light gray for missing 4+ criteria
-                            }
+                            # Use the match_level_colors defined earlier with style guide colors
                             
                             # Display shows grouped by match level
                             for level in sorted(shows_by_level.keys()):
