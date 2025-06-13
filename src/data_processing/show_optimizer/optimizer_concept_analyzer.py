@@ -453,8 +453,9 @@ class ConceptAnalyzer:
                 return []
                 
             # Call rank_networks_by_compatibility with proper error handling
+            # The method only accepts matching_shows and an optional limit parameter
             network_matches = self.criteria_scorer.network_analyzer.rank_networks_by_compatibility(
-                criteria, integrated_data, matching_shows
+                matching_shows
             )
             
             if network_matches is None:
