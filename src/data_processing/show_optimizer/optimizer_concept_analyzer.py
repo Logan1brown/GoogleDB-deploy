@@ -309,17 +309,22 @@ class ConceptAnalyzer:
         shows_data = integrated_data['shows']
         st.write(f"Using integrated data with {len(shows_data)} shows")
         
-        # Set the criteria data in the matcher
-        self.matcher.set_criteria_data(shows_data)
-        
         # Get minimum sample size from config
         min_sample_size = self.config.CONFIDENCE['minimum_sample']
         
-        # Find matches with fallback
+        # Find matches with fallback using the criteria_scorer's matcher
         st.write("Finding shows matching your criteria...")
-        matching_shows, confidence_info = self.matcher.find_matches_with_fallback(
-            criteria, shows_data, min_sample_size
-        )
+        if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
+            # Set the criteria data in the matcher
+            self.criteria_scorer.matcher.set_criteria_data(shows_data)
+            
+            # Use the matcher from criteria_scorer
+            matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(
+                criteria, shows_data, min_sample_size
+            )
+        else:
+            st.error("No matcher available in CriteriaScorer. Cannot find matching shows.")
+            return pd.DataFrame(), {'level': 'none', 'error': 'No matcher available'}
         
         # Log the match results
         match_count = len(matching_shows) if not matching_shows.empty else 0
