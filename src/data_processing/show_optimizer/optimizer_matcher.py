@@ -230,6 +230,23 @@ class Matcher:
             if all_matches.empty:
                 all_matches = new_matches
             else:
+                # Ensure both DataFrames have the same columns before concatenating
+                required_columns = ['match_level', 'match_quality', 'match_level_desc']
+                for col in required_columns:
+                    if col not in all_matches.columns:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"Debug: Adding missing {col} column to all_matches before concat")
+                        # Use values from new_matches as a guide
+                        if col in new_matches.columns:
+                            # Use a default value based on the column
+                            if col == 'match_level':
+                                all_matches[col] = 1  # Default to best match level
+                            elif col == 'match_quality':
+                                all_matches[col] = 100  # Default to perfect quality
+                            elif col == 'match_level_desc':
+                                all_matches[col] = self._get_match_level_description(1)
+                
+                # Now concatenate with all required columns present
                 all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
             
             # Update our list of unique titles
@@ -321,6 +338,13 @@ class Matcher:
                 # Fall back to simple sampling
                 return df.sample(min(target_size, len(df)), random_state=42)
             
+            # Ensure match_level column exists before grouping or sorting
+            if 'match_level' not in all_matches.columns:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: match_level column missing before sampling, adding default values")
+                # Add match_level column with default value (1 = best match)
+                all_matches['match_level'] = 1
+            
             # Try to sample by match level groups, but with safety checks
             try:
                 # Group and sample
@@ -338,13 +362,23 @@ class Matcher:
                 
                 # Sort if possible, otherwise just sample
                 try:
-                    all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
-                    sampled_matches = all_matches.head(OptimizerConfig.MAX_RESULTS)
-                except:
-                    # Last resort: just take a sample
+                    # Make sure match_level exists before trying to sort by it
+                    if 'match_level' not in all_matches.columns:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write("Debug: match_level column missing in fallback, adding default values")
+                        all_matches['match_level'] = 1
+                    
+                    sampled_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
+                    sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
+                except Exception as e:
+                    # If sorting fails, just sample
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: Sorting by match_level failed in fallback: {str(e)}")
                     sampled_matches = all_matches.sample(min(OptimizerConfig.MAX_RESULTS, len(all_matches)), random_state=42)
             
+            # Use the sampled matches as our final result
             all_matches = sampled_matches
+            
         # If we have fewer matches than MAX_RESULTS, keep them all
         
         return all_matches, confidence_info

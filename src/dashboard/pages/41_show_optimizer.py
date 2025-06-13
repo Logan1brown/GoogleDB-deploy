@@ -268,13 +268,10 @@ def show():
                             # Process each show
                             for show in show_records:
                                 title = show.get('title', 'Unknown Title')
-                                # Defensive check for match_level column
-                                if 'match_level' not in show:
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        st.write(f"Debug: match_level missing for show: {title}")
-                                    # Default to level 1 (best match) if missing
-                                    show['match_level'] = 1
-                                current_level = show['match_level']
+                                # Debug output if match_level is missing
+                                if 'match_level' not in show and OptimizerConfig.DEBUG_MODE:
+                                    st.write(f"Debug: match_level missing for show: {title}")
+                                current_level = show.get('match_level', 1)  # Use 1 as fallback only for comparison
                                 
                                 # If we haven't seen this title before, or this match level is better
                                 if title not in unique_shows_by_title or current_level < unique_shows_by_title[title]['match_level']:

@@ -454,20 +454,20 @@ class CriteriaScorer:
                 st.warning(f"Insufficient sample size ({match_count}) for criteria: {criteria} to calculate reliable component scores. Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
                 # We'll continue with the calculation, but with a warning
             
-            # Validate that we have required confidence info fields
-            if 'match_level' not in confidence_info:
+            # Get match level from confidence info
+            actual_match_level = confidence_info.get('match_level')
+            if actual_match_level is None:
                 st.warning("Incomplete confidence info provided to calculate_component_scores: missing match_level")
-                actual_match_level = 1  # Default to exact match level
-            else:
-                actual_match_level = confidence_info.get('match_level')
-                original_match_level = confidence_info.get('original_match_level', actual_match_level)
+                # Don't add a fallback, let the error propagate naturally
                 
-                if actual_match_level != original_match_level and st.session_state.get('debug_mode', False):
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Note: Match level adjusted from {original_match_level} to {actual_match_level} for component score calculation")
-                    
-                # If we have array fields like character_types in our criteria, make sure they're properly matched
-                # This helps ensure component scores are calculated based on shows that actually match the criteria
+            original_match_level = confidence_info.get('original_match_level', actual_match_level)
+            
+            if actual_match_level != original_match_level and st.session_state.get('debug_mode', False):
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Note: Match level adjusted from {original_match_level} to {actual_match_level} for component score calculation")
+                
+            # If we have array fields like character_types in our criteria, make sure they're properly matched
+            # This helps ensure component scores are calculated based on shows that actually match the criteria
                 array_fields = [field for field, value in criteria.items() if isinstance(value, list) and value]
                 if array_fields and actual_match_level > 1 and st.session_state.get('debug_mode', False):
                     if OptimizerConfig.DEBUG_MODE:
