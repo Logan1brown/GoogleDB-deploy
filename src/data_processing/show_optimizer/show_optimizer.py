@@ -39,6 +39,7 @@ from .criteria_scorer import CriteriaScorer, NetworkMatch, ComponentScore
 from .recommendation_engine import SuccessFactor, RecommendationEngine, Recommendation
 from src.dashboard.components.optimizer_view import OptimizerView
 from .optimizer_config import OptimizerConfig
+from .optimizer_matcher import Matcher
 
 
 
@@ -185,8 +186,11 @@ class ShowOptimizer:
             reference_data = self.shows_analyzer.get_reference_data()
             self.field_manager = FieldManager(reference_data)
             
-            # Initialize criteria scorer
-            self.criteria_scorer = CriteriaScorer(self.field_manager)
+            # Initialize matcher
+            self.matcher = Matcher(self.field_manager)
+            
+            # Initialize criteria scorer with matcher
+            self.criteria_scorer = CriteriaScorer(self.field_manager, matcher=self.matcher)
             
             # Initialize network analyzer
             from .network_analyzer import NetworkAnalyzer
