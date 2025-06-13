@@ -247,9 +247,10 @@ def show():
                             level_counts = match_counts_by_level
                         
                         # Generate fully programmatic descriptions based on match level
+                        # Use OptimizerConfig for match level descriptions
                         level_descriptions = {}
                         for level in level_counts.keys():
-                            level_descriptions[level] = get_match_level_description(level)
+                            level_descriptions[level] = OptimizerConfig.get_match_level_description(level)
                         
                         # Format the level counts with descriptions
                         formatted_counts = {f"{level_descriptions.get(level, f'Level {level}')}": count 
