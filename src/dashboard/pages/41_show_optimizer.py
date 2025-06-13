@@ -52,7 +52,7 @@ def show():
                 if st.button("Reset Profiling Data"):
                     from src.data_processing.show_optimizer.optimizer_profiler import reset_profiling
                     reset_profiling()
-                    st.experimental_rerun()
+                    st.rerun()
             else:
                 st.write("Debug mode is OFF")
         
