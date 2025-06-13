@@ -29,25 +29,7 @@ from src.data_processing.show_optimizer.optimizer_profiler import display_profil
 from src.data_processing.show_optimizer.apply_profiler import apply_profiling
 
 
-def get_match_level_description(level):
-    """Generate a human-readable description of a match level.
-    
-    Args:
-        level: The match level (1 = exact match, 2 = missing 1 criterion, etc.)
-        
-    Returns:
-        A string description of the match level
-    """
-    # Match level directly corresponds to criteria differences + 1
-    # Level 1 = 0 differences, Level 2 = 1 difference, etc.
-    diff = level - 1
-    
-    if diff == 0:
-        return "All criteria matched"
-    elif diff == 1:
-        return f"Missing {diff} criterion"
-    else:
-        return f"Missing {diff} criteria"
+# Use OptimizerConfig.get_match_level_description instead of a local function
 
 
 @auth_required()
@@ -198,22 +180,19 @@ def show():
                         match_level_name = getattr(summary, 'match_level_name', 'Exact Match')
                         sample_size = len(summary.matching_shows)
                         
-                        # Define match level names and colors based on percentage criteria
-                        match_level_names = {
-                            1: "100% Criteria Match",
-                            2: "75% Criteria Match",
-                            3: "50% Criteria Match",
-                            4: "25% Criteria Match",
-                            5: "Minimal Criteria Match"
+                        # Use colors from style guide for match levels
+                        match_level_colors = {
+                            1: COLORS['success']['high'],     # Dark purple for exact matches
+                            2: COLORS['success']['medium'],   # Green for missing 1 criterion
+                            3: COLORS['success']['low'],      # Yellow for missing 2 criteria
+                            4: COLORS['text']['secondary'],   # Gray for missing 3 criteria
+                            5: COLORS['success']['none']      # Light gray for missing 4+ criteria
                         }
                         
-                        match_level_colors = {
-                            1: "#000000",  # Black for 100% match
-                            2: "#000000",  # Black for 75% match
-                            3: "#666666",  # Grey for 50% match
-                            4: "#999999",  # Light grey for 25% match
-                            5: "#AAAAAA"   # Very light grey for minimal match
-                        }
+                        # Use OptimizerConfig.get_match_level_description for consistent descriptions
+                        level_descriptions = {}
+                        for level in range(1, 10):  # Support up to 9 levels dynamically
+                            level_descriptions[level] = OptimizerConfig.get_match_level_description(level)
                         
                         # Get match counts by level if available
                         match_counts_by_level = {}
@@ -331,32 +310,44 @@ def show():
                                     shows_by_level[level] = []
                                 shows_by_level[level].append(show)
                             
+                            # Define colors for different match levels
+                            match_level_colors = {
+                                1: "#000000",  # Black for exact matches
+                                2: "#333333",  # Dark gray for missing 1 criterion
+                                3: "#666666",  # Medium gray for missing 2 criteria
+                                4: "#999999",  # Light gray for missing 3 criteria
+                                5: "#BBBBBB"   # Very light gray for missing 4+ criteria
+                            }
+                            
                             # Display shows grouped by match level
                             for level in sorted(shows_by_level.keys()):
                                 shows = shows_by_level[level]
-                                color = match_level_colors.get(level, "#000000")
+                                level_desc = level_descriptions.get(level, f"Level {level}")
                                 
                                 # Add separator between match levels if there are multiple levels
                                 if len(shows_by_level) > 1 and level > 1:
                                     st.write(f"---")
-                                
+                                                                
                                 # Sort shows by success_score within each match level
                                 if 'success_score' in shows[0] if shows else {}:
                                     shows.sort(key=lambda x: x.get('success_score', 0), reverse=True)
                                 
-                                # Display each show with appropriate formatting
+                                # Display each show with appropriate formatting based on match level
                                 for show in shows:
                                     title = show.get('title', 'Unknown Title')
                                     
+                                    # Get color based on match level
+                                    color = match_level_colors.get(level, COLORS['text']['primary'])
+                                    
                                     # Format based on match level
                                     if level == 1:
-                                        # 100% criteria match - bold black
-                                        st.markdown(f"**{title}**")
+                                        # All criteria matched - bold with high success color
+                                        st.markdown(f"<span style='color: {color}; font-weight: bold;'>{title}</span>", unsafe_allow_html=True)
                                     elif level == 2:
-                                        # 75% criteria match - normal black
-                                        st.markdown(title)
+                                        # Missing 1 criterion - medium success color
+                                        st.markdown(f"<span style='color: {color};'>{title}</span>", unsafe_allow_html=True)
                                     else:
-                                        # 50% or 25% criteria match - use appropriate color
+                                        # Missing 2+ criteria - use appropriate color from the match level colors
                                         st.markdown(f"<span style='color: {color};'>{title}</span>", unsafe_allow_html=True)
                     else:
                         st.info("No matching shows available for the selected criteria.")

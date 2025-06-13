@@ -341,13 +341,26 @@ class OptimizerConfig:
         'none': "Insufficient data"
     }
     
-    # Match level descriptions
-    MATCH_LEVEL_DESCRIPTIONS = {
-        1: "Exact match (all criteria)",
-        2: "Strong match (most criteria)",
-        3: "Partial match (some criteria)",
-        4: "Minimal match (few criteria)"
-    }
+    @classmethod
+    def get_match_level_description(cls, level):
+        """Generate a human-readable description of a match level.
+        
+        Args:
+            level: The match level (1 = exact match, 2 = missing 1 criterion, etc.)
+            
+        Returns:
+            A string description of the match level
+        """
+        # Match level directly corresponds to criteria differences + 1
+        # Level 1 = 0 differences, Level 2 = 1 difference, etc.
+        diff = level - 1
+        
+        if diff == 0:
+            return "All criteria matched"
+        elif diff == 1:
+            return f"Missing {diff} criterion"
+        else:
+            return f"Missing {diff} criteria"
     
     # Longevity scoring configuration
     LONGEVITY_SCORING = {
