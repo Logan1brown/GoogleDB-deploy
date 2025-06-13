@@ -177,7 +177,7 @@ def show():
                     if hasattr(summary, 'matching_shows') and summary.matching_shows is not None and not summary.matching_shows.empty:
                         # Get match level information
                         match_level = getattr(summary, 'match_level', 1)
-                        match_level_name = getattr(summary, 'match_level_name', 'Exact Match')
+                        match_level_name = OptimizerConfig.get_match_level_description(match_level)
                         sample_size = len(summary.matching_shows)
                         
                         # Use colors from style guide for match levels
@@ -271,7 +271,8 @@ def show():
                             # Process each show
                             for show in show_records:
                                 title = show.get('title', 'Unknown Title')
-                                current_level = show.get('match_level', match_level)
+                                # Each show should have a match_level from the matcher
+                                current_level = show['match_level']
                                 
                                 # If we haven't seen this title before, or this match level is better
                                 if title not in unique_shows_by_title or current_level < unique_shows_by_title[title]['match_level']:
@@ -286,27 +287,24 @@ def show():
                             # Limit to 100 shows
                             unique_shows = unique_shows[:100]
                             
-                            # No need to display the unique shows count
-                            
                             # Count shows by match level for verification
                             level_counts = {}
                             for show in unique_shows:
-                                level = show.get('match_level', match_level)
+                                # Each show must have a match_level from the matcher
+                                level = show['match_level']
                                 level_counts[level] = level_counts.get(level, 0) + 1
                             
                             # Format the level counts with descriptions
-                            formatted_counts = {f"{level_descriptions.get(level, f'Level {level}')}": count 
+                            formatted_counts = {OptimizerConfig.get_match_level_description(level): count 
                                               for level, count in level_counts.items()}
                             
                             st.write(f"Shows by match level: {formatted_counts}")
-                            
-                            # Sort shows by match level to ensure exact matches appear first
-                            unique_shows.sort(key=lambda x: x.get('match_level', 4))
-                            
+                                                        
                             # Group shows by match level for better display
                             shows_by_level = {}
                             for show in unique_shows:
-                                level = show.get('match_level', match_level)
+                                # Each show must have a match_level from the matcher
+                                level = show['match_level']
                                 if level not in shows_by_level:
                                     shows_by_level[level] = []
                                 shows_by_level[level].append(show)
@@ -316,7 +314,7 @@ def show():
                             # Display shows grouped by match level
                             for level in sorted(shows_by_level.keys()):
                                 shows = shows_by_level[level]
-                                level_desc = level_descriptions.get(level, f"Level {level}")
+                                level_desc = OptimizerConfig.get_match_level_description(level)
                                 
                                 # Add separator between match levels if there are multiple levels
                                 if len(shows_by_level) > 1 and level > 1:
@@ -324,14 +322,16 @@ def show():
                                                                 
                                 # Sort shows by success_score within each match level
                                 if 'success_score' in shows[0] if shows else {}:
-                                    shows.sort(key=lambda x: x.get('success_score', 0), reverse=True)
+                                    # Sort by success_score if available
+                                    if all('success_score' in show for show in shows):
+                                        shows.sort(key=lambda x: x['success_score'], reverse=True)
                                 
                                 # Display each show with appropriate formatting based on match level
                                 for show in shows:
-                                    title = show.get('title', 'Unknown Title')
+                                    title = show['title']
                                     
                                     # Get color based on match level
-                                    color = match_level_colors.get(level, COLORS['text']['primary'])
+                                    color = match_level_colors[level]
                                     
                                     # Format based on match level
                                     if level == 1:
