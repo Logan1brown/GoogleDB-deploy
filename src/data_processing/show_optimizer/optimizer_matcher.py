@@ -10,7 +10,7 @@ Key responsibilities:
 - Return a prioritized list of matches for scoring and analysis
 """
 
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Set
 import pandas as pd
 import numpy as np
 import streamlit as st
@@ -389,7 +389,8 @@ class Matcher:
             # Define a function to prioritize shows with RT and TMDB data
             def prioritize_shows(group_df):
                 # Calculate the target sample size for this group
-                target_size = min(len(group_df), max(1, int(OptimizerConfig.MAX_RESULTS * len(group_df) / len(all_matches))))
+                # Use ceiling division to avoid getting fewer than MAX_RESULTS total shows
+                target_size = min(len(group_df), max(1, int(np.ceil(OptimizerConfig.MAX_RESULTS * len(group_df) / len(all_matches)))))
                 
                 # Check if we have RT and TMDB columns to prioritize
                 has_rt = 'rt_score' in group_df.columns
@@ -447,6 +448,8 @@ class Matcher:
             
             # If we still have more than MAX_RESULTS after sampling each group
             if len(sampled_matches) > OptimizerConfig.MAX_RESULTS:
+                # Sort by match_level first to ensure we prioritize better matches
+                sampled_matches = sampled_matches.sort_values(by=['match_level'], ascending=[True])
                 sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
                 
             all_matches = sampled_matches
