@@ -586,13 +586,12 @@ class CriteriaScorer:
             st.error(f"Error getting matching shows: {str(e)}")
             return pd.DataFrame(), 0, {'level': 'none', 'score': 0.0, 'error': str(e)}
     
-    def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, integrated_data: Dict[str, pd.DataFrame]) -> List[NetworkMatch]:
+    def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         
         Args:
             criteria: Dictionary of criteria
             matching_shows: Pre-matched shows DataFrame
-            integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
             List of NetworkMatch objects with compatibility and success scores
@@ -602,7 +601,8 @@ class CriteriaScorer:
         if not hasattr(self, '_network_calculator'):
             self._network_calculator = NetworkScoreCalculator()
             
-        # Only set the integrated data - matching_shows will be passed directly to calculate_network_scores
-        self._network_calculator.set_integrated_data(integrated_data)
+        # Pass the field_manager to the network calculator if needed
+        if hasattr(self, 'field_manager') and not hasattr(self._network_calculator, 'field_manager'):
+            self._network_calculator.field_manager = self.field_manager
             
         return self._network_calculator.calculate_network_scores(criteria_str, matching_shows)
