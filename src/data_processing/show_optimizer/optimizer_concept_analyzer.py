@@ -167,50 +167,7 @@ class ConceptAnalyzer:
         self._matching_shows_cache = {}
         self._matching_shows_last_update = None
         
-    def invalidate_cache(self) -> None:
-        """Invalidate the matching shows cache.
-        
-        This forces a fresh search on the next request.
-        """
-        self._matching_shows_cache = {}
-        self._matching_shows_last_update = None
-        st.write("Matching shows cache invalidated")
-    
-    def display_cache_status(self, show_details: bool = False) -> None:
-        """Display cache status information in the Streamlit UI.
-        
-        Args:
-            show_details: Whether to show detailed cache information
-        """
-        if self.optimizer_cache is None:
-            st.write("No OptimizerCache instance available")
-            return
-            
-        # Display OptimizerCache status
-        self.optimizer_cache.display_cache_status(show_details)
-        
-        # Display matching shows cache status
-        current_time = datetime.now()
-        cache_valid = False
-        cache_age = None
-        
-        if self._matching_shows_last_update is not None:
-            cache_age = (current_time - self._matching_shows_last_update).total_seconds()
-            cache_valid = cache_age <= self.optimizer_cache.cache_duration
-            
-        # Create user-friendly status indicator
-        cache_status = "✅ Valid" if cache_valid else "⚠️ Expired"
-        
-        if show_details:
-            st.write("**Matching Shows Cache:**", cache_status)
-            st.write(f"Cached criteria sets: {len(self._matching_shows_cache)}")
-            if self._matching_shows_last_update:
-                st.write(f"Last updated: {self._matching_shows_last_update.isoformat()}")
-                st.write(f"Age: {round(cache_age) if cache_age else None} seconds")
-            else:
-                st.write("Not initialized yet")
-        else:
-            st.write(f"Matching Shows Cache: {cache_status}")
+    # Cache invalidation method removed
     
     def _handle_analysis_error(self, error_message: str) -> OptimizationSummary:
         """Handle analysis errors and return a minimal summary.

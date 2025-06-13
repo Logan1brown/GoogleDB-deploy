@@ -258,41 +258,6 @@ class ShowOptimizer:
             st.error(f"Error initializing Show Optimizer: {str(e)}")
             return False
     
-    def display_cache_status(self, show_details: bool = False) -> None:
-        """Display cache status information in the Streamlit UI.
-        
-        This method provides a user-friendly display of the cache status,
-        including when components were last initialized and when data was last fetched.
-        
-        Args:
-            show_details: Whether to show detailed cache information
-        """
-        st.write("### OptimizerCache Status")
-        self.cache.display_cache_status(show_details)
-        
-        # Display ConceptAnalyzer cache status if available
-        if self.concept_analyzer and hasattr(self.concept_analyzer, 'display_cache_status'):
-            st.write("### ConceptAnalyzer Cache Status")
-            self.concept_analyzer.display_cache_status(show_details)
-        
-    def invalidate_cache(self, components: bool = True, data: bool = True) -> None:
-        """Explicitly invalidate the cache.
-        
-        This method allows explicit invalidation of the cache, forcing a refresh
-        on the next request, regardless of the cache duration setting.
-        
-        Args:
-            components: Whether to invalidate component initialization cache
-            data: Whether to invalidate integrated data cache
-        """
-        # Invalidate the main cache
-        self.cache.invalidate_cache(components, data)
-        
-        # Invalidate the ConceptAnalyzer's cache if available
-        if components and self.concept_analyzer and hasattr(self.concept_analyzer, 'invalidate_cache'):
-            st.write("Invalidating ConceptAnalyzer cache...")
-            self.concept_analyzer.invalidate_cache()
-    
     def _ensure_initialized(self) -> Tuple[bool, Optional[str]]:
         """Ensure the optimizer and its components are initialized.
         

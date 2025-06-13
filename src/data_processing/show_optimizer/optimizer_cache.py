@@ -88,65 +88,7 @@ class OptimizerCache:
             }
         }
     
-    def display_cache_status(self, show_details: bool = False) -> None:
-        """Display cache status information in the Streamlit UI.
-        
-        This method provides a user-friendly display of the cache status,
-        including when components were last initialized and when data was last fetched.
-        
-        Args:
-            show_details: Whether to show detailed cache information
-        """
-        status = self.get_cache_status()
-        
-        # Create user-friendly status indicators
-        components_status = "✅ Valid" if status['components']['cache_valid'] else "⚠️ Expired"
-        data_status = "✅ Valid" if status['data']['cache_valid'] else "⚠️ Expired"
-        
-        if show_details:
-            st.write("### Cache Status")
-            
-            # Components cache
-            st.write("**Components Cache:**", components_status)
-            if status['components']['last_update']:
-                st.write(f"Last updated: {status['components']['last_update']}")
-                st.write(f"Expires: {status['components']['cache_expiry']}")
-                st.write(f"Age: {status['components']['cache_age_seconds']} seconds")
-            else:
-                st.write("Not initialized yet")
-            
-            # Data cache
-            st.write("**Data Cache:**", data_status)
-            if status['data']['last_update']:
-                st.write(f"Last updated: {status['data']['last_update']}")
-                st.write(f"Expires: {status['data']['cache_expiry']}")
-                st.write(f"Age: {status['data']['cache_age_seconds']} seconds")
-                st.write(f"Records: {status['data']['record_count']}")
-            else:
-                st.write("No data cached yet")
-        else:
-            # Simple status display
-            st.write(f"Components: {components_status} | Data: {data_status}")
-    
-    def invalidate_cache(self, components: bool = True, data: bool = True) -> None:
-        """Explicitly invalidate the cache.
-        
-        This method allows explicit invalidation of the cache, forcing a refresh
-        on the next request, regardless of the cache duration setting.
-        
-        Args:
-            components: Whether to invalidate component initialization cache
-            data: Whether to invalidate integrated data cache
-        """
-        if components:
-            self.components_initialized = False
-            self.components_last_update = None
-            st.write("Components cache invalidated")
-        
-        if data:
-            self.integrated_data = None
-            self.data_last_update = None
-            st.write("Data cache invalidated")
+    # Cache display and invalidation methods removed
     
     def is_components_cache_valid(self, force_refresh: bool = False) -> bool:
         """Check if the components cache is valid.
