@@ -557,7 +557,7 @@ class CriteriaScorer:
     def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None, flexible: bool = False) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
         """Get shows matching the given criteria.
         
-        This method delegates to the matcher's find_matches method.
+        This method delegates to the matcher's find_matches_with_fallback method.
         
         Args:
             criteria: Dictionary of criteria to match against

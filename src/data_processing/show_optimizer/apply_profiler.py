@@ -35,7 +35,6 @@ def apply_profiling():
     CriteriaScorer._get_matching_shows = profile()(CriteriaScorer._get_matching_shows)
     
     # Profile Matcher methods
-    Matcher.find_matches = profile()(Matcher.find_matches)
     Matcher.find_matches_with_fallback = profile()(Matcher.find_matches_with_fallback)
     
     st.write("Profiling has been applied to key Show Optimizer methods.")

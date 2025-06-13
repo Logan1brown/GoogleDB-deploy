@@ -166,8 +166,6 @@ def show():
                     # Use our improved helper function to render success metrics
                     render_success_metrics(summary)
                     
-                    # Longevity score is now displayed in the main metrics section
-                    
                     # Display network recommendations if available
                     
                     # Display matching show titles
@@ -260,7 +258,6 @@ def show():
 
                         
                         if 'title' in summary.matching_shows.columns:
-                            
                             # Create a list of unique shows by title
                             # First, convert to records for easier manipulation
                             show_records = summary.matching_shows.to_dict('records')
@@ -271,7 +268,6 @@ def show():
                             # Process each show
                             for show in show_records:
                                 title = show.get('title', 'Unknown Title')
-                                # Each show should have a match_level from the matcher
                                 current_level = show['match_level']
                                 
                                 # If we haven't seen this title before, or this match level is better

@@ -61,23 +61,23 @@ class Matcher:
             'match_level': 0  # Maintain backward compatibility
         }
         
-    def _calculate_criteria_coverage(self, criteria: Dict[str, Any], shows: pd.DataFrame) -> float:
-        """Calculate what percentage of criteria are covered by the shows.
+    def _calculate_criteria_coverage(self, criteria: Dict[str, Any], shows: pd.DataFrame) -> Tuple[float, int]:
+        """Calculate criteria coverage and missing criteria count.
         
         Args:
             criteria: Dictionary of criteria to check coverage for
             shows: DataFrame of shows to check against
             
         Returns:
-            Criteria coverage as a float between 0 and 1
+            Tuple of (criteria_coverage as float between 0 and 1, missing_criteria_count as int)
         """
         if not criteria or shows.empty:
-            return 0.0
+            return 0.0, len(criteria)
             
         # Get total number of criteria
         total_criteria = len(criteria)
         if total_criteria == 0:
-            return 1.0  # No criteria means 100% coverage
+            return 1.0, 0  # No criteria means 100% coverage and 0 missing criteria
             
         # Count how many criteria are actually present in the shows
         matched_criteria = 0
@@ -101,30 +101,24 @@ class Matcher:
                     if any(shows[key] == value):
                         matched_criteria += 1
         
-        # Calculate coverage ratio
-        return matched_criteria / total_criteria if total_criteria > 0 else 1.0
+        # Calculate coverage ratio and missing criteria count
+        coverage = matched_criteria / total_criteria if total_criteria > 0 else 1.0
+        missing_criteria = total_criteria - matched_criteria
         
-    def _calculate_match_quality(self, criteria_coverage: float) -> float:
-        """Calculate match quality based on criteria coverage.
+        return coverage, missing_criteria
+        
+    def _calculate_match_quality(self, missing_criteria_count: int) -> float:
+        """Calculate match quality based on number of missing criteria.
         
         Args:
-            criteria_coverage: Percentage of criteria covered (0-1)
+            missing_criteria_count: Number of criteria that weren't matched
             
         Returns:
             Match quality score (0-1)
         """
-        # Map criteria coverage to match quality using OptimizerConfig quality levels
-        # This provides consistency with the rest of the application
-        if criteria_coverage >= 1.0:
-            return OptimizerConfig.get_quality_for_diff(0)  # Perfect match
-        elif criteria_coverage >= 0.75:
-            return OptimizerConfig.get_quality_for_diff(1)  # Missing 1 criterion
-        elif criteria_coverage >= 0.5:
-            return OptimizerConfig.get_quality_for_diff(2)  # Missing 2 criteria
-        elif criteria_coverage >= 0.25:
-            return OptimizerConfig.get_quality_for_diff(3)  # Missing 3 criteria
-        else:
-            return OptimizerConfig.get_quality_for_diff(4)  # Missing 4+ criteria
+        # Use the config's programmatic approach to get quality based on missing criteria count
+        # This is directly aligned with how OptimizerConfig.get_quality_for_diff works
+        return OptimizerConfig.get_quality_for_diff(missing_criteria_count)
         
     def _get_match_level_description(self, match_level: int) -> str:
         """Generate a human-readable description for a match level.
@@ -153,125 +147,6 @@ class Matcher:
             criteria_data: DataFrame of shows with criteria data
         """
         self._criteria_data = criteria_data.copy() if criteria_data is not None else None
-    
-    def find_matches(self, criteria: Dict[str, Any], data: pd.DataFrame = None, 
-                     min_sample_size: int = None, flexible: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-        """Main entry point for finding matches with automatic fallback strategies.
-        
-        This method orchestrates the search process, trying different strategies
-        in order of decreasing precision until sufficient matches are found.
-        
-        Args:
-            criteria: Dictionary of criteria to match against
-            data: DataFrame of shows to match against (uses cached data if None)
-            min_sample_size: Minimum number of matches required (defaults to OptimizerConfig.CONFIDENCE['minimum_sample'])
-            
-        Returns:
-            Tuple of (matching_shows, match_info)
-        """
-        # Use config for minimum sample size if not specified
-        if min_sample_size is None:
-            min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample']
-        
-        # Use helper method to get data
-        data = self._get_data(data)
-        if data.empty:
-            return pd.DataFrame(), self._empty_confidence_info()
-        
-        # We'll collect matches from all levels
-        all_matches_by_level = {}
-        match_counts = {}
-        best_level = 0
-        confidence_info = {}
-        
-        # Determine how many criteria we have to work with
-        total_criteria = len(criteria)
-        
-        # Define the maximum number of criteria we're willing to drop
-        # This is based on the total number of criteria
-        max_criteria_to_drop = total_criteria - 1  # Keep at least 1 criterion
-        
-        if flexible:
-            # For flexible matching, start with a higher level (more missing criteria)
-            # but don't go beyond our max_criteria_to_drop
-            start_level = min(total_criteria, 5)  # Default to level 5 if possible
-            levels_to_try = [start_level]
-        else:
-            # Try each possible match level in order, from exact match to progressively fewer criteria
-            # Level 1 = exact match, Level 2 = missing 1 criterion, etc.
-            levels_to_try = list(range(1, max_criteria_to_drop + 2))
-            
-        for level in levels_to_try:
-            try:
-                # Get criteria for this match level
-                level_criteria = self.get_criteria_for_match_level(criteria, level)
-                
-                # Skip if we have no criteria at this level
-                if not level_criteria:
-                    # Debug output removed: No criteria for match level
-                    continue
-                
-                # Match shows using the level-specific criteria
-                matched_shows, match_count = self._match_shows(level_criteria, data)
-                
-                # Ensure the match level exists in OptimizerConfig.MATCH_LEVELS
-                OptimizerConfig.ensure_match_level_exists(level)
-                
-                # Generate level name dynamically based on criteria difference
-                diff = level - 1  # Level 1 = 0 differences, Level 2 = 1 difference, etc.
-                level_name = f"Missing {diff} criteria" if diff > 0 else "All criteria matched"
-                # Debug output removed: Match level found shows
-                
-                # Store these matches with their level
-                if not matched_shows.empty:
-                    # Add a match_level column to identify the source level
-                    matched_shows['match_level'] = level
-                    all_matches_by_level[level] = matched_shows
-                    match_counts[level] = match_count
-                    
-                    # If this is the first level with matches, or it has enough matches, use it
-                    if best_level == 0 or match_count >= min_sample_size:
-                        best_level = level
-                        confidence_info = self.calculate_match_confidence(matched_shows, level, criteria)
-                        
-                        # If we have enough matches, stop searching
-                        if match_count >= min_sample_size:
-                            break
-            except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.error(f"Error in match level {level}: {e}")
-        
-        # If we didn't find any matches at any level
-        if not all_matches_by_level:
-            if OptimizerConfig.DEBUG_MODE:
-                st.error("No matches found at any level")
-            return pd.DataFrame(), self._empty_confidence_info()
-        
-        # Combine shows from all match levels, starting with best match level
-        result_shows = pd.DataFrame()
-        for level in sorted(all_matches_by_level.keys()):
-            if level in all_matches_by_level:
-                if result_shows.empty:
-                    result_shows = all_matches_by_level[level]
-                else:
-                    # Only add shows that aren't already included (avoid duplicates)
-                    existing_titles = set(result_shows['title']) if 'title' in result_shows.columns else set()
-                    new_shows = all_matches_by_level[level]
-                    if 'title' in new_shows.columns:
-                        new_shows = new_shows[~new_shows['title'].isin(existing_titles)]
-                    result_shows = pd.concat([result_shows, new_shows], ignore_index=True)
-        
-        # Add match level counts to confidence info
-        confidence_info['match_counts'] = match_counts
-        
-        # Ensure the match level exists in OptimizerConfig.MATCH_LEVELS
-        OptimizerConfig.ensure_match_level_exists(best_level)
-        
-        # Generate level name dynamically using helper method
-        confidence_info['match_level_name'] = self._get_match_level_description(best_level)
-        confidence_info['confidence_level'] = confidence_info.get('level', 'none')  # Ensure confidence_level is set for fallback logic
-        
-        return result_shows, confidence_info
         
     def find_matches_with_fallback(self, criteria: Dict[str, Any], data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Find shows matching criteria, with fallback to more permissive criteria if needed.
@@ -521,19 +396,19 @@ class Matcher:
                             if 'network' in base_criteria:
                                 del base_criteria['network']
                                 
-                            # Calculate criteria coverage for these shows
-                            criteria_coverage = self._calculate_criteria_coverage(base_criteria, network_matching_shows)
+                            # Calculate criteria coverage and missing criteria count for these shows
+                            criteria_coverage, missing_criteria_count = self._calculate_criteria_coverage(base_criteria, network_matching_shows)
                             
-                            # Calculate match quality based on criteria coverage
+                            # Calculate match quality based on missing criteria count
                             # This is more accurate than hardcoding to 1.0
-                            match_quality = self._calculate_match_quality(criteria_coverage)
+                            match_quality = self._calculate_match_quality(missing_criteria_count)
                             
                             confidence_info = {
                                 'match_level': 1,  # Using pre-filtered shows but with calculated match quality
                                 'sample_size': len(matching_shows_for_network),
-                                'match_quality': match_quality,  # Use calculated match quality instead of hardcoded 1.0
+                                'match_quality': match_quality,  # Use calculated match quality based on missing criteria
                                 'criteria_coverage': criteria_coverage,  # Store actual criteria coverage
-                                'criteria_count': len(base_criteria),  # Store criteria count for reference
+                                'missing_criteria': missing_criteria_count,  # Store missing criteria count
                                 'total_criteria': len(base_criteria)  # Total possible criteria
                             }
                         else:
@@ -542,8 +417,8 @@ class Matcher:
                             confidence_info = self._empty_confidence_info()
                             confidence_info['match_level'] = 0
                     else:
-                        # No pre-filtered shows, use regular matching
-                        matching_shows_for_network, confidence_info = self.find_matches(
+                        # No pre-filtered shows, use consistent matching with fallback
+                        matching_shows_for_network, confidence_info = self.find_matches_with_fallback(
                             network_criteria, 
                             data=data, 
                             min_sample_size=OptimizerConfig.CONFIDENCE['minimum_sample']
