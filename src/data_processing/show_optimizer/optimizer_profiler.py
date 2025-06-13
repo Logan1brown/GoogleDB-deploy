@@ -11,74 +11,95 @@ import streamlit as st
 from typing import Dict, List, Callable, Any
 from datetime import datetime
 
-# Global profiling data storage
-if 'profiling_data' not in st.session_state:
-    st.session_state.profiling_data = {
-        'calls': {},        # Method name -> call count
-        'times': {},        # Method name -> list of execution times
-        'callers': {},      # Method name -> dict of caller methods and counts
-        'start_time': datetime.now()
-    }
+# Function to safely initialize session state
+def ensure_session_state_initialized():
+    """Ensure that all required session state variables are initialized."""
+    # Global profiling data storage
+    if 'profiling_data' not in st.session_state:
+        st.session_state.profiling_data = {
+            'calls': {},        # Method name -> call count
+            'times': {},        # Method name -> list of execution times
+            'callers': {},      # Method name -> dict of caller methods and counts
+            'start_time': datetime.now()
+        }
 
-# Call stack to track caller-callee relationships
-if 'call_stack' not in st.session_state:
-    st.session_state.call_stack = []
+    # Call stack to track caller-callee relationships
+    if 'call_stack' not in st.session_state:
+        st.session_state.call_stack = []
+
+# Initialize session state when module is loaded
+ensure_session_state_initialized()
 
 def profile(method_name: str = None):
     """Decorator to profile a method's execution time and track its callers.
     
     Args:
-        method_name: Optional name to use for the method (defaults to function name)
+        method_name: Optional name for the method. If None, uses the method's __name__
         
     Returns:
-        Decorated function
+        Decorated method with profiling
     """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Use provided name or function name
-            name = method_name or func.__name__
+            nonlocal method_name
             
-            # Track caller if we have something in the call stack
-            if st.session_state.call_stack:
+            # Ensure session state is initialized
+            ensure_session_state_initialized()
+            
+            # Use function name if method_name not provided
+            if method_name is None:
+                method_name = func.__name__
+                
+            # Get caller from call stack
+            caller = "root"
+            if hasattr(st.session_state, 'call_stack') and st.session_state.call_stack:
                 caller = st.session_state.call_stack[-1]
-                if name not in st.session_state.profiling_data['callers']:
-                    st.session_state.profiling_data['callers'][name] = {}
                 
-                if caller not in st.session_state.profiling_data['callers'][name]:
-                    st.session_state.profiling_data['callers'][name][caller] = 0
+            # Record call in profiling data
+            if not hasattr(st.session_state, 'profiling_data'):
+                ensure_session_state_initialized()
                 
-                st.session_state.profiling_data['callers'][name][caller] += 1
+            if method_name not in st.session_state.profiling_data['calls']:
+                st.session_state.profiling_data['calls'][method_name] = 0
+                st.session_state.profiling_data['times'][method_name] = []
+                st.session_state.profiling_data['callers'][method_name] = {}
+                
+            st.session_state.profiling_data['calls'][method_name] += 1
             
-            # Initialize tracking for this method if needed
-            if name not in st.session_state.profiling_data['calls']:
-                st.session_state.profiling_data['calls'][name] = 0
-                st.session_state.profiling_data['times'][name] = []
+            # Record caller
+            if caller not in st.session_state.profiling_data['callers'][method_name]:
+                st.session_state.profiling_data['callers'][method_name][caller] = 0
+            st.session_state.profiling_data['callers'][method_name][caller] += 1
             
-            # Update call count
-            st.session_state.profiling_data['calls'][name] += 1
+            # Add to call stack
+            if hasattr(st.session_state, 'call_stack'):
+                st.session_state.call_stack.append(method_name)
             
-            # Push this method to call stack
-            st.session_state.call_stack.append(name)
-            
-            # Time the execution
+            # Execute the method and time it
             start_time = time.time()
             try:
-                return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+                return result
             finally:
                 # Record execution time
                 execution_time = time.time() - start_time
-                st.session_state.profiling_data['times'][name].append(execution_time)
+                if hasattr(st.session_state, 'profiling_data'):
+                    st.session_state.profiling_data['times'][method_name].append(execution_time)
                 
-                # Pop from call stack
-                if st.session_state.call_stack and st.session_state.call_stack[-1] == name:
+                # Remove from call stack
+                if hasattr(st.session_state, 'call_stack') and st.session_state.call_stack and st.session_state.call_stack[-1] == method_name:
                     st.session_state.call_stack.pop()
-        
+                    
         return wrapper
     return decorator
 
 def reset_profiling():
     """Reset all profiling data."""
+    # Ensure session state is initialized first
+    ensure_session_state_initialized()
+    
+    # Reset the profiling data
     st.session_state.profiling_data = {
         'calls': {},
         'times': {},
@@ -89,7 +110,10 @@ def reset_profiling():
 
 def display_profiling_results():
     """Display profiling results in the Streamlit UI."""
-    if 'profiling_data' not in st.session_state:
+    # Ensure session state is initialized first
+    ensure_session_state_initialized()
+    
+    if not hasattr(st.session_state, 'profiling_data') or not st.session_state.profiling_data:
         st.write("No profiling data available.")
         return
     

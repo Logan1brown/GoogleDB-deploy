@@ -36,6 +36,7 @@ def apply_profiling():
     
     # Profile Matcher methods
     Matcher.find_matches_with_fallback = profile()(Matcher.find_matches_with_fallback)
+    # find_network_matches method has been removed - functionality now handled by NetworkAnalyzer.rank_networks_by_compatibility
     
     st.write("Profiling has been applied to key Show Optimizer methods.")
 
