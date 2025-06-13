@@ -25,6 +25,8 @@ from src.dashboard.components.optimizer_helpers import (
     render_content_criteria, render_production_criteria, render_format_criteria,
     render_success_factors
 )
+from src.data_processing.show_optimizer.optimizer_profiler import display_profiling_results
+from src.data_processing.show_optimizer.apply_profiler import apply_profiling
 
 
 def get_match_level_description(level):
@@ -50,7 +52,28 @@ def get_match_level_description(level):
 
 @auth_required()
 def show():
+    # Apply profiling to key methods
+    if st.session_state.get('debug_mode', False):
+        try:
+            apply_profiling()
+        except Exception as e:
+            st.write(f"Error applying profiling: {str(e)}")
     """Main page content."""
+    # Sidebar for debug controls
+    with st.sidebar:
+        with st.expander("Developer Options", expanded=False):
+            debug_mode = st.checkbox("Enable Debug Mode", value=st.session_state.get('debug_mode', False))
+            st.session_state['debug_mode'] = debug_mode
+            
+            if debug_mode:
+                st.write("Debug mode is ON")
+                if st.button("Reset Profiling Data"):
+                    from src.data_processing.show_optimizer.optimizer_profiler import reset_profiling
+                    reset_profiling()
+                    st.experimental_rerun()
+            else:
+                st.write("Debug mode is OFF")
+        
     # Page title using style from style_config
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Optimizer</p>', unsafe_allow_html=True)
     
@@ -73,18 +96,7 @@ def show():
     
     # Initialize state if needed
     
-    # Add debug mode toggle in sidebar
-    with st.sidebar.expander("Developer Options", expanded=True):
-        debug_mode = st.checkbox("Debug Mode", value=st.session_state.get('debug_mode', False))
-        st.session_state['debug_mode'] = debug_mode
-        
-        # Show debug mode status
-        if debug_mode:
-            st.write("Debug mode is ON")
-            # Force debug output to appear in the main content area too
-            st.write("Debug mode is active - detailed debug information will be shown")
-        else:
-            st.write("Debug mode is OFF")
+    # Debug mode is controlled from the sidebar only
     
     # Initialize the optimizer
     optimizer_view = OptimizerView()
@@ -133,11 +145,6 @@ def show():
             # Initialize session state variables if not already set
             if 'optimizer_summary' not in st.session_state:
                 st.session_state['optimizer_summary'] = None
-            
-            # Add debug mode toggle
-            with st.sidebar.expander("Developer Options", expanded=False):
-                debug_mode = st.checkbox("Debug Mode", value=st.session_state.get('debug_mode', False))
-                st.session_state['debug_mode'] = debug_mode
             
             # Keep the session_state.optimizer_criteria in sync with state['criteria']
             st.session_state.optimizer_criteria = state['criteria'].copy()
@@ -626,6 +633,11 @@ def show():
     
     # End of page
     st.markdown("---")
+    
+    # Add profiling results at the bottom of the page
+    if st.session_state.get('debug_mode', False):
+        with st.expander("Performance Profiling", expanded=False):
+            display_profiling_results()
 
 if __name__ == "__main__":
     show()
