@@ -394,12 +394,13 @@ class ConceptAnalyzer:
                 st.write(f"Error details: {traceback.format_exc()}")
             return None, 'none'
     
-    def _find_top_networks(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> List[NetworkMatch]:
+    def _find_top_networks(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame], matching_shows: pd.DataFrame = None) -> List[NetworkMatch]:
         """Find top networks compatible with the given criteria.
         
         Args:
             criteria: Dictionary of criteria
             integrated_data: Dictionary of integrated data frames from ShowOptimizer
+            matching_shows: Optional DataFrame of shows already matched to criteria
             
         Returns:
             List of NetworkMatch objects sorted by compatibility score
@@ -518,11 +519,19 @@ class ConceptAnalyzer:
             # Get confidence info from the matching shows
             confidence_info = {'match_level': 1}  # Default to exact match level
             
-            # Extract match level from matching_shows if available
+            # Extract match level statistics from matching_shows if available
             if not matching_shows.empty:
                 if 'match_level' in matching_shows.columns:
-                    confidence_info['match_level'] = matching_shows['match_level'].max()
-                    confidence_info['level'] = 'high' if confidence_info['match_level'] <= 1 else 'medium' if confidence_info['match_level'] <= 2 else 'low'
+                    # Store the distribution of match levels but don't override the original match_level
+                    # that was set by the matcher
+                    confidence_info['max_match_level'] = matching_shows['match_level'].max()
+                    confidence_info['min_match_level'] = matching_shows['match_level'].min()
+                    confidence_info['mean_match_level'] = matching_shows['match_level'].mean()
+                    
+                    # Only set the confidence level if it's not already set
+                    if 'level' not in confidence_info:
+                        match_level = confidence_info.get('match_level', confidence_info['max_match_level'])
+                        confidence_info['level'] = 'high' if match_level <= 1 else 'medium' if match_level <= 2 else 'low'
                 # Also include match count for better confidence calculation
                 confidence_info['match_count'] = len(matching_shows)
                 
