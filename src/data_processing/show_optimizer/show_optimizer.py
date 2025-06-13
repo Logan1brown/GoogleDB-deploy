@@ -195,9 +195,8 @@ class ShowOptimizer:
                 field_manager=self.field_manager
             )
             
-            # Set the network_analyzer and matcher in the criteria_scorer
+            # Set the network_analyzer in the criteria_scorer
             self.criteria_scorer.network_analyzer = self.network_analyzer
-            self.criteria_scorer.matcher = self.network_analyzer.matcher
             
             # Initialize recommendation engine
             self.recommendation_engine = RecommendationEngine(
@@ -211,7 +210,6 @@ class ShowOptimizer:
             self.concept_analyzer = ConceptAnalyzer(
                 shows_analyzer=self.shows_analyzer,
                 success_analyzer=self.success_analyzer,
-                matcher=self.network_analyzer.matcher,
                 field_manager=self.field_manager,
                 criteria_scorer=self.criteria_scorer
             )

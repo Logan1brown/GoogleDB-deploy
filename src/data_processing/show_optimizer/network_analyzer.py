@@ -40,7 +40,7 @@ class NetworkAnalyzer:
         """Initialize the network analyzer.
         
         Args:
-            criteria_scorer: CriteriaScorer instance for scoring calculations
+            criteria_scorer: CriteriaScorer instance for score calculations
             field_manager: Optional FieldManager instance for field mapping
         """
         self.criteria_scorer = criteria_scorer

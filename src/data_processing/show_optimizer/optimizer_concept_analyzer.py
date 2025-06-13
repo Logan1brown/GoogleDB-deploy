@@ -136,20 +136,18 @@ class ConceptAnalyzer:
     recommendations.
     """
     
-    def __init__(self, shows_analyzer, success_analyzer, matcher, field_manager, criteria_scorer):
+    def __init__(self, shows_analyzer, success_analyzer, field_manager, criteria_scorer):
         """Initialize the ConceptAnalyzer.
         
         Args:
             shows_analyzer: ShowsAnalyzer instance for show data analysis
             success_analyzer: SuccessAnalyzer instance for success metrics
-            matcher: Matcher instance for finding matching shows
             field_manager: FieldManager instance for field mapping
             criteria_scorer: CriteriaScorer instance for scoring components
 
         """
         self.shows_analyzer = shows_analyzer
         self.success_analyzer = success_analyzer
-        self.matcher = matcher
         self.field_manager = field_manager
         self.criteria_scorer = criteria_scorer
         self.config = OptimizerConfig
