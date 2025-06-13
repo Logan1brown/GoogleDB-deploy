@@ -179,7 +179,10 @@ class Matcher:
         # Get data for matching
         data = self._get_data(data)
         if data.empty:
-            return pd.DataFrame(), self._empty_confidence_info()
+            # Create an empty DataFrame with the required columns
+            empty_df = pd.DataFrame(columns=['title', 'match_level', 'match_quality', 'match_level_desc'])
+            # Return the empty DataFrame with the required columns
+            return empty_df, self._empty_confidence_info()
         
         # Determine how many criteria we have to work with
         total_criteria = len(criteria)
@@ -241,7 +244,10 @@ class Matcher:
         
         # If we still didn't find any matches at any level
         if all_matches.empty:
-            return pd.DataFrame(), self._empty_confidence_info()
+            # Create an empty DataFrame with the required columns
+            empty_df = pd.DataFrame(columns=['title', 'match_level', 'match_quality', 'match_level_desc'])
+            # Return the empty DataFrame with the required columns
+            return empty_df, self._empty_confidence_info()
         
         # Prepare confidence info for the combined results
         confidence_info = best_confidence_info.copy() if best_confidence_info else self._empty_confidence_info()
