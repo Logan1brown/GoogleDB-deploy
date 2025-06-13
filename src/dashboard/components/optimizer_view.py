@@ -155,6 +155,14 @@ class OptimizerView:
                 # Run the actual analysis
                 summary = self.optimizer.analyze_concept(normalized_criteria)
                 
+                # Debug: Check matching_shows when received from ConceptAnalyzer
+                if OptimizerConfig.DEBUG_MODE and hasattr(summary, 'matching_shows') and not summary.matching_shows.empty:
+                    st.write(f"Debug: OptimizerView received matching_shows with columns: {summary.matching_shows.columns.tolist()}")
+                    if 'match_level' in summary.matching_shows.columns:
+                        st.write(f"Debug: OptimizerView received match_level values: {summary.matching_shows['match_level'].value_counts().to_dict()}")
+                    else:
+                        st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame in OptimizerView when received from ConceptAnalyzer!")
+                
                 # Store results in state
                 if summary:
                     # Format the summary for UI display - this method already sets summary.formatted_data
@@ -209,6 +217,22 @@ class OptimizerView:
             # Format recommendations if available
             if hasattr(summary, 'recommendations') and summary.recommendations:
                 summary._formatted_data_dict['recommendations'] = self._format_recommendations(summary.recommendations)
+                
+            # Format matching shows if available
+            if hasattr(summary, 'matching_shows') and not summary.matching_shows.empty:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: OptimizerView formatting matching_shows with columns: {summary.matching_shows.columns.tolist()}")
+                    if 'match_level' in summary.matching_shows.columns:
+                        st.write(f"Debug: match_level values before formatting: {summary.matching_shows['match_level'].value_counts().to_dict()}")
+                    else:
+                        st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame in OptimizerView!")
+                
+                # Format the matching shows for UI display
+                formatted_shows = self._format_matching_shows(summary.matching_shows)
+                summary._formatted_data_dict['matching_shows'] = formatted_shows
+                
+                # Replace the original DataFrame with the formatted one
+                summary.matching_shows = formatted_shows
             
             # Format success probability if available AND we have valid component scores
             has_valid_component_scores = (
@@ -495,15 +519,15 @@ class OptimizerView:
             'high': 3
         }
         return confidence_levels.get(confidence.lower(), 0)
-    
-    def _format_success_factors(self, success_factors: List) -> List[Dict[str, Any]]:
+        
+    def _format_success_factors(self, success_factors: List[SuccessFactor]) -> List[Dict[str, Any]]:
         """Format success factors for display.
         
         Args:
-            success_factors: List of SuccessFactor objects
+            success_factors: List of success factors
             
         Returns:
-            List of formatted success factor dictionaries ready for direct display in UI
+            List of formatted success factors
         """
         if not success_factors:
             return []
@@ -571,6 +595,59 @@ class OptimizerView:
                 "match_counts_by_level": {},
                 "confidence_score": 0.0
             }
+    
+    def _format_matching_shows(self, matching_shows: pd.DataFrame) -> pd.DataFrame:
+        """Format matching shows for display in the UI.
+        
+        This method ensures that all necessary columns are present and properly formatted
+        for UI consumption, particularly preserving the match_level column which is
+        critical for sorting and filtering shows in the UI.
+        
+        Args:
+            matching_shows: DataFrame of matching shows
+            
+        Returns:
+            Formatted DataFrame of matching shows
+        """
+        try:
+            # Create a copy to avoid modifying the original
+            formatted_shows = matching_shows.copy()
+            
+            # Ensure match_level column exists and is properly formatted
+            if 'match_level' not in formatted_shows.columns:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: Adding missing match_level column in _format_matching_shows")
+                # Default to the highest match level if missing
+                formatted_shows['match_level'] = 1
+            else:
+                # Ensure match_level is an integer
+                formatted_shows['match_level'] = formatted_shows['match_level'].astype(int)
+            
+            # Ensure other required columns exist
+            required_columns = ['title', 'match_quality', 'match_level_desc']
+            for col in required_columns:
+                if col not in formatted_shows.columns:
+                    if col == 'title':
+                        formatted_shows[col] = 'Unknown Title'
+                    elif col == 'match_quality':
+                        formatted_shows[col] = 0
+                    elif col == 'match_level_desc':
+                        # Generate descriptions based on match_level
+                        formatted_shows[col] = formatted_shows['match_level'].apply(
+                            lambda x: OptimizerConfig.get_match_level_description(x)
+                        )
+            
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: After formatting, matching_shows columns: {formatted_shows.columns.tolist()}")
+                st.write(f"Debug: After formatting, match_level values: {formatted_shows['match_level'].value_counts().to_dict()}")
+            
+            return formatted_shows
+            
+        except Exception as e:
+            if OptimizerConfig.DEBUG_MODE:
+                st.error(f"Error formatting matching shows: {str(e)}")
+            # Return the original DataFrame if there's an error
+            return matching_shows
         
     def format_criteria_display(self, criteria: Dict[str, Any]) -> Dict[str, str]:
         """Format criteria for display.

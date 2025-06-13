@@ -253,6 +253,14 @@ class ConceptAnalyzer:
                 if len(matching_titles) > 100:
                     matching_titles = matching_titles[:100]
             
+            # Debug: Check matching_shows columns right before creating summary
+            if OptimizerConfig.DEBUG_MODE and not matching_shows.empty:
+                st.write(f"Debug: Before creating summary - matching_shows columns: {matching_shows.columns.tolist()}")
+                if 'match_level' in matching_shows.columns:
+                    st.write(f"Debug: Before creating summary - match_level values: {matching_shows['match_level'].value_counts().to_dict()}")
+                else:
+                    st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame before creating summary!")
+            
             # Create and return the optimization summary
             summary = OptimizationSummary(
                 overall_success_probability=success_probability,
@@ -270,6 +278,14 @@ class ConceptAnalyzer:
                 match_counts_by_level=match_counts_by_level,
                 confidence_info=confidence_info
             )
+            
+            # Debug: Final check of matching_shows before returning to OptimizerView
+            if OptimizerConfig.DEBUG_MODE and not matching_shows.empty:
+                st.write(f"Debug: FINAL CHECK - Before returning to OptimizerView, matching_shows columns: {matching_shows.columns.tolist()}")
+                if 'match_level' in matching_shows.columns:
+                    st.write(f"Debug: FINAL CHECK - match_level values: {matching_shows['match_level'].value_counts().to_dict()}")
+                else:
+                    st.write("Debug: FINAL CHECK - WARNING - match_level column is missing from matching_shows DataFrame before returning to OptimizerView!")
             
             # No backward compatibility or fallbacks - rely solely on top_networks
                 
@@ -320,7 +336,15 @@ class ConceptAnalyzer:
             # Log the match results
             match_count = len(matching_shows) if not matching_shows.empty else 0
             st.write(f"Found {match_count} matching shows with confidence level '{confidence_info.get('level', 'unknown')}'")
-            # Check columns in matching_shows
+            
+            # Debug: Check columns in matching_shows
+            if OptimizerConfig.DEBUG_MODE and not matching_shows.empty:
+                st.write(f"Debug: matching_shows columns: {matching_shows.columns.tolist()}")
+                if 'match_level' in matching_shows.columns:
+                    st.write(f"Debug: match_level values: {matching_shows['match_level'].value_counts().to_dict()}")
+                else:
+                    st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame!")
+            # End debug check
             
             # Match results logged above
             
