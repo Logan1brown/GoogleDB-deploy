@@ -439,7 +439,8 @@ class OptimizerView:
             if match.success_probability is not None:
                 # Ensure we're working with a proper decimal value
                 success_value = float(match.success_probability)
-                success_display = f"{success_value*100:.1f}%"
+                # Display the raw value directly as it's already in percentage form
+                success_display = f"{success_value:.1f}%"
                 # Store raw value for sorting
                 success_raw = success_value
             else:
