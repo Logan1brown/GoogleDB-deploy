@@ -218,7 +218,7 @@ class CriteriaScorer:
             A dictionary mapping field names to dictionaries of option IDs to impact scores.
         """
         try:
-            # Debug output for input parameters
+            # Debug output for input parameters - only show if both DEBUG_MODE and VERBOSE_DEBUG are enabled
             if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                 st.write(f"Debug: calculate_criteria_impact called with {len(base_criteria)} criteria")
                 st.write(f"Debug: Base criteria keys: {list(base_criteria.keys())}")
@@ -229,10 +229,6 @@ class CriteriaScorer:
             # Let the field manager handle array field identification
             array_field_mapping = self.field_manager.get_array_field_mapping()
             array_fields = list(array_field_mapping.keys())
-            
-            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                st.write(f"Debug: Array fields: {array_fields}")
-                st.write(f"Debug: Field manager has {len(self.field_manager.FIELD_CONFIGS)} field configs")
             
             # Use the provided base matching shows
             base_match_count = len(base_matching_shows) if not base_matching_shows.empty else 0
@@ -250,31 +246,32 @@ class CriteriaScorer:
             # Calculate base success rate using the provided shows
             if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                 st.write(f"Debug: Calculating base success rate for {len(base_matching_shows)} shows")
+                
+                # Show success score stats if available
                 if 'success_score' in base_matching_shows.columns:
-                    st.write(f"Debug: Success score stats: min={base_matching_shows['success_score'].min()}, max={base_matching_shows['success_score'].max()}, mean={base_matching_shows['success_score'].mean()}")
-                else:
-                    st.write("Debug: No success_score column in base_matching_shows")
+                    success_scores = base_matching_shows['success_score'].dropna()
+                    if len(success_scores) > 0:
+                        st.write(f"Debug: Success score stats: min={success_scores.min()}, max={success_scores.max()}, mean={success_scores.mean()}")
+                        
+            # Calculate base success rate
+            base_rate, base_confidence = self._calculate_success_rate(base_matching_shows)
             
-            base_rate, base_info = self._calculate_success_rate(base_matching_shows)
-            
-            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                st.write(f"Debug: Base success rate calculation result: {base_rate}")
-                st.write(f"Debug: Base success info: {base_info}")
-            
-            if base_rate is None:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: Unable to calculate base success rate - success_score data missing")
-                st.warning("WARNING: Unable to calculate base success rate - success_score data missing")
-                return {}
+            # Only show critical base success rate info
+            if OptimizerConfig.DEBUG_MODE and base_rate is None:
+                st.write(f"Debug: Failed to calculate base success rate")
             
             impact_scores = {}
             
             # Determine which fields to process
-            fields_to_process = [field_name] if field_name else self.field_manager.FIELD_CONFIGS.keys()
-            
+            if field_name:
+                # Process only the specified field
+                fields_to_process = [field_name]
+            else:
+                # Process all fields from the field manager
+                fields_to_process = self.field_manager.get_all_field_names()
+                
             if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                st.write(f"Debug: Base success rate: {base_rate:.2f}")
-                st.write(f"Debug: Fields to process: {list(fields_to_process)}")
+                st.write(f"Debug: Fields to process: {fields_to_process}")
             
             def make_hashable(val):
                 """Convert any value to a hashable type for dictionary keys.
@@ -313,7 +310,7 @@ class CriteriaScorer:
                 options = self.field_manager.get_options(current_field)
                 
                 if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Processing field {current_field} (array: {is_array_field})")
+                    st.write(f"Debug: Processing field {current_field} (array: {current_field in array_fields})")
                     st.write(f"Debug: Found {len(options)} options for field {current_field}")
                 
                 # Prepare batch criteria for all options
@@ -321,15 +318,10 @@ class CriteriaScorer:
                 option_data = []
                 recommendation_types = []
                 
-                # Check if this field is already in the base criteria
-                field_in_base = current_field in base_criteria
-                current_value = base_criteria.get(current_field) if field_in_base else None
-                
-                if field_in_base:
-                    # For fields already in criteria, we'll calculate both Remove and Change recommendations
-                    
+                # Check if this field is in the base criteria
+                if current_field in base_criteria:
                     if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                        st.write(f"Debug: Field {current_field} is in base criteria with value {current_value}")
+                        st.write(f"Debug: Field {current_field} is in base criteria with value {base_criteria[current_field]}")
                     
                     # 1. First, create a "Remove" recommendation by removing this field
                     remove_criteria = base_criteria.copy()
@@ -341,9 +333,9 @@ class CriteriaScorer:
                     # 2. Then, create "Change" recommendations for each alternative option
                     for option in options:
                         # Skip the current value
-                        if is_array_field and isinstance(current_value, list) and option.id in current_value:
+                        if is_array_field and isinstance(base_criteria[current_field], list) and option.id in base_criteria[current_field]:
                             continue
-                        elif not is_array_field and option.id == current_value:
+                        elif not is_array_field and option.id == base_criteria[current_field]:
                             continue
                             
                         # Create a new criteria with this option
@@ -351,7 +343,7 @@ class CriteriaScorer:
                         
                         # For array fields, we replace the current value with a new array
                         # For scalar fields, we simply replace the value
-                        if is_array_field and isinstance(current_value, list):
+                        if is_array_field and isinstance(base_criteria[current_field], list):
                             # Replace the array with a new array containing just this option
                             option_key = int(option.id)
                             new_criteria[current_field] = [option_key]
@@ -386,17 +378,23 @@ class CriteriaScorer:
                 # Process each option using the provided option_matching_shows_map or generate it if not provided
                 field_impact = {}
                 
-                # If option_matching_shows_map is not provided, we need to generate it
-                if not option_matching_shows_map or current_field not in option_matching_shows_map:
-                    
-                    # Generate option matching shows map for this field
+                # Generate option matching shows map for this field if not provided
+                if option_matching_shows_map is None or current_field not in option_matching_shows_map:
+                    if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
+                        st.write(f"Debug: Generating option matching shows map for field {current_field}")
                     field_options_map = {}
                     
                     # For each option in option_data, run the matcher to get matching shows
                     for i, (option_id, option_name) in enumerate(option_data):
                         try:
-                            # Create criteria for this option
-                            option_criteria = base_criteria.copy()
+                            # Create a new criteria excluding the current field from base criteria
+                            # This prevents conflicts between base criteria and option criteria
+                            option_criteria = {k: v for k, v in base_criteria.items() if k != current_field}
+                            
+                            # For option matching, we need to create a new criteria that:
+                            # 1. Excludes the current field from base criteria (to avoid conflicts)
+                            # 2. Includes all other base criteria
+                            # 3. Adds the option value for the current field
                             
                             # Set the criteria value based on field type
                             is_array_field = self.field_manager.get_field_type(current_field) == 'array'
@@ -405,7 +403,7 @@ class CriteriaScorer:
                             else:
                                 option_criteria[current_field] = option_id
                                 
-                            # Get matching shows for this option
+                            # Get matching shows for this option using fresh data
                             # Pass None as the data parameter to use the original integrated data in the matcher
                             # This ensures we're not filtering an already filtered dataset
                             option_shows, _, _ = self._get_matching_shows(option_criteria, None)
@@ -413,10 +411,10 @@ class CriteriaScorer:
                             # Store in field_options_map
                             field_options_map[option_id] = option_shows
                             
-                            # Only show debug output for zero matches when it conflicts with base criteria
+                            # Only show debug output for zero matches when it's the same field as in base criteria
                             # This is critical information for troubleshooting
                             if OptimizerConfig.DEBUG_MODE and len(option_shows) == 0 and current_field in base_criteria:
-                                st.write(f"Debug: No matches for {current_field}={option_name} (conflicts with base criteria)")
+                                st.write(f"Debug: No matches for {current_field}={option_name} when replacing base criteria value")
                             # All other zero match messages are suppressed unless explicitly requested
                                 
                         except Exception as e:
@@ -491,7 +489,7 @@ class CriteriaScorer:
                             else:
                                 display_name = option_name
                             
-                            if OptimizerConfig.DEBUG_MODE:
+                            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                                 st.write(f"Debug: Impact for {current_field}={display_name}: {impact:.2f} (sample size: {match_count})")
                             
                             field_impact[option_id] = {
