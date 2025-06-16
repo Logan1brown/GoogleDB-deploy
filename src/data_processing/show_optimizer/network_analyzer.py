@@ -307,15 +307,17 @@ class NetworkAnalyzer:
                             
                             # Get field name for display
                             field_name = column
-                            if self.field_manager:
-                                # Try to get a more user-friendly field name
-                                field_name = self.field_manager.get_display_name(column) or column
                             
                             # Get value name for display
                             value_name = str(value)
                             if self.field_manager:
-                                # Try to get a more user-friendly value name
-                                value_name = self.field_manager.get_option_name(column, value) or str(value)
+                                try:
+                                    # Use the correct field_manager method to get the name
+                                    value_name = self.field_manager.get_name(column, value)
+                                except Exception as e:
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        st.write(f"Debug: Error getting option name for {column}={value}: {str(e)}")
+                                    # Keep the default string value
                             
                             # Create a key that combines field and value
                             key = f"{field_name}:{value_name}"

@@ -225,15 +225,23 @@ class RecommendationEngine:
                         else:
                             criteria_value = value_id
                             
-                        if isinstance(value_id, (dict, list, np.ndarray)):
-                            name = str(value_id)
+                        # Use field_manager to get the proper option name
+                        if value_id == 'remove':
+                            name = f"Remove {criteria_type}"
                         else:
-                            options = self.field_manager.get_options(criteria_type)
-                            name = str(value_id)
-                            for option in options:
-                                if option.id == value_id:
-                                    name = option.name
-                                    break
+                            try:
+                                # For numeric option IDs, get the name from field_manager
+                                if isinstance(value_id, (int, float)) and not pd.isna(value_id):
+                                    name = self.field_manager.get_name(criteria_type, int(value_id))
+                                elif isinstance(value_id, (dict, list, np.ndarray)):
+                                    name = str(value_id)
+                                else:
+                                    # Use the name from impact_data if available
+                                    name = impact_data.get('option_name', str(value_id))
+                            except Exception as e:
+                                if self.config.DEBUG_MODE:
+                                    st.write(f"Debug: Error getting option name for {criteria_type}={value_id}: {str(e)}")
+                                name = str(value_id)
                         try:
                             if 'sample_size' not in locals() or sample_size is None:
                                 sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
@@ -812,16 +820,28 @@ class RecommendationEngine:
             List of Recommendation objects specific to the network
         """
         try:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: generate_network_specific_recommendations called for network {network.network_name}")
+                st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
+                st.write(f"Debug: Matching shows: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'} rows")
+            
             # Skip if we don't have valid criteria or network
             if not criteria or not network:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: No valid criteria or network provided, returning empty list")
                 return []
                 
             # Get network-specific success rates for each criteria using matching_shows
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Getting network-specific success rates for network ID {network.network_id}")
+            
             # The method only accepts matching_shows and network_id parameters
             network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
                 matching_shows, network.network_id)
                 
             if not isinstance(network_rates, dict):
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: network_rates is not a dictionary: {network_rates}")
                 return []
                 
             # Ensure all matching_shows in network_rates are DataFrames

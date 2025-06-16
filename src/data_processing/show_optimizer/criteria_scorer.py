@@ -226,9 +226,13 @@ class CriteriaScorer:
                 if field_name:
                     st.write(f"Debug: Analyzing specific field: {field_name}")
             
-            # Get the field manager's array field mapping
+            # Let the field manager handle array field identification
             array_field_mapping = self.field_manager.get_array_field_mapping()
             array_fields = list(array_field_mapping.keys())
+            
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Array fields: {array_fields}")
+                st.write(f"Debug: Field manager has {len(self.field_manager.FIELD_CONFIGS)} field configs")
             
             # Use the provided base matching shows
             base_match_count = len(base_matching_shows) if not base_matching_shows.empty else 0
@@ -244,7 +248,18 @@ class CriteriaScorer:
                 raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows). Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
             
             # Calculate base success rate using the provided shows
-            base_rate, _ = self._calculate_success_rate(base_matching_shows)
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Calculating base success rate for {len(base_matching_shows)} shows")
+                if 'success_score' in base_matching_shows.columns:
+                    st.write(f"Debug: Success score stats: min={base_matching_shows['success_score'].min()}, max={base_matching_shows['success_score'].max()}, mean={base_matching_shows['success_score'].mean()}")
+                else:
+                    st.write("Debug: No success_score column in base_matching_shows")
+            
+            base_rate, base_info = self._calculate_success_rate(base_matching_shows)
+            
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Base success rate calculation result: {base_rate}")
+                st.write(f"Debug: Base success info: {base_info}")
             
             if base_rate is None:
                 if OptimizerConfig.DEBUG_MODE:
@@ -262,17 +277,44 @@ class CriteriaScorer:
                 st.write(f"Debug: Fields to process: {list(fields_to_process)}")
             
             def make_hashable(val):
+                """Convert any value to a hashable type for dictionary keys.
+                
+                Uses field_manager's knowledge of array fields to properly handle list values.
+                """
                 if isinstance(val, dict):
-                    return str(val)
+                    # Convert dict to a sorted tuple of (key, value) pairs
+                    return tuple(sorted((k, make_hashable(v)) for k, v in val.items()))
+                    
                 if isinstance(val, list):
-                    return ','.join([make_hashable(v) for v in val])
-                return val
+                    # For empty lists, return an empty tuple
+                    if not val:
+                        return tuple()
+                    # For lists of primitive values, sort and convert to tuple
+                    if all(isinstance(v, (int, float, str, bool)) for v in val):
+                        return tuple(sorted(val))
+                    # For lists of complex values, convert each item and then sort
+                    return tuple(sorted(make_hashable(v) for v in val))
+                    
+                if isinstance(val, tuple):
+                    return tuple(make_hashable(v) for v in val)
+                    
+                # Ensure we return a hashable type
+                if isinstance(val, (str, int, float, bool, type(None))):
+                    return val
+                    
+                # Last resort - convert to string
+                return str(val)
             
             for current_field in fields_to_process:
                 # Process both fields in base criteria (for Remove/Change) and not in base criteria (for Add)
                 
-                is_array_field = current_field in array_fields
+                # Use field_manager to determine if this is an array field
+                is_array_field = self.field_manager.get_field_type(current_field) == 'array'
                 options = self.field_manager.get_options(current_field)
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Processing field {current_field} (array: {is_array_field})")
+                    st.write(f"Debug: Found {len(options)} options for field {current_field}")
                 
                 # Prepare batch criteria for all options
                 batch_criteria = []
@@ -286,6 +328,9 @@ class CriteriaScorer:
                 if field_in_base:
                     # For fields already in criteria, we'll calculate both Remove and Change recommendations
                     
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: Field {current_field} is in base criteria with value {current_value}")
+                    
                     # 1. First, create a "Remove" recommendation by removing this field
                     remove_criteria = base_criteria.copy()
                     del remove_criteria[current_field]
@@ -293,53 +338,51 @@ class CriteriaScorer:
                     option_data.append(('remove', 'Remove ' + current_field))
                     recommendation_types.append('remove')
                     
-                    # 2. Then create "Change" recommendations for each alternative option
+                    # 2. Then, create "Change" recommendations for each alternative option
                     for option in options:
-                        # Skip the current value since that wouldn't be a change
-                        if is_array_field:
-                            if isinstance(option.id, list):
-                                option_key = tuple(sorted(int(x) for x in option.id))
-                                if list(option_key) == current_value:
-                                    continue
-                            else:
-                                option_key = (int(option.id),)
-                                if [option.id] == current_value:
-                                    continue
-                        else:
-                            option_key = int(option.id)
-                            if option_key == current_value:
-                                continue
-                        
-                        # Create criteria with this option
-                        change_criteria = base_criteria.copy()
-                        if is_array_field:
-                            if isinstance(option.id, list):
-                                change_criteria[current_field] = list(option_key)
-                            else:
-                                change_criteria[current_field] = [option.id]
-                        else:
-                            change_criteria[current_field] = option_key
+                        # Skip the current value
+                        if is_array_field and isinstance(current_value, list) and option.id in current_value:
+                            continue
+                        elif not is_array_field and option.id == current_value:
+                            continue
                             
-                        batch_criteria.append(change_criteria)
-                        option_data.append((option_key, option.name))
+                        # Create a new criteria with this option
+                        new_criteria = base_criteria.copy()
+                        
+                        # For array fields, we replace the current value with a new array
+                        # For scalar fields, we simply replace the value
+                        if is_array_field and isinstance(current_value, list):
+                            # Replace the array with a new array containing just this option
+                            option_key = int(option.id)
+                            new_criteria[current_field] = [option_key]
+                        else:
+                            # Replace the scalar value
+                            option_key = int(option.id)
+                            new_criteria[current_field] = option_key
+                            
+                        batch_criteria.append(new_criteria)
+                        option_data.append((option_key, self.field_manager.get_name(current_field, option.id)))
                         recommendation_types.append('change')
                 else:
                     # For fields not in criteria, create "Add" recommendations for each option
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: Field {current_field} is not in base criteria")
+                        
                     for option in options:
+                        # Create a new criteria with this option
                         new_criteria = base_criteria.copy()
-                        # For array fields, always use tuple of ints as the key
+                        
+                        # For array fields, always use list of ints
+                        # For scalar fields, use the int directly
                         if is_array_field:
-                            if isinstance(option.id, list):
-                                option_key = tuple(sorted(int(x) for x in option.id))
-                                new_criteria[current_field] = list(option_key)
-                            else:
-                                option_key = (int(option.id),)
-                                new_criteria[current_field] = [option.id]
+                            option_key = int(option.id)
+                            new_criteria[current_field] = [option_key]
                         else:
                             option_key = int(option.id)
                             new_criteria[current_field] = option_key
+                            
                         batch_criteria.append(new_criteria)
-                        option_data.append((option_key, option.name))
+                        option_data.append((option_key, self.field_manager.get_name(current_field, option.id)))
                         recommendation_types.append('add')
                 
                 # Process each option using the provided option_matching_shows_map
@@ -349,14 +392,28 @@ class CriteriaScorer:
                     field_options_map = option_matching_shows_map[current_field]
                     
                     # Convert all keys in field_options_map to hashable for safe lookup
-                    hashable_field_options_map = {make_hashable(k): v for k, v in field_options_map.items()}
+                    hashable_field_options_map = {}
+                    for k, v in field_options_map.items():
+                        hashable_key = make_hashable(k)
+                        hashable_field_options_map[hashable_key] = v
+                    
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: Field {current_field} has {len(field_options_map)} options")
+                        st.write(f"Debug: First few options: {list(field_options_map.keys())[:3]}")
                     
                     for i, (option_id, option_name) in enumerate(option_data):
+                        # Make the option_id hashable for lookup
+                        hashable_option_id = make_hashable(option_id)
+                        
                         # Skip if we don't have matching shows for this option
-                        if option_id not in hashable_field_options_map:
+                        if hashable_option_id not in hashable_field_options_map:
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"Debug: No matching shows found for option {option_name} ({option_id}) in field {current_field}")
+                                st.write(f"Debug: Available options: {list(field_options_map.keys())[:5]}")
                             continue
                             
-                        option_shows = hashable_field_options_map[option_id]
+                        # Get the matching shows for this option
+                        option_shows = hashable_field_options_map[hashable_option_id]
                         
                         if option_shows is None or option_shows.empty:
                             continue
@@ -371,10 +428,28 @@ class CriteriaScorer:
                             # Get the recommendation type for this option
                             rec_type = recommendation_types[i] if i < len(recommendation_types) else 'add'
                             
+                            # Use field_manager to get the proper option name
+                            if option_id != 'remove':
+                                try:
+                                    # For numeric option IDs, get the name from field_manager
+                                    if isinstance(option_id, (int, float)):
+                                        display_name = self.field_manager.get_name(current_field, int(option_id))
+                                    else:
+                                        display_name = option_name
+                                except Exception as e:
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        st.write(f"Debug: Error getting option name for {current_field}={option_id}: {str(e)}")
+                                    display_name = option_name
+                            else:
+                                display_name = option_name
+                            
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"Debug: Impact for {current_field}={display_name}: {impact:.2f} (sample size: {match_count})")
+                            
                             field_impact[option_id] = {
                                 "impact": impact, 
                                 "sample_size": match_count, 
-                                "option_name": option_name,
+                                "option_name": display_name,
                                 "success_rate": option_rate,
                                 "recommendation_type": rec_type
                             }
