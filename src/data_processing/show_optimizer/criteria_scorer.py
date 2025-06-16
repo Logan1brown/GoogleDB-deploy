@@ -501,45 +501,45 @@ class CriteriaScorer:
                                 "success_rate": option_rate,
                                 "recommendation_type": rec_type
                             }
-                else:
-                    # For accurate impact calculation, we need to find matching shows for each criteria option
-                    # combined with the base criteria (for adding criteria) or with criteria removed (for removing criteria)
-                    matching_shows_list = []
                     
-                    if self.matcher:
-                        # For each criteria option, we want to see how it affects the base criteria
-                        for crit in batch_criteria:
-                            try:
-                                # This is the key difference - we're using the combined criteria
-                                # (base + new option) to find matching shows, not just the option alone
-                                option_shows, _, _ = self._get_matching_shows(crit)
-                                matching_shows_list.append(option_shows)
-                            except Exception as e:
-                                # If matching fails for this option, use an empty DataFrame
-                                matching_shows_list.append(pd.DataFrame())
-                    else:
-                        # If no matcher is available, we can't calculate impact scores
-                        for _ in batch_criteria:
+                # For accurate impact calculation, we need to find matching shows for each criteria option
+                # combined with the base criteria (for adding criteria) or with criteria removed (for removing criteria)
+                matching_shows_list = []
+                
+                if self.matcher:
+                    # For each criteria option, we want to see how it affects the base criteria
+                    for crit in batch_criteria:
+                        try:
+                            # This is the key difference - we're using the combined criteria
+                            # (base + new option) to find matching shows, not just the option alone
+                            option_shows, _, _ = self._get_matching_shows(crit)
+                            matching_shows_list.append(option_shows)
+                        except Exception as e:
+                            # If matching fails for this option, use an empty DataFrame
                             matching_shows_list.append(pd.DataFrame())
-                    
-                    rates = self._batch_calculate_success_rates(batch_criteria, matching_shows_list)
-                    for i, (option_id, option_name) in enumerate(option_data):
-                        option_rate = rates[i]
-                        if option_rate is not None:
-                            # Use the actual matching shows count for this option
-                            match_count = len(matching_shows_list[i]) if i < len(matching_shows_list) and not matching_shows_list[i].empty else 0
-                            # Calculate impact based on difference from base rate
-                            impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
-                            # Get the recommendation type for this option
-                            rec_type = recommendation_types[i] if i < len(recommendation_types) else 'add'
-                            
-                            field_impact[option_id] = {
-                                "impact": impact,
-                                "sample_size": match_count,
-                                "option_name": option_name,
-                                "success_rate": option_rate,
-                                "recommendation_type": rec_type
-                            }
+                else:
+                    # If no matcher is available, we can't calculate impact scores
+                    for _ in batch_criteria:
+                        matching_shows_list.append(pd.DataFrame())
+                
+                rates = self._batch_calculate_success_rates(batch_criteria, matching_shows_list)
+                for i, (option_id, option_name) in enumerate(option_data):
+                    option_rate = rates[i]
+                    if option_rate is not None:
+                        # Use the actual matching shows count for this option
+                        match_count = len(matching_shows_list[i]) if i < len(matching_shows_list) and not matching_shows_list[i].empty else 0
+                        # Calculate impact based on difference from base rate
+                        impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
+                        # Get the recommendation type for this option
+                        rec_type = recommendation_types[i] if i < len(recommendation_types) else 'add'
+                        
+                        field_impact[option_id] = {
+                            "impact": impact,
+                            "sample_size": match_count,
+                            "option_name": option_name,
+                            "success_rate": option_rate,
+                            "recommendation_type": rec_type
+                        }
                 if field_impact:
                     impact_scores[current_field] = field_impact
                     
