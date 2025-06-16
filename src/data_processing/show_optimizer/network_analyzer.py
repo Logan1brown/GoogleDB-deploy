@@ -46,26 +46,6 @@ class NetworkAnalyzer:
         self.criteria_scorer = criteria_scorer
         self.field_manager = field_manager or criteria_scorer.field_manager
         
-    def get_display_name(self, field_name: str, value: Any) -> str:
-        """Wrapper method to handle legacy calls to get_display_name.
-        This redirects to the proper field_manager.get_name method.
-        
-        Args:
-            field_name: Name of the field
-            value: Value to get name for
-            
-        Returns:
-            Display name for the value
-        """
-        try:
-            if self.field_manager:
-                return self.field_manager.get_name(field_name, value)
-            return str(value)
-        except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error in get_display_name wrapper for {field_name}={value}: {str(e)}")
-            return str(value)
-        
     def rank_networks_by_compatibility(self, matching_shows: pd.DataFrame, limit: int = None) -> List[NetworkMatch]:
         """Rank networks by compatibility using only the matching shows DataFrame.
         
@@ -100,8 +80,13 @@ class NetworkAnalyzer:
                     
                 # Get network name
                 network_name = "Unknown Network"
-                if self.field_manager and hasattr(self.field_manager, 'get_network_name'):
-                    network_name = self.field_manager.get_network_name(network_id) or "Unknown Network"
+                if self.field_manager:
+                    try:
+                        network_name = self.field_manager.get_name('network', network_id) or "Unknown Network"
+                    except Exception as e:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"Debug: Error getting network name for ID {network_id}: {str(e)}")
+                        # Keep the default name
                 
                 # Calculate compatibility score based on match levels
                 # Lower match_level is better (1 is exact match)
@@ -372,8 +357,8 @@ class NetworkAnalyzer:
                             value_name = str(value)
                             if self.field_manager:
                                 try:
-                                    # Use the get_display_name wrapper which calls field_manager.get_name
-                                    value_name = self.get_display_name(column, value)
+                                    # Use field_manager.get_name directly
+                                    value_name = self.field_manager.get_name(column, int(value) if isinstance(value, (int, float)) else value)
                                 except Exception as e:
                                     if OptimizerConfig.DEBUG_MODE:
                                         st.write(f"Debug: Error getting option name for {column}={value}: {str(e)}")
