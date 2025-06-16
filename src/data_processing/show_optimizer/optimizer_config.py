@@ -30,8 +30,8 @@ from typing import Dict, Any
 class OptimizerConfig:
     """Configuration for Show Optimizer scoring and analysis."""
     
-    # Debug mode flag - set to False to disable all debug output
-    DEBUG_MODE = False
+    # Debug mode flag - set to True to enable all debug output
+    DEBUG_MODE = True
     
     # Maximum number of results to return from matcher
     MAX_RESULTS = 100

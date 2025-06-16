@@ -218,6 +218,14 @@ class CriteriaScorer:
             A dictionary mapping field names to dictionaries of option IDs to impact scores.
         """
         try:
+            # Debug output for input parameters
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: calculate_criteria_impact called with {len(base_criteria)} criteria")
+                st.write(f"Debug: Base criteria keys: {list(base_criteria.keys())}")
+                st.write(f"Debug: Base matching shows: {len(base_matching_shows)} rows")
+                if field_name:
+                    st.write(f"Debug: Analyzing specific field: {field_name}")
+            
             # Get the field manager's array field mapping
             array_field_mapping = self.field_manager.get_array_field_mapping()
             array_fields = list(array_field_mapping.keys())
@@ -226,15 +234,21 @@ class CriteriaScorer:
             base_match_count = len(base_matching_shows) if not base_matching_shows.empty else 0
             
             if base_matching_shows.empty:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: Cannot calculate impact scores - no matching shows")
                 raise ValueError("Cannot calculate impact scores with no matching shows")
                 
             if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Cannot calculate impact scores - insufficient sample size ({base_match_count} shows)")
                 raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows). Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
             
             # Calculate base success rate using the provided shows
             base_rate, _ = self._calculate_success_rate(base_matching_shows)
             
             if base_rate is None:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: Unable to calculate base success rate - success_score data missing")
                 st.warning("WARNING: Unable to calculate base success rate - success_score data missing")
                 return {}
             
@@ -242,6 +256,10 @@ class CriteriaScorer:
             
             # Determine which fields to process
             fields_to_process = [field_name] if field_name else self.field_manager.FIELD_CONFIGS.keys()
+            
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Base success rate: {base_rate:.2f}")
+                st.write(f"Debug: Fields to process: {list(fields_to_process)}")
             
             def make_hashable(val):
                 if isinstance(val, dict):

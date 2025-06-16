@@ -155,19 +155,34 @@ class RecommendationEngine:
             List of SuccessFactor objects
         """
         import traceback
+        
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"Debug: identify_success_factors called with {len(criteria)} criteria")
+            st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
+            if matching_shows is not None:
+                st.write(f"Debug: Matching shows provided: {len(matching_shows)} rows")
+            else:
+                st.write("Debug: No matching shows provided, will attempt to get them")
+        
         # Process input arguments
         # If matching_shows not provided, get them
         if matching_shows is None or \
            (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty) or \
            (isinstance(matching_shows, dict) and not matching_shows):
             try:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("Debug: Getting matching shows from criteria_scorer")
                 matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
                 if isinstance(matching_shows, pd.DataFrame) and matching_shows.empty:
-                    # Debug output removed: No matching shows found
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write("Debug: No matching shows found")
                     st.error("No shows match your criteria. Try adjusting your parameters.")
                     return []
+                elif OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Found {len(matching_shows)} matching shows")
             except Exception as inner_e:
-                # Error retrieving matching shows
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Error getting matching shows: {str(inner_e)}")
                 st.error("Unable to analyze shows matching your criteria.")
                 return []
                 
@@ -309,6 +324,12 @@ class RecommendationEngine:
             List of Recommendation objects
         """
         try:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: generate_recommendations called with {len(criteria)} criteria")
+                st.write(f"Debug: Success factors provided: {len(success_factors)}")
+                st.write(f"Debug: Top networks provided: {len(top_networks)}")
+                st.write(f"Debug: Matching shows provided: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'}")
+            
             # Handle missing inputs gracefully
             if criteria is None:
                 criteria = {}
