@@ -400,7 +400,13 @@ class Matcher:
         if data.empty:
             if OptimizerConfig.DEBUG_MODE:
                 st.error("Empty criteria data provided")
+                st.write(f"Debug: Original data was {'None' if data is None else f'empty DataFrame with {len(data)} rows'}")
             return pd.DataFrame(), 0
+            
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"Debug: _match_shows received data with {len(data)} rows and {len(criteria)} criteria")
+            st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
+            st.write(f"Debug: Data columns: {list(data.columns)[:10]}{'...' if len(data.columns) > 10 else ''}")
             
         # Clean up criteria - remove None or empty values to make matching more lenient
         clean_criteria = {}
@@ -498,7 +504,15 @@ class Matcher:
             matches = matches[mask]
             
         # Matching complete
-        return matches, len(matches)
+        match_count = len(matches)
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"Debug: _match_shows found {match_count} matching shows after applying all filters")
+            if match_count == 0:
+                st.write("Debug: No matches found. This could be due to:")  
+                st.write("  - Criteria that are too restrictive")  
+                st.write("  - Missing or mismatched field names")  
+                st.write("  - Data format issues (e.g., array vs scalar fields)")  
+        return matches, match_count
     
     def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
         """Get criteria adjusted for a specific match level.

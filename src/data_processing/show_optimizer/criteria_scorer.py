@@ -410,7 +410,8 @@ class CriteriaScorer:
                                 option_criteria[current_field] = option_id
                                 
                             # Get matching shows for this option
-                            option_shows, _, _ = self._get_matching_shows(option_criteria)
+                            # Pass the base_matching_shows as the data parameter to ensure the matcher has data to work with
+                            option_shows, _, _ = self._get_matching_shows(option_criteria, base_matching_shows)
                             
                             # Store in field_options_map
                             field_options_map[option_id] = option_shows
@@ -711,6 +712,15 @@ class CriteriaScorer:
         if self.matcher is None:
             st.error("No matcher available in CriteriaScorer. Cannot get matching shows.")
             return pd.DataFrame(), 0, {'level': 'none', 'score': 0.0, 'error': 'No matcher available'}
+        
+        # Add debug output about the data being passed to the matcher
+        if OptimizerConfig.DEBUG_MODE:
+            data_status = "provided" if data is not None and not data.empty else "NOT provided"
+            data_size = len(data) if data is not None and not data.empty else 0
+            criteria_count = len(criteria) if criteria else 0
+            st.write(f"Debug: _get_matching_shows called with {criteria_count} criteria, data is {data_status} with {data_size} rows")
+            if criteria:
+                st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
             
         try:
             # Delegate to the matcher's find_matches_with_fallback method for better results
@@ -721,7 +731,12 @@ class CriteriaScorer:
                 # For non-flexible matching, still try the fallback method but with a smaller sample size
                 # This ensures we get at least some matches for analysis
                 matching_shows, confidence_info = self.matcher.find_matches_with_fallback(criteria, data, min_sample_size=10)
+            
             match_count = len(matching_shows) if not matching_shows.empty else 0
+            
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: _get_matching_shows found {match_count} matching shows")
+                
             return matching_shows, match_count, confidence_info
         except Exception as e:
             st.error(f"Error getting matching shows: {str(e)}")
