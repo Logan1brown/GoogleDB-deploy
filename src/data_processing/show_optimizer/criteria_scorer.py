@@ -219,7 +219,7 @@ class CriteriaScorer:
         """
         try:
             # Debug output for input parameters
-            if OptimizerConfig.DEBUG_MODE:
+            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                 st.write(f"Debug: calculate_criteria_impact called with {len(base_criteria)} criteria")
                 st.write(f"Debug: Base criteria keys: {list(base_criteria.keys())}")
                 st.write(f"Debug: Base matching shows: {len(base_matching_shows)} rows")
@@ -230,7 +230,7 @@ class CriteriaScorer:
             array_field_mapping = self.field_manager.get_array_field_mapping()
             array_fields = list(array_field_mapping.keys())
             
-            if OptimizerConfig.DEBUG_MODE:
+            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                 st.write(f"Debug: Array fields: {array_fields}")
                 st.write(f"Debug: Field manager has {len(self.field_manager.FIELD_CONFIGS)} field configs")
             
@@ -239,7 +239,7 @@ class CriteriaScorer:
             
             if base_matching_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: Cannot calculate impact scores - no matching shows")
+                    st.write(f"Debug: Cannot calculate impact scores - no matching shows")
                 raise ValueError("Cannot calculate impact scores with no matching shows")
                 
             if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
@@ -248,7 +248,7 @@ class CriteriaScorer:
                 raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows). Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
             
             # Calculate base success rate using the provided shows
-            if OptimizerConfig.DEBUG_MODE:
+            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                 st.write(f"Debug: Calculating base success rate for {len(base_matching_shows)} shows")
                 if 'success_score' in base_matching_shows.columns:
                     st.write(f"Debug: Success score stats: min={base_matching_shows['success_score'].min()}, max={base_matching_shows['success_score'].max()}, mean={base_matching_shows['success_score'].mean()}")
@@ -257,7 +257,7 @@ class CriteriaScorer:
             
             base_rate, base_info = self._calculate_success_rate(base_matching_shows)
             
-            if OptimizerConfig.DEBUG_MODE:
+            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                 st.write(f"Debug: Base success rate calculation result: {base_rate}")
                 st.write(f"Debug: Base success info: {base_info}")
             
@@ -272,7 +272,7 @@ class CriteriaScorer:
             # Determine which fields to process
             fields_to_process = [field_name] if field_name else self.field_manager.FIELD_CONFIGS.keys()
             
-            if OptimizerConfig.DEBUG_MODE:
+            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                 st.write(f"Debug: Base success rate: {base_rate:.2f}")
                 st.write(f"Debug: Fields to process: {list(fields_to_process)}")
             
@@ -312,7 +312,7 @@ class CriteriaScorer:
                 is_array_field = self.field_manager.get_field_type(current_field) == 'array'
                 options = self.field_manager.get_options(current_field)
                 
-                if OptimizerConfig.DEBUG_MODE:
+                if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                     st.write(f"Debug: Processing field {current_field} (array: {is_array_field})")
                     st.write(f"Debug: Found {len(options)} options for field {current_field}")
                 
@@ -328,7 +328,7 @@ class CriteriaScorer:
                 if field_in_base:
                     # For fields already in criteria, we'll calculate both Remove and Change recommendations
                     
-                    if OptimizerConfig.DEBUG_MODE:
+                    if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                         st.write(f"Debug: Field {current_field} is in base criteria with value {current_value}")
                     
                     # 1. First, create a "Remove" recommendation by removing this field
@@ -365,7 +365,7 @@ class CriteriaScorer:
                         recommendation_types.append('change')
                 else:
                     # For fields not in criteria, create "Add" recommendations for each option
-                    if OptimizerConfig.DEBUG_MODE:
+                    if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                         st.write(f"Debug: Field {current_field} is not in base criteria")
                         
                     for option in options:
@@ -390,7 +390,7 @@ class CriteriaScorer:
                 
                 # If option_matching_shows_map is not provided, we need to generate it
                 if not option_matching_shows_map or current_field not in option_matching_shows_map:
-                    if OptimizerConfig.DEBUG_MODE:
+                    if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                         st.write(f"Debug: Generating option matching shows map for field {current_field}")
                     
                     # Generate option matching shows map for this field
@@ -410,14 +410,17 @@ class CriteriaScorer:
                                 option_criteria[current_field] = option_id
                                 
                             # Get matching shows for this option
-                            # Pass the base_matching_shows as the data parameter to ensure the matcher has data to work with
-                            option_shows, _, _ = self._get_matching_shows(option_criteria, base_matching_shows)
+                            # Pass None as the data parameter to use the original integrated data in the matcher
+                            # This ensures we're not filtering an already filtered dataset
+                            option_shows, _, _ = self._get_matching_shows(option_criteria, None)
                             
                             # Store in field_options_map
                             field_options_map[option_id] = option_shows
                             
-                            if OptimizerConfig.DEBUG_MODE:
+                            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                                 st.write(f"Debug: Generated {len(option_shows)} matching shows for {current_field}={option_name}")
+                            elif OptimizerConfig.DEBUG_MODE and len(option_shows) == 0:
+                                st.write(f"Debug: Generated 0 matching shows for {current_field}={option_name}")
                                 
                         except Exception as e:
                             if OptimizerConfig.DEBUG_MODE:

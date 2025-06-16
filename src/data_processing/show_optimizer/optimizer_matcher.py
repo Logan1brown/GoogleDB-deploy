@@ -457,18 +457,14 @@ class Matcher:
                 field_id = self.field_manager.map_field_name(field_name, matches.columns)
                 scalar_fields[field_id] = value
                 
-                # Add debug output to show field name mapping
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Mapped field '{field_name}' to column '{field_id}' for scalar field")
+                # Field mapping debug output removed - working correctly
         
         # Process array fields (these require apply functions)
         for field_name, value in array_fields_to_filter.items():
             # Use field_manager to get the correct column name
             field_column = self.field_manager.get_field_column_name(field_name, matches.columns)
             
-            # Add debug output to show field name mapping for array fields
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Mapped array field '{field_name}' to column '{field_column}'")
+            # Array field mapping debug output removed - working correctly
             
             # If column doesn't exist, skip this field
             if field_column is None:
