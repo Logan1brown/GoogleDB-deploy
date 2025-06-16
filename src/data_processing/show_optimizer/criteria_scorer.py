@@ -365,8 +365,6 @@ class CriteriaScorer:
                         recommendation_types.append('change')
                 else:
                     # For fields not in criteria, create "Add" recommendations for each option
-                    if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                        st.write(f"Debug: Field {current_field} is not in base criteria")
                         
                     for option in options:
                         # Create a new criteria with this option
@@ -390,8 +388,6 @@ class CriteriaScorer:
                 
                 # If option_matching_shows_map is not provided, we need to generate it
                 if not option_matching_shows_map or current_field not in option_matching_shows_map:
-                    if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                        st.write(f"Debug: Generating option matching shows map for field {current_field}")
                     
                     # Generate option matching shows map for this field
                     field_options_map = {}
@@ -417,10 +413,11 @@ class CriteriaScorer:
                             # Store in field_options_map
                             field_options_map[option_id] = option_shows
                             
-                            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                                st.write(f"Debug: Generated {len(option_shows)} matching shows for {current_field}={option_name}")
-                            elif OptimizerConfig.DEBUG_MODE and len(option_shows) == 0:
-                                st.write(f"Debug: Generated 0 matching shows for {current_field}={option_name}")
+                            # Only show debug output for zero matches as this is critical information
+                            if OptimizerConfig.DEBUG_MODE and len(option_shows) == 0 and current_field in base_criteria:
+                                st.write(f"Debug: No matches for {current_field}={option_name} (conflicts with base criteria)")
+                            elif OptimizerConfig.DEBUG_MODE and len(option_shows) == 0 and OptimizerConfig.VERBOSE_DEBUG:
+                                st.write(f"Debug: No matches for {current_field}={option_name}")
                                 
                         except Exception as e:
                             if OptimizerConfig.DEBUG_MODE:
@@ -437,10 +434,9 @@ class CriteriaScorer:
                         hashable_key = make_hashable(k)
                         hashable_field_options_map[hashable_key] = v
                     
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: Field {current_field} has {len(field_options_map)} options")
-                        st.write(f"Debug: First few options: {list(field_options_map.keys())[:3]}")
-                        st.write(f"Debug: First few hashable options: {list(hashable_field_options_map.keys())[:3]}")
+                    # Only show debug output if there are no options at all (critical issue)
+                    if OptimizerConfig.DEBUG_MODE and len(field_options_map) == 0:
+                        st.write(f"Debug: Field {current_field} has no options available")
                         
                     # Verify that we have matching shows for at least some options
                     has_valid_options = False
@@ -459,9 +455,7 @@ class CriteriaScorer:
                         
                         # Skip if we don't have matching shows for this option
                         if hashable_option_id not in hashable_field_options_map:
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"Debug: No matching shows found for option {option_name} ({option_id}) in field {current_field}")
-                                st.write(f"Debug: Available options: {list(field_options_map.keys())[:5]}")
+                            # No debug output needed for individual missing options
                             continue
                             
                         # Get the matching shows for this option
@@ -699,43 +693,30 @@ class CriteriaScorer:
         """
         return self.field_manager.calculate_confidence(criteria)
         
-    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None, flexible: bool = False) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
+    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None, flexible: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any], Dict[str, Any]]:
         """Get shows matching the given criteria.
         
-        This method delegates to the matcher's find_matches_with_fallback method.
-        
         Args:
-            criteria: Dictionary of criteria to match against
-            data: Optional DataFrame of shows to match against (uses matcher's cached data if None)
-            flexible: If True, use more flexible matching criteria (for recommendations)
+            criteria: Dictionary of criteria
+            data: Optional DataFrame to use instead of integrated data
+            flexible: Whether to use flexible matching (fallback to fewer criteria)
             
         Returns:
-            Tuple of (matching_shows, match_count, confidence_info)
+            Tuple of (matching_shows, confidence_info, match_info)
         """
         if self.matcher is None:
-            st.error("No matcher available in CriteriaScorer. Cannot get matching shows.")
-            return pd.DataFrame(), 0, {'level': 'none', 'score': 0.0, 'error': 'No matcher available'}
+            return pd.DataFrame(), {'level': 'none', 'score': 0.0}, {'match_level': 0}
+            
+        # Use find_matches_with_fallback to get matches
+        matching_shows, confidence_info = self.matcher.find_matches_with_fallback(
+            criteria, data, flexible=flexible)
+            
+        # Extract match level from confidence info
+        match_level = confidence_info.get('match_level', 0) if confidence_info else 0
+        match_info = {'match_level': match_level}
         
-        # Add debug output about the data being passed to the matcher
-        if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-            data_status = "provided" if data is not None and not data.empty else "NOT provided"
-            data_size = len(data) if data is not None and not data.empty else 0
-            criteria_count = len(criteria) if criteria else 0
-            st.write(f"Debug: _get_matching_shows called with {criteria_count} criteria, data is {data_status} with {data_size} rows")
-            if criteria:
-                st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
-            
-        try:
-            # Delegate to the matcher's find_matches_with_fallback method for better results
-            # This ensures we get matches even if exact matches aren't available
-            if flexible:
-                matching_shows, confidence_info = self.matcher.find_matches_with_fallback(criteria, data)
-            else:
-                # For non-flexible matching, still try the fallback method but with a smaller sample size
-                # This ensures we get at least some matches for analysis
-                matching_shows, confidence_info = self.matcher.find_matches_with_fallback(criteria, data, min_sample_size=10)
-            
-            match_count = len(matching_shows) if not matching_shows.empty else 0
+        return matching_shows, confidence_info, match_info
+
             
             if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                 st.write(f"Debug: _get_matching_shows found {match_count} matching shows")

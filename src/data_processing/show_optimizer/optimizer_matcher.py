@@ -380,102 +380,60 @@ class Matcher:
             all_matches = sampled_matches
             
         # If we have fewer matches than MAX_RESULTS, keep them all
-        
-        return all_matches, confidence_info
-    
-    # find_network_matches method removed - functionality now handled directly by NetworkAnalyzer.rank_networks_by_compatibility
-    
-    def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int]:
-        """Match shows based on criteria.
-        
-        Args:
-            criteria: Dictionary of criteria
-            data: DataFrame of shows to match against
-            
-        Returns:
-            Tuple of (matching_shows, match_count)
-        """
-        # Use helper method to get data
-        data = self._get_data(data)
-        if data.empty:
             if OptimizerConfig.DEBUG_MODE:
-                st.error("Empty criteria data provided")
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Original data was {'None' if data is None else f'empty DataFrame with {len(data)} rows'}")
-            return pd.DataFrame(), 0
-            
-        if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-            st.write(f"Debug: _match_shows received data with {len(data)} rows and {len(criteria)} criteria")
-            st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
-            st.write(f"Debug: Data columns: {list(data.columns)[:10]}{'...' if len(data.columns) > 10 else ''}")
-            
-        # Clean up criteria - remove None or empty values to make matching more lenient
-        clean_criteria = {}
+                st.write(f"Debug: Sorting by match_level failed in fallback: {str(e)}")
+            sampled_matches = all_matches.sample(min(OptimizerConfig.MAX_RESULTS, len(all_matches)), random_state=42)
+    
+        # Use the sampled matches as our final result
+        all_matches = sampled_matches
         
-        # Get array fields and mapping from field_manager
-        array_field_mapping = self.field_manager.get_array_field_mapping()
-        array_fields = list(array_field_mapping.keys())
+        # If we have fewer matches than MAX_RESULTS, keep them all
+        return all_matches, confidence_info
+
+# find_network_matches method removed - functionality now handled directly by NetworkAnalyzer.rank_networks_by_compatibility
+
+def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int]:
+    """Match shows based on criteria.
+    
+    Args:
+        criteria: Dictionary of criteria
+        data: DataFrame of shows to match against
         
-        for field_name, value in criteria.items():
-            # Skip empty criteria
-            if value is None or (isinstance(value, list) and not value):
-                continue
-                
-            # Use field_manager to determine the field type
-            field_type = self.field_manager.get_field_type(field_name)
+    Returns:
+        Tuple of (matching_shows, match_count)
+    """
+    # Use helper method to get data
+    data = self._get_data(data)
+    if data.empty:
+        if OptimizerConfig.DEBUG_MODE:
+            st.error("Empty criteria data provided")
+        return pd.DataFrame(), 0
+        
+    # Clean up criteria - remove None or empty values to make matching more lenient
+    clean_criteria = {}
+    
+    # Get array fields and mapping from field_manager
+    array_field_mapping = self.field_manager.get_array_field_mapping()
+    array_fields = list(array_field_mapping.keys())
+    
+    for field_name, value in criteria.items():
+        # Skip empty criteria
+        if value is None or (isinstance(value, list) and not value):
+            continue
             
-            # Handle array fields
-            if field_type == 'array':
-                # Make sure array field values are always lists
-                if not isinstance(value, list):
-                    clean_criteria[field_name] = [value]
-                else:
-                    clean_criteria[field_name] = value
+        # Use field_manager to determine the field type
+        field_type = self.field_manager.get_field_type(field_name)
+        
+        # Handle array fields
+        if field_type == 'array':
+            # Make sure array field values are always lists
+            if not isinstance(value, list):
+                clean_criteria[field_name] = [value]
             else:
-                # Don't map field names here - let FieldManager handle it
                 clean_criteria[field_name] = value
-        
-        # If we have no valid criteria after cleaning, return all shows
-        if not clean_criteria:
-            return data, len(data)
-            
-        # Start with all shows
-        matches = data.copy()
-        
-        # Separate array fields from scalar fields
-        scalar_fields = {}
-        array_fields_to_filter = {}
-        
-        for field_name, value in clean_criteria.items():
-            # Use field_manager to determine the field type
-            field_type = self.field_manager.get_field_type(field_name)
-            
-            if field_type == 'array':
-                array_fields_to_filter[field_name] = value
-            else:
-                # For scalar fields, determine the actual column name using field_manager
-                field_id = self.field_manager.map_field_name(field_name, matches.columns)
-                scalar_fields[field_id] = value
-                
-                # Field mapping debug output removed - working correctly
-        
-        # Process array fields (these require apply functions)
-        for field_name, value in array_fields_to_filter.items():
-            # Use field_manager to get the correct column name
-            field_column = self.field_manager.get_field_column_name(field_name, matches.columns)
-            
-            # Array field mapping debug output removed - working correctly
-            
-            # If column doesn't exist, skip this field
-            if field_column is None:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.error(f"Field '{field_name}' not found in data columns")
-                continue
-                
-            # Check if the column contains lists or is itself a list
-            sample = matches[field_column].iloc[0] if not matches.empty else None
-            
-            # Convert value to set for faster lookups
+        else:
+            # Don't map field names here - let FieldManager handle it
+            clean_criteria[field_name] = value
             value_set = set(value)  
             
             # Handle different data formats
@@ -510,17 +468,10 @@ class Matcher:
             
         # Matching complete
         match_count = len(matches)
-        if OptimizerConfig.DEBUG_MODE:
-            # Always show match count for zero matches as this is critical information
-            if match_count == 0:
-                st.write(f"Debug: _match_shows found {match_count} matching shows after applying all filters")
-                st.write("Debug: No matches found. This could be due to:")
-                st.write("  - Criteria that are too restrictive")
-                st.write("  - Missing or mismatched field names")
-                st.write("  - Data format issues (e.g., array vs scalar fields)")
-            # Only show match count for non-zero matches in verbose mode
-            elif OptimizerConfig.VERBOSE_DEBUG:
-                st.write(f"Debug: _match_shows found {match_count} matching shows after applying all filters")  
+        if OptimizerConfig.DEBUG_MODE and match_count == 0:
+            # Only show critical zero-match messages
+            st.write(f"Debug: No matches found for criteria: {list(criteria.keys())}")
+
         return matches, match_count
     
     def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
