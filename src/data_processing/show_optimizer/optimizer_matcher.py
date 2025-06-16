@@ -409,12 +409,19 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
             st.error("Empty criteria data provided")
         return pd.DataFrame(), 0
         
+    # Start with all shows
+    matches = data.copy()
+    
     # Clean up criteria - remove None or empty values to make matching more lenient
     clean_criteria = {}
     
     # Get array fields and mapping from field_manager
     array_field_mapping = self.field_manager.get_array_field_mapping()
     array_fields = list(array_field_mapping.keys())
+    
+    # Separate criteria into array and scalar fields for more efficient processing
+    array_criteria = {}
+    scalar_criteria = {}
     
     for field_name, value in criteria.items():
         # Skip empty criteria
@@ -424,55 +431,71 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
         # Use field_manager to determine the field type
         field_type = self.field_manager.get_field_type(field_name)
         
+        # Map field name to column name
+        field_column = self.field_manager.map_field_name(field_name, matches.columns)
+        
         # Handle array fields
         if field_type == 'array':
             # Make sure array field values are always lists
             if not isinstance(value, list):
-                clean_criteria[field_name] = [value]
+                array_criteria[field_column] = [value]
             else:
-                clean_criteria[field_name] = value
+                array_criteria[field_column] = value
         else:
-            # Don't map field names here - let FieldManager handle it
-            clean_criteria[field_name] = value
-            value_set = set(value)  
+            # For scalar fields, store the mapped field name and value
+            scalar_criteria[field_column] = value
+    
+    # Process array fields (these need special handling)
+    for field_column, values in array_criteria.items():
+        # Check if field exists in data
+        if field_column not in matches.columns:
+            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
+                st.error(f"Field '{field_column}' not found in data columns")
+            continue
             
-            # Handle different data formats
-            if isinstance(sample, list):
-                # If the column contains lists, use list intersection
-                mask = matches[field_column].apply(
-                    lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
-            else:
-                # If the column isn't storing lists, use standard filtering
-                mask = matches[field_column].isin(value)
-                
-            # Apply filter
-            matches = matches[mask]
+        # Convert values to a set for faster lookups
+        value_set = set(values)
         
-        # Process scalar fields (these can use vectorized operations)
-        for field_id, value in scalar_fields.items():
-            # Check if field exists in data
-            if field_id not in matches.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.error(f"Field '{field_id}' not found in data columns")
-                continue
-                
-            if isinstance(value, list):
-                # Multiple values: any show with any of the values matches
-                mask = matches[field_id].isin(value)
-            else:
-                # Single value: exact match
-                mask = matches[field_id] == value
-                
-            # Apply filter
-            matches = matches[mask]
+        # Sample the first non-null value to determine the data format
+        sample = next((x for x in matches[field_column] if x is not None), None)
+        
+        # Handle different data formats
+        if isinstance(sample, list):
+            # If the column contains lists, use list intersection
+            mask = matches[field_column].apply(
+                lambda x: isinstance(x, list) and bool(value_set.intersection(x)) if x is not None else False)
+        else:
+            # If the column isn't storing lists, use standard filtering
+            mask = matches[field_column].isin(values)
             
-        # Matching complete
-        match_count = len(matches)
-        if OptimizerConfig.DEBUG_MODE and match_count == 0:
-            # Only show critical zero-match messages
-            st.write(f"Debug: No matches found for criteria: {list(criteria.keys())}")
+        # Apply filter
+        matches = matches[mask]
+    
+    # Process scalar fields (these can use vectorized operations)
+    for field_column, value in scalar_criteria.items():
+        # Check if field exists in data
+        if field_column not in matches.columns:
+            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
+                st.error(f"Field '{field_column}' not found in data columns")
+            continue
+            
+        if isinstance(value, list):
+            # Multiple values: any show with any of the values matches
+            mask = matches[field_column].isin(value)
+        else:
+            # Single value: exact match
+            mask = matches[field_column] == value
+            
+        # Apply filter
+        matches = matches[mask]
+    
+    # Matching complete
+    match_count = len(matches)
+    if OptimizerConfig.DEBUG_MODE and match_count == 0:
+        # Only show critical zero-match messages
+        st.write(f"Debug: No matches found for criteria: {list(criteria.keys())}")
 
-        return matches, match_count
+    return matches, match_count
     
     def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
         """Get criteria adjusted for a specific match level.
@@ -679,7 +702,6 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
                         
                     # If not all shows match this criterion, downgrade the match level
                     if not all_match:
-                        # Debug output removed: Not all shows match array criterion
                         actual_match_level = 2  # Downgrade to level 2
                         break
                 else:  # Handle scalar fields
@@ -695,7 +717,6 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
                             
                     # Check if all shows match this scalar criterion
                     if not (shows[field_id] == value).all():
-                        # Debug output removed: Not all shows match scalar criterion
                         actual_match_level = 2  # Downgrade to level 2
                         break
         

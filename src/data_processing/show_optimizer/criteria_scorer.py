@@ -413,11 +413,11 @@ class CriteriaScorer:
                             # Store in field_options_map
                             field_options_map[option_id] = option_shows
                             
-                            # Only show debug output for zero matches as this is critical information
+                            # Only show debug output for zero matches when it conflicts with base criteria
+                            # This is critical information for troubleshooting
                             if OptimizerConfig.DEBUG_MODE and len(option_shows) == 0 and current_field in base_criteria:
                                 st.write(f"Debug: No matches for {current_field}={option_name} (conflicts with base criteria)")
-                            elif OptimizerConfig.DEBUG_MODE and len(option_shows) == 0 and OptimizerConfig.VERBOSE_DEBUG:
-                                st.write(f"Debug: No matches for {current_field}={option_name}")
+                            # All other zero match messages are suppressed unless explicitly requested
                                 
                         except Exception as e:
                             if OptimizerConfig.DEBUG_MODE:
@@ -445,8 +445,10 @@ class CriteriaScorer:
                             has_valid_options = True
                             break
                             
-                    if not has_valid_options and OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: No valid matching shows found for any option in field {current_field}")
+                    # Only show critical error when no valid options exist
+                    if not has_valid_options:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"Debug: No valid matching shows for any option in {current_field}")
                         continue
                     
                     for i, (option_id, option_name) in enumerate(option_data):
