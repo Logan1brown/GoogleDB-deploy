@@ -449,8 +449,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
     for field_column, values in array_criteria.items():
         # Check if field exists in data
         if field_column not in matches.columns:
-            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                st.error(f"Field '{field_column}' not found in data columns")
+            # Skip silently - field mapping errors are common and not critical
             continue
             
         # Convert values to a set for faster lookups
@@ -475,8 +474,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
     for field_column, value in scalar_criteria.items():
         # Check if field exists in data
         if field_column not in matches.columns:
-            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                st.error(f"Field '{field_column}' not found in data columns")
+            # Skip silently - field mapping errors are common and not critical
             continue
             
         if isinstance(value, list):
@@ -491,9 +489,16 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
     
     # Matching complete
     match_count = len(matches)
-    if OptimizerConfig.DEBUG_MODE and match_count == 0:
-        # Only show critical zero-match messages
-        st.write(f"Debug: No matches found for criteria: {list(criteria.keys())}")
+    if OptimizerConfig.DEBUG_MODE and match_count == 0 and criteria:
+        # Only show critical zero-match messages with more context
+        # Convert criteria to a readable format for debugging
+        readable_criteria = {}
+        for k, v in criteria.items():
+            if isinstance(v, list) and len(v) > 0:
+                readable_criteria[k] = f"[{len(v)} values]" 
+            else:
+                readable_criteria[k] = v
+        st.write(f"Debug: Zero matches for criteria: {readable_criteria}")
 
     return matches, match_count
     

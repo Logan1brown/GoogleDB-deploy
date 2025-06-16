@@ -247,9 +247,15 @@ class NetworkAnalyzer:
         """
         try:
             # Validate inputs
-            if matching_shows is None or matching_shows.empty:
+            if matching_shows is None or (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty):
                 if OptimizerConfig.DEBUG_MODE:
                     st.write(f"Debug: No matching shows provided for network {network_id} success rates")
+                return {}
+                
+            # Ensure matching_shows is a DataFrame
+            if not isinstance(matching_shows, pd.DataFrame):
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: matching_shows is not a DataFrame: {type(matching_shows)}")
                 return {}
                 
             # Filter to this network
@@ -331,10 +337,17 @@ class NetworkAnalyzer:
                             
                         # For array fields, we need to check if the value is in the array
                         if is_array_field:
-                            # Skip array fields for now as they need special handling
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"Debug: Skipping array field {column} with value {value}")
-                            continue
+                            # Handle array fields by checking if value is in the array
+                            if isinstance(value, (list, tuple)):
+                                # If value itself is an array, we need a different approach
+                                # For now, just use direct comparison
+                                value_shows = network_shows[network_shows[column] == value]
+                            else:
+                                # For scalar values that need to be checked against arrays in the column
+                                # Use apply with a lambda that checks if value is in the array
+                                value_shows = network_shows[network_shows[column].apply(
+                                    lambda x: isinstance(x, (list, tuple)) and value in x if x is not None else False
+                                )]
                         else:
                             # For scalar fields, we can do a direct comparison
                             value_shows = network_shows[network_shows[column] == value]
