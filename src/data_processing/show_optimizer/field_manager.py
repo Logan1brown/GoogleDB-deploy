@@ -627,23 +627,51 @@ class FieldManager:
             # Return the original field name as fallback
             return field_name
     
-    def get_field_type(self, field_name: str) -> str:
-        """Get the type of a field (scalar or array).
+    def has_field(self, field_name: str) -> bool:
+        """Check if a field exists in the field manager.
         
         Args:
-            field_name: Field name to get type for
+            field_name: Name of the field to check
             
         Returns:
-            'array' if field is an array field, 'scalar' otherwise
+            True if the field exists, False otherwise
         """
         try:
-            # Check if field is in FIELD_CONFIGS and is marked as array
-            if field_name in self.FIELD_CONFIGS and self.FIELD_CONFIGS[field_name].is_array:
-                return 'array'
+            # Check direct field name
+            if field_name in self.FIELD_CONFIGS:
+                return True
+                
+            # Check normalized field name (without _id, _ids, _name, _names suffixes)
+            base_field = field_name
+            if field_name.endswith('_id') or field_name.endswith('_ids'):
+                base_field = field_name[:-3] if field_name.endswith('_id') else field_name[:-4]
+            elif field_name.endswith('_name') or field_name.endswith('_names'):
+                base_field = field_name[:-5] if field_name.endswith('_name') else field_name[:-6]
+                
+            return base_field in self.FIELD_CONFIGS
+        except Exception as e:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Error checking if field {field_name} exists: {str(e)}")
+            return False
+    
+    def get_field_type(self, field_name: str) -> str:
+        """Get the field type (array or scalar).
+        
+        Args:
+            field_name: Name of the field
             
-            # Check if field is in array_field_mapping
-            array_field_mapping = self.get_array_field_mapping()
-            if field_name in array_field_mapping:
+        Returns:
+            Field type ('array' or 'scalar')
+        """
+        try:
+            # Normalize field name if needed
+            base_field = field_name
+            if field_name.endswith('_id') or field_name.endswith('_ids'):
+                base_field = field_name[:-3] if field_name.endswith('_id') else field_name[:-4]
+            elif field_name.endswith('_name') or field_name.endswith('_names'):
+                base_field = field_name[:-5] if field_name.endswith('_name') else field_name[:-6]
+                
+            if base_field in self.FIELD_CONFIGS and self.FIELD_CONFIGS[base_field].is_array:
                 return 'array'
                 
             # Default to scalar

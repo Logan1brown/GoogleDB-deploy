@@ -385,10 +385,46 @@ class CriteriaScorer:
                         option_data.append((option_key, self.field_manager.get_name(current_field, option.id)))
                         recommendation_types.append('add')
                 
-                # Process each option using the provided option_matching_shows_map
+                # Process each option using the provided option_matching_shows_map or generate it if not provided
                 field_impact = {}
                 
-                if option_matching_shows_map and current_field in option_matching_shows_map:
+                # If option_matching_shows_map is not provided, we need to generate it
+                if not option_matching_shows_map or current_field not in option_matching_shows_map:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: Generating option matching shows map for field {current_field}")
+                    
+                    # Generate option matching shows map for this field
+                    field_options_map = {}
+                    
+                    # For each option in option_data, run the matcher to get matching shows
+                    for i, (option_id, option_name) in enumerate(option_data):
+                        try:
+                            # Create criteria for this option
+                            option_criteria = base_criteria.copy()
+                            
+                            # Set the criteria value based on field type
+                            is_array_field = self.field_manager.get_field_type(current_field) == 'array'
+                            if is_array_field:
+                                option_criteria[current_field] = [option_id]
+                            else:
+                                option_criteria[current_field] = option_id
+                                
+                            # Get matching shows for this option
+                            option_shows, _, _ = self._get_matching_shows(option_criteria)
+                            
+                            # Store in field_options_map
+                            field_options_map[option_id] = option_shows
+                            
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"Debug: Generated {len(option_shows)} matching shows for {current_field}={option_name}")
+                                
+                        except Exception as e:
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"Debug: Error generating matching shows for {current_field}={option_name}: {str(e)}")
+                            # Skip this option
+                            continue
+                else:
+                    # Use the provided option_matching_shows_map
                     field_options_map = option_matching_shows_map[current_field]
                     
                     # Convert all keys in field_options_map to hashable for safe lookup
@@ -400,6 +436,18 @@ class CriteriaScorer:
                     if OptimizerConfig.DEBUG_MODE:
                         st.write(f"Debug: Field {current_field} has {len(field_options_map)} options")
                         st.write(f"Debug: First few options: {list(field_options_map.keys())[:3]}")
+                        st.write(f"Debug: First few hashable options: {list(hashable_field_options_map.keys())[:3]}")
+                        
+                    # Verify that we have matching shows for at least some options
+                    has_valid_options = False
+                    for k, v in hashable_field_options_map.items():
+                        if v is not None and not (isinstance(v, pd.DataFrame) and v.empty):
+                            has_valid_options = True
+                            break
+                            
+                    if not has_valid_options and OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: No valid matching shows found for any option in field {current_field}")
+                        continue
                     
                     for i, (option_id, option_name) in enumerate(option_data):
                         # Make the option_id hashable for lookup

@@ -190,20 +190,48 @@ class RecommendationEngine:
             # Calculate criteria impact
             try:
                 impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Impact data calculated with {len(impact_data)} fields")
+                    for field, values in impact_data.items():
+                        st.write(f"Debug: Field {field} has {len(values)} impact values")
+                        
+                # Check if impact data is empty or invalid
+                if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write("Debug: Impact data is empty or contains no values")
+                    return []
+                    
             except Exception as impact_e:
                 # Exception in calculate_criteria_impact
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Error during criteria impact calculation: {str(impact_e)}")
+                    import traceback
+                    st.write(f"Debug: {traceback.format_exc()}")
                 st.error("Critical error during criteria impact calculation.")
                 return []
             # Convert to SuccessFactor objects
             success_factors = []
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Impact data contains {len(impact_data)} criteria types")
+                for criteria_type, values in impact_data.items():
+                    st.write(f"Debug: Criteria type '{criteria_type}' has {len(values)} values")
+                    
             for criteria_type, values in impact_data.items():
                 processed_count = 0
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Processing criteria type: {criteria_type}")
+                    
                 # Process values directly with proper type handling
                 for value_id, impact_data in values.items():
                     # Use the original value_id for matching
                     value_id_hashable = value_id
                     if processed_count >= 5:
                         break
+                        
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: Processing value_id: {value_id} with impact_data: {impact_data}")
+
                     try:
                         if isinstance(impact_data, dict) and 'impact' in impact_data:
                             impact = impact_data['impact']

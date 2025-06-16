@@ -271,7 +271,33 @@ class NetworkAnalyzer:
             # Calculate success rate for each criteria column
             success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
             
+            # Filter columns to only include those that the field_manager can handle
+            valid_criteria_columns = []
             for column in criteria_columns:
+                # Check if this is a field the field_manager knows about
+                base_field = column
+                if column.endswith('_id') or column.endswith('_ids'):
+                    base_field = column[:-3] if column.endswith('_id') else column[:-4]
+                elif column.endswith('_name') or column.endswith('_names'):
+                    base_field = column[:-5] if column.endswith('_name') else column[:-6]
+                    
+                try:
+                    # Check if field_manager has this field
+                    if self.field_manager and self.field_manager.has_field(base_field):
+                        valid_criteria_columns.append(column)
+                    else:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"Debug: Skipping column {column} - not in field_manager")
+                except Exception as e:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"Debug: Error checking field {column}: {str(e)}")
+                    # Skip this column
+                    continue
+                    
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Processing {len(valid_criteria_columns)} valid columns out of {len(criteria_columns)} total")
+                
+            for column in valid_criteria_columns:
                 # Get unique values for this column
                 try:
                     # Skip columns with all null values
@@ -291,8 +317,22 @@ class NetworkAnalyzer:
                         if pd.isna(value):
                             continue
                             
-                        # Filter shows with this value
-                        value_shows = network_shows[network_shows[column] == value]
+                        # Handle array fields differently
+                        is_array_field = False
+                        if isinstance(value, (list, tuple)) or (
+                            isinstance(value, str) and column.endswith('_names') and '[' in value
+                        ):
+                            is_array_field = True
+                            
+                        # For array fields, we need to check if the value is in the array
+                        if is_array_field:
+                            # Skip array fields for now as they need special handling
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"Debug: Skipping array field {column} with value {value}")
+                            continue
+                        else:
+                            # For scalar fields, we can do a direct comparison
+                            value_shows = network_shows[network_shows[column] == value]
                         
                         # Skip if no shows
                         if value_shows.empty:
