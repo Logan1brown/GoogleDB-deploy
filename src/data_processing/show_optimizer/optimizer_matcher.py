@@ -400,10 +400,11 @@ class Matcher:
         if data.empty:
             if OptimizerConfig.DEBUG_MODE:
                 st.error("Empty criteria data provided")
-                st.write(f"Debug: Original data was {'None' if data is None else f'empty DataFrame with {len(data)} rows'}")
+                if OptimizerConfig.VERBOSE_DEBUG:
+                    st.write(f"Debug: Original data was {'None' if data is None else f'empty DataFrame with {len(data)} rows'}")
             return pd.DataFrame(), 0
             
-        if OptimizerConfig.DEBUG_MODE:
+        if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
             st.write(f"Debug: _match_shows received data with {len(data)} rows and {len(criteria)} criteria")
             st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
             st.write(f"Debug: Data columns: {list(data.columns)[:10]}{'...' if len(data.columns) > 10 else ''}")
@@ -455,11 +456,19 @@ class Matcher:
                 # For scalar fields, determine the actual column name using field_manager
                 field_id = self.field_manager.map_field_name(field_name, matches.columns)
                 scalar_fields[field_id] = value
+                
+                # Add debug output to show field name mapping
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Debug: Mapped field '{field_name}' to column '{field_id}' for scalar field")
         
         # Process array fields (these require apply functions)
         for field_name, value in array_fields_to_filter.items():
             # Use field_manager to get the correct column name
             field_column = self.field_manager.get_field_column_name(field_name, matches.columns)
+            
+            # Add debug output to show field name mapping for array fields
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"Debug: Mapped array field '{field_name}' to column '{field_column}'")
             
             # If column doesn't exist, skip this field
             if field_column is None:
@@ -506,17 +515,22 @@ class Matcher:
         # Matching complete
         match_count = len(matches)
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"Debug: _match_shows found {match_count} matching shows after applying all filters")
+            # Always show match count for zero matches as this is critical information
             if match_count == 0:
-                st.write("Debug: No matches found. This could be due to:")  
-                st.write("  - Criteria that are too restrictive")  
-                st.write("  - Missing or mismatched field names")  
-                st.write("  - Data format issues (e.g., array vs scalar fields)")  
+                st.write(f"Debug: _match_shows found {match_count} matching shows after applying all filters")
+                st.write("Debug: No matches found. This could be due to:")
+                st.write("  - Criteria that are too restrictive")
+                st.write("  - Missing or mismatched field names")
+                st.write("  - Data format issues (e.g., array vs scalar fields)")
+            # Only show match count for non-zero matches in verbose mode
+            elif OptimizerConfig.VERBOSE_DEBUG:
+                st.write(f"Debug: _match_shows found {match_count} matching shows after applying all filters")  
         return matches, match_count
     
     def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
         """Get criteria adjusted for a specific match level.
         
+        ... (rest of the code remains the same)
         Match levels now directly correspond to the number of criteria differences:
         - Level 1: All criteria match (0 differences)
         - Level 2: Missing 1 criterion

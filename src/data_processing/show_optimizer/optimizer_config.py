@@ -33,6 +33,10 @@ class OptimizerConfig:
     # Debug mode flag - set to True to enable all debug output
     DEBUG_MODE = True
     
+    # Verbose debug mode - set to True to enable detailed debug output
+    # When False, only critical debug information is shown
+    VERBOSE_DEBUG = False
+    
     # Maximum number of results to return from matcher
     MAX_RESULTS = 100
     

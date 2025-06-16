@@ -714,7 +714,7 @@ class CriteriaScorer:
             return pd.DataFrame(), 0, {'level': 'none', 'score': 0.0, 'error': 'No matcher available'}
         
         # Add debug output about the data being passed to the matcher
-        if OptimizerConfig.DEBUG_MODE:
+        if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
             data_status = "provided" if data is not None and not data.empty else "NOT provided"
             data_size = len(data) if data is not None and not data.empty else 0
             criteria_count = len(criteria) if criteria else 0
@@ -734,7 +734,7 @@ class CriteriaScorer:
             
             match_count = len(matching_shows) if not matching_shows.empty else 0
             
-            if OptimizerConfig.DEBUG_MODE:
+            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                 st.write(f"Debug: _get_matching_shows found {match_count} matching shows")
                 
             return matching_shows, match_count, confidence_info
