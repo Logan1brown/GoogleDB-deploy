@@ -209,7 +209,8 @@ class ConceptAnalyzer:
         """
         try:
             if OptimizerConfig.DEBUG_MODE:
-                pass
+                OptimizerConfig.debug(f"Starting concept analysis with {len(criteria)} criteria", category='analyzer')
+                OptimizerConfig.debug(f"Criteria: {criteria}", category='analyzer')
             
             # Step 1: Find matching shows using integrated data
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data)
@@ -276,8 +277,8 @@ class ConceptAnalyzer:
             
             # No backward compatibility or fallbacks - rely solely on top_networks
                 
-            if OptimizerConfig.DEBUG_MODE:
-                pass
+            # Log summary creation through centralized debug method
+            OptimizerConfig.debug(f"Created optimization summary with {len(summary.top_networks)} networks", category='analyzer')
             return summary
             
         except Exception as e:
@@ -310,8 +311,6 @@ class ConceptAnalyzer:
         min_sample_size = self.config.CONFIDENCE['minimum_sample']
         
         # Find matches with fallback using the criteria_scorer's matcher
-        if OptimizerConfig.DEBUG_MODE:
-            pass
         if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
             # Set the criteria data in the matcher
             self.criteria_scorer.matcher.set_criteria_data(shows_data)
@@ -486,7 +485,8 @@ class ConceptAnalyzer:
         """
         try:
             if OptimizerConfig.DEBUG_MODE:
-                pass
+                OptimizerConfig.debug(f"Starting concept analysis with {len(criteria)} criteria", category='analyzer')
+                OptimizerConfig.debug(f"Criteria: {criteria}", category='analyzer')
             
             # Get confidence info from the matching shows
             confidence_info = {'match_level': 1}  # Default to exact match level
@@ -595,7 +595,8 @@ class ConceptAnalyzer:
         """
         try:
             if OptimizerConfig.DEBUG_MODE:
-                pass
+                OptimizerConfig.debug(f"Starting concept analysis with {len(criteria)} criteria", category='analyzer')
+                OptimizerConfig.debug(f"Criteria: {criteria}", category='analyzer')
             
             # Delegate to RecommendationEngine for general recommendation generation
             recommendations = self.recommendation_engine.generate_recommendations(
