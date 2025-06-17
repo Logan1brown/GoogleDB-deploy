@@ -468,7 +468,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
             OptimizerConfig.debug("No matches found. This could be due to:\n\nCriteria that are too restrictive\nMissing or mismatched field names\nData format issues (e.g., array vs scalar fields)", category='matcher')
 
         return matches, match_count
-    
+        
     def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
         """Get criteria adjusted for a specific match level.
         
