@@ -136,21 +136,21 @@ class ScoreCalculator:
         
         # Debug information about filtering
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"Debug: Filtering {len(shows)} shows for {self.component_name} component")
+            pass
             
         if filter_condition:
             if OptimizerConfig.DEBUG_MODE:
                 filter_result = filter_condition(shows)
-                st.write(f"Debug: Custom filter condition matched {filter_result.sum()} shows out of {len(shows)}")
+                pass
             valid_shows = shows[filter_condition(shows)]
         elif data_col and data_col in shows.columns:
             if OptimizerConfig.DEBUG_MODE:
                 non_null_count = shows[data_col].notna().sum()
-                st.write(f"Debug: Default filter (non-null {data_col}) matched {non_null_count} shows out of {len(shows)}")
+                pass
             valid_shows = shows[shows[data_col].notna()]
         else:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: No filtering applied for {self.component_name} component")
+                pass
             valid_shows = shows
             
         # Calculate sample size and coverage
@@ -203,22 +203,21 @@ class SuccessScoreCalculator(ScoreCalculator):
     def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
         # Debug information about the shows DataFrame
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"Debug: SuccessScoreCalculator received {len(shows)} shows")
+            pass
             if 'success_score' in shows.columns:
                 non_null_count = shows['success_score'].notna().sum()
-                st.write(f"Debug: Found {non_null_count} shows with non-null success_score values")
+                pass
                 if non_null_count > 0:
                     min_score = shows['success_score'].min()
                     max_score = shows['success_score'].max()
                     mean_score = shows['success_score'].mean()
-                    st.write(f"Debug: Success score range: min={min_score}, max={max_score}, mean={mean_score}")
+                    pass
                     # Count shows that meet the filter criteria
                     filter_min = OptimizerConfig.SCORE_NORMALIZATION['success_filter_min']
                     valid_count = ((shows['success_score'].notna()) & (shows['success_score'] > filter_min)).sum()
-                    st.write(f"Debug: Found {valid_count} shows with success_score > {filter_min}")
+                    pass
             else:
-                st.write("Debug: 'success_score' column not found in shows DataFrame")
-                st.write(f"Debug: Available columns: {list(shows.columns)}")
+                pass
         
         # Get required and optional columns from config
         required_columns = OptimizerConfig.REQUIRED_COLUMNS['base'] + OptimizerConfig.REQUIRED_COLUMNS['success']
@@ -542,7 +541,7 @@ class NetworkScoreCalculator:
         # Check if we have any matching shows
         if matching_shows is None or matching_shows.empty:
             if OptimizerConfig.DEBUG_MODE:
-                st.write("Debug: Empty matching_shows provided to calculate_network_scores")
+                pass
             return []
                 
         # Check if we have network_id in the matching shows
@@ -554,7 +553,7 @@ class NetworkScoreCalculator:
             for alt_col in network_id_alternatives:
                 if alt_col in matching_shows.columns:
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: Using alternative column '{alt_col}' for network identification")
+                        pass
                     # Create a temporary network_id column
                     matching_shows['network_id'] = matching_shows[alt_col]
                     found_alternative = True
@@ -562,8 +561,7 @@ class NetworkScoreCalculator:
             
             if not found_alternative:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: No network_id column in matching shows. Cannot calculate network scores.")
-                    st.write(f"Debug: Available columns: {matching_shows.columns.tolist()}")
+                    pass
                 return []
             
         # Get unique network IDs from matching shows
@@ -572,12 +570,12 @@ class NetworkScoreCalculator:
         # Check if we found any network IDs
         if len(network_ids) == 0:
             if OptimizerConfig.DEBUG_MODE:
-                st.write("Debug: No valid network IDs found in matching shows")
+                pass
             return []
             
         # Debug message about network IDs found
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"Debug: Found {len(network_ids)} unique network IDs in matching shows")
+            pass
         
         # Initialize results list and network matches list
         results = []
@@ -604,7 +602,7 @@ class NetworkScoreCalculator:
                 
                 # Debug output
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: No field manager available for network ID {network_id}, using default name")
+                    pass
             
             # Get shows for this network
             network_shows = matching_shows[matching_shows['network_id'] == network_id]
@@ -612,7 +610,7 @@ class NetworkScoreCalculator:
             # Skip networks with no data
             if network_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Skipping network {network_name} (ID: {network_id}) - no matching shows")
+                    pass
                 continue
                 
             # Calculate match quality and confidence info
@@ -623,7 +621,7 @@ class NetworkScoreCalculator:
                 match_level = network_shows['match_level'].min()  # Best match level (lowest number)
             else:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: No match_level column for network {network_name} - skipping")
+                    pass
                 continue
             
             # Get total number of criteria from the criteria dictionary
@@ -654,12 +652,12 @@ class NetworkScoreCalculator:
             else:
                 # Skip networks with no weight (shouldn't happen since we already check for empty network_shows)
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: No valid weights for network {network_name} - skipping")
+                    pass
                 continue
             
             # Debug output
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Network {network_name} match quality calculation:")
+                pass
                 st.write(f"- Shows: {sample_size}")
                 st.write(f"- Final match quality: {match_quality:.2f}")
             
@@ -700,16 +698,16 @@ class NetworkScoreCalculator:
             
             # If we didn't find any networks in the matching shows, log a message
             if not network_matches and OptimizerConfig.DEBUG_MODE:
-                st.write("Debug: No networks found in matching shows")
+                pass
                 # Check if there are any network IDs in the data
                 if 'network_id' in matching_shows.columns:
                     network_id_counts = matching_shows['network_id'].value_counts()
                     if not network_id_counts.empty:
-                        st.write(f"Debug: Network ID distribution: {network_id_counts.to_dict()}")
+                        pass
                 
             # Add a debug message about the number of network matches
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Found {len(network_matches)} network matches using {len(matching_shows)} matching shows")
+                pass
 
             
             # Process each network match to calculate success probability
@@ -735,8 +733,8 @@ class NetworkScoreCalculator:
                 
                 # Debug output to help diagnose issues
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: network_match.details type: {type(network_match.details)}")
-                    st.write(f"Debug: match_quality from details: {match_quality}")
+                    pass
+                    pass
                 
                 compatibility_score = self._calculate_weighted_compatibility_score(
                     match_quality=match_quality,
@@ -756,16 +754,16 @@ class NetworkScoreCalculator:
                         
                         # Debug output in debug mode only
                         if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"Debug: Calculated success rate for {network_name}: {success_rate} with {count} shows")
+                            pass
                     else:
                         # Not enough shows for reliable calculation
                         if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"Debug: Insufficient sample size for {network_name}: {count} shows (min required: {OptimizerConfig.CONFIDENCE['minimum_sample']})")
+                            pass
                             # Since we've lowered the minimum sample in the config, this message will only show for truly empty datasets
                 else:
                     # No matching shows for this network
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: No matching shows for {network_name}")
+                        pass
                 
                 # Get confidence level from config based on sample size and match level
                 match_level = confidence_info.get('match_level', 1)
@@ -793,18 +791,18 @@ class NetworkScoreCalculator:
                 
                 # Debug output in debug mode
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Updated network match for {network_name} with success probability: {success_rate}")
-                    st.write(f"Debug: Network match now has compatibility_score: {network_match.compatibility_score}, success_probability: {network_match.success_probability}")
+                    pass
+                    pass
                     
                 # No need to create a new object, we're updating the existing one in the list
                 
             # Add final debug output about the network matches
             if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Final network_matches count: {len(network_matches)}")
+                pass
                 if network_matches:
-                    st.write(f"Debug: First network match: {network_matches[0].network_name} (ID: {network_matches[0].network_id})")
-                    st.write(f"Debug: First network match compatibility: {network_matches[0].compatibility_score}")
-                    st.write(f"Debug: First network match success probability: {network_matches[0].success_probability}")
+                    pass
+                    pass
+                    pass
                     
             # Sort network matches by compatibility score (descending)
             network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
@@ -831,11 +829,11 @@ class NetworkScoreCalculator:
         if 'success_score' not in shows.columns:
             # Success score column missing from shows
             if OptimizerConfig.DEBUG_MODE:
-                st.write("Debug: Shows data missing required 'success_score' field for success rate calculation")
+                pass
             
             if 'id' not in shows.columns:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: Shows data missing required 'id' field for success score calculation")
+                    pass
                 # Don't raise an error, just return None to indicate we can't calculate success rate
                 confidence_info['success_rate'] = None
                 confidence_info['success_count'] = 0
@@ -845,7 +843,7 @@ class NetworkScoreCalculator:
             # We can't calculate success rate without success_score column
             # Don't try to fetch criteria data here as that would trigger redundant matching
             if OptimizerConfig.DEBUG_MODE:
-                st.write("Debug: Cannot calculate success rate without success_score column")
+                pass
             
             confidence_info['success_rate'] = None
             confidence_info['success_count'] = 0
@@ -934,7 +932,7 @@ class NetworkScoreCalculator:
         
         # Debug output to help diagnose issues
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"Debug: Calculating compatibility score with match_quality={match_quality}, success_history={success_history}")
+            pass
         
         # If success history is not available, use only content match with adjusted weight
         if success_history is None:
@@ -947,7 +945,7 @@ class NetworkScoreCalculator:
         
         # Debug output for the final score
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"Debug: Calculated weighted score: {weighted_score}")
+            pass
             
         # Ensure score is in 0-1 range
         return max(0.0, min(1.0, weighted_score))
@@ -967,13 +965,13 @@ class NetworkScoreCalculator:
         # We now require matching_shows_list to be provided
         if matching_shows_list is None:
             if OptimizerConfig.DEBUG_MODE:
-                st.write("Debug: No matching_shows_list provided to batch_calculate_success_rates")
+                pass
             # Return empty results for all criteria
             return [(None, {'error': 'No matching shows provided'})] * len(criteria_list)
             
         if len(criteria_list) != len(matching_shows_list):
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Mismatch between criteria list ({len(criteria_list)}) and matching shows list ({len(matching_shows_list)})")
+                pass
             return [(None, {'error': 'criteria/matching_shows_list length mismatch'})] * len(criteria_list)
             
         for criteria, matching_shows in zip(criteria_list, matching_shows_list):
@@ -993,7 +991,7 @@ class NetworkScoreCalculator:
                 results.append((success_rate, confidence_info))
             except Exception as e:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Error calculating success rate: {str(e)}")
+                    pass
                     
                 error_confidence = {
                     'level': 'none',  # Use string directly

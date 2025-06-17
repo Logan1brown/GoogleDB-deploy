@@ -60,13 +60,13 @@ class NetworkAnalyzer:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: No matching shows provided for network ranking")
+                    pass
                 return []
             
             # Check if network_id column exists
             if 'network_id' not in matching_shows.columns:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: No network_id column in matching shows")
+                    pass
                 return []
             
             # Calculate network compatibility scores directly from matching shows
@@ -85,7 +85,7 @@ class NetworkAnalyzer:
                         network_name = self.field_manager.get_name('network', network_id) or "Unknown Network"
                     except Exception as e:
                         if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"Debug: Error getting network name for ID {network_id}: {str(e)}")
+                            pass
                         # Keep the default name
                 
                 # Calculate compatibility score based on match levels
@@ -98,7 +98,7 @@ class NetworkAnalyzer:
                     # Default if no match_level column
                     compatibility_score = 0.5
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: No match_level column for network {network_id}, using default score")
+                        pass
                 
                 # Calculate success probability if success_score column exists
                 success_probability = None
@@ -137,7 +137,7 @@ class NetworkAnalyzer:
             return network_matches[:limit]
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error ranking networks: {str(e)}")
+                pass
             return []
             
     def group_networks_into_tiers(self, network_matches: List[NetworkMatch]) -> Dict[str, List[NetworkMatch]]:
@@ -187,7 +187,7 @@ class NetworkAnalyzer:
             
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error grouping networks into tiers: {str(e)}")
+                pass
             return {}
     
     def get_network_tiers(self, matching_shows: pd.DataFrame, min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:
@@ -204,7 +204,7 @@ class NetworkAnalyzer:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: No matching shows provided for network tiers")
+                    pass
                 return {}
             
             # Get network matches using the simplified approach
@@ -232,7 +232,7 @@ class NetworkAnalyzer:
             return self.group_networks_into_tiers(filtered_matches)
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error getting network tiers: {str(e)}")
+                pass
             return {}
     
     def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: int) -> Dict[str, Dict[str, Any]]:
@@ -249,20 +249,20 @@ class NetworkAnalyzer:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: No matching shows provided for network {network_id} success rates")
+                    pass
                 return {}
                 
             # Filter to this network
             network_shows = matching_shows[matching_shows['network_id'] == network_id] if 'network_id' in matching_shows.columns else pd.DataFrame()
             if network_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: No shows for network {network_id} in matching shows")
+                    pass
                 return {}
                 
             # Check if success_score column exists
             if 'success_score' not in network_shows.columns:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: No success_score column in matching shows for network {network_id}")
+                    pass
                 return {}
             
             # For network-specific success rates, we analyze the columns in the matching_shows DataFrame
@@ -292,15 +292,15 @@ class NetworkAnalyzer:
                         valid_criteria_columns.append(column)
                     else:
                         if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"Debug: Skipping column {column} - not in field_manager")
+                            pass
                 except Exception as e:
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: Error checking field {column}: {str(e)}")
+                        pass
                     # Skip this column
                     continue
                     
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Processing {len(valid_criteria_columns)} valid columns out of {len(criteria_columns)} total")
+                pass
                 
             for column in valid_criteria_columns:
                 # Get unique values for this column
@@ -333,7 +333,7 @@ class NetworkAnalyzer:
                         if is_array_field:
                             # Skip array fields for now as they need special handling
                             if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"Debug: Skipping array field {column} with value {value}")
+                                pass
                             continue
                         else:
                             # For scalar fields, we can do a direct comparison
@@ -361,7 +361,7 @@ class NetworkAnalyzer:
                                     value_name = self.field_manager.get_name(column, int(value) if isinstance(value, (int, float)) else value)
                                 except Exception as e:
                                     if OptimizerConfig.DEBUG_MODE:
-                                        st.write(f"Debug: Error getting option name for {column}={value}: {str(e)}")
+                                        pass
                                     # Keep the default string value
                             
                             # Create a key that combines field and value
@@ -393,13 +393,13 @@ class NetworkAnalyzer:
                             }
                 except Exception as e:
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: Error calculating success rate for column {column}: {str(e)}")
+                        pass
                     continue
             
             return success_rates
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error calculating network-specific success rates: {str(e)}")
+                pass
             return {}
     
     def get_network_recommendations(self, matching_shows: pd.DataFrame, 
@@ -427,7 +427,7 @@ class NetworkAnalyzer:
             # Validate matching_shows
             if matching_shows is None or not isinstance(matching_shows, pd.DataFrame) or matching_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: No matching shows provided for network recommendations for {network.network_name}")
+                    pass
                 return []
             
             # Filter matching_shows to this network if needed
@@ -437,7 +437,7 @@ class NetworkAnalyzer:
                 
                 if network_shows.empty:
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: No shows for network {network.network_name} in matching shows")
+                        pass
                     return []
             
             # Extract criteria from matching_shows if possible
@@ -470,7 +470,7 @@ class NetworkAnalyzer:
             return recommendation_dicts
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error generating network recommendations: {str(e)}")
+                pass
             return []
     
     def _get_criteria_name(self, criteria_type: str, criteria_value: Any) -> str:
@@ -496,7 +496,7 @@ class NetworkAnalyzer:
             return str(criteria_value)
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error getting criteria name: {str(e)}")
+                pass
             return str(criteria_value)
     
     def _calculate_success_rate_with_confidence(self, matching_shows: pd.DataFrame, 
@@ -530,7 +530,7 @@ class NetworkAnalyzer:
             else:
                 # No success_score column
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: No success_score column in matching_shows for success rate calculation")
+                    pass
                 success_rate = None
             
             # Calculate average match level for confidence
@@ -544,5 +544,5 @@ class NetworkAnalyzer:
             return success_rate, confidence
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error calculating success rate: {str(e)}")
+                pass
             return None, 'none'
