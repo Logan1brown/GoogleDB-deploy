@@ -56,15 +56,15 @@ class RecommendationEngine:
         try:
             # Validate required dependencies
             if shows_analyzer is None:
-                # Debug output removed: shows_analyzer dependency missing
+
                 st.error("Required component missing. Please ensure your application is properly configured.")
                 raise ValueError("shows_analyzer cannot be None")
             if success_analyzer is None:
-                # Debug output removed: success_analyzer dependency missing
+
                 st.error("Required component missing. Please ensure your application is properly configured.")
                 raise ValueError("success_analyzer cannot be None")
             if field_manager is None:
-                # Debug output removed: field_manager dependency missing
+
                 st.error("Required component missing. Please ensure your application is properly configured.")
                 raise ValueError("field_manager cannot be None")
                 
@@ -79,10 +79,10 @@ class RecommendationEngine:
                 self.criteria_scorer = success_analyzer.criteria_scorer
                 
             if self.criteria_scorer is None:
-                # Debug output removed: No criteria_scorer available
+
                 st.error("Some recommendation features may be limited due to missing components.")
         except Exception as e:
-            # Debug output removed: Error initializing RecommendationEngine
+
             st.error("Error initializing recommendation system. Some features may be unavailable.")
             raise
     
@@ -114,7 +114,7 @@ class RecommendationEngine:
                     return None, 'none'
             except Exception as inner_e:
                 # Log the error but don't stop execution
-                # Debug output removed: Issue retrieving matching shows
+
                 return None, 'none'
             
             # Calculate success rate
@@ -122,7 +122,7 @@ class RecommendationEngine:
                 success_rate = self.criteria_scorer._calculate_success_rate(matching_shows)
             except Exception as calc_e:
                 # If success rate calculation fails, return None but don't stop execution
-                # Debug output removed: Issue calculating success rate
+
                 return None, 'none'
             
             # Calculate confidence
@@ -130,13 +130,13 @@ class RecommendationEngine:
                 confidence = self.config.get_confidence_level(match_count)
             except Exception as conf_e:
                 # If confidence calculation fails, log it and continue with none confidence
-                # Debug output removed: Issue calculating confidence level
+
                 confidence = 'none'
             
             return success_rate, confidence
         except Exception as e:
             # Log the error but don't stop execution
-            # Debug output removed: Issue in overall success rate calculation
+
             return None, 'none'
     
     def identify_success_factors(self, criteria: Dict[str, Any], 
@@ -156,7 +156,6 @@ class RecommendationEngine:
         """
         import traceback
         
-        # Debug output removed
         
         # Process input arguments
         # If matching_shows not provided, get them
@@ -164,7 +163,7 @@ class RecommendationEngine:
            (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty) or \
            (isinstance(matching_shows, dict) and not matching_shows):
             try:
-                # Debug output removed
+
                 matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
                 if isinstance(matching_shows, pd.DataFrame) and matching_shows.empty:
                     st.error("No shows match your criteria. Try adjusting your parameters.")
@@ -180,10 +179,7 @@ class RecommendationEngine:
                 
                 if OptimizerConfig.DEBUG_MODE:
                     if OptimizerConfig.VERBOSE_DEBUG:
-                        # Debug: Impact data calculated with {len(impact_data)} fields")
-                        for field, values in impact_data.items():
-                            # Debug: Field {field} has {len(values)} impact values")
-                        
+                        pass
                 if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
                     return []
                     

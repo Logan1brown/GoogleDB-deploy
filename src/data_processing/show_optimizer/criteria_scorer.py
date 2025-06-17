@@ -119,8 +119,6 @@ class CriteriaScorer:
             component_score = calculator.calculate(validated_data, threshold=threshold)
             
             if component_score is None:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.warning("Failed to calculate success score")
                 if confidence_info is None:
                     confidence_info = {'level': 'none', 'score': 0.0, 'error': 'Failed to calculate success score'}
                 else:
@@ -129,10 +127,6 @@ class CriteriaScorer:
             
         except Exception as e:
             st.error(f"Error in success score calculation: {str(e)}")
-            if OptimizerConfig.DEBUG_MODE:
-                import traceback
-                # Error details omitted
-            # Create a basic confidence_info dictionary with error details
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
             else:
@@ -218,12 +212,6 @@ class CriteriaScorer:
             A dictionary mapping field names to dictionaries of option IDs to impact scores.
         """
         try:
-            # Debug output for input parameters
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: calculate_criteria_impact called with {len(base_criteria)} criteria")
-                if field_name:
-                    st.write(f"Debug: Analyzing specific field: {field_name}")
-            
             # Let the field manager handle array field identification
             array_field_mapping = self.field_manager.get_array_field_mapping()
             array_fields = list(array_field_mapping.keys())
@@ -241,7 +229,7 @@ class CriteriaScorer:
             base_rate, base_info = self._calculate_success_rate(base_matching_shows)
             
             if base_rate is None:
-                st.warning("WARNING: Unable to calculate base success rate - success_score data missing")
+                st.warning("Unable to calculate base success rate - success_score data missing")
                 return {}
             
             impact_scores = {}
@@ -382,10 +370,6 @@ class CriteriaScorer:
                             
                             # Store in field_options_map
                             field_options_map[option_id] = option_shows
-                            
-                            # Check for zero matches as this is critical information
-                            if len(option_shows) == 0:
-                                pass # No debug output needed
                         except Exception as e:
                             # Skip this option
                             continue
@@ -474,8 +458,7 @@ class CriteriaScorer:
             
             # Using general minimum_sample from OptimizerConfig
             if match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.warning(f"Insufficient sample size ({match_count}) for criteria to calculate reliable component scores. Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
+                st.warning(f"Insufficient sample size ({match_count}) for criteria to calculate reliable component scores. Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
                 # We'll continue with the calculation, but with a warning
             
             calculators = [

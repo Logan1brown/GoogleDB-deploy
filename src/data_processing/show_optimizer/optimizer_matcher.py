@@ -463,8 +463,8 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
         # Matching complete
         match_count = len(matches)
         if OptimizerConfig.DEBUG_MODE and match_count == 0:
-            # Only show critical zero-match messages
-            # No matches found for criteria
+            # Only show critical zero-match messages when needed
+            pass
 
         return matches, match_count
     
@@ -673,7 +673,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
                         
                     # If not all shows match this criterion, downgrade the match level
                     if not all_match:
-                        # Debug output removed: Not all shows match array criterion
+
                         actual_match_level = 2  # Downgrade to level 2
                         break
                 else:  # Handle scalar fields
@@ -689,7 +689,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
                             
                     # Check if all shows match this scalar criterion
                     if not (shows[field_id] == value).all():
-                        # Debug output removed: Not all shows match scalar criterion
+
                         actual_match_level = 2  # Downgrade to level 2
                         break
         

@@ -251,13 +251,8 @@ class ConceptAnalyzer:
                 if len(matching_titles) > 100:
                     matching_titles = matching_titles[:100]
             
-            # Debug: Check matching_shows columns right before creating summary
-            if OptimizerConfig.DEBUG_MODE and not matching_shows.empty:
-                st.write(f"Debug: Before creating summary - matching_shows columns: {matching_shows.columns.tolist()}")
-                if 'match_level' in matching_shows.columns:
-                    st.write(f"Debug: Before creating summary - match_level values: {matching_shows['match_level'].value_counts().to_dict()}")
-                else:
-                    st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame before creating summary!")
+
+
             
             # Create and return the optimization summary
             summary = OptimizationSummary(
@@ -330,12 +325,6 @@ class ConceptAnalyzer:
         match_count = len(matching_shows) if not matching_shows.empty else 0
         st.write(f"Found {match_count} matching shows with confidence level '{confidence_info.get('level', 'unknown')}'")
         
-        # Debug: Check columns in matching_shows
-        if OptimizerConfig.DEBUG_MODE and not matching_shows.empty:
-            st.write(f"Debug: matching_shows columns: {matching_shows.columns.tolist()}")
-            if 'match_level' in matching_shows.columns:
-                st.write(f"Debug: match_level values: {matching_shows['match_level'].value_counts().to_dict()}")
-        # End debug check
         
         # Match results logged above
         
@@ -411,19 +400,14 @@ class ConceptAnalyzer:
         try:
             # Validate inputs
             if not criteria:
-                if st.session_state.get('debug_mode', False):
-                    st.write("Debug: No criteria provided to _find_top_networks")
                 return []
                 
             if not integrated_data:
-                if st.session_state.get('debug_mode', False):
-                    st.write("Debug: No integrated data provided to _find_top_networks")
                 return []
                 
             if st.session_state.get('debug_mode', False):
                 st.write("Finding top networks...")
-                st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
-                st.write(f"Debug: Integrated data keys: {list(integrated_data.keys())}")
+
             
             # Use the matching shows that were passed in, or get them if not provided
             if matching_shows is None or matching_shows.empty:
@@ -432,24 +416,20 @@ class ConceptAnalyzer:
                 
                 if matching_shows is None or matching_shows.empty:
                     if st.session_state.get('debug_mode', False):
-                        st.write("Debug: No matching shows found for network analysis")
+                        pass
                     return []
             
             # Use NetworkAnalyzer to rank networks by compatibility
             # The limit is controlled by OptimizerConfig.DEFAULT_NETWORK_LIMIT
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Using matching shows ({len(matching_shows)} shows) for network ranking")
-                if 'network_id' in matching_shows.columns:
-                    network_counts = matching_shows['network_id'].value_counts()
-                    st.write(f"Debug: Top 5 networks in matching shows: {network_counts.head()}")
-                elif 'network' in matching_shows.columns:
-                    network_counts = matching_shows['network'].value_counts()
-                    st.write(f"Debug: Top 5 networks in matching shows: {network_counts.head()}")
+            if 'network_id' in matching_shows.columns:
+                network_counts = matching_shows['network_id'].value_counts()
+            elif 'network' in matching_shows.columns:
+                network_counts = matching_shows['network'].value_counts()
             
             # Check if network_analyzer is available
             if self.criteria_scorer.network_analyzer is None:
                 if st.session_state.get('debug_mode', False):
-                    st.write("Debug: NetworkAnalyzer is not available")
+                    pass
                 return []
                 
             # Call rank_networks_by_compatibility with proper error handling
@@ -459,22 +439,11 @@ class ConceptAnalyzer:
             )
             
             if network_matches is None:
-                if st.session_state.get('debug_mode', False):
-                    st.write("Debug: rank_networks_by_compatibility returned None")
                 return []
-            
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Found {len(network_matches)} top networks")
-                if len(network_matches) > 0:
-                    st.write(f"Debug: Top network: {network_matches[0].network_name} with compatibility score {network_matches[0].compatibility_score}")
-            
+                
             return network_matches
             
         except Exception as e:
-            if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Error finding top networks: {str(e)}")
-                import traceback
-                st.write(f"Debug: Traceback: {traceback.format_exc()}")
             st.error(f"Error finding top networks: {str(e)}")
             return []
             
