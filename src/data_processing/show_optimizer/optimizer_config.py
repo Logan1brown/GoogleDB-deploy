@@ -33,6 +33,27 @@ class OptimizerConfig:
     # Debug mode flag - set to True to enable all debug output
     DEBUG_MODE = False
     
+    @staticmethod
+    def debug(message, force=False):
+        """Print debug message only if DEBUG_MODE is True or force is True.
+        
+        Args:
+            message: Debug message to print
+            force: If True, print regardless of DEBUG_MODE setting
+        """
+        import streamlit as st
+        if OptimizerConfig.DEBUG_MODE or force:
+            st.write(f"Debug: {message}")
+            
+    @staticmethod
+    def set_debug_mode(enabled=True):
+        """Set the debug mode flag.
+        
+        Args:
+            enabled: Whether to enable debug mode
+        """
+        OptimizerConfig.DEBUG_MODE = enabled
+    
     # Verbose debug mode - set to True to enable detailed debug output
     # When False, only critical debug information is shown
     # VERBOSE_DEBUG flag removed

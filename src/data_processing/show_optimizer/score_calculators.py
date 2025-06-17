@@ -9,9 +9,8 @@ from .optimizer_config import OptimizerConfig
 
 # Helper function to only show warnings in debug mode
 def debug_warning(message):
-    """Display a warning only if DEBUG_MODE is enabled"""
-    if OptimizerConfig.DEBUG_MODE:
-        st.warning(message)
+    # Debug output removed - function kept as no-op to maintain compatibility
+    pass
 
 __all__ = [
     'ComponentScore',
@@ -206,9 +205,11 @@ class SuccessScoreCalculator(ScoreCalculator):
         # Handle validation failures and warnings
         if not is_success:
             if result_info['error']:
-                st.error(result_info['error'])
+                # Debug output removed - error handling maintained without UI output
+                pass
             if result_info['warning']:
-                st.warning(result_info['warning'])
+                # Debug output removed - warning handling maintained without UI output
+                pass
             # Create a ComponentScore with all required fields and default values
             details = {'error': result_info['error'] or result_info['warning']}
             return ComponentScore(
@@ -270,9 +271,11 @@ class AudienceScoreCalculator(ScoreCalculator):
         # Handle validation failures and warnings
         if not is_success:
             if result_info['error']:
-                st.error(result_info['error'])
+                # Debug output removed - error handling maintained without UI output
+                pass
             if result_info['warning']:
-                st.warning(result_info['warning'])
+                # Debug output removed - warning handling maintained without UI output
+                pass
             return ComponentScore(
                 component=self.component_name,
                 score=None,
@@ -330,9 +333,11 @@ class CriticsScoreCalculator(ScoreCalculator):
         if not is_success:
             # Display appropriate messages
             if result_info['error']:
-                st.error(result_info['error'])
+                # Debug output removed - error handling maintained without UI output
+                pass
             if result_info['warning']:
-                st.warning(result_info['warning'])
+                # Debug output removed - warning handling maintained without UI output
+                pass
                 
             # Return null score with no confidence, consistent with other calculators
             warning_message = result_info['error'] or result_info['warning'] or 'Unknown validation issue'
@@ -433,9 +438,11 @@ class LongevityScoreCalculator(ScoreCalculator):
         # Handle validation failures and warnings
         if not is_success:
             if result_info['error']:
-                st.error(result_info['error'])
+                # Debug output removed - error handling maintained without UI output
+                pass
             if result_info['warning']:
-                st.warning(result_info['warning'])
+                # Debug output removed - warning handling maintained without UI output
+                pass
             return ComponentScore(
                 component=self.component_name,
                 score=None,

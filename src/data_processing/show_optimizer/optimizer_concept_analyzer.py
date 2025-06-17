@@ -345,8 +345,7 @@ class ConceptAnalyzer:
         try:
             # If no matching shows, return None
             if matching_shows.empty:
-                if self.config.DEBUG_MODE:
-                    st.warning("No matching shows found for success probability calculation")
+                OptimizerConfig.debug("No matching shows found for success probability calculation")
                 return None, 'none'
             
             # Use CriteriaScorer to calculate success rate
@@ -378,8 +377,7 @@ class ConceptAnalyzer:
                 # Success probability calculated successfully
                 return success_rate, confidence_level
             
-            if self.config.DEBUG_MODE:
-                st.warning("Could not calculate success probability: missing success scores")
+            OptimizerConfig.debug("Could not calculate success probability: missing success scores")
             return None, 'none'
             
         except Exception as e:
@@ -611,8 +609,7 @@ class ConceptAnalyzer:
             
             # Generate network-specific recommendations for each top network
             if top_networks:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
+                OptimizerConfig.debug(f"Processing network recommendation for {network_name}")
                 
                 # First check if matching_shows is valid to avoid multiple errors
                 if matching_shows is None or (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty):
