@@ -61,6 +61,128 @@ class Matcher:
             'match_level': 0  # Maintain backward compatibility
         }
         
+    def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
+        """Get criteria adjusted for a specific match level.
+        
+        Match levels now directly correspond to the number of criteria differences:
+        - Level 1: All criteria match (0 differences)
+        - Level 2: Missing 1 criterion
+        - Level 3: Missing 2 criteria
+        - Level 4: Missing 3 criteria
+        - And so on...
+        
+        This implementation dynamically calculates which criteria to include based on
+        the exact number of criteria differences specified by the match level.
+        
+        Args:
+            criteria: Dictionary of criteria
+            match_level: Match level (corresponds to criteria differences + 1)
+            
+        Returns:
+            Criteria dictionary adjusted for the match level
+        """
+        # Special case for only 1 criterion - always include it
+        if len(criteria) == 1:
+            return criteria.copy()
+            
+        # If match level is 1, use all criteria (exact match)
+        if match_level == 1:
+            return criteria.copy()
+            
+        # Calculate criteria difference based on match level
+        # Match level 1 = 0 differences, match level 2 = 1 difference, etc.
+        criteria_diff = match_level - 1
+        
+        # Special case for extreme fallback (very few criteria)
+        if criteria_diff >= len(criteria):
+            # Keep at least one criterion (most important one)
+            result = {}
+            
+            # Always include genre if it exists
+            if 'genre' in criteria:
+                result['genre'] = criteria['genre']
+                return result
+                
+            # Try to find at least one criterion to keep, in order of importance
+            classified = self.field_manager.classify_criteria_by_importance(criteria)
+            
+            if classified['essential']:
+                field, value = next(iter(classified['essential'].items()))
+                result[field] = value
+                return result
+            elif classified['core']:
+                field, value = next(iter(classified['core'].items()))
+                result[field] = value
+                return result
+            elif classified['primary']:
+                field, value = next(iter(classified['primary'].items()))
+                result[field] = value
+                return result
+            elif classified['secondary']:
+                field, value = next(iter(classified['secondary'].items()))
+                result[field] = value
+                return result
+            else:
+                # Last resort: take the first criterion
+                field, value = next(iter(criteria.items()))
+                result[field] = value
+                return result
+        
+        # Get the total number of criteria
+        total_criteria = len(criteria)
+        
+        # Calculate how many criteria to include
+        criteria_to_include = max(1, total_criteria - criteria_diff)
+        
+        # Classify criteria by importance
+        classified = self.field_manager.classify_criteria_by_importance(criteria)
+        
+        # Build result by adding criteria in order of importance until we reach the target count
+        result = {}
+        remaining_slots = criteria_to_include
+        
+        # Always include essential criteria first
+        result.update(classified['essential'])
+        remaining_slots -= len(classified['essential'])
+        
+        # Add core criteria if we have slots left
+        if remaining_slots > 0 and classified['core']:
+            core_to_add = min(len(classified['core']), remaining_slots)
+            core_items = list(classified['core'].items())[:core_to_add]
+            for field, value in core_items:
+                result[field] = value
+            remaining_slots -= core_to_add
+        
+        # Add primary criteria if we have slots left
+        if remaining_slots > 0 and classified['primary']:
+            primary_to_add = min(len(classified['primary']), remaining_slots)
+            primary_items = list(classified['primary'].items())[:primary_to_add]
+            for field, value in primary_items:
+                result[field] = value
+            remaining_slots -= primary_to_add
+        
+        # Add secondary criteria if we have slots left
+        if remaining_slots > 0 and classified['secondary']:
+            secondary_to_add = min(len(classified['secondary']), remaining_slots)
+            secondary_items = list(classified['secondary'].items())[:secondary_to_add]
+            for field, value in secondary_items:
+                result[field] = value
+        
+        # Always prioritize certain critical fields for better matching quality
+        # Genre is especially important for show matching
+        if 'genre' in criteria and 'genre' not in result:
+            result['genre'] = criteria['genre']
+            
+        # Network is also important for show matching if it exists
+        if 'network' in criteria and 'network' not in result and len(result) < criteria_to_include + 1:
+            result['network'] = criteria['network']
+            
+        # Format/type is important for show matching if it exists
+        if 'format' in criteria and 'format' not in result and len(result) < criteria_to_include + 1:
+            result['format'] = criteria['format']
+            
+        return result
+        
     def _calculate_criteria_coverage(self, criteria: Dict[str, Any], shows: pd.DataFrame) -> Tuple[float, int]:
         """Calculate criteria coverage and missing criteria count.
         
@@ -389,75 +511,90 @@ class Matcher:
             
         return all_matches, confidence_info
 
-def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int]:
-    """Match shows based on criteria.
-    
-    Args:
-        criteria: Dictionary of criteria
-        data: DataFrame of shows to match against
+    def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int]:
+        """Match shows based on criteria.
         
-    Returns:
-        Tuple of (matching_shows, match_count)
-    """
-    # Use helper method to get data
-    data = self._get_data(data)
-    if data.empty:
-        # Silent handling for empty data - happens frequently during matching
-        return pd.DataFrame(), 0
-        
-    # Clean up criteria - remove None or empty values to make matching more lenient
-    clean_criteria = {}
-    
-    # Get array fields and mapping from field_manager
-    array_field_mapping = self.field_manager.get_array_field_mapping()
-    array_fields = list(array_field_mapping.keys())
-    
-    for field_name, value in criteria.items():
-        # Skip empty criteria
-        if value is None or (isinstance(value, list) and not value):
-            continue
+        Args:
+            criteria: Dictionary of criteria
+            data: DataFrame of shows to match against
             
-        # Use field_manager to determine the field type
-        field_type = self.field_manager.get_field_type(field_name)
-        
-        # Handle array fields
-        if field_type == 'array':
-            # Make sure array field values are always lists
-            if not isinstance(value, list):
-                clean_criteria[field_name] = [value]
-            else:
-                clean_criteria[field_name] = value
-        else:
-            # Don't map field names here - let FieldManager handle it
-            clean_criteria[field_name] = value
-            value_set = set(value)  
+        Returns:
+            Tuple of (matching_shows, match_count)
+        """
+        # Use helper method to get data
+        data = self._get_data(data)
+        if data.empty:
+            # Silent handling for empty data - happens frequently during matching
+            return pd.DataFrame(), 0
             
-            # Handle different data formats
-            if isinstance(sample, list):
-                # If the column contains lists, use list intersection
-                mask = matches[field_column].apply(
-                    lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
-            else:
-                # If the column isn't storing lists, use standard filtering
-                mask = matches[field_column].isin(value)
-                
-            # Apply filter
-            matches = matches[mask]
+        # Clean up criteria - remove None or empty values to make matching more lenient
+        clean_criteria = {}
         
-        # Process scalar fields (these can use vectorized operations)
-        for field_id, value in scalar_fields.items():
-            # Check if field exists in data
-            if field_id not in matches.columns:
-                # Silent handling for missing fields - happens during normal matching
+        # Get array fields and mapping from field_manager
+        array_field_mapping = self.field_manager.get_array_field_mapping()
+        array_fields = list(array_field_mapping.keys())
+        
+        for field_name, value in criteria.items():
+            # Skip empty criteria
+            if value is None or (isinstance(value, list) and not value):
                 continue
                 
-            if isinstance(value, list):
-                # Multiple values: any show with any of the values matches
-                mask = matches[field_id].isin(value)
+            # Use field_manager to determine the field type
+            field_type = self.field_manager.get_field_type(field_name)
+            
+            # Handle array fields
+            if field_type == 'array':
+                # Make sure array field values are always lists
+                if not isinstance(value, list):
+                    clean_criteria[field_name] = [value]
+                else:
+                    clean_criteria[field_name] = value
             else:
-                # Single value: exact match
-                mask = matches[field_id] == value
+                # Don't map field names here - let FieldManager handle it
+                clean_criteria[field_name] = value
+        
+        # Start with a copy of the data as our matches
+        matches = data.copy()
+        
+        # Separate array and scalar fields for different processing
+        array_fields_to_process = {}
+        scalar_fields = {}
+        
+        # Process each criterion
+        for field_name, value in clean_criteria.items():
+            # Use field_manager to map the field name to the correct column name
+            field_column = self.field_manager.get_field_column_name(field_name, matches.columns)
+            
+            # Skip if the field doesn't exist in the data
+            if field_column not in matches.columns:
+                continue
                 
+            # Check if this is an array field
+            is_array = field_name in array_fields
+            
+            # Sample the first row to check data format
+            sample = matches[field_column].iloc[0] if not matches.empty else None
+            
+            if is_array or isinstance(sample, list):
+                # For array fields, we need to check if any value matches
+                if isinstance(value, list):
+                    value_set = set(value)
+                    # If the column contains lists, use list intersection
+                    mask = matches[field_column].apply(
+                        lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
+                else:
+                    # Single value in array field
+                    mask = matches[field_column].apply(
+                        lambda x: isinstance(x, list) and value in x)
+            else:
+                # For scalar fields
+                if isinstance(value, list):
+                    # Multiple values: any show with any of the values matches
+                    mask = matches[field_column].isin(value)
+                else:
+                    # Single value: exact match
+                    mask = matches[field_column] == value
+                    
             # Apply filter
             matches = matches[mask]
             
@@ -468,130 +605,6 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
             OptimizerConfig.debug("No matches found. This could be due to:\n\nCriteria that are too restrictive\nMissing or mismatched field names\nData format issues (e.g., array vs scalar fields)", category='matcher')
 
         return matches, match_count
-        
-    def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
-        """Get criteria adjusted for a specific match level.
-        
-        ... (rest of the code remains the same)
-        Match levels now directly correspond to the number of criteria differences:
-        - Level 1: All criteria match (0 differences)
-        - Level 2: Missing 1 criterion
-        - Level 3: Missing 2 criteria
-        - Level 4: Missing 3 criteria
-        - And so on...
-        
-        This implementation dynamically calculates which criteria to include based on
-        the exact number of criteria differences specified by the match level.
-        
-        Args:
-            criteria: Dictionary of criteria
-            match_level: Match level (corresponds to criteria differences + 1)
-            
-        Returns:
-            Criteria dictionary adjusted for the match level
-        """
-        # Special case for only 1 criterion - always include it
-        if len(criteria) == 1:
-            return criteria.copy()
-            
-        # If match level is 1, use all criteria (exact match)
-        if match_level == 1:
-            return criteria.copy()
-            
-        # Calculate criteria difference based on match level
-        # Match level 1 = 0 differences, match level 2 = 1 difference, etc.
-        criteria_diff = match_level - 1
-        
-        # Special case for extreme fallback (very few criteria)
-        if criteria_diff >= len(criteria):
-            # Keep at least one criterion (most important one)
-            result = {}
-            
-            # Always include genre if it exists
-            if 'genre' in criteria:
-                result['genre'] = criteria['genre']
-                return result
-                
-            # Classify criteria by importance
-            classified = self.field_manager.classify_criteria_by_importance(criteria)
-            
-            # Try to find at least one criterion to keep, in order of importance
-            if classified['essential']:
-                field, value = next(iter(classified['essential'].items()))
-                result[field] = value
-                return result
-            elif classified['core']:
-                field, value = next(iter(classified['core'].items()))
-                result[field] = value
-                return result
-            elif classified['primary']:
-                field, value = next(iter(classified['primary'].items()))
-                result[field] = value
-                return result
-            elif classified['secondary']:
-                field, value = next(iter(classified['secondary'].items()))
-                result[field] = value
-                return result
-            else:
-                # Last resort: take the first criterion
-                field, value = next(iter(criteria.items()))
-                result[field] = value
-                return result
-        
-        # Get the total number of criteria
-        total_criteria = len(criteria)
-        
-        # Calculate how many criteria to include
-        criteria_to_include = max(1, total_criteria - criteria_diff)
-        
-        # Classify criteria by importance
-        classified = self.field_manager.classify_criteria_by_importance(criteria)
-        
-        # Build result by adding criteria in order of importance until we reach the target count
-        result = {}
-        remaining_slots = criteria_to_include
-        
-        # Always include essential criteria first
-        result.update(classified['essential'])
-        remaining_slots -= len(classified['essential'])
-        
-        # Add core criteria if we have slots left
-        if remaining_slots > 0 and classified['core']:
-            core_to_add = min(len(classified['core']), remaining_slots)
-            core_items = list(classified['core'].items())[:core_to_add]
-            for field, value in core_items:
-                result[field] = value
-            remaining_slots -= core_to_add
-        
-        # Add primary criteria if we have slots left
-        if remaining_slots > 0 and classified['primary']:
-            primary_to_add = min(len(classified['primary']), remaining_slots)
-            primary_items = list(classified['primary'].items())[:primary_to_add]
-            for field, value in primary_items:
-                result[field] = value
-            remaining_slots -= primary_to_add
-        
-        # Add secondary criteria if we have slots left
-        if remaining_slots > 0 and classified['secondary']:
-            secondary_to_add = min(len(classified['secondary']), remaining_slots)
-            secondary_items = list(classified['secondary'].items())[:secondary_to_add]
-            for field, value in secondary_items:
-                result[field] = value
-        
-        # Always prioritize certain critical fields for better matching quality
-        # Genre is especially important for show matching
-        if 'genre' in criteria and 'genre' not in result:
-            result['genre'] = criteria['genre']
-            
-        # Network is also important for show matching if it exists
-        if 'network' in criteria and 'network' not in result and len(result) < criteria_to_include + 1:
-            result['network'] = criteria['network']
-            
-        # Format/type is important for show matching if it exists
-        if 'format' in criteria and 'format' not in result and len(result) < criteria_to_include + 1:
-            result['format'] = criteria['format']
-            
-        return result
     
     def calculate_match_confidence(self, shows: pd.DataFrame, match_level: int, 
                                   criteria: Dict[str, Any]) -> Dict[str, Any]:
