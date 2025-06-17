@@ -271,6 +271,10 @@ class Matcher:
         self._criteria_data = criteria_data.copy() if criteria_data is not None else None
         
     def find_matches_with_fallback(self, criteria: Dict[str, Any], data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        # Debug: Log the Matcher instance and its methods
+        st.write(f"Matcher ID: {id(self)}")
+        st.write(f"Matcher has get_criteria_for_match_level: {hasattr(self, 'get_criteria_for_match_level')}")
+        st.write(f"Matcher methods: {[method for method in dir(self) if not method.startswith('_') and callable(getattr(self, method))]}")
         """Find shows matching criteria, with fallback to more permissive criteria if needed.
         
         This method will progressively relax the matching criteria until either:
@@ -315,7 +319,16 @@ class Matcher:
         # Try each possible match level in order, from exact match to progressively fewer criteria
         for level in range(1, max_possible_drop + 2):
             # Get criteria for this match level
-            level_criteria = self.get_criteria_for_match_level(criteria, level)
+            st.write(f"About to call get_criteria_for_match_level for level {level}")
+            try:
+                level_criteria = self.get_criteria_for_match_level(criteria, level)
+                st.write(f"Successfully got criteria for level {level}")
+            except Exception as e:
+                st.error(f"Error calling get_criteria_for_match_level: {str(e)}")
+                # Print the class structure to debug
+                st.write(f"Matcher class: {self.__class__}")
+                st.write(f"Matcher module: {self.__class__.__module__}")
+                raise
             if not level_criteria:
                 continue
                 
