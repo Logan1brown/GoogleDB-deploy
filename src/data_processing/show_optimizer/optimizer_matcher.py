@@ -179,6 +179,7 @@ class Matcher:
         # Get data for matching
         data = self._get_data(data)
         if data.empty:
+            OptimizerConfig.debug("No data available for matching", category='matcher')
             # Return an empty DataFrame with the required columns
             return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), self._empty_confidence_info()
         
@@ -367,6 +368,8 @@ class Matcher:
                     sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
             except Exception as e:
                 # If groupby fails, fall back to simple sampling
+                OptimizerConfig.debug(f"Sampling by match_level failed: {str(e)}", category='matcher')
+                OptimizerConfig.debug("Falling back to simple sampling", category='matcher')
                 
                 # Sort if possible, otherwise just sample
                 try:
@@ -460,9 +463,9 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
             
         # Matching complete
         match_count = len(matches)
-        if OptimizerConfig.DEBUG_MODE and match_count == 0:
-            # Only show critical zero-match messages when needed
-            pass
+        if match_count == 0:
+            OptimizerConfig.debug("_match_shows found 0 matching shows after applying all filters", category='matcher')
+            OptimizerConfig.debug("No matches found. This could be due to:\n\nCriteria that are too restrictive\nMissing or mismatched field names\nData format issues (e.g., array vs scalar fields)", category='matcher')
 
         return matches, match_count
     

@@ -231,32 +231,6 @@ def render_format_criteria(state: Dict, update_callback: Callable) -> None:
 
 # Helper functions for rendering tab content
 
-def render_debug_controls():
-    """Render debug controls for Show Optimizer.
-    
-    Adds a toggle to enable/disable debug output and clear the current debug messages.
-    """
-    with st.expander("Debug Controls", expanded=False):
-        col1, col2 = st.columns([1, 3])
-        
-        with col1:
-            # Debug mode toggle
-            current_debug_mode = OptimizerConfig.DEBUG_MODE
-            debug_enabled = st.toggle("Enable Debug Output", value=current_debug_mode)
-            
-            # Update debug mode if changed
-            if debug_enabled != current_debug_mode:
-                OptimizerConfig.set_debug_mode(debug_enabled)
-                st.success(f"Debug mode {'enabled' if debug_enabled else 'disabled'}")
-        
-        with col2:
-            # Clear debug output button
-            if st.button("Clear Debug Output", type="secondary"):
-                # This doesn't actually clear previous messages, but adds a visual separator
-                st.write("---")
-                st.write("Debug output cleared")
-                st.write("---")
-
 # Visualization helper functions are imported from style_config.py
 
 

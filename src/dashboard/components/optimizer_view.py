@@ -213,11 +213,11 @@ class OptimizerView:
             # Format matching shows if available
             if hasattr(summary, 'matching_shows') and not summary.matching_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: OptimizerView formatting matching_shows with columns: {summary.matching_shows.columns.tolist()}")
+                    OptimizerConfig.debug(f"OptimizerView formatting matching_shows with columns: {summary.matching_shows.columns.tolist()}", category='recommendation')
                     if 'match_level' in summary.matching_shows.columns:
-                        st.write(f"Debug: match_level values before formatting: {summary.matching_shows['match_level'].value_counts().to_dict()}")
+                        OptimizerConfig.debug(f"match_level values before formatting: {summary.matching_shows['match_level'].value_counts().to_dict()}", category='recommendation')
                     else:
-                        st.write("Debug: WARNING - match_level column is missing from matching_shows DataFrame in OptimizerView!")
+                        OptimizerConfig.debug("WARNING - match_level column is missing from matching_shows DataFrame in OptimizerView!", category='recommendation', force=True)
                 
                 # Format the matching shows for UI display
                 formatted_shows = self._format_matching_shows(summary.matching_shows)
@@ -387,26 +387,26 @@ class OptimizerView:
         Returns:
             List of formatted network match dictionaries ready for direct display in UI
         """
-        # Always add some basic debug output
-        st.write(f"OptimizerView: Formatting {len(network_matches) if network_matches else 0} network matches")
+        # Always add some basic debug output when in debug mode
+        OptimizerConfig.debug(f"OptimizerView: Formatting {len(network_matches) if network_matches else 0} network matches", category='network')
         
         # Add detailed debug output
         if st.session_state.get('debug_mode', False):
-            st.write("### Debug: Network Match Formatting")
-            st.write(f"Debug: Formatting {len(network_matches) if network_matches else 0} network matches")
+            OptimizerConfig.debug("=== Network Match Formatting ===", category='network')
+            OptimizerConfig.debug(f"Formatting {len(network_matches) if network_matches else 0} network matches", category='network')
             if network_matches and len(network_matches) > 0:
-                st.write(f"Debug: First network match type: {type(network_matches[0]).__name__}")
-                st.write(f"Debug: First network match dir: {dir(network_matches[0])}")
-                st.write(f"Debug: First network match network_id: {getattr(network_matches[0], 'network_id', 'Not found')}")
-                st.write(f"Debug: First network match network_name: {getattr(network_matches[0], 'network_name', 'Not found')}")
-            st.write("---")
+                OptimizerConfig.debug(f"First network match type: {type(network_matches[0]).__name__}", category='network')
+                OptimizerConfig.debug(f"First network match dir: {dir(network_matches[0])}", category='network')
+                OptimizerConfig.debug(f"First network match network_id: {getattr(network_matches[0], 'network_id', 'Not found')}", category='network')
+                OptimizerConfig.debug(f"First network match network_name: {getattr(network_matches[0], 'network_name', 'Not found')}", category='network')
+            OptimizerConfig.debug("----------------------------------------", category='network')
             
         formatted = []
         
         # Check if network_matches is None or empty
         if not network_matches:
             if st.session_state.get('debug_mode', False):
-                st.write("Debug: No network matches to format")
+                OptimizerConfig.debug("No network matches to format", category='network')
             return []
         
         for match in network_matches:
@@ -423,7 +423,7 @@ class OptimizerView:
             network_name = self.field_manager.get_name('network', network_id)
             
             if st.session_state.get('debug_mode', False):
-                st.write(f"Debug: Formatting network {network_id} -> {network_name}")
+                OptimizerConfig.debug(f"Formatting network {network_id} -> {network_name}", category='network')
             
             # Format compatibility score and success probability as percentages with proper rounding
             if match.compatibility_score is not None:
@@ -469,7 +469,7 @@ class OptimizerView:
         formatted.sort(key=lambda x: (x['_compatibility_raw'] or 0, x['_success_prob_raw'] or 0), reverse=True)
         
         if st.session_state.get('debug_mode', False):
-            st.write(f"Debug: Returning {len(formatted)} formatted network matches")
+            OptimizerConfig.debug(f"Returning {len(formatted)} formatted network matches", category='network')
             
         return formatted
     
