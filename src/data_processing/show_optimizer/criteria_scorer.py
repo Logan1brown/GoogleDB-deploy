@@ -131,7 +131,7 @@ class CriteriaScorer:
             st.error(f"Error in success score calculation: {str(e)}")
             if OptimizerConfig.DEBUG_MODE:
                 import traceback
-                st.write(f"Error details: {traceback.format_exc()}")
+                # Error details omitted
             # Create a basic confidence_info dictionary with error details
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
@@ -219,10 +219,8 @@ class CriteriaScorer:
         """
         try:
             # Debug output for input parameters
-            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
+            if OptimizerConfig.DEBUG_MODE:
                 st.write(f"Debug: calculate_criteria_impact called with {len(base_criteria)} criteria")
-                st.write(f"Debug: Base criteria keys: {list(base_criteria.keys())}")
-                st.write(f"Debug: Base matching shows: {len(base_matching_shows)} rows")
                 if field_name:
                     st.write(f"Debug: Analyzing specific field: {field_name}")
             
@@ -230,45 +228,19 @@ class CriteriaScorer:
             array_field_mapping = self.field_manager.get_array_field_mapping()
             array_fields = list(array_field_mapping.keys())
             
-            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Array fields: {array_fields}")
-                    st.write(f"Debug: Field manager has {len(self.field_manager.FIELD_CONFIGS)} field configs")
-            
             # Use the provided base matching shows
             base_match_count = len(base_matching_shows) if not base_matching_shows.empty else 0
             
             if base_matching_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    # This is a critical error worth showing even without verbose debug
-                    st.write(f"Debug: Cannot calculate impact scores - no matching shows")
                 raise ValueError("Cannot calculate impact scores with no matching shows")
                 
             if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                if OptimizerConfig.DEBUG_MODE:
-                    # This is a critical error worth showing even without verbose debug
-                    st.write(f"Debug: Cannot calculate impact scores - insufficient sample size ({base_match_count} shows)")
                 raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows). Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
             
             # Calculate base success rate using the provided shows
-            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Calculating base success rate for {len(base_matching_shows)} shows")
-                    if 'success_score' in base_matching_shows.columns:
-                        st.write(f"Debug: Success score stats: min={base_matching_shows['success_score'].min()}, max={base_matching_shows['success_score'].max()}, mean={base_matching_shows['success_score'].mean()}")
-                else:
-                    st.write("Debug: No success_score column in base_matching_shows")
-            
             base_rate, base_info = self._calculate_success_rate(base_matching_shows)
             
-            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Base success rate calculation result: {base_rate}")
-                    st.write(f"Debug: Base success info: {base_info}")
-            
             if base_rate is None:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: Unable to calculate base success rate - success_score data missing")
                 st.warning("WARNING: Unable to calculate base success rate - success_score data missing")
                 return {}
             
@@ -276,11 +248,6 @@ class CriteriaScorer:
             
             # Determine which fields to process
             fields_to_process = [field_name] if field_name else self.field_manager.FIELD_CONFIGS.keys()
-            
-            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Base success rate: {base_rate:.2f}")
-                    st.write(f"Debug: Fields to process: {list(fields_to_process)}")
             
             def make_hashable(val):
                 """Convert any value to a hashable type for dictionary keys.
@@ -318,9 +285,7 @@ class CriteriaScorer:
                 is_array_field = self.field_manager.get_field_type(current_field) == 'array'
                 options = self.field_manager.get_options(current_field)
                 
-                if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                        st.write(f"Debug: Processing field {current_field} (array: {is_array_field})")
-                        st.write(f"Debug: Found {len(options)} options for field {current_field}")
+                # Processing field
                 
                 # Prepare batch criteria for all options
                 batch_criteria = []
@@ -334,8 +299,7 @@ class CriteriaScorer:
                 if field_in_base:
                     # For fields already in criteria, we'll calculate both Remove and Change recommendations
                     
-                    if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                            st.write(f"Debug: Field {current_field} is in base criteria with value {current_value}")
+                    # Field in base criteria
                     
                     # 1. First, create a "Remove" recommendation by removing this field
                     remove_criteria = base_criteria.copy()
@@ -419,16 +383,10 @@ class CriteriaScorer:
                             # Store in field_options_map
                             field_options_map[option_id] = option_shows
                             
-                            # Only show debug output for zero matches as this is critical information
-                            if OptimizerConfig.DEBUG_MODE and len(option_shows) == 0 and current_field in base_criteria:
-                                st.write(f"Debug: No matches for {current_field}={option_name} (conflicts with base criteria)")
-                            elif OptimizerConfig.DEBUG_MODE and len(option_shows) == 0 and OptimizerConfig.VERBOSE_DEBUG:
-                                    st.write(f"Debug: No matches for {current_field}={option_name}")
-                                
+                            # Check for zero matches as this is critical information
+                            if len(option_shows) == 0:
+                                pass # No debug output needed
                         except Exception as e:
-                            if OptimizerConfig.DEBUG_MODE:
-                                # Keep error messages visible as they're important
-                                st.write(f"Debug: Error generating matching shows for {current_field}={option_name}: {str(e)}")
                             # Skip this option
                             continue
                 else:
@@ -438,14 +396,9 @@ class CriteriaScorer:
                     # Convert all keys in field_options_map to hashable for safe lookup
                     hashable_field_options_map = {}
                     for k, v in field_options_map.items():
-                        hashable_key = make_hashable(k)
+                        hashable_key = self.make_hashable(k)
                         hashable_field_options_map[hashable_key] = v
                     
-                    # Only show debug output if there are no options at all (critical issue)
-                    if OptimizerConfig.DEBUG_MODE and len(field_options_map) == 0:
-                        # This is a critical error worth showing even without verbose debug
-                        st.write(f"Debug: Field {current_field} has no options available")
-                        
                     # Verify that we have matching shows for at least some options
                     has_valid_options = False
                     for k, v in hashable_field_options_map.items():
@@ -453,127 +406,48 @@ class CriteriaScorer:
                             has_valid_options = True
                             break
                             
-                    if not has_valid_options and OptimizerConfig.DEBUG_MODE:
-                        # This is a critical error worth showing even without verbose debug
-                        st.write(f"Debug: No valid matching shows found for any option in field {current_field}")
+                    if not has_valid_options:
                         continue
                     
                     for i, (option_id, option_name) in enumerate(option_data):
                         # Make the option_id hashable for lookup
-                        hashable_option_id = make_hashable(option_id)
+                        hashable_key = self.make_hashable(option_id)
                         
-                        # Skip if we don't have matching shows for this option
-                        if hashable_option_id not in hashable_field_options_map:
-                            # No debug output needed for individual missing options
+                        # Get matching shows for this option from the hashable map
+                        option_shows = hashable_field_options_map.get(hashable_key)
+                        
+                        # Skip options with no matching shows
+                        if option_shows is None or (isinstance(option_shows, pd.DataFrame) and option_shows.empty):
                             continue
                             
-                        # Get the matching shows for this option
-                        option_shows = hashable_field_options_map[hashable_option_id]
-                        
-                        if option_shows is None or option_shows.empty:
-                            continue
-                            
-                        # Calculate success rate for this option
-                        option_rate, option_confidence = self._calculate_success_rate(option_shows)
-                        
-                        if option_rate is not None:
-                            match_count = len(option_shows)
-                            impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
-                            
-                            # Get the recommendation type for this option
-                            rec_type = recommendation_types[i] if i < len(recommendation_types) else 'add'
-                            
-                            # Use field_manager to get the proper option name
-                            if option_id != 'remove':
-                                try:
-                                    # For numeric option IDs, get the name from field_manager
-                                    if isinstance(option_id, (int, float)):
-                                        display_name = self.field_manager.get_name(current_field, int(option_id))
-                                    else:
-                                        display_name = option_name
-                                except Exception as e:
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        # Keep error messages visible as they're important
-                                        st.write(f"Debug: Error getting option name for {current_field}={option_id}: {str(e)}")
-                                    display_name = option_name
+                        # Get display name for the option
+                        try:
+                            if isinstance(option_id, (int, float)):
+                                display_name = self.field_manager.get_name(current_field, int(option_id))
                             else:
                                 display_name = option_name
-                            
-                            if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                                    st.write(f"Debug: Impact for {current_field}={display_name}: {impact:.2f} (sample size: {match_count})")
-                            
-                            field_impact[option_id] = {
-                                "impact": impact, 
-                                "sample_size": match_count, 
-                                "option_name": display_name,
-                                "success_rate": option_rate,
-                                "recommendation_type": rec_type
-                            }
-                    
-                # For accurate impact calculation, we need to find matching shows for each criteria option
-                # combined with the base criteria (for adding criteria) or with criteria removed (for removing criteria)
-                matching_shows_list = []
-                
-                if self.matcher:
-                    # For each criteria option, we want to see how it affects the base criteria
-                    for crit in batch_criteria:
-                        try:
-                            # This is the key difference - we're using the combined criteria
-                            # (base + new option) to find matching shows, not just the option alone
-                            option_shows, _, _ = self._get_matching_shows(crit)
-                            matching_shows_list.append(option_shows)
                         except Exception as e:
-                            # If matching fails for this option, use an empty DataFrame
-                            matching_shows_list.append(pd.DataFrame())
-                else:
-                    # If no matcher is available, we can't calculate impact scores
-                    for _ in batch_criteria:
-                        matching_shows_list.append(pd.DataFrame())
-                
-                rates = self._batch_calculate_success_rates(batch_criteria, matching_shows_list)
-                for i, (option_id, option_name) in enumerate(option_data):
-                    option_rate = rates[i]
-                    if option_rate is not None:
-                        # Use the actual matching shows count for this option
-                        match_count = len(matching_shows_list[i]) if i < len(matching_shows_list) and not matching_shows_list[i].empty else 0
-                        # Calculate impact based on difference from base rate
-                        impact = (option_rate - base_rate) / base_rate if base_rate != 0 else 0
-                        # Get the recommendation type for this option
-                        rec_type = recommendation_types[i] if i < len(recommendation_types) else 'add'
-                        
-                        field_impact[option_id] = {
-                            "impact": impact,
-                            "sample_size": match_count,
-                            "option_name": option_name,
-                            "success_rate": option_rate,
-                            "recommendation_type": rec_type
-                        }
-                if field_impact:
-                    impact_scores[current_field] = field_impact
+                            display_name = option_name
                     
             if not impact_scores and fields_to_process:
                 # Check if option_matching_shows_map was provided
                 if option_matching_shows_map is None:
                     # Instead of showing an error, just return empty results and continue
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write("No option matching shows map available for impact score calculation - skipping")
                     return {}
                 else:
                     # Only log a warning if we attempted to process fields but got no results
                     # If fields_to_process was empty (e.g. field_name was already in base_criteria), this is not an error
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write("Could not calculate any impact scores with the given criteria configuration - continuing")
                     return {}
                 
             return impact_scores
 
         except ValueError as ve:
             st.error(str(ve)) # Surface our specific ValueErrors
-            raise
+            return {}
         except Exception as e:
             st.error(f"Error calculating criteria impact: {str(e)}")
-            raise
-    
+            return {}
+            
     def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:
         """
         Calculate component scores for the given criteria using provided matched shows.
@@ -600,83 +474,46 @@ class CriteriaScorer:
             
             # Using general minimum_sample from OptimizerConfig
             if match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                st.warning(f"Insufficient sample size ({match_count}) for criteria: {criteria} to calculate reliable component scores. Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.warning(f"Insufficient sample size ({match_count}) for criteria to calculate reliable component scores. Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
                 # We'll continue with the calculation, but with a warning
             
-            # Get match level from confidence info
-            actual_match_level = confidence_info.get('match_level')
-            if actual_match_level is None:
-                st.warning("Incomplete confidence info provided to calculate_component_scores: missing match_level")
-                # Don't add a fallback, let the error propagate naturally
-                
-            original_match_level = confidence_info.get('original_match_level', actual_match_level)
+            calculators = [
+                SuccessScoreCalculator(),
+                AudienceScoreCalculator(),
+                CriticsScoreCalculator(),
+                LongevityScoreCalculator()
+            ]
             
-            if actual_match_level != original_match_level and st.session_state.get('debug_mode', False):
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Note: Match level adjusted from {original_match_level} to {actual_match_level} for component score calculation")
-                
-            # If we have array fields like character_types in our criteria, make sure they're properly matched
-            # This helps ensure component scores are calculated based on shows that actually match the criteria
-                array_fields = [field for field, value in criteria.items() if isinstance(value, list) and value]
-                if array_fields and actual_match_level > 1 and st.session_state.get('debug_mode', False):
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Note: Array criteria matching relaxed to level {actual_match_level} for fields: {array_fields}")
-            
-            # Ensure all required data is available in the matching_shows DataFrame
-            # This prevents each calculator from having to find matches again
-            required_columns = {
-                'success': ['success_score'],
-                'audience': ['tmdb_vote_average', 'tmdb_vote_count'],
-                'critics': ['tomatometer'],
-                'longevity': ['tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status']
-            }
-            
-            # Log once at the beginning rather than for each calculator
-            if st.session_state.get('debug_mode', False):
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Using {match_count} matched shows for all component score calculations")
+            # Calculate scores for each component using the SAME matching_shows DataFrame
+            # This prevents redundant matching operations
+            for calculator in calculators:
+                try:
+                    # Pass the same matching_shows to all calculators
+                    score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
+                    if score_component:  # Ensure a component score object was returned
+                        component_scores[calculator.component_name] = score_component
+                except Exception as e:
+                    st.warning(f"Failed to calculate {calculator.component_name} score: {str(e)} - will display N/A")
+                    # Create a placeholder component score with None value
+                    component_scores[calculator.component_name] = ComponentScore(
+                        component=calculator.component_name,
+                        score=None,  # None will be displayed as N/A
+                        sample_size=0,
+                        confidence='none',
+                        details={'status': 'calculation_error', 'error': str(e)}
+                    )
 
+            if not component_scores:
+                st.warning("No component scores could be calculated for the given criteria after attempting all components.")
+                return {}
+
+            # Component scores calculation complete
+            return component_scores
+            
         except Exception as e:
-            st.error(f"Optimizer Error: Failed to prepare for component score calculation. Criteria: {criteria}. Details: {e}")
+            st.error(f"Error calculating component scores: {str(e)}")
             return {}
-
-        # Ensure field_manager is initialized (should be in __init__)
-        if not hasattr(self, 'field_manager') or self.field_manager is None:
-            st.error("Optimizer Critical Error: FieldManager is not initialized in CriteriaScorer. This may affect score calculations.")
-
-        # Initialize and use calculators for each component
-        calculators = [
-            SuccessScoreCalculator(),
-            AudienceScoreCalculator(),
-            CriticsScoreCalculator(),
-            LongevityScoreCalculator()
-        ]
-        
-        # Calculate scores for each component using the SAME matching_shows DataFrame
-        # This prevents redundant matching operations
-        for calculator in calculators:
-            try:
-                # Pass the same matching_shows to all calculators
-                score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
-                if score_component:  # Ensure a component score object was returned
-                    component_scores[calculator.component_name] = score_component
-            except Exception as e:
-                st.warning(f"Failed to calculate {calculator.component_name} score: {str(e)} - will display N/A")
-                # Create a placeholder component score with None value
-                component_scores[calculator.component_name] = ComponentScore(
-                    component=calculator.component_name,
-                    score=None,  # None will be displayed as N/A
-                    sample_size=0,
-                    confidence='none',
-                    details={'status': 'calculation_error', 'error': str(e)}
-                )
-
-        if not component_scores:
-            st.warning("No component scores could be calculated for the given criteria after attempting all components.")
-            return {}
-
-        # Component scores calculation complete
-        return component_scores
 
 
 

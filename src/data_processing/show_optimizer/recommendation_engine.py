@@ -156,15 +156,7 @@ class RecommendationEngine:
         """
         import traceback
         
-        if OptimizerConfig.DEBUG_MODE:
-            if OptimizerConfig.VERBOSE_DEBUG:
-                st.write(f"Debug: identify_success_factors called with {len(criteria)} criteria")
-                st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
-            if matching_shows is not None:
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Matching shows provided: {len(matching_shows)} rows")
-            else:
-                st.write("Debug: No matching shows provided, will attempt to get them")
+        # Debug output removed
         
         # Process input arguments
         # If matching_shows not provided, get them
@@ -172,20 +164,12 @@ class RecommendationEngine:
            (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty) or \
            (isinstance(matching_shows, dict) and not matching_shows):
             try:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: Getting matching shows from criteria_scorer")
+                # Debug output removed
                 matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
                 if isinstance(matching_shows, pd.DataFrame) and matching_shows.empty:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write("Debug: No matching shows found")
                     st.error("No shows match your criteria. Try adjusting your parameters.")
                     return []
-                elif OptimizerConfig.DEBUG_MODE:
-                    if OptimizerConfig.VERBOSE_DEBUG:
-                        st.write(f"Debug: Found {len(matching_shows)} matching shows")
             except Exception as inner_e:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Error getting matching shows: {str(inner_e)}")
                 st.error("Unable to analyze shows matching your criteria.")
                 return []
                 
@@ -196,49 +180,28 @@ class RecommendationEngine:
                 
                 if OptimizerConfig.DEBUG_MODE:
                     if OptimizerConfig.VERBOSE_DEBUG:
-                        st.write(f"Debug: Impact data calculated with {len(impact_data)} fields")
+                        # Debug: Impact data calculated with {len(impact_data)} fields")
                         for field, values in impact_data.items():
-                            st.write(f"Debug: Field {field} has {len(values)} impact values")
+                            # Debug: Field {field} has {len(values)} impact values")
                         
-                # Check if impact data is empty or invalid
                 if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write("Debug: Impact data is empty or contains no values")
                     return []
                     
             except Exception as impact_e:
-                # Exception in calculate_criteria_impact
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Error during criteria impact calculation: {str(impact_e)}")
-                    import traceback
-                    st.write(f"Debug: {traceback.format_exc()}")
-                st.error("Critical error during criteria impact calculation.")
+                st.error(f"Error analyzing criteria impact: {str(impact_e)}")
                 return []
             # Convert to SuccessFactor objects
             success_factors = []
-            if OptimizerConfig.DEBUG_MODE:
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Impact data contains {len(impact_data)} criteria types")
-                    for criteria_type, values in impact_data.items():
-                        st.write(f"Debug: Criteria type '{criteria_type}' has {len(values)} values")
-                    
+            
             for criteria_type, values in impact_data.items():
                 processed_count = 0
-                if OptimizerConfig.DEBUG_MODE:
-                    if OptimizerConfig.VERBOSE_DEBUG:
-                        st.write(f"Debug: Processing criteria type: {criteria_type}")
-                    
-                # Process values directly with proper type handling
+                
                 for value_id, impact_data in values.items():
                     # Use the original value_id for matching
                     value_id_hashable = value_id
                     if processed_count >= 5:
                         break
                         
-                    if OptimizerConfig.DEBUG_MODE:
-                        if OptimizerConfig.VERBOSE_DEBUG:
-                            st.write(f"Debug: Processing value_id: {value_id} with impact_data: {impact_data}")
-
                     try:
                         if isinstance(impact_data, dict) and 'impact' in impact_data:
                             impact = impact_data['impact']
@@ -246,7 +209,6 @@ class RecommendationEngine:
                             if sample_size is None:
                                 sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                         else:
-                            # Debug output removed: Invalid impact data format
                             impact = self.config.DEFAULT_VALUES['impact_score']
                             sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                             # Convert list/array to tuple or string for hashability if needed
@@ -274,15 +236,12 @@ class RecommendationEngine:
                                     # Use the name from impact_data if available
                                     name = impact_data.get('option_name', str(value_id))
                             except Exception as e:
-                                if self.config.DEBUG_MODE:
-                                    st.write(f"Debug: Error getting option name for {criteria_type}={value_id}: {str(e)}")
                                 name = str(value_id)
                         try:
                             if 'sample_size' not in locals() or sample_size is None:
                                 sample_size = self.config.DEFAULT_VALUES['fallback_sample_size']
                             confidence = self.config.get_confidence_level(sample_size)
                         except Exception as conf_e:
-                            # Debug output removed: Issue determining confidence
                             confidence = self.config.DEFAULT_VALUES['confidence']
                         if confidence == 'none' and sample_size > self.config.CONFIDENCE['minimum_sample']:            
                             pass
@@ -302,8 +261,6 @@ class RecommendationEngine:
                                 if len(matching_titles) > 100:
                                     matching_titles = matching_titles[:100]
                         except Exception as e:
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.error(f"Unable to retrieve matching titles for success factor: {criteria_type}={criteria_value}")
                             matching_titles = []
                         try:
                             # Get recommendation type from impact data if available
@@ -322,24 +279,14 @@ class RecommendationEngine:
                             try:
                                 hash((criteria_type, criteria_value))
                             except Exception as hash_e:
-                                # Debug output removed: Unhashable SuccessFactor fields
                                 pass
                             success_factors.append(factor)
                         except Exception as factor_e:
-                            # Debug output removed: Error creating SuccessFactor
-                            # Debug output removed: Impact data
                             continue
-                        processed_count += 1
                     except Exception as e:
-                        # Debug output removed: Error in inner loop
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.error("Unable to create success factor for criteria value")
                         continue
-            return success_factors
+                return success_factors
         except Exception as main_e:
-            import traceback
-            # Debug output removed: Exception at top level
-            # Debug output removed: Input arguments
             st.error("Critical error in identify_success_factors.")
             return []
             
@@ -367,25 +314,12 @@ class RecommendationEngine:
             List of Recommendation objects
         """
         try:
-            if OptimizerConfig.DEBUG_MODE:
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: generate_recommendations called with {len(criteria)} criteria")
-                    st.write(f"Debug: Success factors provided: {len(success_factors)}")
-                    st.write(f"Debug: Top networks provided: {len(top_networks)}")
-                    st.write(f"Debug: Matching shows provided: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'}")
-            
             # Handle missing inputs gracefully
             if criteria is None:
                 criteria = {}
-                # Log this as a debug message, not an error that stops execution
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: No criteria provided for recommendation generation, using empty dict")
                 
             if matching_shows is None:
                 matching_shows = pd.DataFrame()
-                # Log this as a debug message, not an error that stops execution
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: No matching shows provided for recommendation generation, using empty DataFrame")
                 
             recommendations = []
             
@@ -394,10 +328,7 @@ class RecommendationEngine:
                 missing_criteria_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
                 recommendations.extend(missing_criteria_recs)
             except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Error analyzing missing criteria: {str(e)}")
-                if OptimizerConfig.DEBUG_MODE:
-                    st.error("Unable to analyze some criteria. Results may be incomplete.")
+                st.error("Unable to analyze some criteria. Results may be incomplete.")
             
             # Identify limiting criteria that restrict match quality
             if confidence_info and confidence_info.get('match_level', 1) > 1:
@@ -405,10 +336,7 @@ class RecommendationEngine:
                     limiting_criteria_recs = self._identify_limiting_criteria(criteria, matching_shows, confidence_info)
                     recommendations.extend(limiting_criteria_recs)
                 except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: Error identifying limiting criteria: {str(e)}")
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.error("Unable to analyze criteria limitations. Some recommendations may be missing.")
+                    st.error("Unable to analyze criteria limitations. Some recommendations may be missing.")
             
             # Analyze successful patterns in the matched shows
             try:
@@ -416,10 +344,7 @@ class RecommendationEngine:
                     pattern_recs = self._analyze_successful_patterns(criteria, matching_shows)
                     recommendations.extend(pattern_recs)
             except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Error analyzing successful patterns: {str(e)}")
-                if OptimizerConfig.DEBUG_MODE:
-                    st.error("Unable to analyze successful patterns. Some recommendations may be missing.")
+                st.error("Unable to analyze successful patterns. Some recommendations may be missing.")
             
             # Generate fallback recommendations if needed
             # Only do this if we don't have enough high-quality recommendations already
@@ -428,10 +353,7 @@ class RecommendationEngine:
                     fallback_recs = self._generate_fallback_recommendations(criteria, matching_shows, confidence_info)
                     recommendations.extend(fallback_recs)
                 except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: Error generating fallback recommendations: {str(e)}")
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.error("Unable to generate additional recommendations.")
+                    st.error("Unable to generate additional recommendations.")
             
             # Sort by impact score (absolute value, as negative impacts are also important)
             recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
@@ -444,8 +366,6 @@ class RecommendationEngine:
             return recommendations
             
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error generating recommendations: {str(e)}")
             st.error("Unable to generate recommendations based on your criteria.")
             return []
     
@@ -748,8 +668,6 @@ class RecommendationEngine:
             try:
                 common_successful_criteria = self.shows_analyzer.get_common_successful_criteria(limit=5)
             except Exception as inner_e:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Error retrieving common successful criteria: {str(inner_e)}")
                 st.error("Unable to retrieve common successful patterns.")
                 return []
             
@@ -790,7 +708,6 @@ class RecommendationEngine:
             
             return recommendations
         except Exception as e:
-            st.write(f"Debug: Error generating fallback recommendations: {str(e)}")
             st.error("Unable to generate additional recommendations.")
             return []
     
@@ -856,37 +773,22 @@ class RecommendationEngine:
             List of Recommendation objects specific to the network
         """
         try:
-            if OptimizerConfig.DEBUG_MODE:
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: generate_network_specific_recommendations called for network {network.network_name}")
-                    st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
-                    st.write(f"Debug: Matching shows: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'} rows")
-            
             # Skip if we don't have valid criteria or network
             if not criteria or not network:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write("Debug: No valid criteria or network provided, returning empty list")
                 return []
                 
             # Get network-specific success rates for each criteria using matching_shows
-            if OptimizerConfig.DEBUG_MODE:
-                if OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Getting network-specific success rates for network ID {network.network_id}")
-            
-            # The method only accepts matching_shows and network_id parameters
-            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
-                matching_shows, network.network_id)
-                
-            if not isinstance(network_rates, dict):
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: network_rates is not a dictionary: {network_rates}")
+            try:
+                network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
+                    matching_shows, network.network_id)
+            except Exception as e:
+                st.error(f"Error generating network-specific recommendations: {str(e)}")
                 return []
                 
             # Ensure all matching_shows in network_rates are DataFrames
             for criteria_type, rate_data in network_rates.items():
                 if isinstance(rate_data, dict) and 'matching_shows' in rate_data:
                     if not isinstance(rate_data['matching_shows'], pd.DataFrame):
-                        # Replace with empty DataFrame
                         rate_data['matching_shows'] = pd.DataFrame()
                 
             # Get overall success rates for each criteria

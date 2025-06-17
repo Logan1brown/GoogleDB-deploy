@@ -35,7 +35,7 @@ class OptimizerConfig:
     
     # Verbose debug mode - set to True to enable detailed debug output
     # When False, only critical debug information is shown
-    VERBOSE_DEBUG = False
+    # VERBOSE_DEBUG flag removed
     
     # Maximum number of results to return from matcher
     MAX_RESULTS = 100

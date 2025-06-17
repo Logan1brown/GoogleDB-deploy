@@ -650,8 +650,7 @@ class FieldManager:
                 
             return base_field in self.FIELD_CONFIGS
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Error checking if field {field_name} exists: {str(e)}")
+            # Error checking if field exists - silently continue
             return False
     
     def get_field_type(self, field_name: str) -> str:

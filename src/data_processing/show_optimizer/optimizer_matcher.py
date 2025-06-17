@@ -234,8 +234,6 @@ class Matcher:
                 required_columns = ['match_level', 'match_quality', 'match_level_desc']
                 for col in required_columns:
                     if col not in all_matches.columns:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"Debug: Adding missing {col} column to all_matches before concat")
                         # Use values from new_matches as a guide
                         if col in new_matches.columns:
                             # Use a default value based on the column
@@ -350,14 +348,11 @@ class Matcher:
                 except Exception:
                     # If any error occurs in the prioritization logic, fall back to simple sampling
                     pass
-                    
-                # Fall back to simple sampling
+                # Falling back to simple sampling
                 return group_df.sample(min(target_size, len(group_df)), random_state=42) if len(group_df) > 0 else group_df
             
             # Ensure match_level column exists before grouping or sorting
             if 'match_level' not in all_matches.columns:
-                if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                    st.write("Debug: match_level column missing before sampling, adding default values")
                 # Add match_level column with default value (1 = best match)
                 all_matches['match_level'] = 1
             
@@ -372,24 +367,18 @@ class Matcher:
                     sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
             except Exception as e:
                 # If groupby fails, fall back to simple sampling
-                if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                    st.write(f"Debug: Sampling by match_level failed: {str(e)}")
-                    st.write("Debug: Falling back to simple sampling")
                 
                 # Sort if possible, otherwise just sample
                 try:
                     # Make sure match_level exists before trying to sort by it
                     if 'match_level' not in all_matches.columns:
-                        if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
-                            st.write("Debug: match_level column missing in fallback, adding default values")
+                        # Add match_level column with default value (1 = best match)
                         all_matches['match_level'] = 1
                     
                     sampled_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
                     sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
                 except Exception as e:
                     # If sorting fails, just sample
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: Sorting by match_level failed in fallback: {str(e)}")
                     sampled_matches = all_matches.sample(min(OptimizerConfig.MAX_RESULTS, len(all_matches)), random_state=42)
             
             # Use the sampled matches as our final result
@@ -475,7 +464,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
         match_count = len(matches)
         if OptimizerConfig.DEBUG_MODE and match_count == 0:
             # Only show critical zero-match messages
-            st.write(f"Debug: No matches found for criteria: {list(criteria.keys())}")
+            # No matches found for criteria
 
         return matches, match_count
     
