@@ -33,17 +33,44 @@ class OptimizerConfig:
     # Debug mode flag - set to True to enable all debug output
     DEBUG_MODE = False
     
+    # Debug message counter to limit output volume
+    _debug_message_count = 0
+    MAX_DEBUG_MESSAGES = 100
+    
+    # Debug categories to filter messages
+    DEBUG_CATEGORIES = {
+        'matcher': True,
+        'analyzer': True,
+        'scorer': True,
+        'network': True,
+        'recommendation': True,
+        'general': True
+    }
+    
     @staticmethod
-    def debug(message, force=False):
+    def debug(message, category='general', force=False):
         """Print debug message only if DEBUG_MODE is True or force is True.
         
         Args:
             message: Debug message to print
+            category: Debug category for filtering messages
             force: If True, print regardless of DEBUG_MODE setting
         """
         import streamlit as st
-        if OptimizerConfig.DEBUG_MODE or force:
-            st.write(f"Debug: {message}")
+        
+        # Check if we should show this message based on mode and category
+        should_show = force or (OptimizerConfig.DEBUG_MODE and 
+                              (category == 'general' or 
+                               OptimizerConfig.DEBUG_CATEGORIES.get(category, True)))
+        
+        # Check if we've exceeded the maximum number of messages
+        if should_show:
+            if OptimizerConfig._debug_message_count < OptimizerConfig.MAX_DEBUG_MESSAGES:
+                st.write(f"Debug: {message}")
+                OptimizerConfig._debug_message_count += 1
+            elif OptimizerConfig._debug_message_count == OptimizerConfig.MAX_DEBUG_MESSAGES:
+                st.write(f"Debug: Maximum debug messages ({OptimizerConfig.MAX_DEBUG_MESSAGES}) reached. Suppressing further output.")
+                OptimizerConfig._debug_message_count += 1
             
     @staticmethod
     def set_debug_mode(enabled=True):
@@ -53,6 +80,8 @@ class OptimizerConfig:
             enabled: Whether to enable debug mode
         """
         OptimizerConfig.DEBUG_MODE = enabled
+        # Reset message counter when toggling debug mode
+        OptimizerConfig._debug_message_count = 0
     
     # Verbose debug mode - set to True to enable detailed debug output
     # When False, only critical debug information is shown
