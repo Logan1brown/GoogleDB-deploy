@@ -18,6 +18,7 @@ import streamlit as st
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Union
+from .optimizer_config import OptimizerConfig
 import pandas as pd
 
 from ..analyze_shows import ShowsAnalyzer
@@ -207,7 +208,8 @@ class ConceptAnalyzer:
             OptimizationSummary with success probability, recommendations, etc.
         """
         try:
-            st.write("Analyzing show concept...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug: Analyzing show concept
             
             # Step 1: Find matching shows using integrated data
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data)
@@ -274,7 +276,8 @@ class ConceptAnalyzer:
             
             # No backward compatibility or fallbacks - rely solely on top_networks
                 
-            st.write(f"Analysis complete: Found {match_count} matching shows with confidence level '{confidence}'")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug: Analysis complete with match count and confidence level
             return summary
             
         except Exception as e:
@@ -302,13 +305,15 @@ class ConceptAnalyzer:
             return pd.DataFrame(), {'level': 'none', 'error': 'No shows data available'}
             
         shows_data = integrated_data['shows']
-        st.write(f"Using integrated data with {len(shows_data)} shows")
+        if OptimizerConfig.DEBUG_MODE:
+            pass  # Debug: Using integrated data with show count
         
         # Get minimum sample size from config
         min_sample_size = self.config.CONFIDENCE['minimum_sample']
         
         # Find matches with fallback using the criteria_scorer's matcher
-        st.write("Finding shows matching your criteria...")
+        if OptimizerConfig.DEBUG_MODE:
+            pass  # Debug: Finding shows matching criteria
         if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
             # Set the criteria data in the matcher
             self.criteria_scorer.matcher.set_criteria_data(shows_data)
@@ -323,8 +328,8 @@ class ConceptAnalyzer:
         
         # Log the match results
         match_count = len(matching_shows) if not matching_shows.empty else 0
-        st.write(f"Found {match_count} matching shows with confidence level '{confidence_info.get('level', 'unknown')}'")
-        
+        if OptimizerConfig.DEBUG_MODE:
+            pass  # Debug: Found matching shows with confidence level
         
         # Match results logged above
         
@@ -406,7 +411,8 @@ class ConceptAnalyzer:
                 return []
                 
             if st.session_state.get('debug_mode', False):
-                st.write("Finding top networks...")
+                if OptimizerConfig.DEBUG_MODE:
+                    pass  # Debug: Finding top networks
 
             
             # Use the matching shows that were passed in, or get them if not provided
@@ -464,7 +470,7 @@ class ConceptAnalyzer:
             # Access the network_analyzer from criteria_scorer
             network_analyzer = self.criteria_scorer.network_analyzer
             if network_analyzer is None:
-                st.write("Warning: NetworkAnalyzer not available. Cannot generate network recommendations.")
+                st.warning("NetworkAnalyzer not available. Cannot generate network recommendations.")
                 return []
                 
             # Use the NetworkAnalyzer to generate recommendations, passing this ConceptAnalyzer
@@ -487,7 +493,8 @@ class ConceptAnalyzer:
             Dictionary mapping component names to ComponentScore objects
         """
         try:
-            st.write("Analyzing component scores...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug: Analyzing component scores
             
             # Get confidence info from the matching shows
             confidence_info = {'match_level': 1}  # Default to exact match level
@@ -595,7 +602,8 @@ class ConceptAnalyzer:
             List of Recommendation objects
         """
         try:
-            st.write("Generating optimization recommendations...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug: Generating optimization recommendations
             
             # Delegate to RecommendationEngine for general recommendation generation
             recommendations = self.recommendation_engine.generate_recommendations(
@@ -609,7 +617,8 @@ class ConceptAnalyzer:
             
             # Generate network-specific recommendations for each top network
             if top_networks:
-                st.write("Generating network-specific recommendations...")
+                if OptimizerConfig.DEBUG_MODE:
+                    pass  # Debug: Generating network-specific recommendations
                 
                 # First check if matching_shows is valid to avoid multiple errors
                 if matching_shows is None or (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty):

@@ -263,7 +263,7 @@ def show():
                                 title = show.get('title', 'Unknown Title')
                                 # Debug output if match_level is missing
                                 if 'match_level' not in show and OptimizerConfig.DEBUG_MODE:
-                                    st.write(f"Debug: match_level missing for show: {title}")
+                                    pass  # Debug: match_level missing for show
                                 current_level = show.get('match_level', 1)  # Use 1 as fallback only for comparison
                                 
                                 # If we haven't seen this title before, or this match level is better
@@ -359,40 +359,50 @@ def show():
                     # More detailed debug info when debug mode is on
                     if debug_mode:
                         st.write("---")
-                        st.write("### Detailed Debug Information")
-                        st.write("Debug: Checking network compatibility data")
-                        st.write(f"Debug: summary has top_networks attribute: {hasattr(summary, 'top_networks')}")
-                        if hasattr(summary, 'top_networks'):
-                            st.write(f"Debug: top_networks length: {len(summary.top_networks)}")
-                            if len(summary.top_networks) > 0:
-                                st.write(f"Debug: First network match type: {type(summary.top_networks[0]).__name__}")
-                                st.write(f"Debug: First network match dir: {dir(summary.top_networks[0])}")
-                                st.write(f"Debug: First network match network_id: {getattr(summary.top_networks[0], 'network_id', 'Not found')}")
-                                st.write(f"Debug: First network match network_name: {getattr(summary.top_networks[0], 'network_name', 'Not found')}")
+                        st.write("### Debug Information")
                         
-                        st.write(f"Debug: summary has formatted_data attribute: {hasattr(summary, 'formatted_data')}")
-                        if hasattr(summary, 'formatted_data'):
-                            st.write(f"Debug: formatted_data keys: {list(summary.formatted_data.keys())}")
-                            if 'networks' in summary.formatted_data:
-                                st.write(f"Debug: networks data length: {len(summary.formatted_data['networks'])}")
-                                if len(summary.formatted_data['networks']) > 0:
-                                    st.write(f"Debug: First formatted network: {summary.formatted_data['networks'][0]}")
-                            else:
-                                st.write("Debug: 'networks' key not found in formatted_data")
-                        st.write(f"Debug: summary has recommendations attribute: {hasattr(summary, 'recommendations')}")
-                        if hasattr(summary, 'recommendations'):
-                            st.write(f"Debug: recommendations length: {len(summary.recommendations) if summary.recommendations else 0}")
-                            st.write(f"Debug: recommendations types: {[getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', 'unknown')) for rec in summary.recommendations[:5]] if summary.recommendations else []}")
-                                
-                        # Debug network-specific recommendations in formatted_data
-                        if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
-                            st.write(f"Debug: formatted_data['recommendations'] keys: {list(summary.formatted_data['recommendations'].keys())}")
-                            if 'network_specific' in summary.formatted_data['recommendations']:
-                                st.write(f"Debug: network_specific recommendations length: {len(summary.formatted_data['recommendations']['network_specific'])}")
-                                if summary.formatted_data['recommendations']['network_specific']:
-                                    st.write(f"Debug: First network-specific recommendation: {summary.formatted_data['recommendations']['network_specific'][0]}")
-                        else:
-                            st.write("Debug: No recommendations in formatted_data")
+                        # Create a more concise debug summary
+                        debug_info = {
+                            "Network Data": {
+                                "Has top_networks": hasattr(summary, 'top_networks'),
+                                "Top networks count": len(summary.top_networks) if hasattr(summary, 'top_networks') else 0
+                            },
+                            "Formatted Data": {
+                                "Has formatted_data": hasattr(summary, 'formatted_data'),
+                                "Has networks in formatted_data": hasattr(summary, 'formatted_data') and 'networks' in summary.formatted_data,
+                                "Networks count in formatted_data": len(summary.formatted_data.get('networks', [])) if hasattr(summary, 'formatted_data') else 0
+                            },
+                            "Recommendations": {
+                                "Has recommendations": hasattr(summary, 'recommendations'),
+                                "Recommendations count": len(summary.recommendations) if hasattr(summary, 'recommendations') and summary.recommendations else 0,
+                                "Has network_specific recommendations": hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data and 'network_specific' in summary.formatted_data.get('recommendations', {}),
+                                "Network_specific recommendations count": len(summary.formatted_data.get('recommendations', {}).get('network_specific', [])) if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data else 0
+                            }
+                        }
+                        
+                        # Display the concise debug summary
+                        for section, items in debug_info.items():
+                            st.write(f"**{section}:**")
+                            for key, value in items.items():
+                                st.write(f"- {key}: {value}")
+                        
+                        # First network match details if available
+                        if hasattr(summary, 'top_networks') and summary.top_networks:
+                            st.write("**First Network Match:**")
+                            first_match = summary.top_networks[0]
+                            st.write(f"- Network ID: {getattr(first_match, 'network_id', 'Not found')}")
+                            st.write(f"- Network Name: {getattr(first_match, 'network_name', 'Not found')}")
+                            st.write(f"- Compatibility Score: {getattr(first_match, 'compatibility_score', 'Not found')}")
+                            st.write(f"- Success Probability: {getattr(first_match, 'success_probability', 'Not found')}")
+                        
+                        # First network-specific recommendation if available
+                        if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data \
+                           and 'network_specific' in summary.formatted_data['recommendations'] \
+                           and summary.formatted_data['recommendations']['network_specific']:
+                            st.write("**First Network-Specific Recommendation:**")
+                            first_rec = summary.formatted_data['recommendations']['network_specific'][0]
+                            for key, value in first_rec.items():
+                                st.write(f"- {key}: {value}")
                         st.write("---")
                     
                     # Check for network compatibility data
@@ -497,19 +507,15 @@ def show():
                             # This should not happen if top_networks exists but formatted_data['networks'] doesn't
                             st.info("Network data was found but could not be formatted properly.")
                             if st.session_state.get('debug_mode', False):
-                                st.write(f"Debug: top_networks exists with {len(summary.top_networks)} items but formatted_data['networks'] is empty or missing")
-                                # Show the first network match to help diagnose
-                                if summary.top_networks:
-                                    st.write("Debug: First network match details:")
-                                    first_match = summary.top_networks[0]
-                                    st.write(f"  Network ID: {first_match.network_id}")
-                                    st.write(f"  Network Name: {first_match.network_name}")
-                                    st.write(f"  Compatibility Score: {first_match.compatibility_score}")
-                                    st.write(f"  Success Probability: {first_match.success_probability}")
+                                first_match = summary.top_networks[0]
+                                st.write(f"  Network ID: {first_match.network_id}")
+                                st.write(f"  Network Name: {first_match.network_name}")
+                                st.write(f"  Compatibility Score: {first_match.compatibility_score}")
+                                st.write(f"  Success Probability: {first_match.success_probability}")
                     else:
                         st.info("No network compatibility data available.")
                         if st.session_state.get('debug_mode', False):
-                            st.write("Debug: No top_networks attribute or it is empty")
+                             st.write("**Debug:** No top_networks attribute or it is empty")
                 
                 # Tab 3: Recommendations
                 with tab3:
