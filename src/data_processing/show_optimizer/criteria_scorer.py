@@ -80,8 +80,7 @@ class CriteriaScorer:
             shows = integrated_data['shows']
                 
         if shows is None or shows.empty:
-            if OptimizerConfig.DEBUG_MODE:
-                st.warning("No shows available for success rate calculation")
+
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0}
             return None, confidence_info
@@ -102,8 +101,7 @@ class CriteriaScorer:
         )
         
         if not is_valid or validated_data is None or validated_data.empty:
-            if OptimizerConfig.DEBUG_MODE:
-                st.warning(f"No valid success score data found: {validation_info.get('error', 'Unknown error')}")
+
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': validation_info.get('error', 'Unknown error')}
             else:
@@ -126,7 +124,6 @@ class CriteriaScorer:
                 return None, confidence_info
             
         except Exception as e:
-            st.error(f"Error in success score calculation: {str(e)}")
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
             else:
@@ -158,10 +155,8 @@ class CriteriaScorer:
             List of success rates (one for each criteria/matching shows pair)
         """
         if matching_shows_list is None:
-            st.error("No matching_shows_list provided to _batch_calculate_success_rates. This method requires explicit matching.")
             return [None] * len(criteria_list)
         if len(criteria_list) != len(matching_shows_list):
-            st.error(f"Mismatch between criteria list ({len(criteria_list)}) and matching shows list ({len(matching_shows_list)})")
             return [None] * len(criteria_list)
         
         results = []
@@ -189,11 +184,9 @@ class CriteriaScorer:
                         results.append(component_score.score)
                 except Exception as calc_error:
                     # Handle specific calculation errors
-                    st.warning(f"Error in success rate calculation: {str(calc_error)}")
                     results.append(None)
                     
             except Exception as e:
-                st.error(f"Error calculating success rate for criteria {criteria}: {str(e)}")
                 results.append(None)
                 
         return results
@@ -229,7 +222,6 @@ class CriteriaScorer:
             base_rate, base_info = self._calculate_success_rate(base_matching_shows)
             
             if base_rate is None:
-                st.warning("Unable to calculate base success rate - success_score data missing")
                 return {}
             
             impact_scores = {}
@@ -426,10 +418,8 @@ class CriteriaScorer:
             return impact_scores
 
         except ValueError as ve:
-            st.error(str(ve)) # Surface our specific ValueErrors
             return {}
         except Exception as e:
-            st.error(f"Error calculating criteria impact: {str(e)}")
             return {}
             
     def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:
@@ -450,17 +440,15 @@ class CriteriaScorer:
         try:
             # First check if we have any matching shows
             if matching_shows is None or matching_shows.empty:
-                st.warning(f"No matching shows found for criteria: {criteria}. Cannot calculate component scores.")
                 return {}
-            
+                
             # Calculate match count
             match_count = len(matching_shows)
             
             # Using general minimum_sample from OptimizerConfig
             if match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                st.warning(f"Insufficient sample size ({match_count}) for criteria to calculate reliable component scores. Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
-                # We'll continue with the calculation, but with a warning
-            
+                pass  # Continue with calculation despite small sample
+                
             calculators = [
                 SuccessScoreCalculator(),
                 AudienceScoreCalculator(),
@@ -477,7 +465,6 @@ class CriteriaScorer:
                     if score_component:  # Ensure a component score object was returned
                         component_scores[calculator.component_name] = score_component
                 except Exception as e:
-                    st.warning(f"Failed to calculate {calculator.component_name} score: {str(e)} - will display N/A")
                     # Create a placeholder component score with None value
                     component_scores[calculator.component_name] = ComponentScore(
                         component=calculator.component_name,
@@ -488,14 +475,12 @@ class CriteriaScorer:
                     )
 
             if not component_scores:
-                st.warning("No component scores could be calculated for the given criteria after attempting all components.")
                 return {}
 
             # Component scores calculation complete
             return component_scores
             
         except Exception as e:
-            st.error(f"Error calculating component scores: {str(e)}")
             return {}
 
 

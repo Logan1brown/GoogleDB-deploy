@@ -134,23 +134,11 @@ class ScoreCalculator:
             result_info['warning'] = f"No shows provided for {self.component_name} score calculation"
             return False, None, result_info
         
-        # Debug information about filtering
-        if OptimizerConfig.DEBUG_MODE:
-            pass
-            
         if filter_condition:
-            if OptimizerConfig.DEBUG_MODE:
-                filter_result = filter_condition(shows)
-                pass
             valid_shows = shows[filter_condition(shows)]
         elif data_col and data_col in shows.columns:
-            if OptimizerConfig.DEBUG_MODE:
-                non_null_count = shows[data_col].notna().sum()
-                pass
             valid_shows = shows[shows[data_col].notna()]
         else:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
             valid_shows = shows
             
         # Calculate sample size and coverage
@@ -201,24 +189,6 @@ class SuccessScoreCalculator(ScoreCalculator):
         super().__init__(component_name='success')
 
     def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
-        # Debug information about the shows DataFrame
-        if OptimizerConfig.DEBUG_MODE:
-            pass
-            if 'success_score' in shows.columns:
-                non_null_count = shows['success_score'].notna().sum()
-                pass
-                if non_null_count > 0:
-                    min_score = shows['success_score'].min()
-                    max_score = shows['success_score'].max()
-                    mean_score = shows['success_score'].mean()
-                    pass
-                    # Count shows that meet the filter criteria
-                    filter_min = OptimizerConfig.SCORE_NORMALIZATION['success_filter_min']
-                    valid_count = ((shows['success_score'].notna()) & (shows['success_score'] > filter_min)).sum()
-                    pass
-            else:
-                pass
-        
         # Get required and optional columns from config
         required_columns = OptimizerConfig.REQUIRED_COLUMNS['base'] + OptimizerConfig.REQUIRED_COLUMNS['success']
         optional_columns = OptimizerConfig.OPTIONAL_COLUMNS['success']
@@ -540,8 +510,6 @@ class NetworkScoreCalculator:
         """
         # Check if we have any matching shows
         if matching_shows is None or matching_shows.empty:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
             return []
                 
         # Check if we have network_id in the matching shows
@@ -552,16 +520,12 @@ class NetworkScoreCalculator:
             
             for alt_col in network_id_alternatives:
                 if alt_col in matching_shows.columns:
-                    if OptimizerConfig.DEBUG_MODE:
-                        pass
                     # Create a temporary network_id column
                     matching_shows['network_id'] = matching_shows[alt_col]
                     found_alternative = True
                     break
             
             if not found_alternative:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 return []
             
         # Get unique network IDs from matching shows
@@ -569,14 +533,8 @@ class NetworkScoreCalculator:
         
         # Check if we found any network IDs
         if len(network_ids) == 0:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
             return []
             
-        # Debug message about network IDs found
-        if OptimizerConfig.DEBUG_MODE:
-            pass
-        
         # Initialize results list and network matches list
         results = []
         network_matches = []
@@ -600,17 +558,11 @@ class NetworkScoreCalculator:
                 # If field manager is not available, use a default name
                 network_name = f"Network {network_id}"
                 
-                # Debug output
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
-            
             # Get shows for this network
             network_shows = matching_shows[matching_shows['network_id'] == network_id]
             
             # Skip networks with no data
             if network_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 continue
                 
             # Calculate match quality and confidence info
@@ -620,8 +572,6 @@ class NetworkScoreCalculator:
             if 'match_level' in network_shows.columns:
                 match_level = network_shows['match_level'].min()  # Best match level (lowest number)
             else:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 continue
             
             # Get total number of criteria from the criteria dictionary
@@ -651,13 +601,7 @@ class NetworkScoreCalculator:
                 match_quality = weighted_match_quality / total_weight
             else:
                 # Skip networks with no weight (shouldn't happen since we already check for empty network_shows)
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 continue
-            
-            # Debug output removed - was causing excessive spam
-            if OptimizerConfig.DEBUG_MODE:
-                pass
             
             # Create confidence info
             # Calculate confidence score (0-1) based on sample size and other factors
@@ -691,22 +635,7 @@ class NetworkScoreCalculator:
                 'matching_shows': network_shows
             }
             
-            
             network_matches.append(network_match_obj)
-            
-            # If we didn't find any networks in the matching shows, log a message
-            if not network_matches and OptimizerConfig.DEBUG_MODE:
-                pass
-                # Check if there are any network IDs in the data
-                if 'network_id' in matching_shows.columns:
-                    network_id_counts = matching_shows['network_id'].value_counts()
-                    if not network_id_counts.empty:
-                        pass
-                
-            # Add a debug message about the number of network matches
-            if OptimizerConfig.DEBUG_MODE:
-                pass
-
             
             # Process each network match to calculate success probability
             for i, network_match in enumerate(network_matches):
@@ -729,11 +658,6 @@ class NetworkScoreCalculator:
                 # Access match_quality directly from the details dictionary
                 match_quality = network_match.details.get('match_quality') if isinstance(network_match.details, dict) else None
                 
-                # Debug output to help diagnose issues
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
-                    pass
-                
                 compatibility_score = self._calculate_weighted_compatibility_score(
                     match_quality=match_quality,
                     success_history=None  # NetworkMatch objects don't have success_history
@@ -749,20 +673,21 @@ class NetworkScoreCalculator:
                     if count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
                         # Calculate success rate using our method
                         success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
-                        
-                        # Debug output in debug mode only
-                        if OptimizerConfig.DEBUG_MODE:
-                            pass
                     else:
                         # Not enough shows for reliable calculation
-                        if OptimizerConfig.DEBUG_MODE:
-                            pass
-                            # Since we've lowered the minimum sample in the config, this message will only show for truly empty datasets
+                        pass
                 else:
                     # No matching shows for this network
-                    if OptimizerConfig.DEBUG_MODE:
-                        pass
+                    pass
+        
+                # Update the network match with success probability if available
+                if success_rate is not None:
+                    network_match.success_probability = success_rate
                 
+                # Update the network match with compatibility score if calculated
+                if compatibility_score is not None:
+                    network_match.compatibility_score = compatibility_score
+                    
                 # Get confidence level from config based on sample size and match level
                 match_level = confidence_info.get('match_level', 1)
                 confidence = OptimizerConfig.get_confidence_level(count, match_level) if count > 0 else 'none'
@@ -786,27 +711,12 @@ class NetworkScoreCalculator:
                 network_match.details.update(details_dict)
                 if confidence_info is not None:
                     network_match.details['confidence_info'] = confidence_info
-                
-                # Debug output in debug mode
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
-                    pass
-                    
-                # No need to create a new object, we're updating the existing one in the list
-                
-            # Add final debug output about the network matches
-            if st.session_state.get('debug_mode', False):
-                pass
-                if network_matches:
-                    pass
-                    pass
-                    pass
-                    
-            # Sort network matches by compatibility score (descending)
-            network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
-                
-            # Return the network_matches list that we've been updating
-            return network_matches
+        
+        # Sort network matches by compatibility score (descending)
+        network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
+        
+        # Return the list of network matches
+        return network_matches
             
     def calculate_success_rate(self, shows: pd.DataFrame, confidence_info: Dict[str, Any] = None, threshold: Optional[float] = None) -> Tuple[Optional[float], Dict[str, Any]]:
         """Calculate success rate for a set of shows with confidence information.
@@ -826,12 +736,8 @@ class NetworkScoreCalculator:
         # Check if success_score is present
         if 'success_score' not in shows.columns:
             # Success score column missing from shows
-            if OptimizerConfig.DEBUG_MODE:
-                pass
             
             if 'id' not in shows.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 # Don't raise an error, just return None to indicate we can't calculate success rate
                 confidence_info['success_rate'] = None
                 confidence_info['success_count'] = 0
@@ -840,111 +746,32 @@ class NetworkScoreCalculator:
             
             # We can't calculate success rate without success_score column
             # Don't try to fetch criteria data here as that would trigger redundant matching
-            if OptimizerConfig.DEBUG_MODE:
-                pass
-            
-            confidence_info['success_rate'] = None
-            confidence_info['success_count'] = 0
-            confidence_info['total_count'] = 0
+            confidence_info['error'] = "Missing success_score column"
             return None, confidence_info
-                    
-            # No need for additional checks here as we've already raised exceptions for failure cases
-                
-        # Filter out shows with zero or missing success scores
-        valid_shows = shows[shows['success_score'].notna() & (shows['success_score'] > 0)]
             
-        if valid_shows.empty:
-            # No valid shows after filtering
-            # Use DEFAULT_VALUES instead of FALLBACK_VALUES which doesn't exist
-            default_success_rate = 0.0  # Don't use hardcoded values
-            confidence_info['success_rate'] = None  # Use None to indicate no data
-            confidence_info['success_count'] = 0
-            confidence_info['total_count'] = 0
-            return None, confidence_info
-        
-        # Use default threshold if none provided
-        if threshold is None:
-            threshold = OptimizerConfig.THRESHOLDS['success_threshold']
-        
-        # Get success score range and distribution
-        min_score = valid_shows['success_score'].min()
-        max_score = valid_shows['success_score'].max()
-        mean_score = valid_shows['success_score'].mean()
-        
-        # Normalize threshold if scores are on 0-100 scale
-        normalized_threshold = threshold
-        
-        # Check if scores need normalization (0-100 scale)
-        if max_score > 1.0:  # If scores are on 0-100 scale
-            normalized_threshold = threshold * 100
-        elif threshold > 1.0:  # If threshold is on 0-100 scale but scores are on 0-1 scale
-            normalized_threshold = threshold / 100
-        
-        # Count successful shows (those with score >= threshold)
-        successful = valid_shows[valid_shows['success_score'] >= normalized_threshold]
-        success_count = len(successful)
-        total_count = len(valid_shows)
-        
-        # Calculate success rate based on success count and total count
-        success_rate = success_count / total_count if total_count > 0 else 0.0
-        
-        # Update confidence info with success metrics
-        confidence_info['success_rate'] = success_rate
-        confidence_info['success_count'] = success_count
-        confidence_info['total_count'] = total_count
-        confidence_info['min_score'] = float(min_score)
-        confidence_info['max_score'] = float(max_score)
-        confidence_info['mean_score'] = float(mean_score)
-        
-        # Adjust confidence based on sample size and match level
-        sample_size = total_count
-        match_level = confidence_info.get('match_level', 1)
-        
-        # Use OptimizerConfig to determine confidence level
-        confidence_info['level'] = OptimizerConfig.get_confidence_level(sample_size, match_level)
-        
-        # Calculate confidence score using config parameters
-        confidence_score = OptimizerConfig.calculate_confidence_score(
-            sample_size=sample_size,
-            criteria_count=confidence_info.get('criteria_count', 1),
-            total_criteria=confidence_info.get('total_criteria', 1),
-            match_level=match_level
-        )
-        confidence_info['score'] = confidence_score
-
-        return success_rate, confidence_info
-
-    def _calculate_weighted_compatibility_score(self, match_quality: float, success_history: Optional[float] = None) -> float:
-        """Calculate weighted compatibility score using configuration weights.
+    def _calculate_weighted_compatibility_score(self, match_quality=None, success_history=None):
+        """Calculate weighted compatibility score using config weights.
         
         Args:
-            match_quality: Content match quality score (0-1)
-            success_history: Optional success history score (0-1)
+            match_quality: Match quality score (0-1)
+            success_history: Success history score (0-1)
             
         Returns:
             Weighted compatibility score (0-1)
         """
         # Get weights from config
-        content_match_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['content_match']
-        success_history_weight = OptimizerConfig.SCORING_WEIGHTS['network_compatibility']['success_history']
+        content_match_weight = OptimizerConfig.NETWORK_COMPATIBILITY_WEIGHTS['content_match']
+        success_history_weight = OptimizerConfig.NETWORK_COMPATIBILITY_WEIGHTS['success_history']
         
-        # Debug output to help diagnose issues
-        if OptimizerConfig.DEBUG_MODE:
-            pass
-        
-        # If success history is not available, use only content match with adjusted weight
+        # Default values if not provided
+        if match_quality is None:
+            match_quality = 0.0
         if success_history is None:
-            # Use match_quality directly as the score, with a scaling factor to ensure distribution
-            # This ensures we don't get uniform scores for all networks
-            return match_quality
+            success_history = 0.0
             
         # Calculate weighted score
         weighted_score = (match_quality * content_match_weight) + (success_history * success_history_weight)
-        
-        # Debug output for the final score
-        if OptimizerConfig.DEBUG_MODE:
-            pass
-            
+                
         # Ensure score is in 0-1 range
         return max(0.0, min(1.0, weighted_score))
     
@@ -962,14 +789,12 @@ class NetworkScoreCalculator:
         results = []
         # We now require matching_shows_list to be provided
         if matching_shows_list is None:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
+
             # Return empty results for all criteria
             return [(None, {'error': 'No matching shows provided'})] * len(criteria_list)
             
         if len(criteria_list) != len(matching_shows_list):
-            if OptimizerConfig.DEBUG_MODE:
-                pass
+
             return [(None, {'error': 'criteria/matching_shows_list length mismatch'})] * len(criteria_list)
             
         for criteria, matching_shows in zip(criteria_list, matching_shows_list):
@@ -988,8 +813,7 @@ class NetworkScoreCalculator:
                 success_rate, confidence_info = self.calculate_success_rate(matching_shows)
                 results.append((success_rate, confidence_info))
             except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
+
                     
                 error_confidence = {
                     'level': 'none',  # Use string directly

@@ -209,7 +209,7 @@ class ConceptAnalyzer:
         """
         try:
             if OptimizerConfig.DEBUG_MODE:
-                pass  # Debug: Analyzing show concept
+                pass
             
             # Step 1: Find matching shows using integrated data
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data)
@@ -277,14 +277,12 @@ class ConceptAnalyzer:
             # No backward compatibility or fallbacks - rely solely on top_networks
                 
             if OptimizerConfig.DEBUG_MODE:
-                pass  # Debug: Analysis complete with match count and confidence level
+                pass
             return summary
             
         except Exception as e:
             st.error(f"Error during concept analysis: {str(e)}")
-            import traceback
-            # Use st.write for detailed stack trace as it's supplementary information
-            st.write(f"Error details: {traceback.format_exc()}")
+
             return self._handle_analysis_error(f"Unexpected error: {str(e)}")
     
 
@@ -306,14 +304,14 @@ class ConceptAnalyzer:
             
         shows_data = integrated_data['shows']
         if OptimizerConfig.DEBUG_MODE:
-            pass  # Debug: Using integrated data with show count
+            pass
         
         # Get minimum sample size from config
         min_sample_size = self.config.CONFIDENCE['minimum_sample']
         
         # Find matches with fallback using the criteria_scorer's matcher
         if OptimizerConfig.DEBUG_MODE:
-            pass  # Debug: Finding shows matching criteria
+            pass
         if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
             # Set the criteria data in the matcher
             self.criteria_scorer.matcher.set_criteria_data(shows_data)
@@ -329,7 +327,7 @@ class ConceptAnalyzer:
         # Log the match results
         match_count = len(matching_shows) if not matching_shows.empty else 0
         if OptimizerConfig.DEBUG_MODE:
-            pass  # Debug: Found matching shows with confidence level
+            pass
         
         # Match results logged above
         
@@ -386,9 +384,7 @@ class ConceptAnalyzer:
             
         except Exception as e:
             st.error(f"Error calculating success probability: {str(e)}")
-            if self.config.DEBUG_MODE:
-                import traceback
-                st.write(f"Error details: {traceback.format_exc()}")
+
             return None, 'none'
     
     def _find_top_networks(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame], matching_shows: pd.DataFrame = None) -> List[NetworkMatch]:
@@ -410,9 +406,7 @@ class ConceptAnalyzer:
             if not integrated_data:
                 return []
                 
-            if st.session_state.get('debug_mode', False):
-                if OptimizerConfig.DEBUG_MODE:
-                    pass  # Debug: Finding top networks
+
 
             
             # Use the matching shows that were passed in, or get them if not provided
@@ -494,7 +488,7 @@ class ConceptAnalyzer:
         """
         try:
             if OptimizerConfig.DEBUG_MODE:
-                pass  # Debug: Analyzing component scores
+                pass
             
             # Get confidence info from the matching shows
             confidence_info = {'match_level': 1}  # Default to exact match level
@@ -603,7 +597,7 @@ class ConceptAnalyzer:
         """
         try:
             if OptimizerConfig.DEBUG_MODE:
-                pass  # Debug: Generating optimization recommendations
+                pass
             
             # Delegate to RecommendationEngine for general recommendation generation
             recommendations = self.recommendation_engine.generate_recommendations(
@@ -618,7 +612,7 @@ class ConceptAnalyzer:
             # Generate network-specific recommendations for each top network
             if top_networks:
                 if OptimizerConfig.DEBUG_MODE:
-                    pass  # Debug: Generating network-specific recommendations
+                    pass
                 
                 # First check if matching_shows is valid to avoid multiple errors
                 if matching_shows is None or (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty):
