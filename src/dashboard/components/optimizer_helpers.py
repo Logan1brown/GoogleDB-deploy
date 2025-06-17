@@ -333,7 +333,7 @@ def render_success_metrics(summary: Any):
                 render_metric_card("Longevity", "N/A", "Data unavailable")
     
     except Exception as e:
-        st.write(f"Debug: Error rendering success metrics: {str(e)}")
+        OptimizerConfig.debug(f"Error rendering success metrics: {str(e)}", category='recommendation', force=True)
         st.error("Unable to display success metrics due to an error.")
         # Render empty cards as fallback
         col1, col2, col3, col4 = st.columns(4)
@@ -461,7 +461,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
             st.info("No recommendations available.")
             
     except Exception as e:
-        st.write(f"Debug: Error rendering recommendations: {str(e)}")
+        OptimizerConfig.debug(f"Error rendering recommendations: {str(e)}", category='recommendation', force=True)
         st.error("Unable to display recommendations due to an error.")
         # No fallback UI needed as the error message is sufficient
 

@@ -598,7 +598,7 @@ class OptimizerView:
                 "confidence_score": confidence_score
             }
         except Exception as e:
-            st.write(f"Debug: Error formatting match quality: {str(e)}")
+            OptimizerConfig.debug(f"Error formatting match quality: {str(e)}", category='recommendation', force=True)
             return {
                 "match_level": 0,
                 "match_level_name": "Unknown",
@@ -636,11 +636,11 @@ class OptimizerView:
             
             # Debug output to help diagnose match_level issues
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: After formatting, matching_shows columns: {formatted_shows.columns.tolist()}")
+                OptimizerConfig.debug(f"After formatting, matching_shows columns: {formatted_shows.columns.tolist()}", category='recommendation')
                 if 'match_level' in formatted_shows.columns:
-                    st.write(f"Debug: After formatting, match_level values: {formatted_shows['match_level'].value_counts().to_dict()}")
+                    OptimizerConfig.debug(f"After formatting, match_level values: {formatted_shows['match_level'].value_counts().to_dict()}", category='recommendation')
                 else:
-                    st.write("Debug: WARNING - match_level column is missing from matching shows!")
+                    OptimizerConfig.debug("WARNING - match_level column is missing from matching shows!", category='recommendation', force=True)
             
             return formatted_shows
             
@@ -703,7 +703,7 @@ class OptimizerView:
                     
             return name
         except Exception as e:
-            st.write(f"Debug: Error getting criteria name for {criteria_type}: {str(e)}")
+            OptimizerConfig.debug(f"Error getting criteria name for {criteria_type}: {str(e)}", category='recommendation', force=True)
             return str(criteria_value)  # Fallback to string representation
             
     def invalidate_cache(self):

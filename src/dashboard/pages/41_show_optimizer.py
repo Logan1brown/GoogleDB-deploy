@@ -48,13 +48,13 @@ def show():
             st.session_state['debug_mode'] = debug_mode
             
             if debug_mode:
-                st.write("Debug mode is ON")
+                OptimizerConfig.debug("Debug mode is now ON", category='general')
                 if st.button("Reset Profiling Data"):
                     from src.data_processing.show_optimizer.optimizer_profiler import reset_profiling
                     reset_profiling()
                     st.rerun()
             else:
-                st.write("Debug mode is OFF")
+                OptimizerConfig.debug("Debug mode is now OFF", category='general')
         
     # Page title using style from style_config
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Optimizer</p>', unsafe_allow_html=True)
@@ -344,7 +344,7 @@ def show():
                     st.write("## Network Compatibility Analysis")
                     
                     # Force debug output to always appear
-                    st.write("Debug Status: " + ("ON" if st.session_state.get('debug_mode', False) else "OFF"))
+                    OptimizerConfig.debug("Debug Status: " + ("ON" if st.session_state.get('debug_mode', False) else "OFF"), category='general')
                     
                     # Display network compatibility data
                     debug_mode = st.session_state.get('debug_mode', False)
@@ -352,7 +352,7 @@ def show():
                     # Only show debug info when debug mode is on
                     if debug_mode and OptimizerConfig.DEBUG_MODE:
                         st.write("---")
-                        st.write("### Debug Information")
+                        OptimizerConfig.debug("=== Debug Information ===", category='general')
                         
                         # Create a concise debug summary
                         if summary is not None:
@@ -480,7 +480,7 @@ def show():
                     else:
                         st.info("No network compatibility data available.")
                         if st.session_state.get('debug_mode', False):
-                             st.write("**Debug:** No top_networks attribute or it is empty")
+                             OptimizerConfig.debug("No top_networks attribute or it is empty", category='network')
                 
                 # Tab 3: Recommendations
                 with tab3:
