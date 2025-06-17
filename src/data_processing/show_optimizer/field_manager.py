@@ -109,14 +109,8 @@ class FieldManager:
     def _load_options(self):
         """Load all field options from reference data."""
         try:
-            # Debug: Check what reference data keys are available
-            st.write(f"DEBUG: Available reference data keys: {list(self.reference_data.keys())}")
-            
             for field_name, config in self.FIELD_CONFIGS.items():
                 try:
-                    # Debug: Check if processing this field
-                    st.write(f"DEBUG: Processing field options for {field_name}")
-                    
                     # Special handling for different data sources
                     if field_name == 'subgenres':
                         df = self.reference_data['subgenres']
@@ -124,7 +118,6 @@ class FieldManager:
                         df = self.reference_data[field_name]
                     else:
                         if field_name not in self.reference_data:
-                            st.write(f"DEBUG: Missing reference data for {field_name}")
                             continue
                         df = self.reference_data[field_name]
                     

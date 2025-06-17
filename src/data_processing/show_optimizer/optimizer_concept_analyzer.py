@@ -599,8 +599,7 @@ class ConceptAnalyzer:
                 OptimizerConfig.debug(f"Criteria: {criteria}", category='analyzer')
             
             # Delegate to RecommendationEngine for general recommendation generation
-            recommendations = self.recommendation_engine.generate_recommendations(
-                criteria=criteria,
+            recommendations = self.recommendation_engine.generate_recommendations(                criteria=criteria,
                 success_factors=success_factors,
                 top_networks=top_networks,
                 matching_shows=matching_shows,

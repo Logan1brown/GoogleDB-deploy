@@ -309,6 +309,14 @@ class RecommendationEngine:
             List of Recommendation objects
         """
         try:
+            # Debug logging to understand why no recommendations are being generated
+            st.write("DEBUG: RecommendationEngine.generate_recommendations inputs:")
+            st.write(f"- Criteria count: {len(criteria) if criteria else 0}")
+            st.write(f"- Success factors: {len(success_factors) if success_factors else 0}")
+            st.write(f"- Top networks: {len(top_networks) if top_networks else 0}")
+            st.write(f"- Matching shows: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) and not matching_shows.empty else 'None/Empty'}")
+            st.write(f"- Confidence level: {confidence_info.get('level', 'unknown') if confidence_info else 'None'}")
+            
             # Handle missing inputs gracefully
             if criteria is None:
                 criteria = {}
@@ -321,9 +329,11 @@ class RecommendationEngine:
             # Analyze missing high-impact criteria
             try:
                 missing_criteria_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
+                st.write(f"DEBUG: Missing criteria recommendations: {len(missing_criteria_recs)}")
                 recommendations.extend(missing_criteria_recs)
             except Exception as e:
-                st.error("Unable to analyze some criteria. Results may be incomplete.")
+                st.error(f"Unable to analyze some criteria. Error: {str(e)}")
+                st.error("Results may be incomplete.")
             
             # Identify limiting criteria that restrict match quality
             if confidence_info and confidence_info.get('match_level', 1) > 1:
