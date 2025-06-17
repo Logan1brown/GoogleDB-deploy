@@ -288,6 +288,59 @@ class ConceptAnalyzer:
     
 
     
+    def _fallback_get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
+        """Fallback implementation of get_criteria_for_match_level in case the Matcher doesn't have it.
+        
+        This is a defensive implementation to handle the case where the Matcher class
+        doesn't have the get_criteria_for_match_level method.
+        
+        Args:
+            criteria: Dictionary of criteria
+            match_level: Match level (corresponds to criteria differences + 1)
+            
+        Returns:
+            Criteria dictionary adjusted for the match level
+        """
+        # Special case for only 1 criterion - always include it
+        if len(criteria) == 1:
+            return criteria.copy()
+            
+        # If match level is 1, use all criteria (exact match)
+        if match_level == 1:
+            return criteria.copy()
+            
+        # Calculate criteria difference based on match level
+        # Match level 1 = 0 differences, match level 2 = 1 difference, etc.
+        criteria_diff = match_level - 1
+        
+        # For extreme fallback, keep at least one criterion
+        if criteria_diff >= len(criteria):
+            result = {}
+            # Keep genre if it exists
+            if 'genre_id' in criteria:
+                result['genre_id'] = criteria['genre_id']
+                return result
+            elif 'genre' in criteria:
+                result['genre'] = criteria['genre']
+                return result
+            else:
+                # Last resort: take the first criterion
+                field, value = next(iter(criteria.items()))
+                result[field] = value
+                return result
+        
+        # For other cases, keep all criteria except for the number specified by criteria_diff
+        result = criteria.copy()
+        for _ in range(criteria_diff):
+            if not result:
+                break
+            # Remove the least important criterion
+            # For simplicity, we'll just remove the last item
+            field = list(result.keys())[-1]
+            del result[field]
+        
+        return result
+    
     def _find_matching_shows(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Find shows matching the given criteria with fallback strategies.
         
@@ -314,6 +367,13 @@ class ConceptAnalyzer:
         if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
             # Set the criteria data in the matcher
             self.criteria_scorer.matcher.set_criteria_data(shows_data)
+            
+            # Check if the matcher has the get_criteria_for_match_level method
+            # If not, add it dynamically as a fallback
+            if not hasattr(self.criteria_scorer.matcher, 'get_criteria_for_match_level'):
+                st.warning("Adding fallback get_criteria_for_match_level method to Matcher")
+                # Add the method dynamically to the instance
+                self.criteria_scorer.matcher.get_criteria_for_match_level = self._fallback_get_criteria_for_match_level
             
             # Use the matcher from criteria_scorer
             matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(
