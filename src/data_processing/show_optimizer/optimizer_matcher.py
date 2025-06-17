@@ -31,20 +31,8 @@ class Matcher:
         Args:
             field_manager: FieldManager instance for field mapping and validation
         """
-        # Debug: Print initialization info
-        st.write(f"Initializing Matcher class from {__file__}")
-        st.write(f"Matcher class methods: {[method for method in dir(self.__class__) if not method.startswith('_') and callable(getattr(self.__class__, method))]}")
-        
         self.field_manager = field_manager
         self._criteria_data = None
-        
-        # Debug: Check if get_criteria_for_match_level exists
-        has_method = hasattr(self, 'get_criteria_for_match_level')
-        st.write(f"Matcher instance has get_criteria_for_match_level: {has_method}")
-        
-        # Debug: Print all methods on this instance
-        instance_methods = [method for method in dir(self) if not method.startswith('_') and callable(getattr(self, method))]
-        st.write(f"Matcher instance methods: {instance_methods}")
         
     def _get_data(self, data=None):
         """Get data for matching.
@@ -284,10 +272,6 @@ class Matcher:
         self._criteria_data = criteria_data.copy() if criteria_data is not None else None
         
     def find_matches_with_fallback(self, criteria: Dict[str, Any], data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-        # Debug: Log the Matcher instance and its methods
-        st.write(f"Matcher ID: {id(self)}")
-        st.write(f"Matcher has get_criteria_for_match_level: {hasattr(self, 'get_criteria_for_match_level')}")
-        st.write(f"Matcher methods: {[method for method in dir(self) if not method.startswith('_') and callable(getattr(self, method))]}")
         """Find shows matching criteria, with fallback to more permissive criteria if needed.
         
         This method will progressively relax the matching criteria until either:
@@ -305,7 +289,7 @@ class Matcher:
         # Use config values for sample sizes if not specified
         if min_sample_size is None:
             min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample']
-        
+            
         target_sample_size = OptimizerConfig.MAX_RESULTS
         
         # Initialize result variables with proper columns
@@ -316,8 +300,8 @@ class Matcher:
         total_unique_matches = 0
         
         # Get data for matching
-        data = self._get_data(data)
-        if data.empty:
+        data_to_match = self._get_data(data)
+        if data_to_match.empty:
             OptimizerConfig.debug("No data available for matching", category='matcher')
             # Return an empty DataFrame with the required columns
             return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), self._empty_confidence_info()
@@ -332,21 +316,12 @@ class Matcher:
         # Try each possible match level in order, from exact match to progressively fewer criteria
         for level in range(1, max_possible_drop + 2):
             # Get criteria for this match level
-            st.write(f"About to call get_criteria_for_match_level for level {level}")
-            try:
-                level_criteria = self.get_criteria_for_match_level(criteria, level)
-                st.write(f"Successfully got criteria for level {level}")
-            except Exception as e:
-                st.error(f"Error calling get_criteria_for_match_level: {str(e)}")
-                # Print the class structure to debug
-                st.write(f"Matcher class: {self.__class__}")
-                st.write(f"Matcher module: {self.__class__.__module__}")
-                raise
+            level_criteria = self.get_criteria_for_match_level(criteria, level)
             if not level_criteria:
                 continue
                 
             # Match shows using the level-specific criteria
-            level_matches, match_count = self._match_shows(level_criteria, data)
+            level_matches, match_count = self._match_shows(level_criteria, data_to_match)
             
             # Skip if no matches at this level
             if level_matches.empty:
