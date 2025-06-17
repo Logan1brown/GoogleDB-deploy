@@ -349,60 +349,25 @@ def show():
                     # Display network compatibility data
                     debug_mode = st.session_state.get('debug_mode', False)
                     
-                    # Always show some basic debug info regardless of debug mode
-                    st.write(f"Basic debug: summary object exists: {summary is not None}")
-                    if summary is not None:
-                        st.write(f"Basic debug: summary has top_networks: {hasattr(summary, 'top_networks')}")
-                        if hasattr(summary, 'top_networks'):
-                            st.write(f"Basic debug: top_networks length: {len(summary.top_networks)}")
-                    
-                    # More detailed debug info when debug mode is on
-                    if debug_mode:
+                    # Only show debug info when debug mode is on
+                    if debug_mode and OptimizerConfig.DEBUG_MODE:
                         st.write("---")
                         st.write("### Debug Information")
                         
-                        # Create a more concise debug summary
-                        debug_info = {
-                            "Network Data": {
-                                "Has top_networks": hasattr(summary, 'top_networks'),
-                                "Top networks count": len(summary.top_networks) if hasattr(summary, 'top_networks') else 0
-                            },
-                            "Formatted Data": {
-                                "Has formatted_data": hasattr(summary, 'formatted_data'),
-                                "Has networks in formatted_data": hasattr(summary, 'formatted_data') and 'networks' in summary.formatted_data,
-                                "Networks count in formatted_data": len(summary.formatted_data.get('networks', [])) if hasattr(summary, 'formatted_data') else 0
-                            },
-                            "Recommendations": {
-                                "Has recommendations": hasattr(summary, 'recommendations'),
-                                "Recommendations count": len(summary.recommendations) if hasattr(summary, 'recommendations') and summary.recommendations else 0,
-                                "Has network_specific recommendations": hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data and 'network_specific' in summary.formatted_data.get('recommendations', {}),
-                                "Network_specific recommendations count": len(summary.formatted_data.get('recommendations', {}).get('network_specific', [])) if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data else 0
-                            }
-                        }
+                        # Create a concise debug summary
+                        if summary is not None:
+                            st.write(f"**Network Data:** {len(summary.top_networks) if hasattr(summary, 'top_networks') else 0} networks found")
+                            
+                            # First network match details if available
+                            if hasattr(summary, 'top_networks') and summary.top_networks:
+                                first_match = summary.top_networks[0]
+                                st.write(f"**Top Network:** {getattr(first_match, 'network_name', 'Not found')} (Score: {getattr(first_match, 'compatibility_score', 'N/A'):.2f})")
+                            
+                            # Network-specific recommendation count
+                            if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
+                                network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
+                                st.write(f"**Network Recommendations:** {len(network_recs)} available")
                         
-                        # Display the concise debug summary
-                        for section, items in debug_info.items():
-                            st.write(f"**{section}:**")
-                            for key, value in items.items():
-                                st.write(f"- {key}: {value}")
-                        
-                        # First network match details if available
-                        if hasattr(summary, 'top_networks') and summary.top_networks:
-                            st.write("**First Network Match:**")
-                            first_match = summary.top_networks[0]
-                            st.write(f"- Network ID: {getattr(first_match, 'network_id', 'Not found')}")
-                            st.write(f"- Network Name: {getattr(first_match, 'network_name', 'Not found')}")
-                            st.write(f"- Compatibility Score: {getattr(first_match, 'compatibility_score', 'Not found')}")
-                            st.write(f"- Success Probability: {getattr(first_match, 'success_probability', 'Not found')}")
-                        
-                        # First network-specific recommendation if available
-                        if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data \
-                           and 'network_specific' in summary.formatted_data['recommendations'] \
-                           and summary.formatted_data['recommendations']['network_specific']:
-                            st.write("**First Network-Specific Recommendation:**")
-                            first_rec = summary.formatted_data['recommendations']['network_specific'][0]
-                            for key, value in first_rec.items():
-                                st.write(f"- {key}: {value}")
                         st.write("---")
                     
                     # Check for network compatibility data

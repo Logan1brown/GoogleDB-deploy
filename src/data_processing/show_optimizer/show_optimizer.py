@@ -344,10 +344,12 @@ class ShowOptimizer:
                 return pd.DataFrame(), 0
                 
             # Perform matching using field manager
-            st.write("Matching shows based on criteria...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             matching_shows, total_matches = self.field_manager.match_shows(criteria, integrated_data['shows'])
             
-            st.write(f"Found {total_matches} matching shows")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             return matching_shows, total_matches
         except Exception as e:
             st.error(f"Error matching shows: {str(e)}")

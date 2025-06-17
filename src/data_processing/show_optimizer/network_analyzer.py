@@ -417,8 +417,7 @@ class NetworkAnalyzer:
         """
         try:
             if concept_analyzer is None or not hasattr(concept_analyzer, 'recommendation_engine'):
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write("Warning: ConceptAnalyzer not provided or missing RecommendationEngine. Cannot generate network recommendations.")
+                # Silent handling - just return empty list
                 return []
                 
             # Get the RecommendationEngine from the ConceptAnalyzer

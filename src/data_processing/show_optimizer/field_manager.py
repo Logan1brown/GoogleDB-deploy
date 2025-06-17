@@ -196,7 +196,7 @@ class FieldManager:
             # Get the main shows data
             shows_data = self.reference_data.get('shows', pd.DataFrame())
             if shows_data.empty:
-                st.write("No shows data available for sample size calculation")
+                # Silent handling - no need to spam UI with this message
                 return
                 
             # Calculate sample sizes for each field

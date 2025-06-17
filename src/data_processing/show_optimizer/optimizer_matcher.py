@@ -399,8 +399,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
     # Use helper method to get data
     data = self._get_data(data)
     if data.empty:
-        if OptimizerConfig.DEBUG_MODE:
-            st.error("Empty criteria data provided")
+        # Silent handling for empty data - happens frequently during matching
         return pd.DataFrame(), 0
         
     # Clean up criteria - remove None or empty values to make matching more lenient
@@ -446,8 +445,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
         for field_id, value in scalar_fields.items():
             # Check if field exists in data
             if field_id not in matches.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.error(f"Field '{field_id}' not found in data columns")
+                # Silent handling for missing fields - happens during normal matching
                 continue
                 
             if isinstance(value, list):
@@ -652,8 +650,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
                         
                     # Check if this column exists in the data
                     if field_column not in shows.columns:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.error(f"Field '{field_column}' not found in shows data")
+                        # Silent handling - just downgrade match level
                         actual_match_level = 2  # Downgrade to level 2 if field is missing
                         continue
                         
@@ -682,8 +679,7 @@ def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> T
                         
                     # Check if this column exists in the data
                     if field_id not in shows.columns:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.error(f"Field '{field_id}' not found in shows data")
+                        # Silent handling - just downgrade match level
                         actual_match_level = 2  # Downgrade to level 2 if field is missing
                         continue
                             

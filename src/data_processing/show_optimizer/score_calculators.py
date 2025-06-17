@@ -655,11 +655,9 @@ class NetworkScoreCalculator:
                     pass
                 continue
             
-            # Debug output
+            # Debug output removed - was causing excessive spam
             if OptimizerConfig.DEBUG_MODE:
                 pass
-                st.write(f"- Shows: {sample_size}")
-                st.write(f"- Final match quality: {match_quality:.2f}")
             
             # Create confidence info
             # Calculate confidence score (0-1) based on sample size and other factors
