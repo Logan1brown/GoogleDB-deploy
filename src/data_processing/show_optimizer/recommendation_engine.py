@@ -156,6 +156,11 @@ class RecommendationEngine:
         """
         import traceback
         
+        st.write(f"DEBUG: identify_success_factors called with {len(criteria)} criteria items")
+        st.write(f"DEBUG: matching_shows type: {type(matching_shows)}")
+        if isinstance(matching_shows, pd.DataFrame):
+            st.write(f"DEBUG: matching_shows shape: {matching_shows.shape}")
+        
         
         # Process input arguments
         # If matching_shows not provided, get them
@@ -163,33 +168,41 @@ class RecommendationEngine:
            (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty) or \
            (isinstance(matching_shows, dict) and not matching_shows):
             try:
-
+                st.write("DEBUG: No valid matching_shows provided, fetching them")
                 matching_shows, _, _ = self.criteria_scorer._get_matching_shows(criteria)
+                st.write(f"DEBUG: Fetched matching_shows, shape: {matching_shows.shape if isinstance(matching_shows, pd.DataFrame) else 'not a DataFrame'}")
                 if isinstance(matching_shows, pd.DataFrame) and matching_shows.empty:
                     st.error("No shows match your criteria. Try adjusting your parameters.")
                     return []
             except Exception as inner_e:
-                st.error("Unable to analyze shows matching your criteria.")
+                st.error(f"Unable to analyze shows matching your criteria: {str(inner_e)}")
+                st.write(f"DEBUG: Error trace: {traceback.format_exc()}")
                 return []
                 
         try:
             # Calculate criteria impact
             try:
+                st.write("DEBUG: Calculating criteria impact")
                 impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
                 
+                st.write(f"DEBUG: Impact data fields: {list(impact_data.keys()) if impact_data else 'None'}")
                 if OptimizerConfig.DEBUG_MODE:
                     if OptimizerConfig.VERBOSE_DEBUG:
                         pass
                 if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
+                    st.write("DEBUG: No impact data found, returning empty list")
                     return []
                     
             except Exception as impact_e:
                 st.error(f"Error analyzing criteria impact: {str(impact_e)}")
+                st.write(f"DEBUG: Error trace in calculate_criteria_impact: {traceback.format_exc()}")
                 return []
             # Convert to SuccessFactor objects
             success_factors = []
             
+            st.write(f"DEBUG: Processing impact data for {len(impact_data)} criteria types")
             for criteria_type, values in impact_data.items():
+                st.write(f"DEBUG: Processing {criteria_type} with {len(values)} values")
                 processed_count = 0
                 
                 for value_id, impact_data in values.items():
@@ -310,6 +323,12 @@ class RecommendationEngine:
             List of Recommendation objects
         """
         try:
+            # Debug: Log inputs to understand what we're working with
+            st.write(f"DEBUG: Generating recommendations with {len(criteria)} criteria items")
+            st.write(f"DEBUG: Success factors: {len(success_factors)}")
+            st.write(f"DEBUG: Top networks: {len(top_networks)}")
+            st.write(f"DEBUG: Matching shows: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'}")
+            
             # Handle missing inputs gracefully
             if criteria is None:
                 criteria = {}
@@ -321,35 +340,51 @@ class RecommendationEngine:
             
             # Analyze missing high-impact criteria
             try:
+                st.write("DEBUG: Analyzing missing high-impact criteria")
                 missing_criteria_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
+                st.write(f"DEBUG: Found {len(missing_criteria_recs)} missing criteria recommendations")
                 recommendations.extend(missing_criteria_recs)
             except Exception as e:
-                st.error("Unable to analyze some criteria. Results may be incomplete.")
+                st.error(f"Unable to analyze some criteria. Results may be incomplete. Error: {str(e)}")
+                import traceback
+                st.write(f"DEBUG: Error trace: {traceback.format_exc()}")
             
             # Identify limiting criteria that restrict match quality
             if confidence_info and confidence_info.get('match_level', 1) > 1:
                 try:
+                    st.write("DEBUG: Identifying limiting criteria")
                     limiting_criteria_recs = self._identify_limiting_criteria(criteria, matching_shows, confidence_info)
+                    st.write(f"DEBUG: Found {len(limiting_criteria_recs)} limiting criteria recommendations")
                     recommendations.extend(limiting_criteria_recs)
                 except Exception as e:
-                    st.error("Unable to analyze criteria limitations. Some recommendations may be missing.")
+                    st.error(f"Unable to analyze criteria limitations. Some recommendations may be missing. Error: {str(e)}")
+                    import traceback
+                    st.write(f"DEBUG: Error trace: {traceback.format_exc()}")
             
             # Analyze successful patterns in the matched shows
             try:
                 if isinstance(matching_shows, pd.DataFrame) and not matching_shows.empty:
+                    st.write("DEBUG: Analyzing successful patterns")
                     pattern_recs = self._analyze_successful_patterns(criteria, matching_shows)
+                    st.write(f"DEBUG: Found {len(pattern_recs)} pattern recommendations")
                     recommendations.extend(pattern_recs)
             except Exception as e:
-                st.error("Unable to analyze successful patterns. Some recommendations may be missing.")
+                st.error(f"Unable to analyze successful patterns. Some recommendations may be missing. Error: {str(e)}")
+                import traceback
+                st.write(f"DEBUG: Error trace: {traceback.format_exc()}")
             
             # Generate fallback recommendations if needed
             # Only do this if we don't have enough high-quality recommendations already
             if len(recommendations) < self.config.SUGGESTIONS.get('max_suggestions', 5):
                 try:
+                    st.write("DEBUG: Generating fallback recommendations")
                     fallback_recs = self._generate_fallback_recommendations(criteria, matching_shows, confidence_info)
+                    st.write(f"DEBUG: Found {len(fallback_recs)} fallback recommendations")
                     recommendations.extend(fallback_recs)
                 except Exception as e:
-                    st.error("Unable to generate additional recommendations.")
+                    st.error(f"Unable to generate additional recommendations. Error: {str(e)}")
+                    import traceback
+                    st.write(f"DEBUG: Error trace: {traceback.format_exc()}")
             
             # Sort by impact score (absolute value, as negative impacts are also important)
             recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
@@ -379,11 +414,18 @@ class RecommendationEngine:
             List of Recommendation objects
         """
         try:
+            st.write(f"DEBUG: _recommend_missing_criteria called with {len(criteria)} criteria items")
+            st.write(f"DEBUG: Success factors count: {len(success_factors)}")
+            if success_factors:
+                st.write(f"DEBUG: First success factor: {success_factors[0].__dict__ if hasattr(success_factors[0], '__dict__') else success_factors[0]}")
+            
             recommendations = []
             
             # Filter success factors by recommendation type and positive impact
             add_factors = [f for f in success_factors if f.recommendation_type == 'add' and f.impact_score > 0]
             change_factors = [f for f in success_factors if f.recommendation_type == 'change' and f.impact_score > 0]
+            
+            st.write(f"DEBUG: Found {len(add_factors)} add factors and {len(change_factors)} change factors")
             
             # Process 'add' recommendations (criteria not in current concept)
             for factor in add_factors:
@@ -432,6 +474,8 @@ class RecommendationEngine:
             return recommendations
         except Exception as e:
             st.error(f"Error recommending missing criteria: {str(e)}")
+            import traceback
+            st.write(f"DEBUG: Error trace in _recommend_missing_criteria: {traceback.format_exc()}")
             return []
     
     def _identify_limiting_criteria(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, 
