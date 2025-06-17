@@ -85,7 +85,8 @@ class ShowOptimizer:
             Dictionary containing integrated data sets needed for optimization
         """
         try:
-            st.write("Fetching and integrating show data...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             
             # Get show data
             shows_df = self.shows_analyzer.fetch_optimizer_data()
@@ -149,7 +150,8 @@ class ShowOptimizer:
                     'reference_data': reference_data
                 }
                 
-                st.write(f"Data integrated successfully: {len(integrated_shows)} shows")
+                if OptimizerConfig.DEBUG_MODE:
+                    pass  # Debug message removed to reduce spam
                 return integrated_data
             else:
                 st.error("Show data missing required columns for integration")
@@ -170,7 +172,8 @@ class ShowOptimizer:
             True if initialization was successful, False otherwise
         """
         try:
-            st.write("Initializing Show Optimizer components...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             
             # Initialize analyzers first
             self.shows_analyzer = ShowsAnalyzer()
@@ -221,7 +224,8 @@ class ShowOptimizer:
             # Initialize optimizer view for formatting results
             self.optimizer_view = OptimizerView(self)
             
-            st.write("Show Optimizer initialized successfully")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             return True
             
         except Exception as e:
@@ -238,7 +242,8 @@ class ShowOptimizer:
         """
         # Check if components are initialized
         if self.concept_analyzer is None:
-            st.write("Show Optimizer not initialized. Initializing now...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             if not self.initialize():
                 return False, "Failed to initialize Show Optimizer"
         
@@ -452,7 +457,8 @@ class ShowOptimizer:
             
             # Return the analysis result directly
             if analysis_result:
-                st.write("Analysis completed successfully")
+                if OptimizerConfig.DEBUG_MODE:
+                    pass  # Debug message removed to reduce spam
                 return analysis_result
             else:
                 st.warning("Analysis produced no results")
@@ -492,7 +498,8 @@ class ShowOptimizer:
                 st.warning(f"Some criteria could not be validated: {', '.join(errors.keys())}")
                 # Continue with normalized criteria
             
-            st.write("Analyzing network tiers...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             
             # Use network_analyzer to get network tiers
             network_tiers = self.network_analyzer.get_network_tiers(
@@ -536,7 +543,8 @@ class ShowOptimizer:
                 st.warning(f"Some criteria could not be validated: {', '.join(errors.keys())}")
                 # Continue with normalized criteria
             
-            st.write("Analyzing success factors...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             
             # Use concept_analyzer to get success factors
             success_factors = self.concept_analyzer.get_success_factors(
@@ -578,7 +586,8 @@ class ShowOptimizer:
                 st.warning(f"Some criteria could not be validated: {', '.join(errors.keys())}")
                 # Continue with normalized criteria
             
-            st.write("Generating recommendations...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             
             # Get success factors and network compatibility from concept_analyzer
             success_factors = self.concept_analyzer.identify_success_factors(
@@ -629,7 +638,8 @@ class ShowOptimizer:
                 st.warning(f"Some criteria could not be validated: {', '.join(errors.keys())}")
                 # Continue with normalized criteria
             
-            st.write("Calculating component scores...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             
             # Use concept_analyzer to analyze components
             component_scores = self.concept_analyzer.analyze_components(
@@ -670,7 +680,8 @@ class ShowOptimizer:
                 st.warning(f"Some criteria could not be validated: {', '.join(errors.keys())}")
                 # Continue with normalized criteria
             
-            st.write("Calculating overall success rate...")
+            if OptimizerConfig.DEBUG_MODE:
+                pass  # Debug message removed to reduce spam
             
             # Use concept_analyzer to calculate success rate
             success_rate, confidence = self.concept_analyzer.calculate_success_rate(
