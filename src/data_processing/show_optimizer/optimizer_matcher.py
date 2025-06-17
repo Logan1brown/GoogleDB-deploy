@@ -31,7 +31,20 @@ class Matcher:
         Args:
             field_manager: FieldManager instance for field mapping and validation
         """
+        # Debug: Print initialization info
+        st.write(f"Initializing Matcher class from {__file__}")
+        st.write(f"Matcher class methods: {[method for method in dir(self.__class__) if not method.startswith('_') and callable(getattr(self.__class__, method))]}")
+        
         self.field_manager = field_manager
+        self._criteria_data = None
+        
+        # Debug: Check if get_criteria_for_match_level exists
+        has_method = hasattr(self, 'get_criteria_for_match_level')
+        st.write(f"Matcher instance has get_criteria_for_match_level: {has_method}")
+        
+        # Debug: Print all methods on this instance
+        instance_methods = [method for method in dir(self) if not method.startswith('_') and callable(getattr(self, method))]
+        st.write(f"Matcher instance methods: {instance_methods}")
         
     def _get_data(self, data=None):
         """Get data for matching.
