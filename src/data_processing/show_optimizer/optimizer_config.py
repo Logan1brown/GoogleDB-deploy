@@ -31,7 +31,7 @@ class OptimizerConfig:
     """Configuration for Show Optimizer scoring and analysis."""
     
     # Debug mode flag - set to True to enable all debug output
-    DEBUG_MODE = True
+    DEBUG_MODE = False
     
     # Verbose debug mode - set to True to enable detailed debug output
     # When False, only critical debug information is shown

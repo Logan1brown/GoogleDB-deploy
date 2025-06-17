@@ -281,66 +281,82 @@ class Matcher:
         if not all_matches.empty:
             # The match_level column is guaranteed to exist since we set it above
             all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
-        
         # Apply prioritized sampling within each match level if we have more than MAX_RESULTS
         if len(all_matches) > OptimizerConfig.MAX_RESULTS:
             # Define a function to prioritize shows with RT and TMDB data
             def prioritize_shows(group_df):
+                """Prioritize shows with better metrics data.
+                
+                Args:
+                    group_df: DataFrame of shows to prioritize
+                    
+                Returns:
+                    DataFrame of prioritized shows, limited to target size
+                """
+                # Handle empty DataFrame case
+                if group_df is None or len(group_df) == 0:
+                    return pd.DataFrame()
+                    
                 # Calculate the target sample size for this group
                 # Use ceiling division to avoid getting fewer than MAX_RESULTS total shows
-                target_size = min(len(group_df), max(1, int(np.ceil(OptimizerConfig.MAX_RESULTS * len(group_df) / len(all_matches)))))
+                total_matches_count = len(all_matches)
+                target_size = min(len(group_df), max(1, int(np.ceil(OptimizerConfig.MAX_RESULTS * len(group_df) / total_matches_count))))
                 
                 # Check if we have RT and TMDB columns to prioritize
                 has_rt = 'rt_score' in group_df.columns
                 has_tmdb = 'tmdb_score' in group_df.columns
                 
-                if has_rt and has_tmdb:
-                    # First prioritize shows with both RT and TMDB data
-                    both_data = group_df[(group_df['rt_score'].notna()) & (group_df['tmdb_score'].notna())]
-                    if len(both_data) >= target_size:
-                        return both_data.head(target_size)
+                try:
+                    if has_rt and has_tmdb:
+                        # First prioritize shows with both RT and TMDB data
+                        both_data = group_df[(group_df['rt_score'].notna()) & (group_df['tmdb_score'].notna())]
+                        if len(both_data) >= target_size:
+                            return both_data.head(target_size)
+                        
+                        # If we need more, add shows with at least one data source
+                        remaining = target_size - len(both_data)
+                        one_data = group_df[(group_df['rt_score'].notna()) | (group_df['tmdb_score'].notna())]
+                        one_data = one_data[~one_data.index.isin(both_data.index)]
+                        
+                        if len(both_data) + len(one_data) >= target_size:
+                            return pd.concat([both_data, one_data.head(remaining)])
+                        
+                        # If we still need more, add remaining shows
+                        remaining = target_size - len(both_data) - len(one_data)
+                        no_data = group_df[(group_df['rt_score'].isna()) & (group_df['tmdb_score'].isna())]
+                        return pd.concat([both_data, one_data, no_data.head(remaining)])
                     
-                    # If we need more, add shows with at least one data source
-                    remaining = target_size - len(both_data)
-                    one_data = group_df[(group_df['rt_score'].notna()) | (group_df['tmdb_score'].notna())]
-                    one_data = one_data[~one_data.index.isin(both_data.index)]
+                    elif has_rt:
+                        # Prioritize shows with RT data
+                        rt_data = group_df[group_df['rt_score'].notna()]
+                        if len(rt_data) >= target_size:
+                            return rt_data.head(target_size)
+                        
+                        # If we need more, add shows without RT data
+                        remaining = target_size - len(rt_data)
+                        no_rt = group_df[group_df['rt_score'].isna()]
+                        return pd.concat([rt_data, no_rt.head(remaining)])
                     
-                    if len(both_data) + len(one_data) >= target_size:
-                        return pd.concat([both_data, one_data.head(remaining)])
+                    elif has_tmdb:
+                        # Prioritize shows with TMDB data
+                        tmdb_data = group_df[group_df['tmdb_score'].notna()]
+                        if len(tmdb_data) >= target_size:
+                            return tmdb_data.head(target_size)
+                        
+                        # If we need more, add shows without TMDB data
+                        remaining = target_size - len(tmdb_data)
+                        no_tmdb = group_df[group_df['tmdb_score'].isna()]
+                        return pd.concat([tmdb_data, no_tmdb.head(remaining)])
+                except Exception:
+                    # If any error occurs in the prioritization logic, fall back to simple sampling
+                    pass
                     
-                    # If we still need more, add remaining shows
-                    remaining = target_size - len(both_data) - len(one_data)
-                    no_data = group_df[(group_df['rt_score'].isna()) & (group_df['tmdb_score'].isna())]
-                    return pd.concat([both_data, one_data, no_data.head(remaining)])
-                
-                elif has_rt:
-                    # Prioritize shows with RT data
-                    rt_data = group_df[group_df['rt_score'].notna()]
-                    if len(rt_data) >= target_size:
-                        return rt_data.head(target_size)
-                    
-                    # If we need more, add shows without RT data
-                    remaining = target_size - len(rt_data)
-                    no_rt = group_df[group_df['rt_score'].isna()]
-                    return pd.concat([rt_data, no_rt.head(remaining)])
-                
-                elif has_tmdb:
-                    # Prioritize shows with TMDB data
-                    tmdb_data = group_df[group_df['tmdb_score'].notna()]
-                    if len(tmdb_data) >= target_size:
-                        return tmdb_data.head(target_size)
-                    
-                    # If we need more, add shows without TMDB data
-                    remaining = target_size - len(tmdb_data)
-                    no_tmdb = group_df[group_df['tmdb_score'].isna()]
-                    return pd.concat([tmdb_data, no_tmdb.head(remaining)])
-                
                 # Fall back to simple sampling
-                return df.sample(min(target_size, len(df)), random_state=42)
+                return group_df.sample(min(target_size, len(group_df)), random_state=42) if len(group_df) > 0 else group_df
             
             # Ensure match_level column exists before grouping or sorting
             if 'match_level' not in all_matches.columns:
-                if OptimizerConfig.DEBUG_MODE:
+                if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                     st.write("Debug: match_level column missing before sampling, adding default values")
                 # Add match_level column with default value (1 = best match)
                 all_matches['match_level'] = 1
@@ -348,7 +364,7 @@ class Matcher:
             # Try to sample by match level groups, but with safety checks
             try:
                 # Group and sample
-                sampled_matches = all_matches.groupby('match_level').apply(prioritize_shows_safe).reset_index(drop=True)
+                sampled_matches = all_matches.groupby('match_level').apply(prioritize_shows).reset_index(drop=True)
                 
                 # If we still have too many, sort by match level and take the top ones
                 if len(sampled_matches) > OptimizerConfig.MAX_RESULTS:
@@ -356,7 +372,7 @@ class Matcher:
                     sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
             except Exception as e:
                 # If groupby fails, fall back to simple sampling
-                if OptimizerConfig.DEBUG_MODE:
+                if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                     st.write(f"Debug: Sampling by match_level failed: {str(e)}")
                     st.write("Debug: Falling back to simple sampling")
                 
@@ -364,7 +380,7 @@ class Matcher:
                 try:
                     # Make sure match_level exists before trying to sort by it
                     if 'match_level' not in all_matches.columns:
-                        if OptimizerConfig.DEBUG_MODE:
+                        if OptimizerConfig.DEBUG_MODE and OptimizerConfig.VERBOSE_DEBUG:
                             st.write("Debug: match_level column missing in fallback, adding default values")
                         all_matches['match_level'] = 1
                     
@@ -379,18 +395,7 @@ class Matcher:
             # Use the sampled matches as our final result
             all_matches = sampled_matches
             
-        # If we have fewer matches than MAX_RESULTS, keep them all
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Sorting by match_level failed in fallback: {str(e)}")
-            sampled_matches = all_matches.sample(min(OptimizerConfig.MAX_RESULTS, len(all_matches)), random_state=42)
-    
-        # Use the sampled matches as our final result
-        all_matches = sampled_matches
-        
-        # If we have fewer matches than MAX_RESULTS, keep them all
         return all_matches, confidence_info
-
-# find_network_matches method removed - functionality now handled directly by NetworkAnalyzer.rank_networks_by_compatibility
 
 def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int]:
     """Match shows based on criteria.

@@ -157,10 +157,12 @@ class RecommendationEngine:
         import traceback
         
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"Debug: identify_success_factors called with {len(criteria)} criteria")
-            st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
+            if OptimizerConfig.VERBOSE_DEBUG:
+                st.write(f"Debug: identify_success_factors called with {len(criteria)} criteria")
+                st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
             if matching_shows is not None:
-                st.write(f"Debug: Matching shows provided: {len(matching_shows)} rows")
+                if OptimizerConfig.VERBOSE_DEBUG:
+                    st.write(f"Debug: Matching shows provided: {len(matching_shows)} rows")
             else:
                 st.write("Debug: No matching shows provided, will attempt to get them")
         
@@ -179,7 +181,8 @@ class RecommendationEngine:
                     st.error("No shows match your criteria. Try adjusting your parameters.")
                     return []
                 elif OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Found {len(matching_shows)} matching shows")
+                    if OptimizerConfig.VERBOSE_DEBUG:
+                        st.write(f"Debug: Found {len(matching_shows)} matching shows")
             except Exception as inner_e:
                 if OptimizerConfig.DEBUG_MODE:
                     st.write(f"Debug: Error getting matching shows: {str(inner_e)}")
@@ -192,9 +195,10 @@ class RecommendationEngine:
                 impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
                 
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Impact data calculated with {len(impact_data)} fields")
-                    for field, values in impact_data.items():
-                        st.write(f"Debug: Field {field} has {len(values)} impact values")
+                    if OptimizerConfig.VERBOSE_DEBUG:
+                        st.write(f"Debug: Impact data calculated with {len(impact_data)} fields")
+                        for field, values in impact_data.items():
+                            st.write(f"Debug: Field {field} has {len(values)} impact values")
                         
                 # Check if impact data is empty or invalid
                 if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
@@ -213,14 +217,16 @@ class RecommendationEngine:
             # Convert to SuccessFactor objects
             success_factors = []
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Impact data contains {len(impact_data)} criteria types")
-                for criteria_type, values in impact_data.items():
-                    st.write(f"Debug: Criteria type '{criteria_type}' has {len(values)} values")
+                if OptimizerConfig.VERBOSE_DEBUG:
+                    st.write(f"Debug: Impact data contains {len(impact_data)} criteria types")
+                    for criteria_type, values in impact_data.items():
+                        st.write(f"Debug: Criteria type '{criteria_type}' has {len(values)} values")
                     
             for criteria_type, values in impact_data.items():
                 processed_count = 0
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Debug: Processing criteria type: {criteria_type}")
+                    if OptimizerConfig.VERBOSE_DEBUG:
+                        st.write(f"Debug: Processing criteria type: {criteria_type}")
                     
                 # Process values directly with proper type handling
                 for value_id, impact_data in values.items():
@@ -230,7 +236,8 @@ class RecommendationEngine:
                         break
                         
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"Debug: Processing value_id: {value_id} with impact_data: {impact_data}")
+                        if OptimizerConfig.VERBOSE_DEBUG:
+                            st.write(f"Debug: Processing value_id: {value_id} with impact_data: {impact_data}")
 
                     try:
                         if isinstance(impact_data, dict) and 'impact' in impact_data:
@@ -361,10 +368,11 @@ class RecommendationEngine:
         """
         try:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: generate_recommendations called with {len(criteria)} criteria")
-                st.write(f"Debug: Success factors provided: {len(success_factors)}")
-                st.write(f"Debug: Top networks provided: {len(top_networks)}")
-                st.write(f"Debug: Matching shows provided: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'}")
+                if OptimizerConfig.VERBOSE_DEBUG:
+                    st.write(f"Debug: generate_recommendations called with {len(criteria)} criteria")
+                    st.write(f"Debug: Success factors provided: {len(success_factors)}")
+                    st.write(f"Debug: Top networks provided: {len(top_networks)}")
+                    st.write(f"Debug: Matching shows provided: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'}")
             
             # Handle missing inputs gracefully
             if criteria is None:
@@ -849,9 +857,10 @@ class RecommendationEngine:
         """
         try:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: generate_network_specific_recommendations called for network {network.network_name}")
-                st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
-                st.write(f"Debug: Matching shows: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'} rows")
+                if OptimizerConfig.VERBOSE_DEBUG:
+                    st.write(f"Debug: generate_network_specific_recommendations called for network {network.network_name}")
+                    st.write(f"Debug: Criteria keys: {list(criteria.keys())}")
+                    st.write(f"Debug: Matching shows: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'} rows")
             
             # Skip if we don't have valid criteria or network
             if not criteria or not network:
@@ -861,7 +870,8 @@ class RecommendationEngine:
                 
             # Get network-specific success rates for each criteria using matching_shows
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"Debug: Getting network-specific success rates for network ID {network.network_id}")
+                if OptimizerConfig.VERBOSE_DEBUG:
+                    st.write(f"Debug: Getting network-specific success rates for network ID {network.network_id}")
             
             # The method only accepts matching_shows and network_id parameters
             network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
