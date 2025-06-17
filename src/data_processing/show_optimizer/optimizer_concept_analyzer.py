@@ -610,7 +610,7 @@ class ConceptAnalyzer:
             
             # Generate network-specific recommendations for each top network
             if top_networks:
-                OptimizerConfig.debug(f"Processing network recommendation for {network_name}")
+                OptimizerConfig.debug(f"Processing network recommendations for top networks")
                 
                 # First check if matching_shows is valid to avoid multiple errors
                 if matching_shows is None or (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty):
