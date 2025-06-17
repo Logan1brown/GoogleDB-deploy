@@ -82,10 +82,14 @@ class NetworkAnalyzer:
                 network_name = "Unknown Network"
                 if self.field_manager:
                     try:
+                        # Debug: Check if network options are loaded
+                        network_options = self.field_manager.get_options('network')
+                        if not network_options:
+                            st.write(f"DEBUG: No network options found in field_manager")
+                            
                         network_name = self.field_manager.get_name('network', network_id) or "Unknown Network"
                     except Exception as e:
-                        if OptimizerConfig.DEBUG_MODE:
-                            pass
+                        st.write(f"DEBUG: Error getting network name for ID {network_id}: {str(e)}")
                         # Keep the default name
                 
                 # Calculate compatibility score based on match levels
