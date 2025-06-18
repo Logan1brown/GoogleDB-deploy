@@ -497,9 +497,17 @@ def show():
                     # Display recommendations if available in formatted data
                     if hasattr(summary, 'formatted_data') and summary.formatted_data:
                         if 'recommendations' in summary.formatted_data:
+                            # Direct debug to see what's in the recommendations
+                            st.write("DEBUG: Recommendations structure in formatted_data")
+                            st.write(f"- Keys in recommendations: {list(summary.formatted_data['recommendations'].keys())}")
+                            
                             # Process recommendations for display
                             general_recs = summary.formatted_data['recommendations'].get('general', [])
                             network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
+                            
+                            # Debug the extracted recommendations
+                            st.write(f"- General recommendations count: {len(general_recs)}")
+                            st.write(f"- Network recommendations count: {len(network_recs)}")
                             # Group recommendations by type for proper display
                             grouped_recs = {}
                             
