@@ -208,6 +208,19 @@ class CriteriaScorer:
         # Initialize impact scores dictionary
         impact_scores = {}
         
+        # Add detailed debugging
+        st.write(f"DEBUG: Starting calculate_criteria_impact with criteria: {criteria}")
+        st.write(f"DEBUG: Matching shows shape: {matching_shows.shape if isinstance(matching_shows, pd.DataFrame) else 'Not a DataFrame'}")
+        st.write(f"DEBUG: Option matching shows map provided: {option_matching_shows_map is not None}")
+        
+        # Check if we have the success_score column in matching_shows
+        if isinstance(matching_shows, pd.DataFrame) and not matching_shows.empty:
+            st.write(f"DEBUG: Columns in matching_shows: {list(matching_shows.columns)}")
+            st.write(f"DEBUG: success_score in columns: {'success_score' in matching_shows.columns}")
+            if 'success_score' in matching_shows.columns:
+                st.write(f"DEBUG: Success score stats - min: {matching_shows['success_score'].min()}, max: {matching_shows['success_score'].max()}, mean: {matching_shows['success_score'].mean()}, null count: {matching_shows['success_score'].isna().sum()}")
+        
+        
         try:
             # Let the field manager handle array field identification
             array_field_mapping = self.field_manager.get_array_field_mapping()
