@@ -269,7 +269,8 @@ class OptimizerView:
             return summary
     
     def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, Any]:
-        """Format success probability for display.
+        """
+        Format success probability for display.
         
         Args:
             probability: Success probability (0-1) or None
@@ -292,9 +293,10 @@ class OptimizerView:
             "confidence": confidence_display,
             "confidence_level": confidence
         }
-    
+        
     def _format_recommendations(self, recommendations: List[Recommendation]) -> Dict[str, Any]:
-        """Format recommendations for display.
+        """
+        Format recommendations for display.
         
         Args:
             recommendations: List of Recommendation objects
@@ -324,6 +326,8 @@ class OptimizerView:
                 types = {getattr(rec, 'recommendation_type', 'unknown') for rec in recommendations}
                 OptimizerConfig.debug(f"Recommendation types: {types}", category='recommendation')
         
+        formatted_recommendations = []
+        
         for rec in recommendations:
             # Skip invalid recommendations
             if not hasattr(rec, 'recommendation_type') and not hasattr(rec, 'rec_type'):
@@ -332,16 +336,27 @@ class OptimizerView:
             # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
             rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
             
-            # Format the recommendation with all data needed for UI display
-            # Create a title that includes the impact score percentage
+            # Format impact percentage for display
             impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
             impact_direction = "Increase" if getattr(rec, 'impact_score', 0) > 0 else "Decrease"
             
-            # Format the title to include the impact percentage
-            if impact_percent >= 5:  # Only show impact if it's significant (5% or more)
-                title = f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name} ({impact_direction} success by {impact_percent:.1f}%)"
+            # Create recommendation title with impact percentage
+            if rec_type and rec_type.startswith('network_'):
+                # For network recommendations
+                clean_rec_type = rec_type.replace('network_', '')
+                # Extract network name from suggested_name if available
+                network_name = ""
+                if hasattr(rec, 'suggested_name') and rec.suggested_name and ':' in rec.suggested_name:
+                    network_name = rec.suggested_name.split(':', 1)[0].strip()
+                    title = f"{impact_percent:.1f}% Impact: {network_name} - {clean_rec_type.capitalize()} {rec.criteria_type}"
+                else:
+                    title = f"{impact_percent:.1f}% Impact: {clean_rec_type.capitalize()} {rec.criteria_type} for network"
             else:
-                title = f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}"
+                # Format the title to include the impact percentage
+                if impact_percent >= 5:  # Only show impact if it's significant (5% or more)
+                    title = f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name} ({impact_direction} success by {impact_percent:.1f}%)"
+                else:
+                    title = f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}"
                 
             formatted_rec = {
                 # Display values

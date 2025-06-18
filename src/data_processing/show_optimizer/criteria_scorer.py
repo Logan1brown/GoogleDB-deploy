@@ -241,8 +241,14 @@ class CriteriaScorer:
                     st.write("DEBUG: Cannot calculate impact scores - no matching shows")
                 return {}
             
-            # Calculate base success rate
+            # Calculate base success rate for all matching shows
             base_rate, base_info = self._calculate_success_rate(matching_shows)
+            
+            # Add debug logging for base rate
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Base success rate: {base_rate}")
+                st.write(f"DEBUG: Matching shows count: {len(matching_shows)}")
+                st.write(f"DEBUG: Fields to process: {fields_to_process}")
             
             # Only log base success rate if it's None
             if base_rate is None and OptimizerConfig.DEBUG_MODE:

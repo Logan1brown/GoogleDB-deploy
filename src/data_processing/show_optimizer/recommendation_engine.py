@@ -139,12 +139,13 @@ class RecommendationEngine:
 
             return None, 'none'
     
-    def identify_success_factors(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, limit: int = 5) -> List[SuccessFactor]:
+    def identify_success_factors(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame = None, integrated_data: Dict[str, pd.DataFrame] = None, limit: int = 5) -> List[SuccessFactor]:
         """Identify success factors from the given criteria and matching shows.
         
         Args:
             criteria: Dictionary of criteria
-            matching_shows: DataFrame of shows matching the criteria
+            matching_shows: DataFrame of shows matching the criteria (optional)
+            integrated_data: Dictionary of integrated data frames (optional)
             limit: Maximum number of success factors to identify per criteria type
             
         Returns:
@@ -406,12 +407,22 @@ class RecommendationEngine:
                 if top_networks and len(top_networks) > 0:
                     # Process top networks to generate network-specific recommendations
                     for network in top_networks[:3]:  # Limit to top 3 networks
-                        network_recs = self.generate_network_specific_recommendations(
-                            criteria, network, matching_shows, integrated_data)
-                        if network_recs:
-                            recommendations.extend(network_recs)
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Generating recommendations for network {network.network_name}")
+                        
+                        try:
+                            # Use the correct parameter pattern for get_network_specific_success_rates
+                            # The method only accepts matching_shows and network_id parameters
+                            network_recs = self.generate_network_specific_recommendations(
+                                criteria, network, matching_shows, integrated_data)
+                            
+                            if network_recs:
+                                recommendations.extend(network_recs)
+                                if OptimizerConfig.DEBUG_MODE:
+                                    st.write(f"DEBUG: Added {len(network_recs)} network-specific recommendations for {network.network_name}")
+                        except Exception as network_e:
                             if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Added {len(network_recs)} network-specific recommendations for {network.network_name}")
+                                st.write(f"DEBUG: Error generating recommendations for network {network.network_name}: {str(network_e)}")
             except Exception as e:
                 st.error(f"Unable to generate network-specific recommendations: {str(e)}")
                 if OptimizerConfig.DEBUG_MODE:
@@ -870,10 +881,21 @@ class RecommendationEngine:
                 
             # Get network-specific success rates for each criteria using matching_shows
             try:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Getting network-specific success rates for {network.network_name}")
+                    
+                # Use the correct parameter pattern for get_network_specific_success_rates
+                # The method only accepts matching_shows and network_id parameters
                 network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
                     matching_shows, network.network_id)
+                    
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Got network rates with {len(network_rates)} criteria types")
             except Exception as e:
-                st.error(f"Error generating network-specific recommendations: {str(e)}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Error getting network-specific success rates: {str(e)}")
+                    import traceback
+                    st.write(traceback.format_exc())
                 return []
                 
             # Ensure all matching_shows in network_rates are DataFrames
