@@ -351,7 +351,6 @@ class CriteriaScorer:
                 
                 # If option_matching_shows_map is not provided, we need to generate it
                 if not option_matching_shows_map or current_field not in option_matching_shows_map:
-                    
                     # Generate option matching shows map for this field
                     field_options_map = {}
                     
@@ -373,11 +372,17 @@ class CriteriaScorer:
                             # This ensures we're not filtering an already filtered dataset
                             option_shows, _, _ = self._get_matching_shows(option_criteria, None)
                             
-                            # Store in field_options_map
-                            field_options_map[option_id] = option_shows
+                            # Check if we got valid shows
+                            if option_shows is not None and not option_shows.empty:
+                                # Store in field_options_map
+                                field_options_map[option_id] = option_shows
                         except Exception as e:
                             # Skip this option
                             continue
+                    # Set the option_matching_shows_map for this field
+                    if not option_matching_shows_map:
+                        option_matching_shows_map = {}
+                    option_matching_shows_map[current_field] = field_options_map
                 else:
                     # Use the provided option_matching_shows_map
                     field_options_map = option_matching_shows_map[current_field]
@@ -397,57 +402,63 @@ class CriteriaScorer:
                             
                     if not has_valid_options:
                         continue
-                    
-                    for i, (option_id, option_name) in enumerate(option_data):
+                
+                # Process each option in option_data
+                for i, (option_id, option_name) in enumerate(option_data):
+                    # Get the option shows from field_options_map if available
+                    if option_matching_shows_map and current_field in option_matching_shows_map:
                         # Make the option_id hashable for lookup
                         hashable_key = self.make_hashable(option_id)
                         
                         # Get matching shows for this option from the hashable map
                         option_shows = hashable_field_options_map.get(hashable_key)
+                    else:
+                        # Use the option shows we generated earlier
+                        option_shows = field_options_map.get(option_id)
+                    
+                    # Skip options with no matching shows
+                    if option_shows is None or (isinstance(option_shows, pd.DataFrame) and option_shows.empty):
+                        continue
                         
-                        # Skip options with no matching shows
-                        if option_shows is None or (isinstance(option_shows, pd.DataFrame) and option_shows.empty):
-                            continue
-                            
-                        # Get display name for the option
-                        try:
-                            if isinstance(option_id, (int, float)):
-                                display_name = self.field_manager.get_name(current_field, int(option_id))
-                            else:
-                                display_name = option_name
-                        except Exception as e:
+                    # Get display name for the option
+                    try:
+                        if isinstance(option_id, (int, float)):
+                            display_name = self.field_manager.get_name(current_field, int(option_id))
+                        else:
                             display_name = option_name
-                            
-                        # Calculate success rate for this option
-                        option_rate, option_info = self._calculate_success_rate(option_shows)
+                    except Exception as e:
+                        display_name = option_name
                         
-                        # Skip options with no valid success rate
-                        if option_rate is None:
-                            continue
-                            
-                        # Calculate impact as difference from base rate
-                        impact = option_rate - base_rate
+                    # Calculate success rate for this option
+                    option_rate, option_info = self._calculate_success_rate(option_shows)
+                    
+                    # Skip options with no valid success rate
+                    if option_rate is None:
+                        continue
                         
-                        # Store impact data
-                        if current_field not in impact_scores:
-                            impact_scores[current_field] = {}
-                            
-                        # Store impact data with option information
-                        impact_scores[current_field][option_id] = {
-                            'impact': impact,
-                            'success_rate': option_rate,
-                            'sample_size': option_info.get('valid_shows', 0),
-                            'recommendation_type': recommendation_types[i],
-                            'option_name': display_name
-                        }
+                    # Calculate impact as difference from base rate
+                    impact = option_rate - base_rate
+                    
+                    # Store impact data
+                    if current_field not in impact_scores:
+                        impact_scores[current_field] = {}
                         
-                        # Only log in debug mode
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Calculated impact for {current_field} option {display_name}: {impact:.4f}")
-                            if OptimizerConfig.VERBOSE_DEBUG:
-                                st.write(f"DEBUG: Base rate: {base_rate:.4f}, Option rate: {option_rate:.4f}")
-                                st.write(f"DEBUG: Sample size: {option_info.get('valid_shows', 0)}")
-                                st.write(f"DEBUG: Recommendation type: {recommendation_types[i]}")
+                    # Store impact data with option information
+                    impact_scores[current_field][option_id] = {
+                        'impact': impact,
+                        'success_rate': option_rate,
+                        'sample_size': option_info.get('valid_shows', 0),
+                        'recommendation_type': recommendation_types[i],
+                        'option_name': display_name
+                    }
+                    
+                    # Only log in debug mode
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Calculated impact for {current_field} option {display_name}: {impact:.4f}")
+                        if OptimizerConfig.VERBOSE_DEBUG:
+                            st.write(f"DEBUG: Base rate: {base_rate:.4f}, Option rate: {option_rate:.4f}")
+                            st.write(f"DEBUG: Sample size: {option_info.get('valid_shows', 0)}")
+                            st.write(f"DEBUG: Recommendation type: {recommendation_types[i]}")
                         
                         
                     
