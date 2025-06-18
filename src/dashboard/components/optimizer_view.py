@@ -327,8 +327,14 @@ class OptimizerView:
                 OptimizerConfig.debug(f"Recommendation types: {types}", category='recommendation')
                 
         # If no recommendations, add debug output
-        if not recommendations and OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug("No recommendations to format", category='recommendation', force=True)
+        if not recommendations:
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("No recommendations to format", category='recommendation', force=True)
+            # Return empty structure to avoid errors
+            return {
+                "grouped": grouped,
+                "all": []
+            }
         
         formatted_recommendations = []
         

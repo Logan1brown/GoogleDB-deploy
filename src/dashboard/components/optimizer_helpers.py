@@ -446,6 +446,29 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         # Check if we have any recommendations
         if not formatted_recommendations or not formatted_recommendations.get("grouped"):
             st.info("No recommendations available.")
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: No recommendations found in formatted_recommendations")
+            return
+            
+        # Debug the raw recommendations
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Raw formatted recommendations: {formatted_recommendations}")
+            if "all" in formatted_recommendations:
+                st.write(f"DEBUG: Total recommendations: {len(formatted_recommendations['all'])}")
+            else:
+                st.write("DEBUG: No 'all' key in formatted_recommendations")
+                
+        # Check if there are any recommendations in any group
+        has_recommendations = False
+        for rec_type, recs in formatted_recommendations.get("grouped", {}).items():
+            if recs:
+                has_recommendations = True
+                break
+                
+        if not has_recommendations:
+            st.info("No recommendations available for your current criteria.")
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: No recommendations found in any group")
             return
             
         # Get the grouped recommendations

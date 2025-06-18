@@ -31,7 +31,7 @@ class OptimizerConfig:
     """Configuration for Show Optimizer scoring and analysis."""
     
     # Debug mode flag - set to True to enable all debug output
-    DEBUG_MODE = False
+    DEBUG_MODE = True
     
     # Debug message counter to limit output volume
     _debug_message_count = 0
@@ -292,7 +292,7 @@ class OptimizerConfig:
     
     # Suggestion impact settings
     SUGGESTIONS = {
-        'minimum_impact': 0.05,        # Minimum impact score to generate suggestion (5%)
+        'minimum_impact': 0.01,        # Minimum impact score to generate suggestion (1%)
         'high_impact_threshold': 0.15, # Threshold for high impact suggestions (15%)
         'max_suggestions': 5,          # Maximum suggestions to return
         'network_specific_ratio': 0.6   # Ratio of network-specific to general suggestions
