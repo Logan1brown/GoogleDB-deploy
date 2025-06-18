@@ -350,27 +350,35 @@ class CriteriaScorer:
                     for i, (option_id, option_name) in enumerate(option_data):
                         try:
                             # Create criteria for this option
-                            option_criteria = criteria.copy()
+                            option_criteria = {current_field: option_id}
                             
                             # Set the criteria value based on field type
                             is_array_field = self.field_manager.get_field_type(current_field) == 'array'
                             if is_array_field:
                                 option_criteria[current_field] = [option_id]
-                            else:
-                                option_criteria[current_field] = option_id
-                                
+                            
+                            # Debug the option criteria
+                            st.write(f"DEBUG: Option criteria for {option_name}: {option_criteria}")
+                            
                             # Get matching shows for this option
-                            # Pass None as the data parameter to use the original integrated data in the matcher
-                            # This ensures we're not filtering an already filtered dataset
-                            option_shows, _, _ = self._get_matching_shows(option_criteria, None)
+                            option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
+                            
+                            # Debug the option shows
+                            if option_shows is not None:
+                                st.write(f"DEBUG: Option {option_name} has {len(option_shows)} matching shows")
+                            else:
+                                st.write(f"DEBUG: Option {option_name} has no matching shows (None)")
                             
                             # Check if we got valid shows
                             if option_shows is not None and not option_shows.empty:
                                 # Store in field_options_map
                                 field_options_map[option_id] = option_shows
-                        except Exception:
+                        except Exception as e:
+                            # Debug the exception
+                            st.write(f"DEBUG: Exception getting matching shows for option {option_name}: {str(e)}")
                             # Skip this option
                             continue
+                    
                     # Set the option_matching_shows_map for this field
                     if not option_matching_shows_map:
                         option_matching_shows_map = {}
