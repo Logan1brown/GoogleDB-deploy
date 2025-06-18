@@ -194,100 +194,66 @@ class CriteriaScorer:
                 
         return results
     
-    def calculate_criteria_impact(self, base_criteria: Dict[str, Any], base_matching_shows: pd.DataFrame, option_matching_shows_map: Optional[Dict[str, Dict[int, pd.DataFrame]]] = None, field_name: Optional[str] = None) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """
-        Calculate the impact of criteria values on success rate.
-
+    def calculate_criteria_impact(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None) -> Dict[str, Dict[Any, Dict[str, Any]]]:
+        """Calculate the impact of each criteria option on success rate.
+        
         Args:
-            base_criteria: The base criteria to compare against.
-            base_matching_shows: DataFrame of shows matching the base criteria.
-            option_matching_shows_map: Optional mapping of field names to option IDs to matching shows. If provided, these pre-matched shows will be used for impact calculation (recommended for batch/impact analysis).
-            field_name: Optional name of the field to analyze. If None, analyzes all fields.
+            criteria: Dictionary of criteria
+            matching_shows: DataFrame of shows matching the criteria
+            option_matching_shows_map: Optional pre-computed map of option matching shows
             
         Returns:
-            A dictionary mapping field names to dictionaries of option IDs to impact scores.
+            Dictionary of impact scores by field and option
         """
+        # Initialize impact scores dictionary
+        impact_scores = {}
+        
         try:
-            
             # Let the field manager handle array field identification
             array_field_mapping = self.field_manager.get_array_field_mapping()
             array_fields = list(array_field_mapping.keys())
             
-            # Use the provided base matching shows
-            base_match_count = len(base_matching_shows) if not base_matching_shows.empty else 0
-            
-            if base_matching_shows.empty:
-                st.write("DEBUG: Cannot calculate impact scores - no matching shows")
-                raise ValueError("Cannot calculate impact scores with no matching shows")
-                
-            if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                # Don't raise an error, just proceed with what we have
-                pass
-                
-            # Calculate base success rate using the provided shows
-            base_rate, base_info = self._calculate_success_rate(base_matching_shows)
-            
-            # Check if base_rate is None and return early if it is
-            if base_rate is None:
+            # Check if we have valid matching shows
+            if matching_shows is None or matching_shows.empty:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("DEBUG: Cannot calculate impact scores - no matching shows")
                 return {}
             
+            # Calculate base success rate
+            base_rate, base_info = self._calculate_success_rate(matching_shows)
+            
+            if base_rate is None:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("DEBUG: Cannot calculate impact scores - invalid base success rate")
+                return {}
+                
+            # Get all fields to analyze
+            fields_to_process = self.field_manager.get_all_fields()
+            
+            # Initialize impact scores dictionary
             impact_scores = {}
             
-            # Determine which fields to process
-            fields_to_process = [field_name] if field_name else self.field_manager.FIELD_CONFIGS.keys()
+            # Use the class method for make_hashable instead of a local function
+            # This ensures consistency across the codebase
             
-            def make_hashable(val):
-                """Convert any value to a hashable type for dictionary keys.
-                
-                Uses field_manager's knowledge of array fields to properly handle list values.
-                """
-                if isinstance(val, dict):
-                    # Convert dict to a sorted tuple of (key, value) pairs
-                    return tuple(sorted((k, make_hashable(v)) for k, v in val.items()))
-                    
-                if isinstance(val, list):
-                    # For empty lists, return an empty tuple
-                    if not val:
-                        return tuple()
-                    # For lists of primitive values, sort and convert to tuple
-                    if all(isinstance(v, (int, float, str, bool)) for v in val):
-                        return tuple(sorted(val))
-                    # For lists of complex values, convert each item and then sort
-                    return tuple(sorted(make_hashable(v) for v in val))
-                    
-                if isinstance(val, tuple):
-                    return tuple(make_hashable(v) for v in val)
-                    
-                # Ensure we return a hashable type
-                if isinstance(val, (str, int, float, bool, type(None))):
-                    return val
-                    
-                # Last resort - convert to string
-                return str(val)
-            
-            # Check if fields_to_process is empty
-            if not fields_to_process:
-                # If no fields to process, use all available fields
-                fields_to_process = list(self.field_manager.FIELD_CONFIGS.keys())
-            
+            # Process each field
             for current_field in fields_to_process:
-                # Process both fields in base criteria (for Remove/Change) and not in base criteria (for Add)
-                
+                # Skip fields that don't have options
+                options = self.field_manager.get_options(current_field)
+                if not options:
+                    continue
+                    
                 # Use field_manager to determine if this is an array field
                 is_array_field = self.field_manager.get_field_type(current_field) == 'array'
-                options = self.field_manager.get_options(current_field)
-                
-                
-                # Processing field
                 
                 # Prepare batch criteria for all options
                 batch_criteria = []
                 option_data = []
                 recommendation_types = []
                 
-                # Check if this field is already in the base criteria
-                field_in_base = current_field in base_criteria
-                current_value = base_criteria.get(current_field) if field_in_base else None
+                # Check if this field is already in the criteria
+                field_in_base = current_field in criteria
+                current_value = criteria.get(current_field) if field_in_base else None
                 
                 if field_in_base:
                     # For fields already in criteria, we'll calculate both Remove and Change recommendations
@@ -295,7 +261,7 @@ class CriteriaScorer:
                     # Field in base criteria
                     
                     # 1. First, create a "Remove" recommendation by removing this field
-                    remove_criteria = base_criteria.copy()
+                    remove_criteria = criteria.copy()
                     del remove_criteria[current_field]
                     batch_criteria.append(remove_criteria)
                     option_data.append(('remove', 'Remove ' + current_field))
@@ -310,7 +276,7 @@ class CriteriaScorer:
                             continue
                             
                         # Create a new criteria with this option
-                        new_criteria = base_criteria.copy()
+                        new_criteria = criteria.copy()
                         
                         # For array fields, we replace the current value with a new array
                         # For scalar fields, we simply replace the value
@@ -331,7 +297,7 @@ class CriteriaScorer:
                         
                     for option in options:
                         # Create a new criteria with this option
-                        new_criteria = base_criteria.copy()
+                        new_criteria = criteria.copy()
                         
                         # For array fields, always use list of ints
                         # For scalar fields, use the int directly
@@ -358,7 +324,7 @@ class CriteriaScorer:
                     for i, (option_id, option_name) in enumerate(option_data):
                         try:
                             # Create criteria for this option
-                            option_criteria = base_criteria.copy()
+                            option_criteria = criteria.copy()
                             
                             # Set the criteria value based on field type
                             is_array_field = self.field_manager.get_field_type(current_field) == 'array'
@@ -376,7 +342,7 @@ class CriteriaScorer:
                             if option_shows is not None and not option_shows.empty:
                                 # Store in field_options_map
                                 field_options_map[option_id] = option_shows
-                        except Exception as e:
+                        except Exception:
                             # Skip this option
                             continue
                     # Set the option_matching_shows_map for this field
@@ -386,81 +352,45 @@ class CriteriaScorer:
                 else:
                     # Use the provided option_matching_shows_map
                     field_options_map = option_matching_shows_map[current_field]
-                    
-                    # Convert all keys in field_options_map to hashable for safe lookup
-                    hashable_field_options_map = {}
-                    for k, v in field_options_map.items():
-                        hashable_key = self.make_hashable(k)
-                        hashable_field_options_map[hashable_key] = v
-                    
-                    # Verify that we have matching shows for at least some options
-                    has_valid_options = False
-                    for k, v in hashable_field_options_map.items():
-                        if v is not None and not (isinstance(v, pd.DataFrame) and v.empty):
-                            has_valid_options = True
-                            break
-                            
-                    if not has_valid_options:
-                        continue
+                
+                # Initialize field in impact scores
+                impact_scores[current_field] = {}
                 
                 # Process each option in option_data
                 for i, (option_id, option_name) in enumerate(option_data):
-                    # Get the option shows from field_options_map if available
-                    if option_matching_shows_map and current_field in option_matching_shows_map:
-                        # Make the option_id hashable for lookup
-                        hashable_key = self.make_hashable(option_id)
-                        
-                        # Get matching shows for this option from the hashable map
-                        option_shows = hashable_field_options_map.get(hashable_key)
-                    else:
-                        # Use the option shows we generated earlier
-                        option_shows = field_options_map.get(option_id)
-                    
-                    # Skip options with no matching shows
-                    if option_shows is None or (isinstance(option_shows, pd.DataFrame) and option_shows.empty):
-                        continue
-                        
-                    # Get display name for the option
                     try:
-                        if isinstance(option_id, (int, float)):
-                            display_name = self.field_manager.get_name(current_field, int(option_id))
-                        else:
-                            display_name = option_name
-                    except Exception as e:
-                        display_name = option_name
+                        # Get the option shows from field_options_map
+                        option_shows = field_options_map.get(option_id)
                         
-                    # Calculate success rate for this option
-                    option_rate, option_info = self._calculate_success_rate(option_shows)
-                    
-                    # Skip options with no valid success rate
-                    if option_rate is None:
+                        # Skip options with no matching shows
+                        if option_shows is None or option_shows.empty:
+                            continue
+                            
+                        # Calculate success rate for this option
+                        option_rate, option_info = self._calculate_success_rate(option_shows)
+                        
+                        # Skip options with no valid success rate
+                        if option_rate is None:
+                            continue
+                            
+                        # Calculate impact as difference from base rate
+                        impact = option_rate - base_rate
+                        
+                        # Skip if impact is too small
+                        if abs(impact) < OptimizerConfig.SUGGESTIONS['minimum_impact']:
+                            continue
+                        
+                        # Store impact data
+                        impact_scores[current_field][option_id] = {
+                            'impact': impact,
+                            'success_rate': option_rate,
+                            'sample_size': len(option_shows),
+                            'recommendation_type': recommendation_types[i],
+                            'option_name': option_name
+                        }
+                    except Exception:
+                        # Skip this option
                         continue
-                        
-                    # Calculate impact as difference from base rate
-                    impact = option_rate - base_rate
-                    
-                    # Store impact data
-                    if current_field not in impact_scores:
-                        impact_scores[current_field] = {}
-                        
-                    # Store impact data with option information
-                    impact_scores[current_field][option_id] = {
-                        'impact': impact,
-                        'success_rate': option_rate,
-                        'sample_size': option_info.get('valid_shows', 0),
-                        'recommendation_type': recommendation_types[i],
-                        'option_name': display_name
-                    }
-                    
-                    # Only log in debug mode
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Calculated impact for {current_field} option {display_name}: {impact:.4f}")
-                        if OptimizerConfig.VERBOSE_DEBUG:
-                            st.write(f"DEBUG: Base rate: {base_rate:.4f}, Option rate: {option_rate:.4f}")
-                            st.write(f"DEBUG: Sample size: {option_info.get('valid_shows', 0)}")
-                            st.write(f"DEBUG: Recommendation type: {recommendation_types[i]}")
-                        
-                        
                     
             # Check if we have any impact scores after processing all fields
             if not impact_scores and fields_to_process:

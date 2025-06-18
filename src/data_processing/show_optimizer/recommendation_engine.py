@@ -176,18 +176,26 @@ class RecommendationEngine:
         
             # Calculate criteria impact
             try:
+                # Calculate impact data using the criteria scorer
                 impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
                 
+                # Log impact data details if in debug mode
                 if OptimizerConfig.DEBUG_MODE:
-                    if OptimizerConfig.VERBOSE_DEBUG:
-                        pass
+                    st.write(f"Impact data returned: {impact_data is not None}")
+                    if impact_data:
+                        st.write(f"Impact data fields: {list(impact_data.keys())}")
+                        for field, values in impact_data.items():
+                            st.write(f"Field {field} has {len(values)} options with impact scores")
+            
+                # Return empty list if no impact data was found
                 if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
                     if OptimizerConfig.DEBUG_MODE:
                         st.write("No impact data found for recommendations.")
                     return []
-                    
+                
             except Exception as impact_e:
-                st.error(f"Error analyzing criteria impact: {str(impact_e)}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"Error analyzing criteria impact: {str(impact_e)}")
                 return []
             # Convert to SuccessFactor objects
             success_factors = []
