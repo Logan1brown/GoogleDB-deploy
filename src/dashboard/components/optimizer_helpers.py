@@ -443,13 +443,16 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         on_click_handler: Function to call when recommendation button is clicked
     """
     try:
-        # Check if we have any recommendations
-        if not formatted_recommendations or not formatted_recommendations.get("grouped"):
+        # Check if there are any recommendations to display
+        if not formatted_recommendations:
             st.info("No recommendations available.")
-            if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: No recommendations found in formatted_recommendations")
             return
-            
+        
+        # Extract recommendation groups
+        grouped = formatted_recommendations.get("grouped", {})
+        network_specific = formatted_recommendations.get("network_specific", [])
+        all_recs = formatted_recommendations.get("all", [])
+        
         # Debug the raw recommendations
         if OptimizerConfig.DEBUG_MODE:
             st.write(f"DEBUG: Raw formatted recommendations keys: {list(formatted_recommendations.keys())}")
@@ -464,9 +467,20 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
             else:
                 st.write("DEBUG: No 'all' key in formatted_recommendations")
                 
+        # If there are recommendations but no grouped recommendations, create a default group
+        if all_recs and (not grouped or all(len(recs) == 0 for recs in grouped.values())):
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Creating default 'add' group with {len(all_recs)} recommendations")
+            grouped = {"add": all_recs}
+            
+        # If still no recommendations to display after trying to create a default group
+        if not grouped or all(len(recs) == 0 for recs in grouped.values()):
+            st.info("No recommendations available.")
+            return
+                
         # Check if there are any recommendations in any group
         has_recommendations = False
-        for rec_type, recs in formatted_recommendations.get("grouped", {}).items():
+        for rec_type, recs in grouped.items():
             if recs:
                 has_recommendations = True
                 break
@@ -494,33 +508,95 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         if OptimizerConfig.DEBUG_MODE:
             st.write("DEBUG: Rendering non-network recommendations")
             
+        # Check if we have any general recommendations
+        general_recommendations = []
         for rec_type, recs in grouped.items():
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Checking group '{rec_type}' with {len(recs)} recommendations")
+            if not rec_type.startswith('network_') and recs:
+                general_recommendations.extend(recs)
                 
-            if recs and not rec_type.startswith('network_'):
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Rendering group '{rec_type}' with {len(recs)} recommendations")
-                    if recs:
-                        st.write(f"DEBUG: First recommendation in group: {recs[0]}")
+        if general_recommendations:
+            # Group by criteria_type for better organization
+            by_criteria_type = {}
+            for rec in general_recommendations:
+                criteria_type = rec.get('criteria_type', 'unknown')
+                if criteria_type not in by_criteria_type:
+                    by_criteria_type[criteria_type] = []
+                by_criteria_type[criteria_type].append(rec)
+                
+            # Sort by impact score
+            for criteria_type, recs in by_criteria_type.items():
+                recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
+                
+            # Render general recommendations
+            st.subheader("General Recommendations")
+            for criteria_type, recs in by_criteria_type.items():
+                for rec in recs[:3]:  # Limit to top 3 per criteria type
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        button_text = f"Add {rec.get('suggested_name', '')}"
+                        key = f"add_{criteria_type}_{hash(rec.get('title', 'unknown'))}"
+                        st.button(button_text, key=key, on_click=on_click_handler, args=(rec,))
+                    with col2:
+                        render_info_card(rec.get('title', ''), rec.get('description', ''))
                         
-                render_recommendation_group(rec_type, recs, on_click_handler)
-                general_recs_rendered = True
+            general_recs_rendered = True
+        else:
+            for rec_type, recs in grouped.items():
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Checking group '{rec_type}' with {len(recs)} recommendations")
+                    
+                if recs and not rec_type.startswith('network_'):
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Rendering group '{rec_type}' with {len(recs)} recommendations")
+                        if recs:
+                            st.write(f"DEBUG: First recommendation in group: {recs[0]}")
+                            
+                    render_recommendation_group(rec_type, recs, on_click_handler)
+                    general_recs_rendered = True
         
         # Then render network-specific recommendations
         network_specific_recs = []
         for rec_type, recs in grouped.items():
             if recs and rec_type.startswith('network_'):
                 network_specific_recs.extend(recs)
-                network_recs_rendered = True
-        
+                
         if network_specific_recs:
+            # Group by network name for better organization
+            by_network = {}
+            for rec in network_specific_recs:
+                # Extract network name from category or title
+                network_name = rec.get('category', '').replace('network_', '').replace('_', ' ').title()
+                if not network_name and 'title' in rec:
+                    # Try to extract from title
+                    title = rec.get('title', '')
+                    if ':' in title:
+                        network_name = title.split(':', 1)[0].strip()
+                        
+                if not network_name:
+                    network_name = 'Unknown Network'
+                    
+                if network_name not in by_network:
+                    by_network[network_name] = []
+                by_network[network_name].append(rec)
+                
+            # Sort by impact score within each network
+            for network, recs in by_network.items():
+                recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
+                
+            # Render network-specific recommendations
             st.subheader("Network-Specific Recommendations")
-            for rec in network_specific_recs[:5]:  # Limit to top 5
-                render_info_card(
-                    rec['title'],
-                    rec['description']
-                )
+            for network, recs in by_network.items():
+                st.write(f"**{network} Recommendations:**")
+                for rec in recs[:3]:  # Limit to top 3 per network
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        button_text = f"Apply {rec.get('suggested_name', '')}"
+                        key = f"network_{network}_{hash(rec.get('title', 'unknown'))}"
+                        st.button(button_text, key=key, on_click=on_click_handler, args=(rec,))
+                    with col2:
+                        render_info_card(rec.get('title', ''), rec.get('description', ''))
+                        
+            network_recs_rendered = True
         
         # Check if we actually rendered any recommendations
         if not general_recs_rendered:
@@ -558,50 +634,57 @@ Render a group of recommendations with appropriate UI elements.
     
     # Get recommendation type display names from config
     config = OptimizerConfig()
+    type_display = config.RECOMMENDATION_TYPES.get(rec_type, rec_type.replace('_', ' ').title())
     
-    # Set up headers and UI based on recommendation type
-    if rec_type == "add":
-        st.subheader(config.RECOMMENDATION_TYPES.get('add', "Consider Adding"))
+    if OptimizerConfig.DEBUG_MODE:
+        st.write(f"DEBUG: Recommendation type '{rec_type}' has display name '{type_display}'")
+    
+    # Set header and button prefix based on recommendation type
+    if rec_type == 'add':
+        header = "Add to Your Concept"
         button_prefix = "Add"
         use_button = True
         use_info_card = True
-    # 'replace' type has been consolidated into 'change'
-    elif rec_type == "remove":
-        st.subheader("Consider Removing")
+    elif rec_type == 'remove':
+        header = "Consider Removing"
         button_prefix = "Remove"
-        use_button = True
+        use_button = False  # Use warning style instead of button
         use_info_card = False
-    # 'relax' type has been consolidated into 'remove'
-    elif rec_type == "change":
-        st.subheader(config.RECOMMENDATION_TYPES.get('change', "Successful Pattern"))
+    elif rec_type == 'replace':
+        header = "Consider Replacing"
+        button_prefix = "Replace with"
+        use_button = True
+        use_info_card = True
+    elif rec_type == 'change':
+        header = "Consider Changing"
         button_prefix = "Change to"
         use_button = True
         use_info_card = True
-    elif rec_type == "consider":
-        st.subheader(config.RECOMMENDATION_TYPES.get('consider', "Additional Insights"))
-        use_button = False
-        use_info_card = True
-    elif rec_type == "fallback":
-        st.subheader(config.RECOMMENDATION_TYPES.get('fallback', "Fallback Recommendation"))
-        button_prefix = "Add"
+    elif rec_type.startswith('network_'):
+        network_name = rec_type.replace('network_', '').replace('_', ' ').title()
+        header = f"{network_name} Network Recommendations"
+        button_prefix = "Apply"
         use_button = True
         use_info_card = True
     elif rec_type == "network_keep":
-        st.subheader(config.RECOMMENDATION_TYPES.get('network_keep', "Network Strengths"))
+        header = config.RECOMMENDATION_TYPES.get('network_keep', "Network Strengths")
         button_prefix = "Keep"
         use_button = False
         use_info_card = True
     elif rec_type == "network_change":
-        st.subheader(config.RECOMMENDATION_TYPES.get('network_change', "Network Adjustments"))
+        header = config.RECOMMENDATION_TYPES.get('network_change', "Network Adjustments")
         button_prefix = "Adjust"
         use_button = True
         use_info_card = True
     else:
         # For any other recommendation type, use a generic header
-        st.subheader(f"{rec_type.replace('_', ' ').title()} Recommendations")
+        header = f"{rec_type.replace('_', ' ').title()} Recommendations"
         button_prefix = "Apply"
         use_button = True
         use_info_card = True
+        
+    # Display the header
+    st.subheader(header)
     
     # Display recommendations
     for rec in recommendations[:limit]:
