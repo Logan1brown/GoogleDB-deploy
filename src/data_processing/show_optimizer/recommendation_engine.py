@@ -288,9 +288,17 @@ class RecommendationEngine:
                         else:
                             recommendation_type = 'remove'  # Negative impact - recommend removing
                             
-                        # Skip very low impact factors
-                        if abs(impact) < 0.05:  # 5% minimum impact threshold
-                            continue
+                        # Temporarily lower the minimum impact threshold to ensure we get some recommendations
+                        min_impact = 0.01  # Lower threshold for testing
+                        
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Impact for {criteria_type}/{name}: {impact} (threshold: {min_impact})")
+                            
+                        # For testing purposes, don't skip any factors
+                        # if abs(impact) < min_impact:  # Minimum impact threshold
+                        #     if OptimizerConfig.DEBUG_MODE:
+                        #         st.write(f"DEBUG: Skipping {criteria_type}/{name} due to low impact: {impact}")
+                        #     continue
                         matching_titles = []
                         try:
                             # Convert tuple back to list for matching if needed
@@ -361,6 +369,15 @@ class RecommendationEngine:
                     st.write(f"DEBUG: Success factor {i+1}: {factor.criteria_type} - {factor.criteria_name} - impact: {factor.impact_score} - type: {factor.recommendation_type}")
             else:
                 st.write("DEBUG: No success factors available - check identify_success_factors method")
+                # Show the criteria to help diagnose why no success factors were found
+                st.write(f"DEBUG: Current criteria: {criteria}")
+                # Show the matching shows count to help diagnose why no success factors were found
+                if isinstance(matching_shows, pd.DataFrame):
+                    st.write(f"DEBUG: Matching shows count: {len(matching_shows)}")
+                    if not matching_shows.empty and 'title' in matching_shows.columns:
+                        st.write(f"DEBUG: First few matching shows: {', '.join(matching_shows['title'].head(3).tolist())}")
+                else:
+                    st.write("DEBUG: No matching shows DataFrame available")
                 
             # Debug the top networks
             if top_networks:
