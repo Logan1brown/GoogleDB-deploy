@@ -256,6 +256,15 @@ class CriteriaScorer:
             # Calculate base success rate using the provided shows
             base_rate, base_info = self._calculate_success_rate(base_matching_shows)
             
+            # Add diagnostic logging for base success rate
+            st.write(f"DEBUG: Base success rate: {base_rate}")
+            st.write(f"DEBUG: Base info: {base_info}")
+            
+            # Check if base_rate is None and return early if it is
+            if base_rate is None:
+                st.write("DEBUG: Base success rate is None, cannot calculate impact")
+                return {}
+            
             impact_scores = {}
             
             # Determine which fields to process
