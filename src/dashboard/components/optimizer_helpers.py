@@ -711,46 +711,20 @@ Render a group of recommendations with appropriate UI elements.
         # Debug the recommendation structure if in debug mode
         if OptimizerConfig.DEBUG_MODE:
             st.write(f"DEBUG: Rendering recommendation: {rec}")
-            
-        if use_button:
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                if on_click_handler:
-                    # Use suggested_name if available, otherwise use title
-                    button_text = f"{button_prefix} {rec.get('suggested_name', '')}"
-                    if not rec.get('suggested_name'):
-                        # Extract name from title if no suggested_name
-                        title_parts = rec.get('title', '').split(':', 1)
-                        if len(title_parts) > 1:
-                            button_text = f"{button_prefix} {title_parts[1].strip()}"
-                        else:
-                            button_text = f"{button_prefix} Option"
-                    
-                    # Create a unique key that doesn't rely on potentially missing fields
-                    key = f"{rec_type}_{rec.get('criteria_type', 'unknown')}_{hash(rec.get('title', 'unknown'))}"
-                    
-                    st.button(
-                        button_text,
-                        key=key,
-                        on_click=on_click_handler,
-                        args=(rec,)
-                    )
-            with col2:
-                if use_info_card:
-                    render_info_card(
-                        rec['title'],
-                        rec['description']
-                    )
-                else:
-                    # For remove recommendations, use warning style
-                    st.markdown(f"""
-                    <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
-                        <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec['title']}</p>
-                        <p style="font-size: 12px; margin: 0; color: #333;">{rec['description']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+        
+        # Determine if this is a positive or negative recommendation based on impact
+        is_negative = rec_type == 'remove' or (rec.get('impact', 0) < 0)
+        
+        if is_negative:
+            # Use warning style for negative recommendations
+            st.markdown(f"""
+            <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
+                <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec['title']}</p>
+                <p style="font-size: 12px; margin: 0; color: #333;">{rec['description']}</p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            # Just show info card with no button
+            # Use info card style for positive recommendations
             render_info_card(
                 rec['title'],
                 rec['description']
