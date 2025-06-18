@@ -293,6 +293,7 @@ class RecommendationEngine:
                         
                         if OptimizerConfig.DEBUG_MODE:
                             st.write(f"DEBUG: Impact for {criteria_type}/{name}: {impact} (threshold: {min_impact})")
+                            OptimizerConfig.debug(f"Impact for {criteria_type}/{name}: {impact} (threshold: {min_impact})", category='recommendation')
                         
                         # Ensure we have at least some minimal impact to generate recommendations
                         original_impact = impact
@@ -303,6 +304,7 @@ class RecommendationEngine:
                             impact = min_display_impact if impact >= 0 else -min_display_impact
                             if OptimizerConfig.DEBUG_MODE:
                                 st.write(f"DEBUG: Boosting small impact for {criteria_type}/{name} from {original_impact} to {impact} to ensure recommendations are displayed")
+                                OptimizerConfig.debug(f"Boosting small impact for {criteria_type}/{name} from {original_impact} to {impact} to ensure recommendations are displayed", category='recommendation')
                         matching_titles = []
                         try:
                             # Convert tuple back to list for matching if needed
@@ -438,14 +440,17 @@ class RecommendationEngine:
                         
                         if OptimizerConfig.DEBUG_MODE:
                             st.write(f"DEBUG: Generated {len(network_recs)} recommendations for network {network.network_name}")
+                            OptimizerConfig.debug(f"Generated {len(network_recs)} recommendations for network {network.network_name}", category='recommendation')
                             if network_recs:
                                 for i, rec in enumerate(network_recs[:2]):  # Show first 2 recommendations
                                     st.write(f"DEBUG: Network recommendation {i+1}: {rec.criteria_type} - {rec.suggested_name} - impact: {rec.impact_score}")
+                                    OptimizerConfig.debug(f"Network recommendation {i+1}: {rec.criteria_type} - {rec.suggested_name} - impact: {rec.impact_score}", category='recommendation')
                             
                         network_specific_recs.extend(network_recs)
                     except Exception as e:
                         if OptimizerConfig.DEBUG_MODE:
                             st.write(f"DEBUG: Error generating recommendations for network {network.network_name}: {str(e)}")
+                            OptimizerConfig.debug(f"Error generating recommendations for network {network.network_name}: {str(e)}", category='recommendation', force=True)
                             import traceback
                             st.write(traceback.format_exc())
                             
@@ -569,13 +574,16 @@ class RecommendationEngine:
                 # Debug log
                 if OptimizerConfig.DEBUG_MODE:
                     st.write(f"DEBUG: Created recommendation for {factor.criteria_type}/{factor.criteria_name} with impact {impact_score} (original: {factor.impact_score})")
+                    OptimizerConfig.debug(f"Created recommendation for {factor.criteria_type}/{factor.criteria_name} with impact {impact_score} (original: {factor.impact_score})", category='recommendation')
                     
             if not recommendations and OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: No recommendations created from {len(success_factors)} success factors")
+                OptimizerConfig.debug(f"No recommendations created from {len(success_factors)} success factors", category='recommendation')
             
             # Debug log the total recommendations created
             if OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: Created {len(recommendations)} recommendations from success factors")
+                OptimizerConfig.debug(f"Created {len(recommendations)} recommendations from success factors", category='recommendation')
             
             return recommendations
         except Exception as e:

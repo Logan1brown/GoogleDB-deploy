@@ -75,21 +75,15 @@ class CriteriaScorer:
         Returns:
             Tuple of success rate and confidence information
         """
-        # Debug the input shows only if debug mode is enabled
-        if OptimizerConfig.DEBUG_MODE and shows is not None:
-            OptimizerConfig.debug(f"_calculate_success_rate - shows shape: {shows.shape}", category='success_rate')
-            if not shows.empty and 'success_score' in shows.columns:
-                OptimizerConfig.debug(f"_calculate_success_rate - success_score stats: min={shows['success_score'].min()}, max={shows['success_score'].max()}, mean={shows['success_score'].mean()}, null={shows['success_score'].isna().sum()}", category='success_rate')
+        # Only log critical errors for success rate calculation
         
         # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
         if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data and not integrated_data['shows'].empty:
             shows = integrated_data['shows']
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Using integrated_data['shows'] instead of empty shows parameter", category='success_rate')
+            # Using integrated_data['shows'] as fallback
                 
         if shows is None or shows.empty:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("No valid shows data for success rate calculation", category='success_rate')
+            # Critical error - no valid shows data
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0}
             return None, confidence_info
@@ -109,11 +103,7 @@ class CriteriaScorer:
             filter_condition=success_filter
         )
         
-        # Add debug logging for validation results only if debug mode is enabled
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Data validation result: is_valid={is_valid}, validated_data shape={validated_data.shape if validated_data is not None else 'None'}", category='success_rate')
-            if validation_info:
-                OptimizerConfig.debug(f"Validation info: {validation_info}", category='success_rate')
+        # Only log critical validation issues
         
         if not is_valid or validated_data is None or validated_data.empty:
             
@@ -130,25 +120,23 @@ class CriteriaScorer:
         
         # Let the calculator handle the actual calculation
         try:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Calculating success score with threshold={threshold}", category='success_rate')
+            # Calculate success score with threshold
             component_score = calculator.calculate(validated_data, threshold=threshold)
             
             if component_score is None:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Component score is None after calculation", category='success_rate')
+                # Critical error - component score is None
                 if confidence_info is None:
                     confidence_info = {'level': 'none', 'score': 0.0, 'error': 'Failed to calculate success score'}
                 else:
                     confidence_info['error'] = 'Failed to calculate success score'
                 return None, confidence_info
             else:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Component score calculated successfully: {component_score.score}", category='success_rate')
+                # Success score calculated successfully
+                pass
             
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Exception during success score calculation: {str(e)}", category='success_rate')
+            # Log critical error during success score calculation
+            OptimizerConfig.debug(f"Exception during success score calculation: {str(e)}", category='success_rate')
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
             else:
@@ -233,20 +221,15 @@ class CriteriaScorer:
         # Initialize fields_to_process at the top level to avoid scope issues
         fields_to_process = []
         
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Starting calculate_criteria_impact with criteria: {criteria}", category='impact')
-            OptimizerConfig.debug(f"Matching shows shape: {matching_shows.shape if matching_shows is not None else 'None'}", category='impact')
-            OptimizerConfig.debug(f"Option matching shows map provided: {option_matching_shows_map is not None}", category='impact')
+        # Only log critical information for impact calculation
         
         # Validate inputs
         if not criteria:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Cannot calculate impact scores - no criteria provided", category='impact')
+            # Critical error - no criteria provided
             return {}
         
         if matching_shows is None or matching_shows.empty:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Cannot calculate impact scores - no matching shows", category='impact')
+            # Critical error - no matching shows
             return {}
         
         try:
@@ -262,29 +245,18 @@ class CriteriaScorer:
             # Update the fields_to_process that was initialized at the top level
             fields_to_process = [field for field in criteria.keys() if field in all_fields]
             
-            # Add debug logging for base rate
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Base success rate: {base_rate}", category='impact')
-                OptimizerConfig.debug(f"Matching shows count: {len(matching_shows)}", category='impact')
-                st.write(f"DEBUG: Fields to process: {fields_to_process}")
+            # Only log critical base rate information
             
-            # Only log base success rate if it's None
-            if base_rate is None and OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Base success rate is None", category='impact')
-            
+            # Check if base success rate is None
             if base_rate is None:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Cannot calculate impact scores - invalid base success rate", category='impact')
+                # Critical error - invalid base success rate
                 return {}
             
-            # Add focused debugging on fields processing
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Fields to process: {fields_to_process}")
+            # Process fields from criteria
                 
             # If no fields to process, return empty impact scores
             if not fields_to_process:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("No fields to process - criteria keys not in field manager's fields", category='impact')
+                # Critical error - no fields to process
                 return {}
             
             # Process each field
