@@ -508,7 +508,7 @@ def show():
                         
                         
                         # Pass the formatted recommendations directly to render_recommendations
-                        render_recommendations(formatted_recommendations, on_click_handler=None)
+                        render_recommendations(formatted_recommendations)
                     else:
                         # No recommendations available
                         st.info("No recommendations available for the selected criteria.")

@@ -435,12 +435,11 @@ def group_recommendations(recommendations: List) -> Dict[str, List]:
     return grouped
 
 
-def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_handler=None):
+def render_recommendations(formatted_recommendations: Dict[str, Any]):
     """Render recommendations using pre-formatted data from OptimizerView.
     
     Args:
         formatted_recommendations: Dictionary with formatted recommendation data
-        on_click_handler: Function to call when recommendation button is clicked
     """
     try:
         # Check if there are any recommendations to display
@@ -551,12 +550,19 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
             st.subheader("General Recommendations")
             for criteria_type, recs in by_criteria_type.items():
                 for rec in recs[:3]:  # Limit to top 3 per criteria type
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        button_text = f"Add {rec.get('suggested_name', '')}"
-                        key = f"add_{criteria_type}_{hash(rec.get('title', 'unknown'))}"
-                        st.button(button_text, key=key, on_click=on_click_handler, args=(rec,))
-                    with col2:
+                    # Determine if this is a positive or negative recommendation based on impact
+                    is_negative = rec.get('impact', 0) < 0
+                    
+                    if is_negative:
+                        # Use warning style for negative recommendations
+                        st.markdown(f"""
+                        <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
+                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec.get('title', '')}</p>
+                            <p style="font-size: 12px; margin: 0; color: #333;">{rec.get('description', '')}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        # Use info card style for positive recommendations
                         render_info_card(rec.get('title', ''), rec.get('description', ''))
                         
             general_recs_rendered = True
@@ -571,7 +577,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
                         if recs:
                             OptimizerConfig.debug(f"First recommendation in group: {recs[0]}", category='recommendation')
                             
-                    render_recommendation_group(rec_type, recs, on_click_handler)
+                    render_recommendation_group(rec_type, recs)
                     general_recs_rendered = True
         
         # Then render network-specific recommendations
@@ -608,12 +614,19 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
             for network, recs in by_network.items():
                 st.write(f"**{network} Recommendations:**")
                 for rec in recs[:3]:  # Limit to top 3 per network
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        button_text = f"Apply {rec.get('suggested_name', '')}"
-                        key = f"network_{network}_{hash(rec.get('title', 'unknown'))}"
-                        st.button(button_text, key=key, on_click=on_click_handler, args=(rec,))
-                    with col2:
+                    # Determine if this is a positive or negative recommendation based on impact
+                    is_negative = rec.get('impact', 0) < 0
+                    
+                    if is_negative:
+                        # Use warning style for negative recommendations
+                        st.markdown(f"""
+                        <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
+                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec.get('title', '')}</p>
+                            <p style="font-size: 12px; margin: 0; color: #333;">{rec.get('description', '')}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        # Use info card style for positive recommendations
                         render_info_card(rec.get('title', ''), rec.get('description', ''))
                         
             network_recs_rendered = True
@@ -632,14 +645,13 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         OptimizerConfig.debug(traceback.format_exc(), category='recommendation', force=True)
 
 
-def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, Any]], on_click_handler=None, limit: int = 3):
+def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, Any]], limit: int = 3):
     """
 Render a group of recommendations with appropriate UI elements.
     
     Args:
         rec_type: Type of recommendation (add, replace, remove, consider, etc.)
         recommendations: List of pre-formatted recommendations of this type
-        on_click_handler: Function to call when recommendation button is clicked
         limit: Maximum number of recommendations to show
     """
     if OptimizerConfig.DEBUG_MODE:
