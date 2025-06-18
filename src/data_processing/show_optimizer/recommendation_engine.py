@@ -292,7 +292,8 @@ class RecommendationEngine:
                             continue
                     except Exception as e:
                         continue
-                return success_factors
+                    processed_count += 1
+            return success_factors
         except Exception as main_e:
             st.error("Critical error in identify_success_factors.")
             return []
