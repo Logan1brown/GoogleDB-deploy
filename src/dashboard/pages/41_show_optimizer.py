@@ -501,13 +501,14 @@ def show():
                             st.write("DEBUG: Recommendations structure in formatted_data")
                             st.write(f"- Keys in recommendations: {list(summary.formatted_data['recommendations'].keys())}")
                             
-                            # Process recommendations for display
+                            # Extract recommendations from the original structure
                             general_recs = summary.formatted_data['recommendations'].get('general', [])
                             network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
                             
                             # Debug the extracted recommendations
                             st.write(f"- General recommendations count: {len(general_recs)}")
                             st.write(f"- Network recommendations count: {len(network_recs)}")
+                            
                             # Group recommendations by type for proper display
                             grouped_recs = {}
                             
@@ -532,18 +533,24 @@ def show():
                                     grouped_recs[key] = []
                                 grouped_recs[key].append(rec)
                             
-                            # Direct debug output that will definitely show in the UI
-                            st.write("DEBUG: Recommendation structure before rendering")
-                            st.write(f"- Number of recommendation groups: {len(grouped_recs)}")
-                            for group_name, items in grouped_recs.items():
-                                st.write(f"- Group '{group_name}' has {len(items)} items")
-                                if items:
-                                    st.write(f"- First item keys: {list(items[0].keys()) if isinstance(items[0], dict) else 'Not a dict'}")
-                            
                             # Create the all recommendations list for fallback
                             all_recs = []
                             for group_items in grouped_recs.values():
                                 all_recs.extend(group_items)
+                                
+                            # Direct debug output that will definitely show in the UI
+                            st.write("DEBUG: Recommendation structure before rendering")
+                            st.write(f"Number of recommendation groups: {len(grouped_recs)}")
+                            st.write(f"Total recommendations: {len(all_recs)}")
+                            
+                            # Debug the group keys
+                            if grouped_recs:
+                                st.write(f"Group keys: {list(grouped_recs.keys())}")
+                                for group_name, items in grouped_recs.items():
+                                    st.write(f"- Group '{group_name}' has {len(items)} items")
+                                    if items:
+                                        st.write(f"- First item keys: {list(items[0].keys()) if isinstance(items[0], dict) else 'Not a dict'}")
+                            
                             
                             # Pass to render_recommendations with proper structure
                             render_recommendations({
