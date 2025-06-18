@@ -172,20 +172,17 @@ class RecommendationEngine:
                 return []
                 
         try:
-            # Debug logging to understand why no success factors are being generated
-            st.write("DEBUG: Calculating criteria impact with:")
-            st.write(f"- Criteria count: {len(criteria)}")
-            st.write(f"- Matching shows: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'}")
-            
+            # Add diagnostic logging to check matching_shows DataFrame
+            if isinstance(matching_shows, pd.DataFrame) and not matching_shows.empty:
+                st.write("DEBUG: Checking matching_shows DataFrame")
+                st.write(f"DEBUG: Sample of columns: {list(matching_shows.columns)[:10]}")
+                st.write(f"DEBUG: Has success_score column: {'success_score' in matching_shows.columns}")
+                if 'success_score' not in matching_shows.columns:
+                    st.write("DEBUG: Missing success_score column, which is required for recommendation generation")
+        
             # Calculate criteria impact
             try:
                 impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
-                
-                # Debug impact data
-                st.write(f"DEBUG: Impact data fields: {list(impact_data.keys()) if impact_data else 'None'}")
-                if impact_data:
-                    field_counts = {field: len(values) for field, values in impact_data.items()}
-                    st.write(f"DEBUG: Impact data values per field: {field_counts}")
                 
                 if OptimizerConfig.DEBUG_MODE:
                     if OptimizerConfig.VERBOSE_DEBUG:

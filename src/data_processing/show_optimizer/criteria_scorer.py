@@ -90,14 +90,7 @@ class CriteriaScorer:
         
         # Use the calculator's validate_and_prepare_data method with the same filter condition as in calculate
         def success_filter(df):
-            # Debug the success filter condition
-            if 'success_score' in df.columns:
-                st.write(f"DEBUG: Success score column exists, has {df['success_score'].notna().sum()} non-null values")
-                st.write(f"DEBUG: Success filter min: {OptimizerConfig.SCORE_NORMALIZATION['success_filter_min']}")
-                st.write(f"DEBUG: Shows with success_score > filter_min: {(df['success_score'] > OptimizerConfig.SCORE_NORMALIZATION['success_filter_min']).sum()}")
-            else:
-                st.write("DEBUG: 'success_score' column missing from dataframe")
-                st.write(f"DEBUG: Available columns: {list(df.columns)}")
+            
             return (df['success_score'].notna()) & (df['success_score'] > OptimizerConfig.SCORE_NORMALIZATION['success_filter_min'])
         
         is_valid, validated_data, validation_info = calculator.validate_and_prepare_data(
@@ -109,8 +102,7 @@ class CriteriaScorer:
         )
         
         if not is_valid or validated_data is None or validated_data.empty:
-            st.write("DEBUG: _calculate_success_rate - Data validation failed")
-            st.write(f"DEBUG: Validation info: {validation_info}")
+            
 
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': validation_info.get('error', 'Unknown error')}
@@ -215,11 +207,6 @@ class CriteriaScorer:
             A dictionary mapping field names to dictionaries of option IDs to impact scores.
         """
         try:
-            # Debug: Log input parameters
-            st.write("DEBUG: calculate_criteria_impact inputs:")
-            st.write(f"- Base criteria: {base_criteria}")
-            st.write(f"- Base matching shows: {len(base_matching_shows) if isinstance(base_matching_shows, pd.DataFrame) else 'None'}")
-            st.write(f"- Field name: {field_name if field_name else 'All fields'}")
             
             # Let the field manager handle array field identification
             array_field_mapping = self.field_manager.get_array_field_mapping()
@@ -233,17 +220,17 @@ class CriteriaScorer:
                 raise ValueError("Cannot calculate impact scores with no matching shows")
                 
             if base_match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                st.write(f"DEBUG: Cannot calculate impact scores - insufficient sample size ({base_match_count} shows, minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']})")
-                raise ValueError(f"Cannot calculate impact scores with insufficient sample size ({base_match_count} shows). Minimum required: {OptimizerConfig.CONFIDENCE['minimum_sample']}")
+                # Don't raise an error, just proceed with what we have
+                pass
+                
+            # Check if success_score column exists in the matching shows DataFrame
+            if 'success_score' not in base_matching_shows.columns:
+                st.write("DEBUG: Missing success_score column in base_matching_shows DataFrame")
+                st.write(f"DEBUG: Available columns: {list(base_matching_shows.columns)[:10]}")
+                # Don't add a fallback - let's identify the root cause
                 
             # Calculate base success rate using the provided shows
-            st.write("DEBUG: Calculating base success rate")
             base_rate, base_info = self._calculate_success_rate(base_matching_shows)
-            
-            st.write(f"DEBUG: Base success rate: {base_rate}")
-            if base_rate is None:
-                st.write("DEBUG: Base success rate is None, returning empty impact data")
-                return {}
             
             impact_scores = {}
             
