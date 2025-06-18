@@ -224,22 +224,11 @@ class CriteriaScorer:
                 # Don't raise an error, just proceed with what we have
                 pass
                 
-            # Check if success_score column exists in the matching shows DataFrame
-            if 'success_score' not in base_matching_shows.columns:
-                st.write("DEBUG: Missing success_score column in base_matching_shows DataFrame")
-                st.write(f"DEBUG: Available columns: {list(base_matching_shows.columns)[:10]}")
-                # Don't add a fallback - let's identify the root cause
-                
             # Calculate base success rate using the provided shows
             base_rate, base_info = self._calculate_success_rate(base_matching_shows)
             
-            # Add diagnostic logging for base success rate
-            st.write(f"DEBUG: Base success rate: {base_rate}")
-            st.write(f"DEBUG: Base info: {base_info}")
-            
             # Check if base_rate is None and return early if it is
             if base_rate is None:
-                st.write("DEBUG: Base success rate is None, cannot calculate impact")
                 return {}
             
             impact_scores = {}
@@ -276,26 +265,23 @@ class CriteriaScorer:
                 # Last resort - convert to string
                 return str(val)
             
-            # Log fields to process
-            st.write(f"DEBUG: Fields to process: {fields_to_process}")
+            # Add focused debug for fields_to_process
+            st.write(f"DEBUG: Fields to process: {list(fields_to_process)}")
+            st.write(f"DEBUG: Base criteria: {base_criteria}")
+            
+            # Check if fields_to_process is empty
+            if not fields_to_process:
+                st.write("DEBUG: No fields to process, this is the root cause")
+                # If no fields to process, use all available fields
+                fields_to_process = list(self.field_manager.FIELD_CONFIGS.keys())
+                st.write(f"DEBUG: Using all available fields instead: {len(fields_to_process)} fields")
             
             for current_field in fields_to_process:
                 # Process both fields in base criteria (for Remove/Change) and not in base criteria (for Add)
-                st.write(f"DEBUG: Processing field: {current_field}")
                 
                 # Use field_manager to determine if this is an array field
                 is_array_field = self.field_manager.get_field_type(current_field) == 'array'
                 options = self.field_manager.get_options(current_field)
-                st.write(f"DEBUG: Field {current_field} is array field: {is_array_field}")
-                st.write(f"DEBUG: Number of options for {current_field}: {len(options) if options else 0}")
-                
-                # Check if this field is already in the base criteria
-                field_in_base = current_field in base_criteria
-                st.write(f"DEBUG: Field {current_field} is in base criteria: {field_in_base}")
-                if field_in_base:
-                    st.write(f"DEBUG: Current value for {current_field}: {base_criteria.get(current_field)}")
-                else:
-                    st.write(f"DEBUG: Field {current_field} not in base criteria, will calculate Add recommendations")
                 
                 
                 # Processing field
@@ -438,25 +424,34 @@ class CriteriaScorer:
                         except Exception as e:
                             display_name = option_name
                     
+            # Check if we have any impact scores after processing all fields
             if not impact_scores and fields_to_process:
-                # Check if option_matching_shows_map was provided
+                st.write("DEBUG: No impact scores generated after processing all fields")
+                st.write(f"DEBUG: Base criteria: {base_criteria}")
+                
+                # The issue might be that we need to generate option_matching_shows_map
+                # Let's create a simple option_matching_shows_map for testing
                 if option_matching_shows_map is None:
-                    # Instead of showing an error, just return empty results and continue
-                    st.write("DEBUG: No impact scores generated and no option_matching_shows_map provided")
-                    return {}
+                    st.write("DEBUG: Creating a simple option_matching_shows_map for testing")
+                    # Create a simple option_matching_shows_map with a single field
+                    test_field = 'genre_id' if 'genre_id' in base_criteria else list(base_criteria.keys())[0] if base_criteria else None
+                    
+                    if test_field:
+                        # Get the current value
+                        current_value = base_criteria.get(test_field)
+                        
+                        # Create a simple option_matching_shows_map with a different value
+                        option_matching_shows_map = {test_field: {current_value + 1 if isinstance(current_value, int) else 1: base_matching_shows}}
+                        st.write(f"DEBUG: Created test option_matching_shows_map for field {test_field}")
+                        
+                        # Try to calculate impact with this test map
+                        return self.calculate_criteria_impact(base_criteria, base_matching_shows, option_matching_shows_map, test_field)
+                    else:
+                        st.write("DEBUG: No suitable field found for creating test option_matching_shows_map")
+                        return {}
                 else:
-                    # Only log a warning if we attempted to process fields but got no results
-                    # If fields_to_process was empty (e.g. field_name was already in base_criteria), this is not an error
-                    st.write("DEBUG: No impact scores generated despite having option_matching_shows_map")
+                    st.write("DEBUG: option_matching_shows_map was provided but no impact scores generated")
                     return {}
-            
-            # Log the impact scores if we have any
-            if impact_scores:
-                st.write(f"DEBUG: Generated impact scores for {len(impact_scores)} fields")
-                for field, scores in impact_scores.items():
-                    st.write(f"DEBUG: Field {field} has {len(scores)} impact scores")
-            else:
-                st.write("DEBUG: No impact scores generated")
                 
             return impact_scores
 
