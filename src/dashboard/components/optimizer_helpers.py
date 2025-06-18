@@ -453,24 +453,16 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         network_specific = formatted_recommendations.get("network_specific", [])
         all_recs = formatted_recommendations.get("all", [])
         
-        # Debug the raw recommendations
+        # Debug the raw recommendations (only log to debug system, not UI)
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Raw formatted recommendations keys: {list(formatted_recommendations.keys())}")
+            OptimizerConfig.debug(f"Raw formatted recommendations keys: {list(formatted_recommendations.keys())}", category='recommendation')
             if "grouped" in formatted_recommendations:
-                st.write(f"DEBUG: Grouped keys: {list(formatted_recommendations['grouped'].keys())}")
+                OptimizerConfig.debug(f"Grouped keys: {list(formatted_recommendations['grouped'].keys())}", category='recommendation')
                 for group_key, group_items in formatted_recommendations['grouped'].items():
-                    st.write(f"DEBUG: Group '{group_key}' has {len(group_items)} items")
-                    if group_items:
-                        st.write(f"DEBUG: First item in group '{group_key}': {group_items[0]}")
-            if "all" in formatted_recommendations:
-                st.write(f"DEBUG: Total recommendations: {len(formatted_recommendations['all'])}")
-            else:
-                st.write("DEBUG: No 'all' key in formatted_recommendations")
+                    OptimizerConfig.debug(f"Group '{group_key}' has {len(group_items)} items", category='recommendation')
                 
         # If there are recommendations but no grouped recommendations, create a default group
         if all_recs and (not grouped or all(len(recs) == 0 for recs in grouped.values())):
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Creating default 'add' group with {len(all_recs)} recommendations")
             grouped = {"add": all_recs}
             
         # If still no recommendations to display after trying to create a default group
@@ -487,8 +479,6 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
                 
         if not has_recommendations:
             st.info("No recommendations available for your current criteria.")
-            if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: No recommendations found in any group")
             return
             
         # Get the grouped recommendations
@@ -505,14 +495,17 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         network_recs_rendered = False
         
         # First, render all non-network recommendations
-        if OptimizerConfig.DEBUG_MODE:
-            st.write("DEBUG: Rendering non-network recommendations")
-            
         # Check if we have any general recommendations
         general_recommendations = []
         for rec_type, recs in grouped.items():
             if not rec_type.startswith('network_') and recs:
                 general_recommendations.extend(recs)
+                
+        # Debug the general recommendations
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Found {len(general_recommendations)} general recommendations", category='recommendation')
+            for rec in general_recommendations[:3]:
+                OptimizerConfig.debug(f"General recommendation: {rec.get('title', 'unknown')}", category='recommendation')
                 
         if general_recommendations:
             # Group by criteria_type for better organization
@@ -543,13 +536,13 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         else:
             for rec_type, recs in grouped.items():
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Checking group '{rec_type}' with {len(recs)} recommendations")
+                    OptimizerConfig.debug(f"Checking group '{rec_type}' with {len(recs)} recommendations", category='recommendation')
                     
                 if recs and not rec_type.startswith('network_'):
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Rendering group '{rec_type}' with {len(recs)} recommendations")
+                        OptimizerConfig.debug(f"Rendering group '{rec_type}' with {len(recs)} recommendations", category='recommendation')
                         if recs:
-                            st.write(f"DEBUG: First recommendation in group: {recs[0]}")
+                            OptimizerConfig.debug(f"First recommendation in group: {recs[0]}", category='recommendation')
                             
                     render_recommendation_group(rec_type, recs, on_click_handler)
                     general_recs_rendered = True

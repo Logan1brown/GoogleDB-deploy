@@ -77,19 +77,19 @@ class CriteriaScorer:
         """
         # Debug the input shows only if debug mode is enabled
         if OptimizerConfig.DEBUG_MODE and shows is not None:
-            st.write(f"DEBUG: _calculate_success_rate - shows shape: {shows.shape}")
+            OptimizerConfig.debug(f"_calculate_success_rate - shows shape: {shows.shape}", category='success_rate')
             if not shows.empty and 'success_score' in shows.columns:
-                st.write(f"DEBUG: _calculate_success_rate - success_score stats: min={shows['success_score'].min()}, max={shows['success_score'].max()}, mean={shows['success_score'].mean()}, null={shows['success_score'].isna().sum()}")
+                OptimizerConfig.debug(f"_calculate_success_rate - success_score stats: min={shows['success_score'].min()}, max={shows['success_score'].max()}, mean={shows['success_score'].mean()}, null={shows['success_score'].isna().sum()}", category='success_rate')
         
         # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
         if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data and not integrated_data['shows'].empty:
             shows = integrated_data['shows']
             if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Using integrated_data['shows'] instead of empty shows parameter")
+                OptimizerConfig.debug("Using integrated_data['shows'] instead of empty shows parameter", category='success_rate')
                 
         if shows is None or shows.empty:
             if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: No valid shows data for success rate calculation")
+                OptimizerConfig.debug("No valid shows data for success rate calculation", category='success_rate')
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0}
             return None, confidence_info
@@ -111,9 +111,9 @@ class CriteriaScorer:
         
         # Add debug logging for validation results only if debug mode is enabled
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Data validation result: is_valid={is_valid}, validated_data shape={validated_data.shape if validated_data is not None else 'None'}")
+            OptimizerConfig.debug(f"Data validation result: is_valid={is_valid}, validated_data shape={validated_data.shape if validated_data is not None else 'None'}", category='success_rate')
             if validation_info:
-                st.write(f"DEBUG: Validation info: {validation_info}")
+                OptimizerConfig.debug(f"Validation info: {validation_info}", category='success_rate')
         
         if not is_valid or validated_data is None or validated_data.empty:
             
@@ -131,12 +131,12 @@ class CriteriaScorer:
         # Let the calculator handle the actual calculation
         try:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Calculating success score with threshold={threshold}")
+                OptimizerConfig.debug(f"Calculating success score with threshold={threshold}", category='success_rate')
             component_score = calculator.calculate(validated_data, threshold=threshold)
             
             if component_score is None:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("DEBUG: Component score is None after calculation")
+                    OptimizerConfig.debug("Component score is None after calculation", category='success_rate')
                 if confidence_info is None:
                     confidence_info = {'level': 'none', 'score': 0.0, 'error': 'Failed to calculate success score'}
                 else:
@@ -144,11 +144,11 @@ class CriteriaScorer:
                 return None, confidence_info
             else:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Component score calculated successfully: {component_score.score}")
+                    OptimizerConfig.debug(f"Component score calculated successfully: {component_score.score}", category='success_rate')
             
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Exception during success score calculation: {str(e)}")
+                OptimizerConfig.debug(f"Exception during success score calculation: {str(e)}", category='success_rate')
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
             else:
@@ -234,19 +234,19 @@ class CriteriaScorer:
         fields_to_process = []
         
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Starting calculate_criteria_impact with criteria: {criteria}")
-            st.write(f"DEBUG: Matching shows shape: {matching_shows.shape if matching_shows is not None else 'None'}")
-            st.write(f"DEBUG: Option matching shows map provided: {option_matching_shows_map is not None}")
+            OptimizerConfig.debug(f"Starting calculate_criteria_impact with criteria: {criteria}", category='impact')
+            OptimizerConfig.debug(f"Matching shows shape: {matching_shows.shape if matching_shows is not None else 'None'}", category='impact')
+            OptimizerConfig.debug(f"Option matching shows map provided: {option_matching_shows_map is not None}", category='impact')
         
         # Validate inputs
         if not criteria:
             if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Cannot calculate impact scores - no criteria provided")
+                OptimizerConfig.debug("Cannot calculate impact scores - no criteria provided", category='impact')
             return {}
         
         if matching_shows is None or matching_shows.empty:
             if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Cannot calculate impact scores - no matching shows")
+                OptimizerConfig.debug("Cannot calculate impact scores - no matching shows", category='impact')
             return {}
         
         try:
@@ -264,17 +264,17 @@ class CriteriaScorer:
             
             # Add debug logging for base rate
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Base success rate: {base_rate}")
-                st.write(f"DEBUG: Matching shows count: {len(matching_shows)}")
+                OptimizerConfig.debug(f"Base success rate: {base_rate}", category='impact')
+                OptimizerConfig.debug(f"Matching shows count: {len(matching_shows)}", category='impact')
                 st.write(f"DEBUG: Fields to process: {fields_to_process}")
             
             # Only log base success rate if it's None
             if base_rate is None and OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Base success rate is None")
+                OptimizerConfig.debug("Base success rate is None", category='impact')
             
             if base_rate is None:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("DEBUG: Cannot calculate impact scores - invalid base success rate")
+                    OptimizerConfig.debug("Cannot calculate impact scores - invalid base success rate", category='impact')
                 return {}
             
             # Add focused debugging on fields processing
@@ -284,7 +284,7 @@ class CriteriaScorer:
             # If no fields to process, return empty impact scores
             if not fields_to_process:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("DEBUG: No fields to process - criteria keys not in field manager's fields")
+                    OptimizerConfig.debug("No fields to process - criteria keys not in field manager's fields", category='impact')
                 return {}
             
             # Process each field
@@ -292,7 +292,7 @@ class CriteriaScorer:
                 # Skip fields that don't have options
                 options = self.field_manager.get_options(current_field)
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Field {current_field} has {len(options) if options else 0} options")
+                    OptimizerConfig.debug(f"Field {current_field} has {len(options) if options else 0} options", category='impact')
                 if not options:
                     continue
                     
@@ -397,7 +397,7 @@ class CriteriaScorer:
                             
                             # Debug only the number of matching shows if in debug mode
                             if OptimizerConfig.DEBUG_MODE and option_shows is not None:
-                                st.write(f"DEBUG: Option {option_name} has {len(option_shows)} matching shows")
+                                OptimizerConfig.debug(f"Option {option_name} has {len(option_shows)} matching shows", category='impact')
                             
                             # Check if we got valid shows
                             if option_shows is not None and not option_shows.empty:
@@ -406,7 +406,7 @@ class CriteriaScorer:
                         except Exception as e:
                             # Log exception only in debug mode
                             if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Exception getting matching shows for option {option_name}: {str(e)}")
+                                OptimizerConfig.debug(f"Exception getting matching shows for option {option_name}: {str(e)}", category='impact')
                             # Skip this option
                             continue
                     
@@ -423,7 +423,7 @@ class CriteriaScorer:
                 
                 # Process each option in option_data
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Processing {len(option_data)} options for field {current_field}")
+                    OptimizerConfig.debug(f"Processing {len(option_data)} options for field {current_field}", category='impact')
                     
                 for i, (option_id, option_name) in enumerate(option_data):
                     try:
@@ -440,7 +440,7 @@ class CriteriaScorer:
                         if option_rate is None:
                             # Skip this option if we can't calculate a success rate
                             if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Skipping option {option_name} - invalid success rate")
+                                OptimizerConfig.debug(f"Skipping option {option_name} - invalid success rate", category='impact')
                             continue
                             
                         # Calculate impact as the difference from base rate
@@ -448,8 +448,8 @@ class CriteriaScorer:
                         
                         # Debug the success rate and impact only in debug mode
                         if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Option {option_name} success rate: {option_rate}")
-                            st.write(f"DEBUG: Option {option_name} impact: {impact}")
+                            OptimizerConfig.debug(f"Option {option_name} success rate: {option_rate}", category='impact')
+                            OptimizerConfig.debug(f"Option {option_name} impact: {impact}", category='impact')
                         
                         # Get minimum impact threshold
                         min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
@@ -463,7 +463,7 @@ class CriteriaScorer:
                             # But preserve the sign (positive/negative)
                             impact = min_impact if impact >= 0 else -min_impact
                             if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Boosting small impact for {option_name} from {original_impact} to {impact} to ensure recommendations")
+                                OptimizerConfig.debug(f"Boosting small impact for {option_name} from {original_impact} to {impact} to ensure recommendations", category='impact')
                         
                         # Determine recommendation type based on impact
                         if impact > 0:
@@ -488,28 +488,28 @@ class CriteriaScorer:
                         
                         # Debug the stored impact score only in debug mode
                         if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Added impact score for {option_name}: {impact}")
+                            OptimizerConfig.debug(f"Added impact score for {option_name}: {impact}", category='impact')
                     except Exception as e:
                         # Skip this option if there's an error
                         if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Error processing option {option_name}: {str(e)}")
+                            OptimizerConfig.debug(f"Error processing option {option_name}: {str(e)}", category='impact')
                         continue
                 
             # Check if we have any impact scores after processing all fields
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Impact scores after processing: {len(impact_scores)} fields with scores")
+                OptimizerConfig.debug(f"Impact scores after processing: {len(impact_scores)} fields with scores", category='impact')
                 for field, values in impact_scores.items():
-                    st.write(f"DEBUG: Field {field} has {len(values)} options with impact scores")
+                    OptimizerConfig.debug(f"Field {field} has {len(values)} options with impact scores", category='impact')
             
             if not impact_scores and fields_to_process:
                 # If no impact scores were generated, log a message in debug mode
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("DEBUG: No impact scores could be generated for the current criteria.")
-                    st.write(f"DEBUG: Current criteria: {criteria}")
+                    OptimizerConfig.debug("No impact scores could be generated for the current criteria.", category='impact')
+                    OptimizerConfig.debug(f"Current criteria: {criteria}", category='impact')
                     
                 # Force generate some recommendations for testing
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("DEBUG: Attempting to generate fallback impact scores...")
+                    OptimizerConfig.debug("Attempting to generate fallback impact scores...", category='impact')
                     
                 # If we have fields to process but no impact scores were generated,
                 # let's try a fallback approach by generating impact scores for all available options
@@ -566,16 +566,16 @@ class CriteriaScorer:
                                 }
                                 
                                 if OptimizerConfig.DEBUG_MODE:
-                                    st.write(f"DEBUG: Added fallback impact score for {field}/{option_name}: {impact}")
+                                    OptimizerConfig.debug(f"Added fallback impact score for {field}/{option_name}: {impact}", category='impact')
                             except Exception as e:
                                 if OptimizerConfig.DEBUG_MODE:
-                                    st.write(f"DEBUG: Error processing fallback option {field}: {str(e)}")
+                                    OptimizerConfig.debug(f"Error processing fallback option {field}: {str(e)}", category='impact')
                                 continue
                 
             # If we still have no impact scores, return empty dict
             if not any(impact_scores.values()):
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("DEBUG: No impact scores could be generated, even with fallback approach.")
+                    OptimizerConfig.debug("No impact scores could be generated, even with fallback approach.", category='impact')
                 return {}
                 
             return impact_scores
@@ -588,12 +588,13 @@ class CriteriaScorer:
             # Log the exception with detailed traceback
             if OptimizerConfig.DEBUG_MODE:
                 import traceback
-                st.write(f"DEBUG: Exception in calculate_criteria_impact: {str(e)}")
-                st.write(f"DEBUG: Exception traceback: {traceback.format_exc()}")
+                # Use OptimizerConfig.debug instead of st.write for debug messages
+                OptimizerConfig.debug(f"Exception in calculate_criteria_impact: {str(e)}", category='error')
+                OptimizerConfig.debug(f"Exception traceback: {traceback.format_exc()}", category='error')
                 # Log the state of key variables to help diagnose the issue
-                st.write(f"DEBUG: Criteria: {criteria}")
-                st.write(f"DEBUG: Matching shows shape: {matching_shows.shape if matching_shows is not None else 'None'}")
-                st.write(f"DEBUG: Impact scores so far: {impact_scores}")
+                OptimizerConfig.debug(f"Criteria: {criteria}", category='error')
+                OptimizerConfig.debug(f"Matching shows shape: {matching_shows.shape if matching_shows is not None else 'None'}", category='error')
+                OptimizerConfig.debug(f"Impact scores so far: {impact_scores}", category='error')
             return {}
             
     def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:
