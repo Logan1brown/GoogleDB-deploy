@@ -172,14 +172,26 @@ class RecommendationEngine:
                 return []
                 
         try:
+            # Debug logging to understand why no success factors are being generated
+            st.write("DEBUG: Calculating criteria impact with:")
+            st.write(f"- Criteria count: {len(criteria)}")
+            st.write(f"- Matching shows: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'None'}")
+            
             # Calculate criteria impact
             try:
                 impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
+                
+                # Debug impact data
+                st.write(f"DEBUG: Impact data fields: {list(impact_data.keys()) if impact_data else 'None'}")
+                if impact_data:
+                    field_counts = {field: len(values) for field, values in impact_data.items()}
+                    st.write(f"DEBUG: Impact data values per field: {field_counts}")
                 
                 if OptimizerConfig.DEBUG_MODE:
                     if OptimizerConfig.VERBOSE_DEBUG:
                         pass
                 if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
+                    st.write("DEBUG: No impact data found, returning empty success factors list")
                     return []
                     
             except Exception as impact_e:
