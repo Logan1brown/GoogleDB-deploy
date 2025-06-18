@@ -408,17 +408,33 @@ class OptimizerView:
             # Create enhanced description with impact information
             explanation = getattr(rec, 'explanation', '')
             
-            # Add impact information to the description if significant
+            # Add impact information to the description based on recommendation type
+            # but only if it's not already included in the explanation
             if impact_percent >= 1 and not rec_type.startswith('network_'):
-                impact_info = f"Adding '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
-                
-                # If there's already an explanation, add the impact info as a new sentence
-                if explanation and not explanation.strip().endswith('.'):
-                    explanation = f"{explanation}. {impact_info}"
-                elif explanation:
-                    explanation = f"{explanation} {impact_info}"
+                # Format impact information based on recommendation type
+                if rec_type == 'change':
+                    # For 'change' recommendations (patterns that work well)
+                    impact_info = f"Using '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
+                elif rec_type == 'remove':
+                    # For 'remove' recommendations
+                    impact_info = f"Removing '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
+                elif rec_type == 'add':
+                    # For 'add' recommendations
+                    impact_info = f"Adding '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
                 else:
-                    explanation = impact_info
+                    # Default format for other types
+                    impact_info = f"Using '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
+                
+                # Only add the impact info if it's not already in the explanation
+                # This prevents redundant information
+                if impact_info not in explanation:
+                    # If there's already an explanation, add the impact info as a new sentence
+                    if explanation and not explanation.strip().endswith('.'):
+                        explanation = f"{explanation}. {impact_info}"
+                    elif explanation:
+                        explanation = f"{explanation} {impact_info}"
+                    else:
+                        explanation = impact_info
             
             # Create formatted recommendation dictionary with safe access to attributes
             formatted_rec = {

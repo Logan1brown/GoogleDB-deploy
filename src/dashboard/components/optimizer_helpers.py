@@ -517,8 +517,10 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
         general_recs_rendered = False
         network_recs_rendered = False
         
-        # First, render all non-network recommendations
-        # Check if we have any general recommendations
+        # First, render all non-network recommendations by type
+        # We'll handle each recommendation type separately
+        
+        # Get all non-network recommendations
         general_recommendations = []
         for rec_type, recs in grouped.items():
             if not rec_type.startswith('network_') and recs:
@@ -529,45 +531,73 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             OptimizerConfig.debug(f"Found {len(general_recommendations)} general recommendations", category='recommendation', force=True)
             for rec in general_recommendations[:3]:
                 OptimizerConfig.debug(f"General recommendation: {rec.get('title', 'unknown')}", category='recommendation')
+                OptimizerConfig.debug(f"  - Type: {rec.get('recommendation_type', rec.get('rec_type', 'unknown'))}", category='recommendation')
                 OptimizerConfig.debug(f"  - Category: {rec.get('category', 'unknown')}", category='recommendation')
                 OptimizerConfig.debug(f"  - Impact: {rec.get('impact', 0)}", category='recommendation')
                 OptimizerConfig.debug(f"  - Criteria Type: {rec.get('criteria_type', 'unknown')}", category='recommendation')
+        
+        # Group recommendations by type and criteria_type
+        by_type_and_criteria = {}
+        for rec in general_recommendations:
+            rec_type = rec.get('recommendation_type', rec.get('rec_type', 'unknown'))
+            criteria_type = rec.get('criteria_type', 'unknown')
+            
+            if rec_type not in by_type_and_criteria:
+                by_type_and_criteria[rec_type] = {}
+            
+            if criteria_type not in by_type_and_criteria[rec_type]:
+                by_type_and_criteria[rec_type][criteria_type] = []
                 
-        if general_recommendations:
-            # Group by criteria_type for better organization
-            by_criteria_type = {}
-            for rec in general_recommendations:
-                criteria_type = rec.get('criteria_type', 'unknown')
-                if criteria_type not in by_criteria_type:
-                    by_criteria_type[criteria_type] = []
-                by_criteria_type[criteria_type].append(rec)
-                
-            # Sort by impact score
-            for criteria_type, recs in by_criteria_type.items():
+            by_type_and_criteria[rec_type][criteria_type].append(rec)
+        
+        # Sort each group by impact score
+        for rec_type, criteria_groups in by_type_and_criteria.items():
+            for criteria_type, recs in criteria_groups.items():
                 recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
-                
-            # Render general recommendations
+        
+        # Only show the general recommendations header if we have recommendations
+        if general_recommendations:
             st.subheader("General Recommendations")
-            for criteria_type, recs in by_criteria_type.items():
-                for rec in recs[:3]:  # Limit to top 3 per criteria type
-                    # Determine if this is a positive or negative recommendation based on impact
-                    is_negative = rec.get('impact', 0) < 0
+            
+            # Display recommendations by type with appropriate headers
+            config = OptimizerConfig()
+            
+            # Define the order in which to display recommendation types
+            display_order = ['change', 'add', 'remove', 'consider', 'fallback']
+            
+            # Display recommendations in the specified order
+            for rec_type in display_order:
+                if rec_type in by_type_and_criteria and by_type_and_criteria[rec_type]:
+                    # Get the display name for this recommendation type
+                    type_display = config.RECOMMENDATION_TYPES.get(rec_type, rec_type.capitalize())
                     
-                    # Get the title and description directly without modification
-                    title = rec.get('title', '')
-                    description = rec.get('description', '')
+                    # Display a subheader for each recommendation type if there are multiple types
+                    if len(by_type_and_criteria) > 1 and len(display_order) > 1:
+                        st.write(f"**{type_display}**")
                     
-                    if is_negative:
-                        # Use warning style for negative recommendations
-                        st.markdown(f"""
-                        <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
-                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{title}</p>
-                            <p style="font-size: 12px; margin: 0; color: #333;">{description}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        # Use info card style for positive recommendations
-                        render_info_card(title, description)
+                    # Display recommendations for each criteria type within this recommendation type
+                    for criteria_type, recs in by_type_and_criteria[rec_type].items():
+                        for rec in recs[:3]:  # Limit to top 3 per criteria type
+                            # Determine if this is a positive or negative recommendation based on impact
+                            is_negative = rec.get('impact', 0) < 0
+                            
+                            # Get the title and description directly without modification
+                            title = rec.get('title', '')
+                            description = rec.get('description', '')
+                            
+                            # Only show recommendations with negative impact in red if they're 'remove' type
+                            # For 'change' type, always use the info card style regardless of impact direction
+                            if is_negative and rec_type != 'change':
+                                # Use warning style for negative recommendations
+                                st.markdown(f"""
+                                <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
+                                    <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{title}</p>
+                                    <p style="font-size: 12px; margin: 0; color: #333;">{description}</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                # Use info card style for positive recommendations and 'change' type
+                                render_info_card(title, description)
                         
             general_recs_rendered = True
         else:
