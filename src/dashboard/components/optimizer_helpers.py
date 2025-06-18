@@ -452,7 +452,13 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
             
         # Debug the raw recommendations
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Raw formatted recommendations: {formatted_recommendations}")
+            st.write(f"DEBUG: Raw formatted recommendations keys: {list(formatted_recommendations.keys())}")
+            if "grouped" in formatted_recommendations:
+                st.write(f"DEBUG: Grouped keys: {list(formatted_recommendations['grouped'].keys())}")
+                for group_key, group_items in formatted_recommendations['grouped'].items():
+                    st.write(f"DEBUG: Group '{group_key}' has {len(group_items)} items")
+                    if group_items:
+                        st.write(f"DEBUG: First item in group '{group_key}': {group_items[0]}")
             if "all" in formatted_recommendations:
                 st.write(f"DEBUG: Total recommendations: {len(formatted_recommendations['all'])}")
             else:
@@ -580,13 +586,30 @@ def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, A
     
     # Display recommendations
     for rec in recommendations[:limit]:
+        # Debug the recommendation structure if in debug mode
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Rendering recommendation: {rec}")
+            
         if use_button:
             col1, col2 = st.columns([1, 3])
             with col1:
                 if on_click_handler:
+                    # Use suggested_name if available, otherwise use title
+                    button_text = f"{button_prefix} {rec.get('suggested_name', '')}"
+                    if not rec.get('suggested_name'):
+                        # Extract name from title if no suggested_name
+                        title_parts = rec.get('title', '').split(':', 1)
+                        if len(title_parts) > 1:
+                            button_text = f"{button_prefix} {title_parts[1].strip()}"
+                        else:
+                            button_text = f"{button_prefix} Option"
+                    
+                    # Create a unique key that doesn't rely on potentially missing fields
+                    key = f"{rec_type}_{rec.get('criteria_type', 'unknown')}_{hash(rec.get('title', 'unknown'))}"
+                    
                     st.button(
-                        f"{button_prefix} {rec['suggested_name']}",
-                        key=f"{rec_type}_{rec['criteria_type']}_{rec['suggested_value'] or rec['current_value']}",
+                        button_text,
+                        key=key,
                         on_click=on_click_handler,
                         args=(rec,)
                     )
@@ -601,7 +624,7 @@ def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, A
                     st.markdown(f"""
                     <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
                         <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec['title']}</p>
-                        <p style="font-size: 14px; margin-top: 0;">{rec['description']}</p>
+                        <p style="font-size: 12px; margin: 0; color: #333;">{rec['description']}</p>
                     </div>
                     """, unsafe_allow_html=True)
         else:
