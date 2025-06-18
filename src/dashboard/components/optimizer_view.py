@@ -325,18 +325,20 @@ class OptimizerView:
         
         # Debug log the recommendations count
         if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Formatting {len(recommendations)} recommendations", category='recommendation')
+            OptimizerConfig.debug(f"Formatting {len(recommendations)} recommendations", category='recommendation', force=True)
             if recommendations:
                 types = {getattr(rec, 'recommendation_type', 'unknown') for rec in recommendations}
-                OptimizerConfig.debug(f"Recommendation types: {types}", category='recommendation')
+                OptimizerConfig.debug(f"Recommendation types: {types}", category='recommendation', force=True)
                 # Show the first few recommendations in detail
                 for i, rec in enumerate(recommendations[:3]):
-                    OptimizerConfig.debug(f"Recommendation {i+1} details:", category='recommendation')
+                    OptimizerConfig.debug(f"Recommendation {i+1} details:", category='recommendation', force=True)
                     OptimizerConfig.debug(f"  - Type: {getattr(rec, 'recommendation_type', 'unknown')}", category='recommendation')
                     OptimizerConfig.debug(f"  - Criteria Type: {getattr(rec, 'criteria_type', 'unknown')}", category='recommendation')
                     OptimizerConfig.debug(f"  - Suggested Name: {getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
                     OptimizerConfig.debug(f"  - Impact: {getattr(rec, 'impact_score', 0)}", category='recommendation')
                     OptimizerConfig.debug(f"  - Explanation: {getattr(rec, 'explanation', '')}", category='recommendation')
+                    # Debug all attributes
+                    OptimizerConfig.debug(f"  - All attributes: {dir(rec)}", category='recommendation')
                 
         # If no recommendations, add debug output
         if not recommendations:
@@ -345,6 +347,7 @@ class OptimizerView:
             # Return empty structure to avoid errors
             return {
                 "grouped": grouped,
+                "network_specific": [],
                 "all": []
             }
         
@@ -454,6 +457,13 @@ class OptimizerView:
         # Sort network-specific recommendations by impact score
         network_specific.sort(key=lambda x: abs(x["_impact_raw"]), reverse=True)
         
+        # Final debug output before returning
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Final grouped recommendations count: {sum(len(recs) for recs in grouped.values())}", category='recommendation', force=True)
+            OptimizerConfig.debug(f"Final network_specific recommendations count: {len(network_specific)}", category='recommendation', force=True)
+            OptimizerConfig.debug(f"Final all recommendations count: {len([rec for group in grouped.values() for rec in group] + network_specific)}", category='recommendation', force=True)
+            OptimizerConfig.debug(f"Groups with recommendations: {[k for k, v in grouped.items() if v]}", category='recommendation', force=True)
+            
         return {
             "grouped": grouped,
             "network_specific": network_specific,
