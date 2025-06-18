@@ -48,13 +48,13 @@ def show():
             st.session_state['debug_mode'] = debug_mode
             
             if debug_mode:
-                OptimizerConfig.debug("Debug mode is now ON", category='general')
+                pass  # Debug mode is now ON
                 if st.button("Reset Profiling Data"):
                     from src.data_processing.show_optimizer.optimizer_profiler import reset_profiling
                     reset_profiling()
                     st.rerun()
             else:
-                OptimizerConfig.debug("Debug mode is now OFF", category='general')
+                pass  # Debug mode is now OFF
         
     # Page title using style from style_config
     st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Show Optimizer</p>', unsafe_allow_html=True)
@@ -344,7 +344,7 @@ def show():
                     st.write("## Network Compatibility Analysis")
                     
                     # Force debug output to always appear
-                    OptimizerConfig.debug("Debug Status: " + ("ON" if st.session_state.get('debug_mode', False) else "OFF"), category='general')
+                    pass  # Debug Status
                     
                     # Display network compatibility data
                     debug_mode = st.session_state.get('debug_mode', False)
@@ -352,7 +352,7 @@ def show():
                     # Only show debug info when debug mode is on
                     if debug_mode and OptimizerConfig.DEBUG_MODE:
                         st.write("---")
-                        OptimizerConfig.debug("=== Debug Information ===", category='general')
+                        pass  # Debug Information
                         
                         # Create a concise debug summary
                         if summary is not None:
@@ -480,7 +480,7 @@ def show():
                     else:
                         st.info("No network compatibility data available.")
                         if st.session_state.get('debug_mode', False):
-                             OptimizerConfig.debug("No top_networks attribute or it is empty", category='network')
+                             pass  # No top_networks attribute
                 
                 # Tab 3: Recommendations
                 with tab3:
@@ -500,34 +500,55 @@ def show():
                             # Process recommendations for display
                             general_recs = summary.formatted_data['recommendations'].get('general', [])
                             network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
-                            
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"UI - Found {len(general_recs)} general and {len(network_recs)} network-specific recommendations", category='recommendation', force=True)
-                            
                             # Group recommendations by type for proper display
                             grouped_recs = {}
                             
                             # Process general recommendations
-                            if general_recs:
-                                grouped_recs['add'] = general_recs
+                            for rec in general_recs:
+                                # Get the recommendation type (add, change, remove)
+                                rec_type = rec.get('recommendation_type', 'add')
                                 
+                                # Create the group if it doesn't exist
+                                if rec_type not in grouped_recs:
+                                    grouped_recs[rec_type] = []
+                                grouped_recs[rec_type].append(rec)
+                            
                             # Process network-specific recommendations
                             for rec in network_recs:
-                                network_name = rec.get('network', 'unknown_network')
-                                key = f"network_{network_name}"
+                                # Get the network name
+                                network_name = rec.get('network', '')
+                                key = f"network_{network_name}" if network_name else 'network_other'
+                                
+                                # Create the group if it doesn't exist
                                 if key not in grouped_recs:
                                     grouped_recs[key] = []
                                 grouped_recs[key].append(rec)
                             
+                            # Direct debug output that will definitely show in the UI
+                            st.write("DEBUG: Recommendation structure before rendering")
+                            st.write(f"- Number of recommendation groups: {len(grouped_recs)}")
+                            for group_name, items in grouped_recs.items():
+                                st.write(f"- Group '{group_name}' has {len(items)} items")
+                                if items:
+                                    st.write(f"- First item keys: {list(items[0].keys()) if isinstance(items[0], dict) else 'Not a dict'}")
+                            
+                            # Create the all recommendations list for fallback
+                            all_recs = []
+                            for group_items in grouped_recs.values():
+                                all_recs.extend(group_items)
+                            
                             # Pass to render_recommendations with proper structure
-                            render_recommendations({"grouped": grouped_recs}, on_click_handler=None)
+                            render_recommendations({
+                                "grouped": grouped_recs,
+                                "all": all_recs
+                            }, on_click_handler=None)
                         else:
                             st.info("No general recommendations available for your current criteria.")
                             # Debug: Log why no recommendations are available
                             if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug("UI - No general recommendations found in formatted_data", category='recommendation', force=True)
+                                pass  # No general recommendations found
                                 if hasattr(summary, 'recommendations') and summary.recommendations:
-                                    OptimizerConfig.debug(f"UI - But summary.recommendations has {len(summary.recommendations)} items", category='recommendation', force=True)
+                                    pass  # summary.recommendations has items
                         
                         # Process network-specific recommendations
                         if network_recs:
@@ -598,36 +619,17 @@ def show():
                                     )
                         else:
                             st.info("No network-specific recommendations available for your current criteria.")
-                    elif hasattr(summary, 'recommendations') and summary.recommendations:
-                        # Fallback to old method if formatted data is not available
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"UI - Using fallback method with {len(summary.recommendations)} raw recommendations", category='recommendation', force=True)
-                            for i, rec in enumerate(summary.recommendations[:2]):
-                                OptimizerConfig.debug(f"UI - Raw recommendation {i+1}: {rec.criteria_type} - {rec.suggested_name}", category='recommendation', force=True)
-                        
-                        st.subheader("Recommendations")
-                        # Check if group_recommendations function exists
-                        if 'group_recommendations' in globals():
-                            render_recommendations({"grouped": group_recommendations(summary.recommendations)}, on_click_handler=None)
-                        else:
-                            # Manual grouping if function doesn't exist
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug("UI - group_recommendations function not found, using manual grouping", category='recommendation', force=True)
-                            grouped = {}
-                            for rec in summary.recommendations:
-                                rec_type = getattr(rec, 'recommendation_type', 'other')
-                                if rec_type not in grouped:
-                                    grouped[rec_type] = []
-                                grouped[rec_type].append(rec)
-                            render_recommendations({"grouped": grouped}, on_click_handler=None)
                     else:
+                        # No recommendations available
                         st.info("No recommendations available for the selected criteria.")
-                        # Debug why no recommendations are available
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug("UI - No recommendations available in any format", category='recommendation', force=True)
-                
-                # No need for a second reset button since we already have one at the top of the page
-        
+                        # Add direct debug to show what's available in summary
+                        if hasattr(summary, 'recommendations'):
+                            st.write(f"DEBUG: Raw recommendations count: {len(summary.recommendations)}")
+                            if summary.recommendations:
+                                first_rec = summary.recommendations[0]
+                                st.write(f"DEBUG: First raw recommendation type: {type(first_rec)}")
+                                st.write(f"DEBUG: First raw recommendation attributes: {dir(first_rec)}")
+                        
     # Save state back to session
     update_page_state("show_optimizer", state)
     

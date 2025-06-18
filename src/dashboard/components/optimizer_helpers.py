@@ -443,23 +443,24 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         on_click_handler: Function to call when recommendation button is clicked
     """
     try:
-        # Critical debug point: Log the exact structure of the input data
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"RENDER - Input data structure: {formatted_recommendations.keys()}", category='recommendation', force=True)
-            if 'grouped' in formatted_recommendations:
-                OptimizerConfig.debug(f"RENDER - Grouped keys: {formatted_recommendations['grouped'].keys()}", category='recommendation', force=True)
-                for group_key, items in formatted_recommendations['grouped'].items():
-                    OptimizerConfig.debug(f"RENDER - Group '{group_key}' has {len(items)} items", category='recommendation', force=True)
-        
         # Check if there are any recommendations to display
         if not formatted_recommendations:
             st.info("No recommendations available.")
             return
         
+        # Direct debug output that will definitely show in the UI
+        st.write("DEBUG: Inside render_recommendations function")
+        st.write(f"- Input data keys: {list(formatted_recommendations.keys())}")
+        
         # Extract recommendation groups
         grouped = formatted_recommendations.get("grouped", {})
         network_specific = formatted_recommendations.get("network_specific", [])
         all_recs = formatted_recommendations.get("all", [])
+        
+        st.write(f"- Grouped recommendations: {list(grouped.keys()) if isinstance(grouped, dict) else 'Not a dict'}")
+        st.write(f"- All recommendations count: {len(all_recs)}")
+        for group_name, items in grouped.items() if isinstance(grouped, dict) else []:
+            st.write(f"- Group '{group_name}' has {len(items)} items")
         
         # Debug the raw recommendations (only log to debug system, not UI)
         if OptimizerConfig.DEBUG_MODE:
