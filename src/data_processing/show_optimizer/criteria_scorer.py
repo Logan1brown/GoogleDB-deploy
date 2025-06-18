@@ -90,6 +90,22 @@ class CriteriaScorer:
         
         # Use the calculator's validate_and_prepare_data method with the same filter condition as in calculate
         def success_filter(df):
+            # Add diagnostic logging for success filter
+            has_success_score = 'success_score' in df.columns
+            st.write(f"DEBUG: Has success_score column in filter: {has_success_score}")
+            if has_success_score:
+                notna_count = df['success_score'].notna().sum()
+                st.write(f"DEBUG: Shows with non-null success_score: {notna_count} out of {len(df)}")
+                
+                # Check how many shows pass the minimum threshold
+                min_threshold = OptimizerConfig.SCORE_NORMALIZATION['success_filter_min']
+                above_min = (df['success_score'] > min_threshold).sum()
+                st.write(f"DEBUG: Shows with success_score > {min_threshold}: {above_min} out of {len(df)}")
+                
+                # Show sample of success scores
+                if not df['success_score'].empty:
+                    sample_scores = df['success_score'].head(5).tolist()
+                    st.write(f"DEBUG: Sample success scores: {sample_scores}")
             
             return (df['success_score'].notna()) & (df['success_score'] > OptimizerConfig.SCORE_NORMALIZATION['success_filter_min'])
         
@@ -100,6 +116,14 @@ class CriteriaScorer:
             data_column='success_score',
             filter_condition=success_filter
         )
+        
+        # Add diagnostic logging for validation results
+        st.write(f"DEBUG: Validation result: is_valid={is_valid}")
+        st.write(f"DEBUG: Validation info: {validation_info}")
+        if validated_data is not None:
+            st.write(f"DEBUG: Validated data size: {len(validated_data)}")
+        else:
+            st.write("DEBUG: Validated data is None")
         
         if not is_valid or validated_data is None or validated_data.empty:
             
