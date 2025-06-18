@@ -440,12 +440,25 @@ class CriteriaScorer:
                             continue
                             
                         # Store the impact score since it meets the minimum threshold
+                        # Determine recommendation type based on impact
+                        if impact > 0:
+                            rec_type = 'add'  # Positive impact - recommend adding
+                        else:
+                            rec_type = 'remove'  # Negative impact - recommend removing
+                            
+                        # Use the recommendation type from the list if available, otherwise use the determined type
+                        try:
+                            recommendation_type = recommendation_types[i] if i < len(recommendation_types) else rec_type
+                        except (IndexError, TypeError):
+                            recommendation_type = rec_type
+                            
                         impact_scores[current_field][option_id] = {
                             'option_id': option_id,
                             'option_name': option_name,
                             'impact': impact,
                             'success_rate': option_rate,
-                            'recommendation_type': recommendation_types[i]
+                            'sample_size': len(option_shows),
+                            'recommendation_type': recommendation_type
                         }
                         
                         # Debug the stored impact score only in debug mode
@@ -461,14 +474,84 @@ class CriteriaScorer:
             if not impact_scores and fields_to_process:
                 # If no impact scores were generated, log a message in debug mode
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write("No impact scores could be generated for the current criteria.")
+                    st.write("DEBUG: No impact scores could be generated for the current criteria.")
+                    
+                # If we have fields to process but no impact scores were generated,
+                # let's try a fallback approach by generating impact scores for all available options
+                # for fields that are not in the criteria
+                for field in self.field_manager.FIELD_CONFIGS.keys():
+                    if field not in criteria and field in self.field_manager.get_all_fields():
+                        # Skip fields that don't have options
+                        options = self.field_manager.get_options(field)
+                        if not options:
+                            continue
+                            
+                        # Initialize field in impact scores
+                        impact_scores[field] = {}
+                        
+                        # For each option, calculate a default impact score
+                        for option in options:
+                            try:
+                                option_id = option.id
+                                option_name = self.field_manager.get_name(field, option_id)
+                                
+                                # Create a new criteria with this option
+                                option_criteria = criteria.copy()
+                                option_criteria[field] = option_id
+                                
+                                # Get matching shows for this option
+                                option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
+                                
+                                # Skip options with no matching shows
+                                if option_shows is None or option_shows.empty:
+                                    continue
+                                    
+                                # Calculate success rate for this option's matching shows
+                                option_rate, option_info = self._calculate_success_rate(option_shows)
+                                
+                                if option_rate is None:
+                                    continue
+                                    
+                                # Calculate impact as the difference from base rate
+                                impact = option_rate - base_rate
+                                
+                                # Skip if impact is too small
+                                min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
+                                if abs(impact) < min_impact:
+                                    continue
+                                    
+                                # Store the impact score
+                                impact_scores[field][option_id] = {
+                                    'option_id': option_id,
+                                    'option_name': option_name,
+                                    'impact': impact,
+                                    'success_rate': option_rate,
+                                    'sample_size': len(option_shows),
+                                    'recommendation_type': 'add' if impact > 0 else 'remove'
+                                }
+                                
+                                if OptimizerConfig.DEBUG_MODE:
+                                    st.write(f"DEBUG: Added fallback impact score for {field}/{option_name}: {impact}")
+                            except Exception as e:
+                                if OptimizerConfig.DEBUG_MODE:
+                                    st.write(f"DEBUG: Error processing fallback option {field}: {str(e)}")
+                                continue
+                
+            # If we still have no impact scores, return empty dict
+            if not any(impact_scores.values()):
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("DEBUG: No impact scores could be generated, even with fallback approach.")
                 return {}
                 
             return impact_scores
 
         except ValueError as ve:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: ValueError in calculate_criteria_impact: {str(ve)}")
             return {}
         except Exception as e:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Exception in calculate_criteria_impact: {str(e)}")
             return {}
             
     def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:

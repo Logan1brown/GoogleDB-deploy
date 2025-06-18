@@ -205,6 +205,15 @@ class RecommendationEngine:
                 st.write(f"DEBUG: Processing impact data for {len(impact_data)} criteria types")
                 for criteria_type, values in impact_data.items():
                     st.write(f"DEBUG: Criteria type {criteria_type} has {len(values)} options with impact scores")
+                    # Show the first few options and their impact scores
+                    for i, (option_id, option_data) in enumerate(values.items()):
+                        if i >= 3:  # Limit to first 3 options to avoid clutter
+                            break
+                        impact = option_data.get('impact', 'N/A')
+                        rec_type = option_data.get('recommendation_type', 'N/A')
+                        st.write(f"DEBUG: Option {option_id} has impact {impact} and recommendation_type {rec_type}")
+                if not impact_data:
+                    st.write("DEBUG: No impact data available - check calculate_criteria_impact method")
             
             for criteria_type, values in impact_data.items():
                 processed_count = 0
@@ -311,13 +320,9 @@ class RecommendationEngine:
                     processed_count += 1
             return success_factors
         except Exception as main_e:
-            st.error("Critical error in identify_success_factors.")
+            st.error(f"Error identifying success factors: {str(main_e)}")
             return []
             
-        except Exception as e:
-            st.error(f"Error identifying success factors: {str(e)}")
-            return []
-    
     def generate_recommendations(self, criteria: Dict[str, Any],
                                 success_factors: List[SuccessFactor],
                                 top_networks: List[NetworkMatch],
@@ -337,6 +342,21 @@ class RecommendationEngine:
         Returns:
             List of Recommendation objects
         """
+        # Add debug logging for success factors
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Generate recommendations called with {len(success_factors) if success_factors else 0} success factors")
+            if success_factors:
+                for i, factor in enumerate(success_factors[:3]):  # Show first 3 factors
+                    st.write(f"DEBUG: Success factor {i+1}: {factor.criteria_type} - {factor.criteria_name} - impact: {factor.impact_score} - type: {factor.recommendation_type}")
+            else:
+                st.write("DEBUG: No success factors available - check identify_success_factors method")
+                
+            # Debug the top networks
+            if top_networks:
+                st.write(f"DEBUG: Top networks: {', '.join([n.network_name for n in top_networks[:3]])}")
+            else:
+                st.write("DEBUG: No top networks available")
+                
         try:
             # Handle missing inputs gracefully
             if criteria is None:
@@ -930,16 +950,35 @@ class RecommendationEngine:
                         explanation += f" Consider adjusting this criteria for better results on this network."
                     
                     # Create recommendation
+                    # Format the suggested_name to include the network name for better UI display
+                    suggested_name = f"{network.network_name}: {current_name}"
+                    
+                    # Create a more detailed explanation with clear action steps
+                    if difference > 0:
+                        detailed_explanation = (
+                            f"<strong>Network Strength:</strong> {network.network_name} has a {direction} success rate "
+                            f"for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
+                            f"{diff_percent:.1f}% difference). <br><br>"
+                            f"<strong>Recommendation:</strong> Keep this criteria as it performs well on this network."
+                        )
+                    else:
+                        detailed_explanation = (
+                            f"<strong>Network Adjustment:</strong> {network.network_name} has a {direction} success rate "
+                            f"for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
+                            f"{diff_percent:.1f}% difference). <br><br>"
+                            f"<strong>Recommendation:</strong> Consider adjusting this criteria for better results on this network."
+                        )
+                    
                     recommendations.append(Recommendation(
                         recommendation_type=f"network_{rec_type}",  # Ensure network_ prefix for proper categorization
                         criteria_type=criteria_type,
                         current_value=current_value,
                         current_name=current_name,
-                        suggested_value=None,  # No specific suggestion for network recommendations
-                        suggested_name="",
+                        suggested_value=current_value,  # Use current value for network recommendations
+                        suggested_name=suggested_name,
                         impact_score=difference,  # Keep sign for positive/negative impact
                         confidence=network_rate_data.get('confidence', 'medium'),
-                        explanation=explanation
+                        explanation=detailed_explanation
                     ))
             
             return recommendations
