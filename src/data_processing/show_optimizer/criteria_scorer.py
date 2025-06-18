@@ -235,9 +235,11 @@ class CriteriaScorer:
             # Calculate base success rate
             base_rate, base_info = self._calculate_success_rate(matching_shows)
             
+            # Debug the base success rate calculation
+            st.write(f"DEBUG: Base success rate: {base_rate}, info: {base_info}")
+            
             if base_rate is None:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write("DEBUG: Cannot calculate impact scores - invalid base success rate")
+                st.write("DEBUG: Cannot calculate impact scores - invalid base success rate")
                 return {}
                 
             # Get all fields to analyze
@@ -379,18 +381,24 @@ class CriteriaScorer:
                         if option_shows is None or option_shows.empty:
                             continue
                             
-                        # Calculate success rate for this option
+                        # Calculate success rate for this option's matching shows
                         option_rate, option_info = self._calculate_success_rate(option_shows)
                         
-                        # Skip options with no valid success rate
+                        # Debug the option success rate calculation
+                        st.write(f"DEBUG: Option {option_name} success rate: {option_rate}, info: {option_info}")
+                        
                         if option_rate is None:
+                            # Skip this option if we can't calculate a success rate
+                            st.write(f"DEBUG: Skipping option {option_name} - invalid success rate")
                             continue
                             
-                        # Calculate impact as difference from base rate
+                        # Calculate impact as the difference from base rate
                         impact = option_rate - base_rate
+                        st.write(f"DEBUG: Option {option_name} impact: {impact}")
                         
                         # Skip if impact is too small
                         if abs(impact) < OptimizerConfig.SUGGESTIONS['minimum_impact']:
+                            st.write(f"DEBUG: Skipping option {option_name} - impact too small: {impact} < {OptimizerConfig.SUGGESTIONS['minimum_impact']}")
                             continue
                         
                         # Store impact data
