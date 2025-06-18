@@ -139,21 +139,31 @@ class RecommendationEngine:
 
             return None, 'none'
     
-    def identify_success_factors(self, criteria: Dict[str, Any], 
-                                matching_shows: pd.DataFrame = None,
-                                integrated_data: Dict[str, pd.DataFrame] = None,
-                                limit: int = 5) -> List[SuccessFactor]:
-        """Identify key success factors based on criteria and matching shows.
+    def identify_success_factors(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, limit: int = 5) -> List[SuccessFactor]:
+        """Identify success factors from the given criteria and matching shows.
         
         Args:
             criteria: Dictionary of criteria
-            matching_shows: DataFrame of matching shows (optional)
-            integrated_data: Dictionary of integrated data frames (optional)
-            limit: Maximum number of success factors to return
+            matching_shows: DataFrame of shows matching the criteria
+            limit: Maximum number of success factors to identify per criteria type
             
         Returns:
             List of SuccessFactor objects
         """
+        # Add detailed debug logging at the start of the method
+        if OptimizerConfig.DEBUG_MODE:
+            st.write("DEBUG: Starting identify_success_factors method")
+            st.write(f"DEBUG: Criteria: {criteria}")
+            st.write(f"DEBUG: Matching shows count: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'Not a DataFrame'}")
+            st.write(f"DEBUG: Limit: {limit}")
+            
+            # Check if criteria is valid
+            if not criteria:
+                st.write("DEBUG: Warning - Empty criteria provided to identify_success_factors")
+            
+            # Check if matching_shows is valid
+            if matching_shows is None or not isinstance(matching_shows, pd.DataFrame) or matching_shows.empty:
+                st.write("DEBUG: Warning - Invalid or empty matching_shows provided to identify_success_factors")
         import traceback
         
         
