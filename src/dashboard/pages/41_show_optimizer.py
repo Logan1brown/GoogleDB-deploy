@@ -494,146 +494,19 @@ def show():
                         st.subheader("Success Factors")
                         render_success_factors(summary.success_factors)
                     
-                    # Display recommendations if available in formatted data
-                    if hasattr(summary, 'formatted_data') and summary.formatted_data:
-                        if 'recommendations' in summary.formatted_data:
-                            # Direct debug to see what's in the recommendations
-                            st.write("DEBUG: Recommendations structure in formatted_data")
-                            st.write(f"- Keys in recommendations: {list(summary.formatted_data['recommendations'].keys())}")
-                            
-                            # Extract recommendations from the original structure
-                            general_recs = summary.formatted_data['recommendations'].get('general', [])
-                            network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
-                            
-                            # Debug the extracted recommendations
-                            st.write(f"- General recommendations count: {len(general_recs)}")
-                            st.write(f"- Network recommendations count: {len(network_recs)}")
-                            
-                            # Group recommendations by type for proper display
-                            grouped_recs = {}
-                            
-                            # Process general recommendations
-                            for rec in general_recs:
-                                # Get the recommendation type (add, change, remove)
-                                rec_type = rec.get('recommendation_type', 'add')
-                                
-                                # Create the group if it doesn't exist
-                                if rec_type not in grouped_recs:
-                                    grouped_recs[rec_type] = []
-                                grouped_recs[rec_type].append(rec)
-                            
-                            # Process network-specific recommendations
-                            for rec in network_recs:
-                                # Get the network name
-                                network_name = rec.get('network', '')
-                                key = f"network_{network_name}" if network_name else 'network_other'
-                                
-                                # Create the group if it doesn't exist
-                                if key not in grouped_recs:
-                                    grouped_recs[key] = []
-                                grouped_recs[key].append(rec)
-                            
-                            # Create the all recommendations list for fallback
-                            all_recs = []
-                            for group_items in grouped_recs.values():
-                                all_recs.extend(group_items)
-                                
-                            # Direct debug output that will definitely show in the UI
-                            st.write("DEBUG: Recommendation structure before rendering")
-                            st.write(f"Number of recommendation groups: {len(grouped_recs)}")
-                            st.write(f"Total recommendations: {len(all_recs)}")
-                            
-                            # Debug the group keys
-                            if grouped_recs:
-                                st.write(f"Group keys: {list(grouped_recs.keys())}")
-                                for group_name, items in grouped_recs.items():
-                                    st.write(f"- Group '{group_name}' has {len(items)} items")
-                                    if items:
-                                        st.write(f"- First item keys: {list(items[0].keys()) if isinstance(items[0], dict) else 'Not a dict'}")
-                            
-                            
-                            # Pass to render_recommendations with proper structure
-                            render_recommendations({
-                                "grouped": grouped_recs,
-                                "all": all_recs
-                            }, on_click_handler=None)
-                        else:
-                            st.info("No general recommendations available for your current criteria.")
-                            # Debug: Log why no recommendations are available
-                            if OptimizerConfig.DEBUG_MODE:
-                                pass  # No general recommendations found
-                                if hasattr(summary, 'recommendations') and summary.recommendations:
-                                    pass  # summary.recommendations has items
+                    # Display recommendations if available
+                    if hasattr(summary, 'recommendations') and summary.recommendations:
+                        # Use the OptimizerView to format the recommendations properly
+                        formatted_recommendations = optimizer_view._format_recommendations(summary.recommendations)
                         
-                        # Process network-specific recommendations
-                        if network_recs:
-                            st.subheader("Network-Specific Recommendations")
-                            st.write("These recommendations highlight criteria where specific networks have significantly different success rates.")
-                            
-                            # Group recommendations by network for better organization
-                            network_grouped_recs = {}
-                            for rec in network_recs:
-                                # Extract network name from description
-                                network_name = None
-                                if 'description' in rec and 'Network ' in rec['description']:
-                                    parts = rec['description'].split('Network ')
-                                    if len(parts) > 1:
-                                        network_parts = parts[1].split(' has')
-                                        if network_parts:
-                                            network_name = network_parts[0]
-                                
-                                if not network_name:
-                                    network_name = "Unknown Network"
-                                    
-                                if network_name not in network_grouped_recs:
-                                    network_grouped_recs[network_name] = []
-                                network_grouped_recs[network_name].append(rec)
-                            
-                            # Display recommendations grouped by network
-                            for network_name, recs in network_grouped_recs.items():
-                                st.write(f"### {network_name}")
-                                for rec in recs:
-                                    # Determine color based on impact score
-                                    if 'impact_score' in rec:
-                                        color = COLORS['success'] if rec['impact_score'] > 0 else COLORS['warning']
-                                    else:
-                                        color = None
-                                        
-                                    # Create a title that includes the impact
-                                    if 'impact_score' in rec and rec['impact_score'] != 0:
-                                        impact_direction = "Positive" if rec['impact_score'] > 0 else "Negative"
-                                        impact_percent = abs(rec['impact_score'] * 100)
-                                        title = f"{impact_direction} Impact: {impact_percent:.1f}%"
-                                    else:
-                                        title = "Network-Specific Insight"
-                                        
-                                    # Display the recommendation using an info card with enhanced formatting
-                                    # Extract the criteria type and format it for display
-                                    criteria_type = rec.get('criteria_type', '').replace('_', ' ').title()
-                                    
-                                    # Create an enhanced title that includes both the criteria type and impact
-                                    enhanced_title = f"{title} for {criteria_type}"
-                                    
-                                    # Create a clearer action-oriented description
-                                    description = rec.get('description', 'No description available.')
-                                    
-                                    # Add a clear action statement based on recommendation type
-                                    if rec.get('category', '').endswith('keep'):
-                                        action = f"<strong>Recommendation: Keep '{criteria_type}' for this network.</strong>"
-                                    else:
-                                        action = f"<strong>Recommendation: Consider adjusting '{criteria_type}' for better results with this network.</strong>"
-                                    
-                                    # Combine the description and action
-                                    enhanced_content = f"{description}<br><br>{action}"
-                                    
-                                    # Display the enhanced recommendation
-                                    render_info_card(
-                                        title=enhanced_title,
-                                        content=enhanced_content,
-                                        color=color
-                                    )
-                        else:
-                            st.info("No network-specific recommendations available for your current criteria.")
+                        # Debug the formatted recommendations
+                        st.write("DEBUG: Formatted recommendations structure")
+                        st.write(f"- Keys in formatted recommendations: {list(formatted_recommendations.keys())}")
+                        st.write(f"- Grouped keys: {list(formatted_recommendations['grouped'].keys())}")
+                        st.write(f"- Total recommendations: {len(formatted_recommendations['all'])}")
+                        
+                        # Pass the formatted recommendations directly to render_recommendations
+                        render_recommendations(formatted_recommendations, on_click_handler=None)
                     else:
                         # No recommendations available
                         st.info("No recommendations available for the selected criteria.")
