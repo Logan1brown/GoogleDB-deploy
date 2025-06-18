@@ -550,13 +550,13 @@ class CriteriaScorer:
         """
         return self.field_manager.calculate_confidence(criteria)
         
-    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None, flexible: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any], Dict[str, Any]]:
+    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any], Dict[str, Any]]:
         """Get shows matching the given criteria.
         
         Args:
             criteria: Dictionary of criteria
             data: Optional DataFrame to use instead of integrated data
-            flexible: Whether to use flexible matching (fallback to fewer criteria) - DEPRECATED
+            min_sample_size: Minimum sample size for matching, defaults to None
             
         Returns:
             Tuple of (matching_shows, confidence_info, match_info)
@@ -565,8 +565,6 @@ class CriteriaScorer:
             return pd.DataFrame(), {'level': 'none', 'score': 0.0}, {'match_level': 0}
             
         # Use find_matches_with_fallback to get matches
-        # Note: flexible parameter is no longer used, min_sample_size is used instead
-        min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample'] if flexible else None
         matching_shows, confidence_info = self.matcher.find_matches_with_fallback(
             criteria, data, min_sample_size=min_sample_size)
             
