@@ -451,19 +451,49 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         # Get the grouped recommendations
         grouped = formatted_recommendations.get("grouped", {})
         
-        # Render each group that has recommendations
+        # Debug the recommendations
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Rendering recommendations: {len(grouped)} groups", category='recommendation')
+            for rec_type, recs in grouped.items():
+                OptimizerConfig.debug(f"Group {rec_type}: {len(recs)} recommendations", category='recommendation')
+        
+        # Track if we've rendered any general recommendations
+        general_recs_rendered = False
+        network_recs_rendered = False
+        
+        # First, render all non-network recommendations
         for rec_type, recs in grouped.items():
-            if recs:  # Only render groups with recommendations
+            if recs and not rec_type.startswith('network_'):
                 render_recommendation_group(rec_type, recs, on_click_handler)
-                
+                general_recs_rendered = True
+        
+        # Then render network-specific recommendations
+        network_specific_recs = []
+        for rec_type, recs in grouped.items():
+            if recs and rec_type.startswith('network_'):
+                network_specific_recs.extend(recs)
+                network_recs_rendered = True
+        
+        if network_specific_recs:
+            st.subheader("Network-Specific Recommendations")
+            for rec in network_specific_recs[:5]:  # Limit to top 5
+                render_info_card(
+                    rec['title'],
+                    rec['description']
+                )
+        
         # Check if we actually rendered any recommendations
-        if all(len(recs) == 0 for recs in grouped.values()):
-            st.info("No recommendations available.")
+        if not general_recs_rendered:
+            st.info("No general recommendations available for your current criteria.")
+            
+        if not network_recs_rendered:
+            st.info("No network-specific recommendations available for your current criteria.")
             
     except Exception as e:
         OptimizerConfig.debug(f"Error rendering recommendations: {str(e)}", category='recommendation', force=True)
         st.error("Unable to display recommendations due to an error.")
-        # No fallback UI needed as the error message is sufficient
+        import traceback
+        OptimizerConfig.debug(traceback.format_exc(), category='recommendation', force=True)
 
 
 def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, Any]], on_click_handler=None, limit: int = 3):

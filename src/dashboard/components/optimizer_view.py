@@ -325,6 +325,10 @@ class OptimizerView:
             if recommendations:
                 types = {getattr(rec, 'recommendation_type', 'unknown') for rec in recommendations}
                 OptimizerConfig.debug(f"Recommendation types: {types}", category='recommendation')
+                
+        # If no recommendations, add debug output
+        if not recommendations and OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug("No recommendations to format", category='recommendation', force=True)
         
         formatted_recommendations = []
         
@@ -340,23 +344,35 @@ class OptimizerView:
             impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
             impact_direction = "Increase" if getattr(rec, 'impact_score', 0) > 0 else "Decrease"
             
+            # Debug the recommendation attributes
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Formatting recommendation: {rec_type} - {getattr(rec, 'criteria_type', 'unknown')} - {getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
+                OptimizerConfig.debug(f"Impact: {getattr(rec, 'impact_score', 0)}", category='recommendation')
+            
             # Create recommendation title with impact percentage
             if rec_type and rec_type.startswith('network_'):
                 # For network recommendations
                 clean_rec_type = rec_type.replace('network_', '')
                 # Extract network name from suggested_name if available
                 network_name = ""
-                if hasattr(rec, 'suggested_name') and rec.suggested_name and ':' in rec.suggested_name:
-                    network_name = rec.suggested_name.split(':', 1)[0].strip()
-                    title = f"{impact_percent:.1f}% Impact: {network_name} - {clean_rec_type.capitalize()} {rec.criteria_type}"
+                if hasattr(rec, 'suggested_name') and rec.suggested_name:
+                    if ':' in rec.suggested_name:
+                        network_name = rec.suggested_name.split(':', 1)[0].strip()
+                    else:
+                        network_name = rec.suggested_name
+                    
+                    title = f"{impact_percent:.1f}% Impact: {network_name} - {clean_rec_type.capitalize()} {getattr(rec, 'criteria_type', '')}"
                 else:
-                    title = f"{impact_percent:.1f}% Impact: {clean_rec_type.capitalize()} {rec.criteria_type} for network"
+                    title = f"{impact_percent:.1f}% Impact: {clean_rec_type.capitalize()} {getattr(rec, 'criteria_type', '')} for network"
             else:
                 # Format the title to include the impact percentage
-                if impact_percent >= 5:  # Only show impact if it's significant (5% or more)
-                    title = f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name} ({impact_direction} success by {impact_percent:.1f}%)"
+                criteria_type = getattr(rec, 'criteria_type', '').replace('_', ' ').title()
+                suggested_name = getattr(rec, 'suggested_name', '')
+                
+                if impact_percent >= 1:  # Show impact if it's at least 1%
+                    title = f"{criteria_type}: {suggested_name} ({impact_direction} success by {impact_percent:.1f}%)"
                 else:
-                    title = f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}"
+                    title = f"{criteria_type}: {suggested_name}"
                 
             formatted_rec = {
                 # Display values
