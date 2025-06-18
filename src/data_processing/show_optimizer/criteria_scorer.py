@@ -90,23 +90,6 @@ class CriteriaScorer:
         
         # Use the calculator's validate_and_prepare_data method with the same filter condition as in calculate
         def success_filter(df):
-            # Add diagnostic logging for success filter
-            has_success_score = 'success_score' in df.columns
-            st.write(f"DEBUG: Has success_score column in filter: {has_success_score}")
-            if has_success_score:
-                notna_count = df['success_score'].notna().sum()
-                st.write(f"DEBUG: Shows with non-null success_score: {notna_count} out of {len(df)}")
-                
-                # Check how many shows pass the minimum threshold
-                min_threshold = OptimizerConfig.SCORE_NORMALIZATION['success_filter_min']
-                above_min = (df['success_score'] > min_threshold).sum()
-                st.write(f"DEBUG: Shows with success_score > {min_threshold}: {above_min} out of {len(df)}")
-                
-                # Show sample of success scores
-                if not df['success_score'].empty:
-                    sample_scores = df['success_score'].head(5).tolist()
-                    st.write(f"DEBUG: Sample success scores: {sample_scores}")
-            
             return (df['success_score'].notna()) & (df['success_score'] > OptimizerConfig.SCORE_NORMALIZATION['success_filter_min'])
         
         is_valid, validated_data, validation_info = calculator.validate_and_prepare_data(
@@ -117,13 +100,7 @@ class CriteriaScorer:
             filter_condition=success_filter
         )
         
-        # Add diagnostic logging for validation results
-        st.write(f"DEBUG: Validation result: is_valid={is_valid}")
-        st.write(f"DEBUG: Validation info: {validation_info}")
-        if validated_data is not None:
-            st.write(f"DEBUG: Validated data size: {len(validated_data)}")
-        else:
-            st.write("DEBUG: Validated data is None")
+        # No debug logging for validation results
         
         if not is_valid or validated_data is None or validated_data.empty:
             
@@ -299,12 +276,27 @@ class CriteriaScorer:
                 # Last resort - convert to string
                 return str(val)
             
+            # Log fields to process
+            st.write(f"DEBUG: Fields to process: {fields_to_process}")
+            
             for current_field in fields_to_process:
                 # Process both fields in base criteria (for Remove/Change) and not in base criteria (for Add)
+                st.write(f"DEBUG: Processing field: {current_field}")
                 
                 # Use field_manager to determine if this is an array field
                 is_array_field = self.field_manager.get_field_type(current_field) == 'array'
                 options = self.field_manager.get_options(current_field)
+                st.write(f"DEBUG: Field {current_field} is array field: {is_array_field}")
+                st.write(f"DEBUG: Number of options for {current_field}: {len(options) if options else 0}")
+                
+                # Check if this field is already in the base criteria
+                field_in_base = current_field in base_criteria
+                st.write(f"DEBUG: Field {current_field} is in base criteria: {field_in_base}")
+                if field_in_base:
+                    st.write(f"DEBUG: Current value for {current_field}: {base_criteria.get(current_field)}")
+                else:
+                    st.write(f"DEBUG: Field {current_field} not in base criteria, will calculate Add recommendations")
+                
                 
                 # Processing field
                 
@@ -450,11 +442,21 @@ class CriteriaScorer:
                 # Check if option_matching_shows_map was provided
                 if option_matching_shows_map is None:
                     # Instead of showing an error, just return empty results and continue
+                    st.write("DEBUG: No impact scores generated and no option_matching_shows_map provided")
                     return {}
                 else:
                     # Only log a warning if we attempted to process fields but got no results
                     # If fields_to_process was empty (e.g. field_name was already in base_criteria), this is not an error
+                    st.write("DEBUG: No impact scores generated despite having option_matching_shows_map")
                     return {}
+            
+            # Log the impact scores if we have any
+            if impact_scores:
+                st.write(f"DEBUG: Generated impact scores for {len(impact_scores)} fields")
+                for field, scores in impact_scores.items():
+                    st.write(f"DEBUG: Field {field} has {len(scores)} impact scores")
+            else:
+                st.write("DEBUG: No impact scores generated")
                 
             return impact_scores
 
