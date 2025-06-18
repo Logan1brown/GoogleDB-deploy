@@ -208,17 +208,10 @@ class CriteriaScorer:
         # Initialize impact scores dictionary
         impact_scores = {}
         
-        # Add detailed debugging
-        st.write(f"DEBUG: Starting calculate_criteria_impact with criteria: {criteria}")
-        st.write(f"DEBUG: Matching shows shape: {matching_shows.shape if isinstance(matching_shows, pd.DataFrame) else 'Not a DataFrame'}")
-        st.write(f"DEBUG: Option matching shows map provided: {option_matching_shows_map is not None}")
-        
-        # Check if we have the success_score column in matching_shows
-        if isinstance(matching_shows, pd.DataFrame) and not matching_shows.empty:
-            st.write(f"DEBUG: Columns in matching_shows: {list(matching_shows.columns)}")
-            st.write(f"DEBUG: success_score in columns: {'success_score' in matching_shows.columns}")
-            if 'success_score' in matching_shows.columns:
-                st.write(f"DEBUG: Success score stats - min: {matching_shows['success_score'].min()}, max: {matching_shows['success_score'].max()}, mean: {matching_shows['success_score'].mean()}, null count: {matching_shows['success_score'].isna().sum()}")
+        # Add focused debugging only if in debug mode
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Starting calculate_criteria_impact with criteria: {criteria}")
+            st.write(f"DEBUG: Matching shows shape: {matching_shows.shape if isinstance(matching_shows, pd.DataFrame) else 'Not a DataFrame'}")
         
         
         try:
@@ -235,26 +228,37 @@ class CriteriaScorer:
             # Calculate base success rate
             base_rate, base_info = self._calculate_success_rate(matching_shows)
             
-            # Debug the base success rate calculation
-            st.write(f"DEBUG: Base success rate: {base_rate}, info: {base_info}")
+            # Debug the base success rate calculation if in debug mode
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Base success rate: {base_rate}")
             
             if base_rate is None:
-                st.write("DEBUG: Cannot calculate impact scores - invalid base success rate")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("DEBUG: Cannot calculate impact scores - invalid base success rate")
                 return {}
                 
-            # Get all fields to analyze
-            fields_to_process = self.field_manager.get_all_fields()
+            # Get all fields to analyze from the FIELD_CONFIGS dictionary
+            all_fields = list(self.field_manager.FIELD_CONFIGS.keys())
+            fields_to_process = [field for field in criteria.keys() if field in all_fields]
             
-            # Initialize impact scores dictionary
-            impact_scores = {}
-            
-            # Use the class method for make_hashable instead of a local function
-            # This ensures consistency across the codebase
+            # Debug the fields to process
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: All available fields: {all_fields}")
+                st.write(f"DEBUG: Criteria keys: {list(criteria.keys())}")
+                st.write(f"DEBUG: Fields to process: {fields_to_process}")
+                
+            # If no fields to process, return empty impact scores
+            if not fields_to_process:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("DEBUG: No fields to process - criteria keys not in field manager's fields")
+                return {}
             
             # Process each field
             for current_field in fields_to_process:
                 # Skip fields that don't have options
                 options = self.field_manager.get_options(current_field)
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Field {current_field} has {len(options) if options else 0} options")
                 if not options:
                     continue
                     
@@ -372,33 +376,43 @@ class CriteriaScorer:
                 impact_scores[current_field] = {}
                 
                 # Process each option in option_data
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Processing {len(option_data)} options for field {current_field}")
+                    
                 for i, (option_id, option_name) in enumerate(option_data):
                     try:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Processing option {option_id} ({option_name}) for field {current_field}")
+                            
                         # Get the option shows from field_options_map
                         option_shows = field_options_map.get(option_id)
                         
                         # Skip options with no matching shows
                         if option_shows is None or option_shows.empty:
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Skipping option {option_name} - no matching shows")
                             continue
                             
                         # Calculate success rate for this option's matching shows
                         option_rate, option_info = self._calculate_success_rate(option_shows)
                         
-                        # Debug the option success rate calculation
-                        st.write(f"DEBUG: Option {option_name} success rate: {option_rate}, info: {option_info}")
-                        
                         if option_rate is None:
                             # Skip this option if we can't calculate a success rate
-                            st.write(f"DEBUG: Skipping option {option_name} - invalid success rate")
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Skipping option {option_name} - invalid success rate")
                             continue
                             
                         # Calculate impact as the difference from base rate
                         impact = option_rate - base_rate
-                        st.write(f"DEBUG: Option {option_name} impact: {impact}")
+                        
+                        # Debug the impact calculation if in debug mode
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Option {option_name} impact: {impact}")
                         
                         # Skip if impact is too small
                         if abs(impact) < OptimizerConfig.SUGGESTIONS['minimum_impact']:
-                            st.write(f"DEBUG: Skipping option {option_name} - impact too small: {impact} < {OptimizerConfig.SUGGESTIONS['minimum_impact']}")
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Skipping option {option_name} - impact too small: {impact} < {OptimizerConfig.SUGGESTIONS['minimum_impact']}")
                             continue
                         
                         # Store impact data
