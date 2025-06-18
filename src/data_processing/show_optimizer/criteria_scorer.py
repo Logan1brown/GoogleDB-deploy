@@ -230,19 +230,37 @@ class CriteriaScorer:
         # Initialize impact scores dictionary
         impact_scores = {}
         
+        # Initialize fields_to_process at the top level to avoid scope issues
+        fields_to_process = []
+        
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Starting calculate_criteria_impact with criteria: {criteria}")
+            st.write(f"DEBUG: Matching shows shape: {matching_shows.shape if matching_shows is not None else 'None'}")
+            st.write(f"DEBUG: Option matching shows map provided: {option_matching_shows_map is not None}")
+        
+        # Validate inputs
+        if not criteria:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Cannot calculate impact scores - no criteria provided")
+            return {}
+        
+        if matching_shows is None or matching_shows.empty:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Cannot calculate impact scores - no matching shows")
+            return {}
+        
         try:
             # Let the field manager handle array field identification
             array_field_mapping = self.field_manager.get_array_field_mapping()
             array_fields = list(array_field_mapping.keys())
             
-            # Check if we have valid matching shows
-            if matching_shows is None or matching_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write("DEBUG: Cannot calculate impact scores - no matching shows")
-                return {}
-            
             # Calculate base success rate for all matching shows
             base_rate, base_info = self._calculate_success_rate(matching_shows)
+            
+            # Get all fields to analyze from the FIELD_CONFIGS dictionary
+            all_fields = list(self.field_manager.FIELD_CONFIGS.keys())
+            # Update the fields_to_process that was initialized at the top level
+            fields_to_process = [field for field in criteria.keys() if field in all_fields]
             
             # Add debug logging for base rate
             if OptimizerConfig.DEBUG_MODE:
@@ -258,10 +276,6 @@ class CriteriaScorer:
                 if OptimizerConfig.DEBUG_MODE:
                     st.write("DEBUG: Cannot calculate impact scores - invalid base success rate")
                 return {}
-                
-            # Get all fields to analyze from the FIELD_CONFIGS dictionary
-            all_fields = list(self.field_manager.FIELD_CONFIGS.keys())
-            fields_to_process = [field for field in criteria.keys() if field in all_fields]
             
             # Add focused debugging on fields processing
             if OptimizerConfig.DEBUG_MODE:
@@ -277,7 +291,8 @@ class CriteriaScorer:
             for current_field in fields_to_process:
                 # Skip fields that don't have options
                 options = self.field_manager.get_options(current_field)
-                st.write(f"DEBUG: Field {current_field} has {len(options) if options else 0} options")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Field {current_field} has {len(options) if options else 0} options")
                 if not options:
                     continue
                     
@@ -570,8 +585,15 @@ class CriteriaScorer:
                 st.write(f"DEBUG: ValueError in calculate_criteria_impact: {str(ve)}")
             return {}
         except Exception as e:
+            # Log the exception with detailed traceback
             if OptimizerConfig.DEBUG_MODE:
+                import traceback
                 st.write(f"DEBUG: Exception in calculate_criteria_impact: {str(e)}")
+                st.write(f"DEBUG: Exception traceback: {traceback.format_exc()}")
+                # Log the state of key variables to help diagnose the issue
+                st.write(f"DEBUG: Criteria: {criteria}")
+                st.write(f"DEBUG: Matching shows shape: {matching_shows.shape if matching_shows is not None else 'None'}")
+                st.write(f"DEBUG: Impact scores so far: {impact_scores}")
             return {}
             
     def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:
