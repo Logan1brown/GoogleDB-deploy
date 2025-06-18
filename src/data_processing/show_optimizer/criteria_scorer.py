@@ -223,9 +223,6 @@ class CriteriaScorer:
         # Initialize impact scores dictionary
         impact_scores = {}
         
-        # Only keep essential debugging
-        
-        
         try:
             # Let the field manager handle array field identification
             array_field_mapping = self.field_manager.get_array_field_mapping()
@@ -254,11 +251,13 @@ class CriteriaScorer:
             fields_to_process = [field for field in criteria.keys() if field in all_fields]
             
             # Add focused debugging on fields processing
-            st.write(f"DEBUG: Fields to process: {fields_to_process}")
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Fields to process: {fields_to_process}")
                 
             # If no fields to process, return empty impact scores
             if not fields_to_process:
-                st.write("DEBUG: No fields to process - criteria keys not in field manager's fields")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("DEBUG: No fields to process - criteria keys not in field manager's fields")
                 return {}
             
             # Process each field
@@ -350,18 +349,26 @@ class CriteriaScorer:
                     for i, (option_id, option_name) in enumerate(option_data):
                         try:
                             # Create criteria for this option
-                            option_criteria = {current_field: option_id}
+                            option_criteria = {}
                             
-                            # Set the criteria value based on field type
-                            is_array_field = self.field_manager.get_field_type(current_field) == 'array'
-                            if is_array_field:
-                                option_criteria[current_field] = [option_id]
-                            
-                            # Debug the option criteria
-                            st.write(f"DEBUG: Option criteria for {option_name}: {option_criteria}")
-                            
-                            # Get matching shows for this option
-                            option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
+                            # Special handling for 'remove' option
+                            if option_id == 'remove':
+                                # For 'remove', we use all shows without this field
+                                option_shows = matching_shows.copy() if matching_shows is not None else None
+                            else:
+                                # Normal option, create criteria
+                                option_criteria = {current_field: option_id}
+                                
+                                # Set the criteria value based on field type
+                                is_array_field = self.field_manager.get_field_type(current_field) == 'array'
+                                if is_array_field:
+                                    option_criteria[current_field] = [option_id]
+                                
+                                # Debug the option criteria
+                                st.write(f"DEBUG: Option criteria for {option_name}: {option_criteria}")
+                                
+                                # Get matching shows for this option
+                                option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
                             
                             # Debug the option shows
                             if option_shows is not None:
@@ -419,23 +426,30 @@ class CriteriaScorer:
                         # Debug the impact calculation
                         st.write(f"DEBUG: Option {option_name} impact: {impact}")
                         
-                        # Skip if impact is too small
-                        if abs(impact) < OptimizerConfig.SUGGESTIONS['minimum_impact']:
-                            st.write(f"DEBUG: Skipping option {option_name} - impact too small: {impact} < {OptimizerConfig.SUGGESTIONS['minimum_impact']}")
-                            continue
+                        # Get minimum impact threshold
+                        min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
                         
-                        # Store impact data
+                        # Skip if impact is too small
+                        if abs(impact) < min_impact:
+                            st.write(f"DEBUG: Skipping option {option_name} - impact too small: {impact} < {min_impact}")
+                            continue
+                            
+                        # Store the impact score since it meets the minimum threshold
                         impact_scores[current_field][option_id] = {
+                            'option_id': option_id,
+                            'option_name': option_name,
                             'impact': impact,
                             'success_rate': option_rate,
-                            'sample_size': len(option_shows),
-                            'recommendation_type': recommendation_types[i],
-                            'option_name': option_name
+                            'recommendation_type': recommendation_types[i]
                         }
-                    except Exception:
-                        # Skip this option
+                        
+                        # Debug the stored impact score
+                        st.write(f"DEBUG: Added impact score for {option_name}: {impact}")
+                    except Exception as e:
+                        # Skip this option if there's an error
+                        st.write(f"DEBUG: Error processing option {option_name}: {str(e)}")
                         continue
-                    
+                
             # Check if we have any impact scores after processing all fields
             if not impact_scores and fields_to_process:
                 # If no impact scores were generated, log a message in debug mode
@@ -542,7 +556,7 @@ class CriteriaScorer:
         Args:
             criteria: Dictionary of criteria
             data: Optional DataFrame to use instead of integrated data
-            flexible: Whether to use flexible matching (fallback to fewer criteria)
+            flexible: Whether to use flexible matching (fallback to fewer criteria) - DEPRECATED
             
         Returns:
             Tuple of (matching_shows, confidence_info, match_info)
@@ -551,8 +565,10 @@ class CriteriaScorer:
             return pd.DataFrame(), {'level': 'none', 'score': 0.0}, {'match_level': 0}
             
         # Use find_matches_with_fallback to get matches
+        # Note: flexible parameter is no longer used, min_sample_size is used instead
+        min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample'] if flexible else None
         matching_shows, confidence_info = self.matcher.find_matches_with_fallback(
-            criteria, data, flexible=flexible)
+            criteria, data, min_sample_size=min_sample_size)
             
         # Extract match level from confidence info
         match_level = confidence_info.get('match_level', 0) if confidence_info else 0
