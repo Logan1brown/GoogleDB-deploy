@@ -316,6 +316,10 @@ class OptimizerView:
         if 'network_specific' not in grouped:
             grouped['network_specific'] = []
             
+        # Add backward compatibility for 'add' type
+        if 'add' not in grouped:
+            grouped['add'] = []
+            
         # Track network-specific recommendations separately
         network_specific = []
         
@@ -358,6 +362,10 @@ class OptimizerView:
             # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
             rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
             
+            # Default to 'add' if rec_type is None or empty
+            if not rec_type:
+                rec_type = 'add'
+                
             # Format impact percentage for display
             impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
             impact_direction = "Increase" if getattr(rec, 'impact_score', 0) > 0 else "Decrease"
@@ -392,23 +400,27 @@ class OptimizerView:
                 else:
                     title = f"{criteria_type}: {suggested_name}"
                 
+            # Create formatted recommendation dictionary with safe access to attributes
             formatted_rec = {
                 # Display values
                 "title": title,
-                "description": rec.explanation,
-                "importance": rec.confidence,
+                "description": getattr(rec, 'explanation', ''),
+                "importance": getattr(rec, 'confidence', 'medium'),
                 "category": rec_type,
-                "impact": rec.impact_score,
-                "criteria_type": rec.criteria_type,
-                "suggested_name": rec.suggested_name,
-                "current_value": rec.current_value,
-                "suggested_value": rec.suggested_value,
+                "impact": getattr(rec, 'impact_score', 0),
+                "criteria_type": getattr(rec, 'criteria_type', 'unknown'),
+                "suggested_name": getattr(rec, 'suggested_name', ''),
+                "current_value": getattr(rec, 'current_value', None),
+                "suggested_value": getattr(rec, 'suggested_value', None),
                 
                 # Raw data for sorting and filtering
-                "_impact_raw": rec.impact_score,
-                "_confidence_level": self._get_confidence_level(rec.confidence),
+                "_impact_raw": getattr(rec, 'impact_score', 0),
+                "_confidence_level": self._get_confidence_level(getattr(rec, 'confidence', 'medium')),
                 "_rec_type": rec_type
             }
+            
+            # Add to formatted recommendations list
+            formatted_recommendations.append(formatted_rec)
             
             # Add to appropriate group
             if rec_type.startswith('network_'):
@@ -430,6 +442,14 @@ class OptimizerView:
                 if rec_type not in grouped:
                     grouped[rec_type] = []
                 grouped[rec_type].append(formatted_rec)
+                
+            # For recommendations with positive impact, also add to 'add' group
+            if getattr(rec, 'impact_score', 0) > 0 and rec_type != 'add' and not rec_type.startswith('network_'):
+                grouped['add'].append(formatted_rec)
+                
+            # For recommendations with negative impact, also add to 'remove' group
+            if getattr(rec, 'impact_score', 0) < 0 and rec_type != 'remove' and not rec_type.startswith('network_'):
+                grouped['remove'].append(formatted_rec)
         
         # Sort each group by impact score (descending)
         for rec_type in grouped:
