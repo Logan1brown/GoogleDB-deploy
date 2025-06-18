@@ -382,7 +382,7 @@ class OptimizerView:
                 OptimizerConfig.debug(f"Formatting recommendation: {rec_type} - {getattr(rec, 'criteria_type', 'unknown')} - {getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
                 OptimizerConfig.debug(f"Impact: {getattr(rec, 'impact_score', 0)}", category='recommendation')
             
-            # Create recommendation title with impact percentage
+            # Create recommendation title without impact percentage
             if rec_type and rec_type.startswith('network_'):
                 # For network recommendations
                 clean_rec_type = rec_type.replace('network_', '')
@@ -394,9 +394,9 @@ class OptimizerView:
                     else:
                         network_name = rec.suggested_name
                     
-                    title = f"{impact_percent:.1f}% Impact: {network_name} - {clean_rec_type.capitalize()} {getattr(rec, 'criteria_type', '')}"
+                    title = f"{network_name} - {clean_rec_type.capitalize()} {getattr(rec, 'criteria_type', '')}"
                 else:
-                    title = f"{impact_percent:.1f}% Impact: {clean_rec_type.capitalize()} {getattr(rec, 'criteria_type', '')} for network"
+                    title = f"{clean_rec_type.capitalize()} {getattr(rec, 'criteria_type', '')} for network"
             else:
                 # Format the title to include only the criteria type and suggested name
                 criteria_type = getattr(rec, 'criteria_type', '').replace('_', ' ').title()

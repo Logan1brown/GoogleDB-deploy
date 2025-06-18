@@ -553,17 +553,21 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                     # Determine if this is a positive or negative recommendation based on impact
                     is_negative = rec.get('impact', 0) < 0
                     
+                    # Get the title and description directly without modification
+                    title = rec.get('title', '')
+                    description = rec.get('description', '')
+                    
                     if is_negative:
                         # Use warning style for negative recommendations
                         st.markdown(f"""
                         <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
-                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec.get('title', '')}</p>
-                            <p style="font-size: 12px; margin: 0; color: #333;">{rec.get('description', '')}</p>
+                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{title}</p>
+                            <p style="font-size: 12px; margin: 0; color: #333;">{description}</p>
                         </div>
                         """, unsafe_allow_html=True)
                     else:
                         # Use info card style for positive recommendations
-                        render_info_card(rec.get('title', ''), rec.get('description', ''))
+                        render_info_card(title, description)
                         
             general_recs_rendered = True
         else:
@@ -617,17 +621,21 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                     # Determine if this is a positive or negative recommendation based on impact
                     is_negative = rec.get('impact', 0) < 0
                     
+                    # Get the title and description directly without modification
+                    title = rec.get('title', '')
+                    description = rec.get('description', '')
+                    
                     if is_negative:
                         # Use warning style for negative recommendations
                         st.markdown(f"""
                         <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
-                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec.get('title', '')}</p>
-                            <p style="font-size: 12px; margin: 0; color: #333;">{rec.get('description', '')}</p>
+                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{title}</p>
+                            <p style="font-size: 12px; margin: 0; color: #333;">{description}</p>
                         </div>
                         """, unsafe_allow_html=True)
                     else:
                         # Use info card style for positive recommendations
-                        render_info_card(rec.get('title', ''), rec.get('description', ''))
+                        render_info_card(title, description)
                         
             network_recs_rendered = True
         

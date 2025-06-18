@@ -430,13 +430,9 @@ def show():
                                             else:
                                                 color = None
                                                 
-                                            # Create a title that includes the impact
-                                            if 'impact_score' in rec and rec['impact_score'] != 0:
-                                                impact_direction = "Positive" if rec['impact_score'] > 0 else "Negative"
-                                                impact_percent = abs(rec['impact_score'] * 100)
-                                                title = f"{impact_direction} Impact: {impact_percent:.1f}%"
-                                            else:
-                                                title = "Network-Specific Insight"
+                                            # Use the title directly from the recommendation
+                                            # The title should already be properly formatted by OptimizerView._format_recommendations
+                                            title = rec.get('title', 'Network-Specific Insight')
                                                 
                                             # Display the recommendation using an info card
                                             render_info_card(
