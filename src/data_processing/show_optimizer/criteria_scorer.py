@@ -265,16 +265,10 @@ class CriteriaScorer:
                 # Last resort - convert to string
                 return str(val)
             
-            # Add focused debug for fields_to_process
-            st.write(f"DEBUG: Fields to process: {list(fields_to_process)}")
-            st.write(f"DEBUG: Base criteria: {base_criteria}")
-            
             # Check if fields_to_process is empty
             if not fields_to_process:
-                st.write("DEBUG: No fields to process, this is the root cause")
                 # If no fields to process, use all available fields
                 fields_to_process = list(self.field_manager.FIELD_CONFIGS.keys())
-                st.write(f"DEBUG: Using all available fields instead: {len(fields_to_process)} fields")
             
             for current_field in fields_to_process:
                 # Process both fields in base criteria (for Remove/Change) and not in base criteria (for Add)
@@ -423,35 +417,46 @@ class CriteriaScorer:
                                 display_name = option_name
                         except Exception as e:
                             display_name = option_name
+                            
+                        # Calculate success rate for this option
+                        option_rate, option_info = self._calculate_success_rate(option_shows)
+                        
+                        # Skip options with no valid success rate
+                        if option_rate is None:
+                            continue
+                            
+                        # Calculate impact as difference from base rate
+                        impact = option_rate - base_rate
+                        
+                        # Store impact data
+                        if current_field not in impact_scores:
+                            impact_scores[current_field] = {}
+                            
+                        # Store impact data with option information
+                        impact_scores[current_field][option_id] = {
+                            'impact': impact,
+                            'success_rate': option_rate,
+                            'sample_size': option_info.get('valid_shows', 0),
+                            'recommendation_type': recommendation_types[i],
+                            'option_name': display_name
+                        }
+                        
+                        # Only log in debug mode
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Calculated impact for {current_field} option {display_name}: {impact:.4f}")
+                            if OptimizerConfig.VERBOSE_DEBUG:
+                                st.write(f"DEBUG: Base rate: {base_rate:.4f}, Option rate: {option_rate:.4f}")
+                                st.write(f"DEBUG: Sample size: {option_info.get('valid_shows', 0)}")
+                                st.write(f"DEBUG: Recommendation type: {recommendation_types[i]}")
+                        
+                        
                     
             # Check if we have any impact scores after processing all fields
             if not impact_scores and fields_to_process:
-                st.write("DEBUG: No impact scores generated after processing all fields")
-                st.write(f"DEBUG: Base criteria: {base_criteria}")
-                
-                # The issue might be that we need to generate option_matching_shows_map
-                # Let's create a simple option_matching_shows_map for testing
-                if option_matching_shows_map is None:
-                    st.write("DEBUG: Creating a simple option_matching_shows_map for testing")
-                    # Create a simple option_matching_shows_map with a single field
-                    test_field = 'genre_id' if 'genre_id' in base_criteria else list(base_criteria.keys())[0] if base_criteria else None
-                    
-                    if test_field:
-                        # Get the current value
-                        current_value = base_criteria.get(test_field)
-                        
-                        # Create a simple option_matching_shows_map with a different value
-                        option_matching_shows_map = {test_field: {current_value + 1 if isinstance(current_value, int) else 1: base_matching_shows}}
-                        st.write(f"DEBUG: Created test option_matching_shows_map for field {test_field}")
-                        
-                        # Try to calculate impact with this test map
-                        return self.calculate_criteria_impact(base_criteria, base_matching_shows, option_matching_shows_map, test_field)
-                    else:
-                        st.write("DEBUG: No suitable field found for creating test option_matching_shows_map")
-                        return {}
-                else:
-                    st.write("DEBUG: option_matching_shows_map was provided but no impact scores generated")
-                    return {}
+                # If no impact scores were generated, log a message in debug mode
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("No impact scores could be generated for the current criteria.")
+                return {}
                 
             return impact_scores
 

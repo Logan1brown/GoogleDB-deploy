@@ -182,7 +182,8 @@ class RecommendationEngine:
                     if OptimizerConfig.VERBOSE_DEBUG:
                         pass
                 if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
-                    st.write("DEBUG: No impact data found, returning empty success factors list")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write("No impact data found for recommendations.")
                     return []
                     
             except Exception as impact_e:
