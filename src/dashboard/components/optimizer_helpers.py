@@ -443,6 +443,14 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         on_click_handler: Function to call when recommendation button is clicked
     """
     try:
+        # Critical debug point: Log the exact structure of the input data
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"RENDER - Input data structure: {formatted_recommendations.keys()}", category='recommendation', force=True)
+            if 'grouped' in formatted_recommendations:
+                OptimizerConfig.debug(f"RENDER - Grouped keys: {formatted_recommendations['grouped'].keys()}", category='recommendation', force=True)
+                for group_key, items in formatted_recommendations['grouped'].items():
+                    OptimizerConfig.debug(f"RENDER - Group '{group_key}' has {len(items)} items", category='recommendation', force=True)
+        
         # Check if there are any recommendations to display
         if not formatted_recommendations:
             st.info("No recommendations available.")

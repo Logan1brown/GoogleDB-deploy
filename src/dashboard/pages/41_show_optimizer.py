@@ -494,41 +494,32 @@ def show():
                         st.subheader("Success Factors")
                         render_success_factors(summary.success_factors)
                     
-                    # Display recommendations if available
-                    if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
-                        # Debug: Check what's in the recommendations
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"UI - Recommendations found in formatted_data with keys: {list(summary.formatted_data['recommendations'].keys())}", category='recommendation', force=True)
-                            OptimizerConfig.debug(f"UI - General recommendations count: {len(summary.formatted_data['recommendations'].get('general', []))}", category='recommendation', force=True)
-                            OptimizerConfig.debug(f"UI - Network recommendations count: {len(summary.formatted_data['recommendations'].get('network_specific', []))}", category='recommendation', force=True)
-                        
-                        # Get general and network-specific recommendations
-                        general_recs = summary.formatted_data['recommendations'].get('general', [])
-                        network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
-                        
-                        # Debug: Check raw recommendations before grouping
-                        if OptimizerConfig.DEBUG_MODE and general_recs:
-                            OptimizerConfig.debug(f"UI - First general recommendation: {general_recs[0]}", category='recommendation', force=True)
-                        
-                        # Group recommendations by type for better organization
-                        grouped_recs = {}
-                        
-                        # Process general recommendations
-                        if general_recs:
-                            st.subheader("General Recommendations")
-                            for rec in general_recs:
-                                rec_type = rec.get('recommendation_type', 'other')
-                                if rec_type not in grouped_recs:
-                                    grouped_recs[rec_type] = []
-                                grouped_recs[rec_type].append(rec)
+                    # Display recommendations if available in formatted data
+                    if hasattr(summary, 'formatted_data') and summary.formatted_data:
+                        if 'recommendations' in summary.formatted_data:
+                            # Process recommendations for display
+                            general_recs = summary.formatted_data['recommendations'].get('general', [])
+                            network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
                             
-                            # Debug: Check grouped recommendations
                             if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"UI - Grouped recommendation types: {list(grouped_recs.keys())}", category='recommendation', force=True)
-                                for group_key, group_items in grouped_recs.items():
-                                    OptimizerConfig.debug(f"UI - Group '{group_key}' has {len(group_items)} items", category='recommendation', force=True)
+                                OptimizerConfig.debug(f"UI - Found {len(general_recs)} general and {len(network_recs)} network-specific recommendations", category='recommendation', force=True)
                             
-                            # Use our improved helper function to render recommendations with pre-formatted data
+                            # Group recommendations by type for proper display
+                            grouped_recs = {}
+                            
+                            # Process general recommendations
+                            if general_recs:
+                                grouped_recs['add'] = general_recs
+                                
+                            # Process network-specific recommendations
+                            for rec in network_recs:
+                                network_name = rec.get('network', 'unknown_network')
+                                key = f"network_{network_name}"
+                                if key not in grouped_recs:
+                                    grouped_recs[key] = []
+                                grouped_recs[key].append(rec)
+                            
+                            # Pass to render_recommendations with proper structure
                             render_recommendations({"grouped": grouped_recs}, on_click_handler=None)
                         else:
                             st.info("No general recommendations available for your current criteria.")

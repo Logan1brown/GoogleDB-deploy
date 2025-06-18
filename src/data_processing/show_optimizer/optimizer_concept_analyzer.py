@@ -70,14 +70,8 @@ class OptimizationSummary:
         Returns a dictionary with formatted networks and recommendations data
         ready for display in the UI.
         """
-        # Debug logging when formatted_data is accessed
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug("formatted_data property accessed", category='recommendation', force=True)
-            
         # If _formatted_data_dict has been set, return it
         if self._formatted_data_dict:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Returning cached formatted data with keys: {list(self._formatted_data_dict.keys())}", category='recommendation', force=True)
             return self._formatted_data_dict
             
         # Otherwise generate formatted data
@@ -122,14 +116,6 @@ class OptimizationSummary:
                 else:
                     formatted['recommendations']['general'].append(rec_dict)
         
-        # Debug logging for the newly generated formatted data
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Generated formatted data with recommendations: general={len(formatted['recommendations']['general'])}, network_specific={len(formatted['recommendations']['network_specific'])}", category='recommendation', force=True)
-            if formatted['recommendations']['general']:
-                OptimizerConfig.debug(f"First general recommendation: {formatted['recommendations']['general'][0]}", category='recommendation')
-            if formatted['recommendations']['network_specific']:
-                OptimizerConfig.debug(f"First network recommendation: {formatted['recommendations']['network_specific'][0]}", category='recommendation')
-                
         # Store the formatted data for future access
         self._formatted_data_dict = formatted
         return formatted
@@ -293,14 +279,7 @@ class ConceptAnalyzer:
             
             # Explicitly access formatted_data to ensure it's populated before returning
             # This ensures the UI will have access to properly formatted recommendations
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Pre-populating formatted_data before returning summary", category='recommendation', force=True)
-            
-            # Access the property to trigger formatting and caching
             formatted = summary.formatted_data
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Formatted data populated with recommendation counts: general={len(formatted['recommendations']['general'])}, network_specific={len(formatted['recommendations']['network_specific'])}", category='recommendation', force=True)
             
             # Log summary creation through centralized debug method
             OptimizerConfig.debug(f"Created optimization summary with {len(summary.top_networks)} networks", category='analyzer')
