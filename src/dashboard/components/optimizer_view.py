@@ -321,6 +321,18 @@ class OptimizerView:
         
         # Debug log the recommendations count
         if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Formatting {len(recommendations)} recommendations")
+            if recommendations:
+                types = {getattr(rec, 'recommendation_type', 'unknown') for rec in recommendations}
+                st.write(f"DEBUG: Recommendation types: {types}")
+                # Show the first few recommendations in detail
+                for i, rec in enumerate(recommendations[:3]):
+                    st.write(f"DEBUG: Recommendation {i+1} details:")
+                    st.write(f"  - Type: {getattr(rec, 'recommendation_type', 'unknown')}")
+                    st.write(f"  - Criteria Type: {getattr(rec, 'criteria_type', 'unknown')}")
+                    st.write(f"  - Suggested Name: {getattr(rec, 'suggested_name', 'unknown')}")
+                    st.write(f"  - Impact: {getattr(rec, 'impact_score', 0)}")
+                    st.write(f"  - Explanation: {getattr(rec, 'explanation', '')}")
             OptimizerConfig.debug(f"Formatting {len(recommendations)} recommendations", category='recommendation')
             if recommendations:
                 types = {getattr(rec, 'recommendation_type', 'unknown') for rec in recommendations}

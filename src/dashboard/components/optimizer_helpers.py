@@ -491,8 +491,19 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
         network_recs_rendered = False
         
         # First, render all non-network recommendations
+        if OptimizerConfig.DEBUG_MODE:
+            st.write("DEBUG: Rendering non-network recommendations")
+            
         for rec_type, recs in grouped.items():
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Checking group '{rec_type}' with {len(recs)} recommendations")
+                
             if recs and not rec_type.startswith('network_'):
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Rendering group '{rec_type}' with {len(recs)} recommendations")
+                    if recs:
+                        st.write(f"DEBUG: First recommendation in group: {recs[0]}")
+                        
                 render_recommendation_group(rec_type, recs, on_click_handler)
                 general_recs_rendered = True
         
@@ -526,7 +537,8 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
 
 
 def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, Any]], on_click_handler=None, limit: int = 3):
-    """Render a group of recommendations with appropriate UI elements.
+    """
+Render a group of recommendations with appropriate UI elements.
     
     Args:
         rec_type: Type of recommendation (add, replace, remove, consider, etc.)
@@ -534,7 +546,14 @@ def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, A
         on_click_handler: Function to call when recommendation button is clicked
         limit: Maximum number of recommendations to show
     """
+    if OptimizerConfig.DEBUG_MODE:
+        st.write(f"DEBUG: render_recommendation_group called with type '{rec_type}' and {len(recommendations)} recommendations")
+        if recommendations:
+            st.write(f"DEBUG: First recommendation keys: {list(recommendations[0].keys())}")
+    
     if not recommendations:
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: No recommendations for group '{rec_type}'")
         return
     
     # Get recommendation type display names from config
