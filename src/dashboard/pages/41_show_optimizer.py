@@ -559,10 +559,29 @@ def show():
                                     else:
                                         title = "Network-Specific Insight"
                                         
-                                    # Display the recommendation using an info card
+                                    # Display the recommendation using an info card with enhanced formatting
+                                    # Extract the criteria type and format it for display
+                                    criteria_type = rec.get('criteria_type', '').replace('_', ' ').title()
+                                    
+                                    # Create an enhanced title that includes both the criteria type and impact
+                                    enhanced_title = f"{title} for {criteria_type}"
+                                    
+                                    # Create a clearer action-oriented description
+                                    description = rec.get('description', 'No description available.')
+                                    
+                                    # Add a clear action statement based on recommendation type
+                                    if rec.get('category', '').endswith('keep'):
+                                        action = f"<strong>Recommendation: Keep '{criteria_type}' for this network.</strong>"
+                                    else:
+                                        action = f"<strong>Recommendation: Consider adjusting '{criteria_type}' for better results with this network.</strong>"
+                                    
+                                    # Combine the description and action
+                                    enhanced_content = f"{description}<br><br>{action}"
+                                    
+                                    # Display the enhanced recommendation
                                     render_info_card(
-                                        title=title,
-                                        content=rec.get('description', 'No description available.'),
+                                        title=enhanced_title,
+                                        content=enhanced_content,
                                         color=color
                                     )
                         else:

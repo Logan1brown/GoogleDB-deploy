@@ -200,13 +200,22 @@ class RecommendationEngine:
             # Convert to SuccessFactor objects
             success_factors = []
             
+            # Debug log the impact data structure
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Processing impact data for {len(impact_data)} criteria types")
+                for criteria_type, values in impact_data.items():
+                    st.write(f"DEBUG: Criteria type {criteria_type} has {len(values)} options with impact scores")
+            
             for criteria_type, values in impact_data.items():
                 processed_count = 0
                 
-                for value_id, impact_data in values.items():
+                # Sort options by absolute impact score to prioritize highest impact options
+                sorted_options = sorted(values.items(), key=lambda x: abs(x[1].get('impact', 0)), reverse=True)
+                
+                for value_id, impact_data in sorted_options:
                     # Use the original value_id for matching
                     value_id_hashable = value_id
-                    if processed_count >= 5:
+                    if processed_count >= limit:  # Use the limit parameter instead of hardcoded 5
                         break
                         
                     try:
@@ -252,6 +261,16 @@ class RecommendationEngine:
                             confidence = self.config.DEFAULT_VALUES['confidence']
                         if confidence == 'none' and sample_size > self.config.CONFIDENCE['minimum_sample']:            
                             pass
+                            
+                        # Determine recommendation type based on impact
+                        if impact > 0:
+                            recommendation_type = 'add'  # Positive impact - recommend adding
+                        else:
+                            recommendation_type = 'remove'  # Negative impact - recommend removing
+                            
+                        # Skip very low impact factors
+                        if abs(impact) < 0.05:  # 5% minimum impact threshold
+                            continue
                         matching_titles = []
                         try:
                             # Convert tuple back to list for matching if needed
@@ -270,9 +289,6 @@ class RecommendationEngine:
                         except Exception as e:
                             matching_titles = []
                         try:
-                            # Get recommendation type from impact data if available
-                            rec_type = impact_data.get('recommendation_type', 'add')
-                            
                             factor = SuccessFactor(
                                 criteria_type=criteria_type,
                                 criteria_value=criteria_value,
@@ -281,7 +297,7 @@ class RecommendationEngine:
                                 confidence=confidence,
                                 sample_size=sample_size,
                                 matching_titles=matching_titles,
-                                recommendation_type=rec_type
+                                recommendation_type=recommendation_type
                             )
                             try:
                                 hash((criteria_type, criteria_value))
@@ -354,6 +370,24 @@ class RecommendationEngine:
                     recommendations.extend(pattern_recs)
             except Exception as e:
                 st.error("Unable to analyze successful patterns. Some recommendations may be missing.")
+                
+            # Generate network-specific recommendations
+            try:
+                if top_networks and len(top_networks) > 0:
+                    # Process top networks to generate network-specific recommendations
+                    for network in top_networks[:3]:  # Limit to top 3 networks
+                        network_recs = self.generate_network_specific_recommendations(
+                            criteria, network, matching_shows, integrated_data)
+                        if network_recs:
+                            recommendations.extend(network_recs)
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Added {len(network_recs)} network-specific recommendations for {network.network_name}")
+            except Exception as e:
+                st.error(f"Unable to generate network-specific recommendations: {str(e)}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Network recommendation error: {str(e)}")
+                    import traceback
+                    st.write(traceback.format_exc())
             
             # Generate fallback recommendations if needed
             # Only do this if we don't have enough high-quality recommendations already
@@ -394,23 +428,27 @@ class RecommendationEngine:
         try:
             recommendations = []
             
-            # Debug: Log success factors
-            st.write(f"DEBUG: Total success factors: {len(success_factors)}")
+            # Debug logs only if debug mode is enabled
+            if OptimizerConfig.DEBUG_MODE:
+                # Log success factors
+                st.write(f"DEBUG: Total success factors: {len(success_factors)}")
             
             # Filter success factors by recommendation type and positive impact
             add_factors = [f for f in success_factors if f.recommendation_type == 'add' and f.impact_score > 0]
             change_factors = [f for f in success_factors if f.recommendation_type == 'change' and f.impact_score > 0]
             
-            # Debug: Log filtered factors
-            st.write(f"DEBUG: Add factors: {len(add_factors)}, Change factors: {len(change_factors)}")
-            
-            # Debug: Check if we have any matching shows to analyze
-            if isinstance(matching_shows, pd.DataFrame):
-                st.write(f"DEBUG: Matching shows for recommendations: {len(matching_shows)}")
-                if not matching_shows.empty:
-                    st.write(f"DEBUG: Sample of columns: {list(matching_shows.columns)[:5]}")
-            else:
-                st.write("DEBUG: No matching shows DataFrame available")
+            # Debug logs only if debug mode is enabled
+            if OptimizerConfig.DEBUG_MODE:
+                # Log filtered factors
+                st.write(f"DEBUG: Add factors: {len(add_factors)}, Change factors: {len(change_factors)}")
+                
+                # Check if we have any matching shows to analyze
+                if isinstance(matching_shows, pd.DataFrame):
+                    st.write(f"DEBUG: Matching shows for recommendations: {len(matching_shows)}")
+                    if not matching_shows.empty:
+                        st.write(f"DEBUG: Sample of columns: {list(matching_shows.columns)[:5]}")
+                else:
+                    st.write("DEBUG: No matching shows DataFrame available")
             
             # Process 'add' recommendations (criteria not in current concept)
             for factor in add_factors:

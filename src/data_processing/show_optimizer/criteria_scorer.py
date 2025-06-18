@@ -75,8 +75,8 @@ class CriteriaScorer:
         Returns:
             Tuple of success rate and confidence information
         """
-        # Debug the input shows
-        if shows is not None:
+        # Debug the input shows only if debug mode is enabled
+        if OptimizerConfig.DEBUG_MODE and shows is not None:
             st.write(f"DEBUG: _calculate_success_rate - shows shape: {shows.shape}")
             if not shows.empty and 'success_score' in shows.columns:
                 st.write(f"DEBUG: _calculate_success_rate - success_score stats: min={shows['success_score'].min()}, max={shows['success_score'].max()}, mean={shows['success_score'].mean()}, null={shows['success_score'].isna().sum()}")
@@ -84,10 +84,12 @@ class CriteriaScorer:
         # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
         if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data and not integrated_data['shows'].empty:
             shows = integrated_data['shows']
-            st.write("DEBUG: Using integrated_data['shows'] instead of empty shows parameter")
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Using integrated_data['shows'] instead of empty shows parameter")
                 
         if shows is None or shows.empty:
-            st.write("DEBUG: No valid shows data for success rate calculation")
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: No valid shows data for success rate calculation")
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0}
             return None, confidence_info
@@ -107,10 +109,11 @@ class CriteriaScorer:
             filter_condition=success_filter
         )
         
-        # Add debug logging for validation results
-        st.write(f"DEBUG: Data validation result: is_valid={is_valid}, validated_data shape={validated_data.shape if validated_data is not None else 'None'}")
-        if validation_info:
-            st.write(f"DEBUG: Validation info: {validation_info}")
+        # Add debug logging for validation results only if debug mode is enabled
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Data validation result: is_valid={is_valid}, validated_data shape={validated_data.shape if validated_data is not None else 'None'}")
+            if validation_info:
+                st.write(f"DEBUG: Validation info: {validation_info}")
         
         if not is_valid or validated_data is None or validated_data.empty:
             
@@ -127,21 +130,25 @@ class CriteriaScorer:
         
         # Let the calculator handle the actual calculation
         try:
-            st.write(f"DEBUG: Calculating success score with threshold={threshold}")
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Calculating success score with threshold={threshold}")
             component_score = calculator.calculate(validated_data, threshold=threshold)
             
             if component_score is None:
-                st.write("DEBUG: Component score is None after calculation")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write("DEBUG: Component score is None after calculation")
                 if confidence_info is None:
                     confidence_info = {'level': 'none', 'score': 0.0, 'error': 'Failed to calculate success score'}
                 else:
                     confidence_info['error'] = 'Failed to calculate success score'
                 return None, confidence_info
             else:
-                st.write(f"DEBUG: Component score calculated successfully: {component_score.score}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Component score calculated successfully: {component_score.score}")
             
         except Exception as e:
-            st.write(f"DEBUG: Exception during success score calculation: {str(e)}")
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Exception during success score calculation: {str(e)}")
             if confidence_info is None:
                 confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
             else:
@@ -364,25 +371,21 @@ class CriteriaScorer:
                                 if is_array_field:
                                     option_criteria[current_field] = [option_id]
                                 
-                                # Debug the option criteria
-                                st.write(f"DEBUG: Option criteria for {option_name}: {option_criteria}")
-                                
                                 # Get matching shows for this option
                                 option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
                             
-                            # Debug the option shows
-                            if option_shows is not None:
+                            # Debug only the number of matching shows if in debug mode
+                            if OptimizerConfig.DEBUG_MODE and option_shows is not None:
                                 st.write(f"DEBUG: Option {option_name} has {len(option_shows)} matching shows")
-                            else:
-                                st.write(f"DEBUG: Option {option_name} has no matching shows (None)")
                             
                             # Check if we got valid shows
                             if option_shows is not None and not option_shows.empty:
                                 # Store in field_options_map
                                 field_options_map[option_id] = option_shows
                         except Exception as e:
-                            # Debug the exception
-                            st.write(f"DEBUG: Exception getting matching shows for option {option_name}: {str(e)}")
+                            # Log exception only in debug mode
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Exception getting matching shows for option {option_name}: {str(e)}")
                             # Skip this option
                             continue
                     
@@ -398,7 +401,8 @@ class CriteriaScorer:
                 impact_scores[current_field] = {}
                 
                 # Process each option in option_data
-                st.write(f"DEBUG: Processing {len(option_data)} options for field {current_field}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Processing {len(option_data)} options for field {current_field}")
                     
                 for i, (option_id, option_name) in enumerate(option_data):
                     try:
@@ -412,26 +416,27 @@ class CriteriaScorer:
                         # Calculate success rate for this option's matching shows
                         option_rate, option_info = self._calculate_success_rate(option_shows)
                         
-                        # Debug the option success rate
-                        st.write(f"DEBUG: Option {option_name} success rate: {option_rate}")
-                        
                         if option_rate is None:
                             # Skip this option if we can't calculate a success rate
-                            st.write(f"DEBUG: Skipping option {option_name} - invalid success rate")
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Skipping option {option_name} - invalid success rate")
                             continue
                             
                         # Calculate impact as the difference from base rate
                         impact = option_rate - base_rate
                         
-                        # Debug the impact calculation
-                        st.write(f"DEBUG: Option {option_name} impact: {impact}")
+                        # Debug the success rate and impact only in debug mode
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Option {option_name} success rate: {option_rate}")
+                            st.write(f"DEBUG: Option {option_name} impact: {impact}")
                         
                         # Get minimum impact threshold
                         min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
                         
                         # Skip if impact is too small
                         if abs(impact) < min_impact:
-                            st.write(f"DEBUG: Skipping option {option_name} - impact too small: {impact} < {min_impact}")
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Skipping option {option_name} - impact too small: {impact} < {min_impact}")
                             continue
                             
                         # Store the impact score since it meets the minimum threshold
@@ -443,11 +448,13 @@ class CriteriaScorer:
                             'recommendation_type': recommendation_types[i]
                         }
                         
-                        # Debug the stored impact score
-                        st.write(f"DEBUG: Added impact score for {option_name}: {impact}")
+                        # Debug the stored impact score only in debug mode
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Added impact score for {option_name}: {impact}")
                     except Exception as e:
                         # Skip this option if there's an error
-                        st.write(f"DEBUG: Error processing option {option_name}: {str(e)}")
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Error processing option {option_name}: {str(e)}")
                         continue
                 
             # Check if we have any impact scores after processing all fields

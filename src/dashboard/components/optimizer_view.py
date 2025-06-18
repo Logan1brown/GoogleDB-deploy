@@ -317,6 +317,13 @@ class OptimizerView:
         # Track network-specific recommendations separately
         network_specific = []
         
+        # Debug log the recommendations count
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Formatting {len(recommendations)} recommendations", category='recommendation')
+            if recommendations:
+                types = {getattr(rec, 'recommendation_type', 'unknown') for rec in recommendations}
+                OptimizerConfig.debug(f"Recommendation types: {types}", category='recommendation')
+        
         for rec in recommendations:
             # Skip invalid recommendations
             if not hasattr(rec, 'recommendation_type') and not hasattr(rec, 'rec_type'):
@@ -326,9 +333,19 @@ class OptimizerView:
             rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
             
             # Format the recommendation with all data needed for UI display
+            # Create a title that includes the impact score percentage
+            impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
+            impact_direction = "Increase" if getattr(rec, 'impact_score', 0) > 0 else "Decrease"
+            
+            # Format the title to include the impact percentage
+            if impact_percent >= 5:  # Only show impact if it's significant (5% or more)
+                title = f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name} ({impact_direction} success by {impact_percent:.1f}%)"
+            else:
+                title = f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}"
+                
             formatted_rec = {
                 # Display values
-                "title": f"{rec.criteria_type.replace('_', ' ').title()}: {rec.suggested_name}",
+                "title": title,
                 "description": rec.explanation,
                 "importance": rec.confidence,
                 "category": rec_type,
