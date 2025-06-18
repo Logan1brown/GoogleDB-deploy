@@ -496,9 +496,19 @@ def show():
                     
                     # Display recommendations if available
                     if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
+                        # Debug: Check what's in the recommendations
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"UI - Recommendations found in formatted_data with keys: {list(summary.formatted_data['recommendations'].keys())}", category='recommendation', force=True)
+                            OptimizerConfig.debug(f"UI - General recommendations count: {len(summary.formatted_data['recommendations'].get('general', []))}", category='recommendation', force=True)
+                            OptimizerConfig.debug(f"UI - Network recommendations count: {len(summary.formatted_data['recommendations'].get('network_specific', []))}", category='recommendation', force=True)
+                        
                         # Get general and network-specific recommendations
                         general_recs = summary.formatted_data['recommendations'].get('general', [])
                         network_recs = summary.formatted_data['recommendations'].get('network_specific', [])
+                        
+                        # Debug: Check raw recommendations before grouping
+                        if OptimizerConfig.DEBUG_MODE and general_recs:
+                            OptimizerConfig.debug(f"UI - First general recommendation: {general_recs[0]}", category='recommendation', force=True)
                         
                         # Group recommendations by type for better organization
                         grouped_recs = {}
@@ -512,10 +522,21 @@ def show():
                                     grouped_recs[rec_type] = []
                                 grouped_recs[rec_type].append(rec)
                             
+                            # Debug: Check grouped recommendations
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"UI - Grouped recommendation types: {list(grouped_recs.keys())}", category='recommendation', force=True)
+                                for group_key, group_items in grouped_recs.items():
+                                    OptimizerConfig.debug(f"UI - Group '{group_key}' has {len(group_items)} items", category='recommendation', force=True)
+                            
                             # Use our improved helper function to render recommendations with pre-formatted data
                             render_recommendations({"grouped": grouped_recs}, on_click_handler=None)
                         else:
                             st.info("No general recommendations available for your current criteria.")
+                            # Debug: Log why no recommendations are available
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug("UI - No general recommendations found in formatted_data", category='recommendation', force=True)
+                                if hasattr(summary, 'recommendations') and summary.recommendations:
+                                    OptimizerConfig.debug(f"UI - But summary.recommendations has {len(summary.recommendations)} items", category='recommendation', force=True)
                         
                         # Process network-specific recommendations
                         if network_recs:
@@ -588,10 +609,31 @@ def show():
                             st.info("No network-specific recommendations available for your current criteria.")
                     elif hasattr(summary, 'recommendations') and summary.recommendations:
                         # Fallback to old method if formatted data is not available
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"UI - Using fallback method with {len(summary.recommendations)} raw recommendations", category='recommendation', force=True)
+                            for i, rec in enumerate(summary.recommendations[:2]):
+                                OptimizerConfig.debug(f"UI - Raw recommendation {i+1}: {rec.criteria_type} - {rec.suggested_name}", category='recommendation', force=True)
+                        
                         st.subheader("Recommendations")
-                        render_recommendations({"grouped": group_recommendations(summary.recommendations)}, on_click_handler=None)
+                        # Check if group_recommendations function exists
+                        if 'group_recommendations' in globals():
+                            render_recommendations({"grouped": group_recommendations(summary.recommendations)}, on_click_handler=None)
+                        else:
+                            # Manual grouping if function doesn't exist
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug("UI - group_recommendations function not found, using manual grouping", category='recommendation', force=True)
+                            grouped = {}
+                            for rec in summary.recommendations:
+                                rec_type = getattr(rec, 'recommendation_type', 'other')
+                                if rec_type not in grouped:
+                                    grouped[rec_type] = []
+                                grouped[rec_type].append(rec)
+                            render_recommendations({"grouped": grouped}, on_click_handler=None)
                     else:
                         st.info("No recommendations available for the selected criteria.")
+                        # Debug why no recommendations are available
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug("UI - No recommendations available in any format", category='recommendation', force=True)
                 
                 # No need for a second reset button since we already have one at the top of the page
         
