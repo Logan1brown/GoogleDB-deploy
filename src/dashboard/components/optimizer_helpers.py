@@ -666,54 +666,26 @@ Render a group of recommendations with appropriate UI elements.
     
     # Get recommendation type display names from config
     config = OptimizerConfig()
-    type_display = config.RECOMMENDATION_TYPES.get(rec_type, rec_type.replace('_', ' ').title())
     
-    if OptimizerConfig.DEBUG_MODE:
-        st.write(f"DEBUG: Recommendation type '{rec_type}' has display name '{type_display}'")
-    
-    # Set header and button prefix based on recommendation type
+    # Set header based on recommendation type
     if rec_type == 'add':
         header = "Add to Your Concept"
-        button_prefix = "Add"
-        use_button = True
-        use_info_card = True
     elif rec_type == 'remove':
         header = "Consider Removing"
-        button_prefix = "Remove"
-        use_button = False  # Use warning style instead of button
-        use_info_card = False
     elif rec_type == 'replace':
         header = "Consider Replacing"
-        button_prefix = "Replace with"
-        use_button = True
-        use_info_card = True
     elif rec_type == 'change':
         header = "Consider Changing"
-        button_prefix = "Change to"
-        use_button = True
-        use_info_card = True
     elif rec_type.startswith('network_'):
         network_name = rec_type.replace('network_', '').replace('_', ' ').title()
         header = f"{network_name} Network Recommendations"
-        button_prefix = "Apply"
-        use_button = True
-        use_info_card = True
     elif rec_type == "network_keep":
         header = config.RECOMMENDATION_TYPES.get('network_keep', "Network Strengths")
-        button_prefix = "Keep"
-        use_button = False
-        use_info_card = True
     elif rec_type == "network_change":
         header = config.RECOMMENDATION_TYPES.get('network_change', "Network Adjustments")
-        button_prefix = "Adjust"
-        use_button = True
-        use_info_card = True
     else:
         # For any other recommendation type, use a generic header
         header = f"{rec_type.replace('_', ' ').title()} Recommendations"
-        button_prefix = "Apply"
-        use_button = True
-        use_info_card = True
         
     # Display the header
     st.subheader(header)
@@ -724,20 +696,9 @@ Render a group of recommendations with appropriate UI elements.
         if OptimizerConfig.DEBUG_MODE:
             st.write(f"DEBUG: Rendering recommendation: {rec}")
         
-        # Determine if this is a positive or negative recommendation based on impact
-        is_negative = rec_type == 'remove' or (rec.get('impact', 0) < 0)
-        
-        if is_negative:
-            # Use warning style for negative recommendations
-            st.markdown(f"""
-            <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
-                <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{rec['title']}</p>
-                <p style="font-size: 12px; margin: 0; color: #333;">{rec['description']}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            # Use info card style for positive recommendations
-            render_info_card(
-                rec['title'],
-                rec['description']
-            )
+        # Use info card style for all recommendations, but only show the description
+        st.markdown(f"""
+        <div style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #f9f9f9;">
+            <p style="font-size: 14px; margin: 0; color: #333;">{rec.get('description', '')}</p>
+        </div>
+        """, unsafe_allow_html=True)

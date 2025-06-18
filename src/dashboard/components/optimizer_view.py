@@ -365,8 +365,12 @@ class OptimizerView:
             # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
             rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
             
-            # Default to 'add' if rec_type is None or empty
-            if not rec_type:
+            # Check if this is a removal recommendation based on the suggested name
+            suggested_name = getattr(rec, 'suggested_name', '')
+            if suggested_name and 'remove' in suggested_name.lower():
+                rec_type = 'remove'
+            # Default to 'add' if rec_type is None or empty and not a removal
+            elif not rec_type:
                 rec_type = 'add'
                 
             # Format impact percentage for display
@@ -394,20 +398,33 @@ class OptimizerView:
                 else:
                     title = f"{impact_percent:.1f}% Impact: {clean_rec_type.capitalize()} {getattr(rec, 'criteria_type', '')} for network"
             else:
-                # Format the title to include the impact percentage
+                # Format the title to include only the criteria type and suggested name
                 criteria_type = getattr(rec, 'criteria_type', '').replace('_', ' ').title()
                 suggested_name = getattr(rec, 'suggested_name', '')
                 
-                if impact_percent >= 1:  # Show impact if it's at least 1%
-                    title = f"{criteria_type}: {suggested_name} ({impact_direction} success by {impact_percent:.1f}%)"
-                else:
-                    title = f"{criteria_type}: {suggested_name}"
+                # Create a clean title without the impact information
+                title = f"{criteria_type}: {suggested_name}"
                 
+            # Create enhanced description with impact information
+            explanation = getattr(rec, 'explanation', '')
+            
+            # Add impact information to the description if significant
+            if impact_percent >= 1 and not rec_type.startswith('network_'):
+                impact_info = f"Adding '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
+                
+                # If there's already an explanation, add the impact info as a new sentence
+                if explanation and not explanation.strip().endswith('.'):
+                    explanation = f"{explanation}. {impact_info}"
+                elif explanation:
+                    explanation = f"{explanation} {impact_info}"
+                else:
+                    explanation = impact_info
+            
             # Create formatted recommendation dictionary with safe access to attributes
             formatted_rec = {
                 # Display values
                 "title": title,
-                "description": getattr(rec, 'explanation', ''),
+                "description": explanation,
                 "importance": getattr(rec, 'confidence', 'medium'),
                 "category": rec_type,
                 "impact": getattr(rec, 'impact_score', 0),
