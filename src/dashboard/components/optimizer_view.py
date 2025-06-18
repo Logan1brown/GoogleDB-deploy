@@ -172,8 +172,10 @@ class OptimizerView:
                     
         except Exception as e:
             st.error(f"Error during analysis: {str(e)}")
-            import traceback
-            st.write(f"Error details: {traceback.format_exc()}")
+            # Only show stack trace in debug mode
+            if st.session_state.get('debug_mode', False):
+                import traceback
+                st.write(f"Error details: {traceback.format_exc()}")
             return False
         
     def format_optimization_summary(self, summary: OptimizationSummary) -> OptimizationSummary:

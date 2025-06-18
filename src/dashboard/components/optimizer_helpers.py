@@ -448,19 +448,17 @@ def render_recommendations(formatted_recommendations: Dict[str, Any], on_click_h
             st.info("No recommendations available.")
             return
         
-        # Direct debug output that will definitely show in the UI
-        st.write("DEBUG: Inside render_recommendations function")
-        st.write(f"- Input data keys: {list(formatted_recommendations.keys())}")
-        
         # Extract recommendation groups
         grouped = formatted_recommendations.get("grouped", {})
         network_specific = formatted_recommendations.get("network_specific", [])
         all_recs = formatted_recommendations.get("all", [])
         
-        st.write(f"- Grouped recommendations: {list(grouped.keys()) if isinstance(grouped, dict) else 'Not a dict'}")
-        st.write(f"- All recommendations count: {len(all_recs)}")
-        for group_name, items in grouped.items() if isinstance(grouped, dict) else []:
-            st.write(f"- Group '{group_name}' has {len(items)} items")
+        # Add minimal debug output if in debug mode
+        if st.session_state.get('debug_mode', False):
+            st.write(f"DEBUG: Recommendation groups: {[k for k, v in grouped.items() if v]}")
+            st.write(f"DEBUG: Total recommendations: {len(all_recs)}")
+            st.write(f"DEBUG: Network-specific recommendations: {len(network_specific)}")
+        
         
         # Debug the raw recommendations (only log to debug system, not UI)
         if OptimizerConfig.DEBUG_MODE:

@@ -512,13 +512,11 @@ def show():
                     else:
                         # No recommendations available
                         st.info("No recommendations available for the selected criteria.")
-                        # Add direct debug to show what's available in summary
-                        if hasattr(summary, 'recommendations'):
+                        # Add minimal debug output if in debug mode
+                        if st.session_state.get('debug_mode', False) and hasattr(summary, 'recommendations'):
                             st.write(f"DEBUG: Raw recommendations count: {len(summary.recommendations)}")
                             if summary.recommendations:
-                                first_rec = summary.recommendations[0]
-                                st.write(f"DEBUG: First raw recommendation type: {type(first_rec)}")
-                                st.write(f"DEBUG: First raw recommendation attributes: {dir(first_rec)}")
+                                st.write(f"DEBUG: First recommendation type: {type(summary.recommendations[0]).__name__}")
                         
     # Save state back to session
     update_page_state("show_optimizer", state)
