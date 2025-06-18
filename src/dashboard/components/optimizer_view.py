@@ -320,8 +320,7 @@ class OptimizerView:
         if 'add' not in grouped:
             grouped['add'] = []
             
-        # Debug the initial grouped keys
-        st.write(f"DEBUG: Initial recommendation group keys: {list(grouped.keys())}")
+
             
         # Track network-specific recommendations separately
         network_specific = []
@@ -354,19 +353,6 @@ class OptimizerView:
                 "all": []
             }
             
-        # Add direct debug output to UI for troubleshooting
-        st.write(f"DEBUG: Processing {len(recommendations)} recommendations in OptimizerView._format_recommendations")
-        for i, rec in enumerate(recommendations[:3]):
-            st.write(f"DEBUG: Recommendation {i+1} details:")
-            st.write(f"  - Type: {getattr(rec, 'recommendation_type', 'unknown')}")
-            st.write(f"  - Criteria Type: {getattr(rec, 'criteria_type', 'unknown')}")
-            st.write(f"  - Suggested Value: {getattr(rec, 'suggested_value', 'unknown')}")
-            st.write(f"  - Suggested Name: {getattr(rec, 'suggested_name', 'unknown')}")
-            st.write(f"  - Impact: {getattr(rec, 'impact_score', 0)}")
-            st.write(f"  - Explanation: {getattr(rec, 'explanation', '')}")
-            st.write(f"  - All attributes: {dir(rec)}")
-        
-        
         formatted_recommendations = []
         
         for rec in recommendations:
@@ -377,13 +363,9 @@ class OptimizerView:
             # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
             rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
             
-            # Debug the raw recommendation type
-            st.write(f"DEBUG: Raw recommendation type: '{rec_type}'")
-            
             # Default to 'add' if rec_type is None or empty
             if not rec_type:
                 rec_type = 'add'
-                st.write("DEBUG: Using default 'add' recommendation type")
                 
             # Format impact percentage for display
             impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
@@ -442,28 +424,22 @@ class OptimizerView:
             formatted_recommendations.append(formatted_rec)
             
             # Add to appropriate group
-            st.write(f"DEBUG: Adding recommendation to group with type: '{rec_type}'")
             if rec_type.startswith('network_'):
                 # Handle all network-specific recommendation types
-                st.write("DEBUG: Adding to network_specific list")
                 network_specific.append(formatted_rec)
                 
                 # Also add to the appropriate group based on type
                 if rec_type in grouped:
-                    st.write(f"DEBUG: Adding to existing group '{rec_type}'")
                     grouped[rec_type].append(formatted_rec)
                 else:
                     # Create group if it doesn't exist
-                    st.write(f"DEBUG: Creating new group '{rec_type}'")
                     if rec_type not in grouped:
                         grouped[rec_type] = []
                     grouped[rec_type].append(formatted_rec)
             elif rec_type in grouped:
-                st.write(f"DEBUG: Adding to existing group '{rec_type}'")
                 grouped[rec_type].append(formatted_rec)
             else:
                 # Create group if it doesn't exist
-                st.write(f"DEBUG: Creating new group '{rec_type}'")
                 if rec_type not in grouped:
                     grouped[rec_type] = []
                 grouped[rec_type].append(formatted_rec)
@@ -490,22 +466,12 @@ class OptimizerView:
             OptimizerConfig.debug(f"Final all recommendations count: {len([rec for group in grouped.values() for rec in group] + network_specific)}", category='recommendation', force=True)
             OptimizerConfig.debug(f"Groups with recommendations: {[k for k, v in grouped.items() if v]}", category='recommendation', force=True)
         
-        # Create the final result structure
-        result = {
+        # Return the formatted recommendations
+        return {
             "grouped": grouped,
             "network_specific": network_specific,
             "all": [rec for group in grouped.values() for rec in group] + network_specific
         }
-        
-        # Debug the final structure
-        st.write("DEBUG: Final recommendation structure")
-        st.write(f"- Grouped keys: {list(grouped.keys())}")
-        st.write(f"- Non-empty groups: {[k for k, v in grouped.items() if v]}")
-        st.write(f"- Network specific count: {len(network_specific)}")
-        st.write(f"- All recommendations count: {len(formatted_recommendations)}")
-        
-        # Return the formatted recommendations
-        return result
     
     def _format_network_matches(self, network_matches: List[NetworkMatch]) -> List[Dict[str, Any]]:
         """Format network matches for display.

@@ -499,11 +499,13 @@ def show():
                         # Use the OptimizerView to format the recommendations properly
                         formatted_recommendations = optimizer_view._format_recommendations(summary.recommendations)
                         
-                        # Debug the formatted recommendations
-                        st.write("DEBUG: Formatted recommendations structure")
-                        st.write(f"- Keys in formatted recommendations: {list(formatted_recommendations.keys())}")
-                        st.write(f"- Grouped keys: {list(formatted_recommendations['grouped'].keys())}")
-                        st.write(f"- Total recommendations: {len(formatted_recommendations['all'])}")
+                        # Add minimal debug output if in debug mode
+                        if st.session_state.get('debug_mode', False):
+                            st.write("DEBUG: Formatted recommendations structure")
+                            st.write(f"- Total recommendations: {len(formatted_recommendations['all'])}")
+                            st.write(f"- Non-empty groups: {[k for k, v in formatted_recommendations['grouped'].items() if v]}")
+                            st.write(f"- Network-specific recommendations: {len(formatted_recommendations['network_specific'])}")
+                        
                         
                         # Pass the formatted recommendations directly to render_recommendations
                         render_recommendations(formatted_recommendations, on_click_handler=None)
