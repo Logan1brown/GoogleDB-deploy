@@ -550,6 +550,14 @@ class RecommendationEngine:
                         st.write(f"DEBUG: Skipping {factor.criteria_type}/{factor.criteria_name} due to low impact: {factor.impact_score} < {min_impact}")
                     continue
                 
+                # Skip non-actionable recommendations (unselected fields with negative impact)
+                # These are "add" recommendations with negative impact - they just confirm the user's choice to not select them
+                if factor.recommendation_type == 'add' and factor.impact_score < 0:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: unselected field with negative impact")
+                        OptimizerConfig.debug(f"Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: unselected field with negative impact", category='recommendation')
+                    continue
+                
                 # Boost impact score slightly to ensure it's displayed
                 impact_score = factor.impact_score
                 if abs(impact_score) < 0.05:  # Ensure at least 5% impact for UI display
@@ -557,24 +565,27 @@ class RecommendationEngine:
                     if OptimizerConfig.DEBUG_MODE:
                         st.write(f"DEBUG: Boosting impact for {factor.criteria_type}/{factor.criteria_name} from {factor.impact_score} to {impact_score}")
                 
-                # Determine the correct recommendation type based on selection status and impact
-                is_selected = factor.criteria_type in criteria
+                # Use the original recommendation_type from the success factor
+                # This was properly determined in criteria_scorer.py based on field selection status
+                rec_type = factor.recommendation_type
                 
-                # For positive impact, use 'change' for selected fields, 'add' for unselected
-                if factor.impact_score > 0:
-                    rec_type = 'change' if is_selected else 'add'
-                else:
-                    rec_type = 'remove'
+                # Debug logging for recommendation type
+                if OptimizerConfig.DEBUG_MODE:
+                    is_selected = factor.criteria_type in criteria
+                    OptimizerConfig.debug(f"Using original recommendation type '{rec_type}' for {factor.criteria_type}/{factor.criteria_name} (criteria_type in criteria: {is_selected})", category='recommendation')
                 
-                # Format the explanation based on recommendation type and impact
+                # Format the explanation based on recommendation type
                 if rec_type == 'change':
                     # This is a change recommendation (modifying existing field)
                     explanation = f"Changing to '{factor.criteria_name}' could improve success probability by approximately {abs(factor.impact_score)*100:.1f}%."
                 elif rec_type == 'add':
                     # This is an add recommendation (new field)
-                    explanation = f"Adding '{factor.criteria_name}' could improve success probability by approximately {abs(factor.impact_score)*100:.1f}%."
+                    if factor.impact_score > 0:
+                        explanation = f"Adding '{factor.criteria_name}' could improve success probability by approximately {abs(factor.impact_score)*100:.1f}%."
+                    else:
+                        explanation = f"Avoiding '{factor.criteria_name}' could improve success probability by approximately {abs(factor.impact_score)*100:.1f}%."
                 else:  # rec_type == 'remove'
-                    # For negative impact, it's a remove recommendation
+                    # For remove recommendations
                     explanation = f"Removing '{factor.criteria_name}' could improve success probability by approximately {abs(factor.impact_score)*100:.1f}%."
                 
                 # Create the recommendation

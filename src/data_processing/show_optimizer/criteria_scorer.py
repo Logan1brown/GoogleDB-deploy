@@ -250,7 +250,7 @@ class CriteriaScorer:
             # Add a selection of unselected fields to consider for true "Add" recommendations
             # Prioritize fields based on importance defined in OptimizerConfig.CRITERIA_IMPORTANCE
             unselected_fields = [field for field in all_fields if field not in criteria]
-            max_unselected = OptimizerConfig.SUGGESTIONS.get('max_unselected_fields', 5)
+            max_unselected = OptimizerConfig.SUGGESTIONS.get('max_unselected_fields', 7)
             
             # Track which fields are unselected for proper recommendation type tagging
             self._unselected_fields = set(unselected_fields)
@@ -466,26 +466,52 @@ class CriteriaScorer:
                             impact = min_impact if impact >= 0 else -min_impact
                             # Removed excessive debug output for impact boosting
                         
-                        # Determine recommendation type based on impact
-                        if impact > 0:
-                            # For positive impact, check if this is a selected field
-                            if current_field in criteria:
-                                rec_type = 'change'  # It's a change if the field is already selected
+                        # Determine recommendation type based on impact and whether this specific option is selected
+                        is_field_selected = current_field in criteria
+                        is_option_selected = False
+                        
+                        # Check if this specific option is selected
+                        if is_field_selected:
+                            # For array fields (like character_types), check if the option_id is in the array
+                            if isinstance(criteria.get(current_field), list):
+                                is_option_selected = option_id in criteria[current_field]
+                            # For single value fields (like genre), check if the option_id matches the value
                             else:
-                                rec_type = 'add'      # It's an add if the field is not selected
+                                is_option_selected = criteria[current_field] == option_id
+                        
+                        # Determine recommendation type based on impact and selection status
+                        if impact > 0:
+                            # For positive impact
+                            if is_option_selected:
+                                # Option is already selected, but has positive impact (shouldn't happen often)
+                                rec_type = 'change'  # Keep as 'change' for consistency
+                            elif is_field_selected:
+                                # Field is selected but with a different option
+                                rec_type = 'change'  # It's a change if the field is already selected with different value
+                            else:
+                                rec_type = 'add'      # It's an add if the field is not selected at all
                         else:
-                            rec_type = 'remove'  # Negative impact - recommend removing
+                            # For negative impact
+                            if is_option_selected:
+                                rec_type = 'remove'  # It's a remove if this specific option is selected
+                            else:
+                                # It's a negative impact but the option isn't selected
+                                # This should be 'add' with negative impact (don't add this)
+                                rec_type = 'add'
                             
                         # Use the recommendation type from the list if available, otherwise use the determined type
                         try:
                             recommendation_type = recommendation_types[i] if i < len(recommendation_types) else rec_type
                             
-                            # Add debug output for recommendation type
+                            # Add detailed debug output for recommendation type and selection status
                             if OptimizerConfig.DEBUG_MODE:
-                                if current_field in criteria:
-                                    OptimizerConfig.debug(f"Field {current_field} is selected, recommendation_type is '{recommendation_type}'", category='impact')
+                                # Show detailed selection status
+                                if is_option_selected:
+                                    OptimizerConfig.debug(f"Option {option_id} ({option_name}) for field {current_field} IS SELECTED, recommendation_type is '{recommendation_type}'", category='impact')
+                                elif is_field_selected:
+                                    OptimizerConfig.debug(f"Field {current_field} is selected but with different value(s), option {option_id} ({option_name}) is NOT selected, recommendation_type is '{recommendation_type}'", category='impact')
                                 else:
-                                    OptimizerConfig.debug(f"Field {current_field} is unselected, recommendation_type is '{recommendation_type}'", category='impact')
+                                    OptimizerConfig.debug(f"Field {current_field} is NOT selected, option {option_id} ({option_name}) is NOT selected, recommendation_type is '{recommendation_type}'", category='impact')
                         except (IndexError, TypeError):
                             recommendation_type = rec_type
                             

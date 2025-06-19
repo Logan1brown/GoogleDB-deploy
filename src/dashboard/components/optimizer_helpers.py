@@ -551,13 +551,19 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             # Sort all recommendations by impact score regardless of category
             general_recommendations.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
             
-            # Group by criteria_type across all categories
+            # Group by criteria_type and respect recommendation type
             by_criteria_type = {}
             for rec in general_recommendations:
                 criteria_type = rec.get('criteria_type', 'unknown')
-                if criteria_type not in by_criteria_type:
-                    by_criteria_type[criteria_type] = []
-                by_criteria_type[criteria_type].append(rec)
+                rec_type = rec.get('category', 'add')  # Default to 'add' if category not found
+                
+                # Create a composite key that includes both criteria_type and rec_type
+                # This ensures recommendations are grouped by both criteria type and recommendation type
+                composite_key = f"{criteria_type}_{rec_type}"
+                
+                if composite_key not in by_criteria_type:
+                    by_criteria_type[composite_key] = []
+                by_criteria_type[composite_key].append(rec)
             
             # Debug output for criteria types
             if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
@@ -565,9 +571,14 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             
             # Render recommendations grouped by criteria type
             for criteria_type, criteria_recs in by_criteria_type.items():
-                # Debug output for criteria type
+                # Parse the composite key back into criteria_type and rec_type
+                parts = criteria_type.split('_', 1)
+                actual_criteria_type = parts[0]
+                rec_type = parts[1] if len(parts) > 1 else 'add'  # Default to 'add' if no rec_type found
+                
+                # Debug output for criteria type and recommendation type
                 if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
-                    st.write(f"DEBUG: Rendering criteria_type '{criteria_type}' with {len(criteria_recs)} recommendations")
+                    st.write(f"DEBUG: Rendering criteria_type '{actual_criteria_type}' with rec_type '{rec_type}' - {len(criteria_recs)} recommendations")
                 
                 # Sort recommendations within each criteria type by impact
                 criteria_recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
@@ -580,6 +591,12 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                             # Get the title and description directly without modification
                             title = rec.get('title', '')
                             description = rec.get('description', '')
+                            
+                            # Ensure the title reflects the correct recommendation type
+                            rec_type = rec.get('category', 'add')
+                            if rec_type == 'change' and 'Adding' in description:
+                                # Replace 'Adding' with 'Changing to' in the description
+                                description = description.replace('Adding', 'Changing to')
                             
                             if is_negative:
                                 # Use warning style for negative recommendations
@@ -691,8 +708,8 @@ def render_recommendation_group(rec_type: str, recommendations: List[Dict[str, A
     """
 Render a group of recommendations with appropriate UI elements.
     
-    Args:
-        rec_type: Type of recommendation (add, replace, remove, consider, etc.)
+Args:
+        rec_type: Type of recommendation (add, change, remove, consider, etc.)
         recommendations: List of pre-formatted recommendations of this type
         limit: Maximum number of recommendations to show
     """
