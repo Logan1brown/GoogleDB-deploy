@@ -322,7 +322,9 @@ class OptimizerView:
         if 'add' not in grouped:
             grouped['add'] = []
             
-
+        # Ensure 'change' type is included
+        if 'change' not in grouped:
+            grouped['change'] = []
             
         # Track network-specific recommendations separately
         network_specific = []
@@ -480,6 +482,20 @@ class OptimizerView:
             OptimizerConfig.debug(f"Final network_specific recommendations count: {len(network_specific)}", category='recommendation', force=True)
             OptimizerConfig.debug(f"Final all recommendations count: {len([rec for group in grouped.values() for rec in group] + network_specific)}", category='recommendation', force=True)
             OptimizerConfig.debug(f"Groups with recommendations: {[k for k, v in grouped.items() if v]}", category='recommendation', force=True)
+            
+            # Detailed debug for each group
+            for group_name, group_recs in grouped.items():
+                OptimizerConfig.debug(f"Group '{group_name}' has {len(group_recs)} recommendations", category='recommendation', force=True)
+                if group_recs:
+                    for i, rec in enumerate(group_recs[:3]):
+                        OptimizerConfig.debug(f"  {i+1}. {rec.get('title', 'No title')} - Category: {rec.get('category', 'unknown')}", category='recommendation')
+                        
+            # Specifically check for change recommendations
+            change_recs = [rec for rec in formatted_recommendations if rec.get('category') == 'change']
+            OptimizerConfig.debug(f"Found {len(change_recs)} formatted 'change' recommendations", category='recommendation', force=True)
+            if change_recs:
+                for i, rec in enumerate(change_recs[:3]):
+                    OptimizerConfig.debug(f"  Change rec {i+1}: {rec.get('title', 'No title')} - Impact: {rec.get('impact', 0)}", category='recommendation')
         
         # Return the formatted recommendations
         return {
