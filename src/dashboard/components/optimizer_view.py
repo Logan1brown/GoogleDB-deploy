@@ -306,25 +306,19 @@ class OptimizerView:
         Returns:
             Dictionary with formatted recommendations grouped by type
         """
-        # Initialize with keys from OptimizerConfig.RECOMMENDATION_TYPES
+        # Initialize with standard recommendation types
         config = OptimizerConfig()
-        grouped = {rec_type: [] for rec_type in config.RECOMMENDATION_TYPES.keys()}
+        grouped = {
+            'add': [],
+            'change': [],
+            'remove': [],
+            'network_specific': []
+        }
         
-        # Add backward compatibility for types which might be used in UI
-        if 'remove' not in grouped:
-            grouped['remove'] = []
-            
-        # Add backward compatibility for 'network_specific' type
-        if 'network_specific' not in grouped:
-            grouped['network_specific'] = []
-            
-        # Add backward compatibility for 'add' type
-        if 'add' not in grouped:
-            grouped['add'] = []
-            
-        # Ensure 'change' type is included
-        if 'change' not in grouped:
-            grouped['change'] = []
+        # Add any additional types from config
+        for rec_type in config.RECOMMENDATION_TYPES.keys():
+            if rec_type not in grouped:
+                grouped[rec_type] = []
             
         # Track network-specific recommendations separately
         network_specific = []
@@ -381,32 +375,24 @@ class OptimizerView:
             if not hasattr(rec, 'recommendation_type') and not hasattr(rec, 'rec_type'):
                 continue
                 
-            # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
+            # Get recommendation type, prioritizing recommendation_type over rec_type
             rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
             
-            # For selected fields with negative impact, ensure they are marked as 'remove' recommendations
-            # This is critical for proper UI display
-            impact_score = getattr(rec, 'impact_score', 0)
-            if impact_score < 0 and rec_type == 'change':
-                # If it's a change recommendation with negative impact, it should be a remove recommendation
-                rec_type = 'remove'
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Changed recommendation type from 'change' to 'remove' for {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')} due to negative impact", category='recommendation', force=True)
-            
-            # Only override rec_type if it's None or empty
-            # This preserves original recommendation types like 'change'
+            # Ensure we have a valid recommendation type
             if not rec_type:
-                # Check if this is a removal recommendation based on the suggested name
-                suggested_name = getattr(rec, 'suggested_name', '')
-                if suggested_name and 'remove' in suggested_name.lower():
-                    rec_type = 'remove'
-                else:
-                    # Default to 'add' if rec_type is None or empty and not a removal
-                    rec_type = 'add'
-                    
-            # Special debug for 'remove' recommendations
-            if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Found 'remove' recommendation for {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
+                # Default to 'add' if no type is specified
+                rec_type = 'add'
+                
+            # Ensure the recommendation type is one of our standard types
+            if rec_type not in ['add', 'change', 'remove'] and not rec_type.startswith('network_'):
+                # Default to 'add' for unknown types
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Unknown recommendation type '{rec_type}' defaulting to 'add'", category='recommendation')
+                rec_type = 'add'
+                
+            # Debug output for recommendation type
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Processing recommendation with type '{rec_type}' for {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
                 
             # Format impact percentage for display
             impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
@@ -478,32 +464,21 @@ class OptimizerView:
             # Add to formatted recommendations list
             formatted_recommendations.append(formatted_rec)
             
-            # Add to appropriate group
+            # Add to appropriate group based on recommendation type
             if rec_type.startswith('network_'):
-                # Handle all network-specific recommendation types
+                # Handle network-specific recommendations
                 network_specific.append(formatted_rec)
                 
-                # Also add to the appropriate group based on type
-                if rec_type in grouped:
-                    grouped[rec_type].append(formatted_rec)
-                else:
-                    # Create group if it doesn't exist
-                    if rec_type not in grouped:
-                        grouped[rec_type] = []
-                    grouped[rec_type].append(formatted_rec)
-            elif rec_type in grouped:
-                grouped[rec_type].append(formatted_rec)
-                # Debug output for 'remove' recommendations
-                if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Added 'remove' recommendation to grouped dictionary: {formatted_rec['title']}", category='recommendation', force=True)
-            else:
-                # Create group if it doesn't exist
-                if rec_type not in grouped:
-                    grouped[rec_type] = []
-                grouped[rec_type].append(formatted_rec)
-                # Debug output for 'remove' recommendations
-                if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Created 'remove' group and added recommendation: {formatted_rec['title']}", category='recommendation', force=True)
+            # Ensure the group exists
+            if rec_type not in grouped:
+                grouped[rec_type] = []
+                
+            # Add the recommendation to its group
+            grouped[rec_type].append(formatted_rec)
+            
+            # Debug output
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Added recommendation to '{rec_type}' group: {formatted_rec['title']}", category='recommendation')
                 
             # We no longer duplicate recommendations into 'add' and 'remove' groups
             # This preserves the original recommendation types (add, remove, change, etc.)
@@ -521,33 +496,17 @@ class OptimizerView:
             OptimizerConfig.debug(f"Non-empty groups: {non_empty_groups}", category='recommendation')
             OptimizerConfig.debug(f"Network-specific recommendations: {len(network_specific)}", category='recommendation')
             
-            # Check if 'remove' recommendations are in the grouped dictionary
-            if 'remove' in grouped and grouped['remove']:
-                OptimizerConfig.debug(f"Group 'remove' has {len(grouped['remove'])} recommendations", category='recommendation')
-                if grouped['remove']:
-                    OptimizerConfig.debug(f"First item in group 'remove': {grouped['remove'][0]['title']} - Category: {grouped['remove'][0]['category']}", category='recommendation')
-            else:
-                OptimizerConfig.debug(f"No 'remove' recommendations found in grouped dictionary", category='recommendation', force=True)
+            # Log counts for each recommendation type
+            for rec_type in config.RECOMMENDATION_TYPES.keys():
+                count = len(grouped.get(rec_type, []))
+                OptimizerConfig.debug(f"Group '{rec_type}' has {count} recommendations", category='recommendation')
+                if count > 0:
+                    OptimizerConfig.debug(f"First item in group '{rec_type}': {grouped[rec_type][0]['title']}", category='recommendation')
                 
-            # Check if there are any 'remove' recommendations in the formatted list that didn't make it to the grouped dictionary
-            remove_formatted_recs = [rec for rec in formatted_recommendations if rec['category'] == 'remove']
-            if remove_formatted_recs:
-                OptimizerConfig.debug(f"Found {len(remove_formatted_recs)} 'remove' recommendations in formatted list but they're not in the grouped dictionary", category='recommendation', force=True)
-                # Add them to the grouped dictionary
-                for rec in remove_formatted_recs:
-                    if 'remove' not in grouped:
-                        grouped['remove'] = []
-                    if rec not in grouped['remove']:
-                        grouped['remove'].append(rec)
-                        OptimizerConfig.debug(f"Added missing 'remove' recommendation to grouped dictionary: {rec['title']}", category='recommendation', force=True)
-                
-            # Ensure all recommendations are in the grouped dictionary
-            for rec in formatted_recommendations:
-                rec_type = rec.get('category')
-                if rec_type and rec_type not in grouped:
-                    grouped[rec_type] = []
-                if rec_type and rec not in grouped[rec_type]:
-                    grouped[rec_type].append(rec)
+        # Sort recommendations within each group by impact (absolute value)
+        for rec_type, recs in grouped.items():
+            if recs:
+                recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
         
         # Final debug output before returning
         if OptimizerConfig.DEBUG_MODE:
