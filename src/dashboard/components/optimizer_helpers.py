@@ -539,9 +539,14 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
         # Group recommendations by type and criteria_type
         by_type_and_criteria = {}
         for rec in general_recommendations:
-            rec_type = rec.get('recommendation_type', rec.get('rec_type', 'unknown'))
+            # The recommendation type is stored in 'category' field in the formatted recommendations
+            rec_type = rec.get('category', rec.get('recommendation_type', rec.get('rec_type', 'unknown')))
             criteria_type = rec.get('criteria_type', 'unknown')
             
+            # Debug the recommendation type detection
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Recommendation type detection: category={rec.get('category', None)}, rec_type={rec_type}", category='recommendation')
+                
             if rec_type not in by_type_and_criteria:
                 by_type_and_criteria[rec_type] = {}
             
@@ -565,19 +570,29 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             # Define the order in which to display recommendation types
             display_order = ['change', 'add', 'remove', 'consider', 'fallback']
             
+            # Debug what recommendation types we have
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Available recommendation types: {list(by_type_and_criteria.keys())}", category='recommendation', force=True)
+                for rec_type, criteria_groups in by_type_and_criteria.items():
+                    OptimizerConfig.debug(f"Type '{rec_type}' has {sum(len(recs) for recs in criteria_groups.values())} recommendations", category='recommendation', force=True)
+            
             # Display recommendations in the specified order
             for rec_type in display_order:
                 if rec_type in by_type_and_criteria and by_type_and_criteria[rec_type]:
                     # Get the display name for this recommendation type
                     type_display = config.RECOMMENDATION_TYPES.get(rec_type, rec_type.capitalize())
                     
-                    # Display a subheader for each recommendation type if there are multiple types
-                    if len(by_type_and_criteria) > 1 and len(display_order) > 1:
+                    # Display a subheader for each recommendation type if there are multiple types with recommendations
+                    active_types = [t for t in display_order if t in by_type_and_criteria and by_type_and_criteria[t]]
+                    if len(active_types) > 1:
                         st.write(f"**{type_display}**")
                     
                     # Display recommendations for each criteria type within this recommendation type
                     for criteria_type, recs in by_type_and_criteria[rec_type].items():
-                        for rec in recs[:3]:  # Limit to top 3 per criteria type
+                        # Sort by absolute impact value
+                        sorted_recs = sorted(recs, key=lambda x: abs(x.get('_impact_raw', 0) if x.get('_impact_raw') is not None else x.get('impact', 0)), reverse=True)
+                        
+                        for rec in sorted_recs[:3]:  # Limit to top 3 per criteria type
                             # Determine if this is a positive or negative recommendation based on impact
                             is_negative = rec.get('impact', 0) < 0
                             
@@ -600,7 +615,17 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                                 render_info_card(title, description)
                         
             general_recs_rendered = True
+        # This else clause is no longer needed as we're handling all recommendation types above
+        # But we'll keep it as a fallback just in case
         else:
+            # Debug what's happening
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("Falling back to old rendering method", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Groups: {list(grouped.keys())}", category='recommendation', force=True)
+                for k, v in grouped.items():
+                    OptimizerConfig.debug(f"Group '{k}' has {len(v)} items", category='recommendation', force=True)
+                    
+            # Use the old rendering method as a fallback
             for rec_type, recs in grouped.items():
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Checking group '{rec_type}' with {len(recs)} recommendations", category='recommendation')
