@@ -547,14 +547,24 @@ class RecommendationEngine:
                     if OptimizerConfig.DEBUG_MODE:
                         st.write(f"DEBUG: Boosting impact for {factor.criteria_type}/{factor.criteria_name} from {factor.impact_score} to {impact_score}")
                 
-                # Determine recommendation type based on impact score
-                rec_type = "add" if factor.impact_score > 0 else "remove"
+                # Use the original recommendation type if available, otherwise determine based on impact score
+                rec_type = factor.recommendation_type if hasattr(factor, 'recommendation_type') and factor.recommendation_type else ("add" if factor.impact_score > 0 else "remove")
                 
-                # Format the explanation based on impact
-                if factor.impact_score > 0:
+                # Format the explanation based on recommendation type and impact
+                if rec_type == 'change':
+                    # For 'change' recommendations
+                    impact_direction = "improve" if factor.impact_score > 0 else "decrease"
+                    explanation = f"Using '{factor.criteria_name}' could {impact_direction} success probability by approximately {abs(factor.impact_score)*100:.1f}%."
+                elif rec_type == 'add':
+                    # For 'add' recommendations
                     explanation = f"Adding '{factor.criteria_name}' could improve success probability by approximately {abs(factor.impact_score)*100:.1f}%."
-                else:
+                elif rec_type == 'remove':
+                    # For 'remove' recommendations
                     explanation = f"Removing '{factor.criteria_name}' could improve success probability by approximately {abs(factor.impact_score)*100:.1f}%."
+                else:
+                    # Default format for other types
+                    impact_direction = "improve" if factor.impact_score > 0 else "decrease"
+                    explanation = f"Using '{factor.criteria_name}' could {impact_direction} success probability by approximately {abs(factor.impact_score)*100:.1f}%."
                 
                 # Create the recommendation
                 recommendation = Recommendation(
