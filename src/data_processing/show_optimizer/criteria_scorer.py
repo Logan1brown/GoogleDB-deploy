@@ -255,6 +255,10 @@ class CriteriaScorer:
             # Track which fields are unselected for proper recommendation type tagging
             self._unselected_fields = set(unselected_fields)
             
+            # Add debug output for unselected fields tracking
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Tracking unselected fields: {self._unselected_fields}", category='impact')
+            
             # Sort unselected fields by importance category
             importance_order = {'essential': 0, 'core': 1, 'primary': 2, 'secondary': 3}
             prioritized_fields = []
@@ -464,7 +468,11 @@ class CriteriaScorer:
                         
                         # Determine recommendation type based on impact
                         if impact > 0:
-                            rec_type = 'add'  # Positive impact - recommend adding
+                            # For positive impact, check if this is a selected field
+                            if current_field in criteria:
+                                rec_type = 'change'  # It's a change if the field is already selected
+                            else:
+                                rec_type = 'add'      # It's an add if the field is not selected
                         else:
                             rec_type = 'remove'  # Negative impact - recommend removing
                             
@@ -472,13 +480,12 @@ class CriteriaScorer:
                         try:
                             recommendation_type = recommendation_types[i] if i < len(recommendation_types) else rec_type
                             
-                            # Enhance recommendation type to be more specific
-                            if recommendation_type == 'add':
-                                # Check if this is a true "add" (new field) or a "change" (different value for existing field)
-                                if current_field in self._unselected_fields:
-                                    recommendation_type = 'add'  # Keep as 'add' for adding a new field
+                            # Add debug output for recommendation type
+                            if OptimizerConfig.DEBUG_MODE:
+                                if current_field in criteria:
+                                    OptimizerConfig.debug(f"Field {current_field} is selected, recommendation_type is '{recommendation_type}'", category='impact')
                                 else:
-                                    recommendation_type = 'change'  # Change - modifying existing field
+                                    OptimizerConfig.debug(f"Field {current_field} is unselected, recommendation_type is '{recommendation_type}'", category='impact')
                         except (IndexError, TypeError):
                             recommendation_type = rec_type
                             
