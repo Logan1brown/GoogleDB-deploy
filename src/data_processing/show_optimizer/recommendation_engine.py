@@ -514,26 +514,27 @@ class RecommendationEngine:
                 # Log success factors
                 st.write(f"DEBUG: Total success factors: {len(success_factors)}")
             
-            # Filter success factors by their actual recommendation type
-            add_factors = [f for f in success_factors if f.recommendation_type == 'add']
-            change_factors = [f for f in success_factors if f.recommendation_type == 'change']
-            remove_factors = [f for f in success_factors if f.recommendation_type == 'remove']
-            
-            # Debug log the factors by recommendation type
+            # We don't need to categorize recommendations here
+            # The recommendation type is already determined in criteria_scorer.py
+            # Just log the distribution of recommendation types for debugging
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Add factors: {len(add_factors)}")
-                st.write(f"DEBUG: Change factors: {len(change_factors)}")
-                st.write(f"DEBUG: Remove factors: {len(remove_factors)}")
+                # Count factors by recommendation type
+                rec_types = {}
+                for factor in success_factors:
+                    rec_type = factor.recommendation_type
+                    if rec_type not in rec_types:
+                        rec_types[rec_type] = 0
+                    rec_types[rec_type] += 1
+                
+                # Log the counts
+                for rec_type, count in rec_types.items():
+                    st.write(f"DEBUG: {rec_type} factors: {count}")
                 
                 # Also log by impact direction for reference
                 positive_impact = [f for f in success_factors if f.impact_score > 0]
                 negative_impact = [f for f in success_factors if f.impact_score < 0]
                 st.write(f"DEBUG: Positive impact factors: {len(positive_impact)}")
                 st.write(f"DEBUG: Negative impact factors: {len(negative_impact)}")
-                
-                # Show the actual recommendation types
-                rec_types = {f.recommendation_type for f in success_factors}
-                st.write(f"DEBUG: Recommendation types in success factors: {rec_types}")
                 
                 # Check if we have any matching shows to analyze
                 if isinstance(matching_shows, pd.DataFrame):
@@ -560,8 +561,22 @@ class RecommendationEngine:
                 # These are "add" recommendations with negative impact - they just confirm the user's choice to not select them
                 if factor.recommendation_type == 'add' and factor.impact_score < 0:
                     if OptimizerConfig.DEBUG_MODE:
+                        # Get more detailed information about the selection status
+                        is_field_selected = factor.criteria_type in criteria
+                        option_id = getattr(factor, 'criteria_value', None)
+                        is_option_selected = False
+                        
+                        # Check if this specific option is selected
+                        if is_field_selected and option_id is not None:
+                            # For array fields (like character_types), check if the option_id is in the array
+                            if isinstance(criteria.get(factor.criteria_type), list):
+                                is_option_selected = option_id in criteria[factor.criteria_type]
+                            # For single value fields (like genre), check if the option_id matches the value
+                            else:
+                                is_option_selected = criteria[factor.criteria_type] == option_id
+                        
                         st.write(f"DEBUG: Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: unselected field with negative impact")
-                        OptimizerConfig.debug(f"Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: unselected field with negative impact", category='recommendation')
+                        OptimizerConfig.debug(f"Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: field selected={is_field_selected}, option selected={is_option_selected}, impact={factor.impact_score}", category='recommendation')
                     continue
                 
                 # Boost impact score slightly to ensure it's displayed
@@ -578,7 +593,19 @@ class RecommendationEngine:
                 # Debug logging for recommendation type
                 if OptimizerConfig.DEBUG_MODE:
                     is_selected = factor.criteria_type in criteria
-                    OptimizerConfig.debug(f"Using original recommendation type '{rec_type}' for {factor.criteria_type}/{factor.criteria_name} (criteria_type in criteria: {is_selected})", category='recommendation')
+                    option_id = getattr(factor, 'criteria_value', None)
+                    is_option_selected = False
+                    
+                    # Check if this specific option is selected
+                    if is_selected and option_id is not None:
+                        # For array fields (like character_types), check if the option_id is in the array
+                        if isinstance(criteria.get(factor.criteria_type), list):
+                            is_option_selected = option_id in criteria[factor.criteria_type]
+                        # For single value fields (like genre), check if the option_id matches the value
+                        else:
+                            is_option_selected = criteria[factor.criteria_type] == option_id
+                    
+                    OptimizerConfig.debug(f"Using recommendation type '{rec_type}' for {factor.criteria_type}/{factor.criteria_name} (field selected: {is_selected}, option selected: {is_option_selected})", category='recommendation')
                 
                 # Format the explanation based on recommendation type
                 if rec_type == 'change':
