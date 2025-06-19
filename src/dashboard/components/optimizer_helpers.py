@@ -548,8 +548,15 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
         # Check if we have any general recommendations
         general_recommendations = []
         for rec_type, recs in grouped.items():
-            if not rec_type.startswith('network_') and recs:
-                general_recommendations.extend(recs)
+            # Skip empty groups and network-specific recommendations
+            if not recs or rec_type.startswith('network_'):
+                continue
+                
+            # Make sure 'remove' recommendations are included
+            if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Including {len(recs)} 'remove' recommendations in general_recommendations")
+                
+            general_recommendations.extend(recs)
                 
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Found {len(general_recommendations)} general recommendations", category='recommendation', force=True)
