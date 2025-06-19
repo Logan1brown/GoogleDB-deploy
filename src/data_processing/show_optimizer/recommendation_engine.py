@@ -587,7 +587,10 @@ class RecommendationEngine:
                 # Case 2: "remove" recommendations for fields that aren't actually selected
                 # These don't make sense since you can't remove what's not selected
                 # Special case: For 'genre', we always allow 'remove' recommendations since it's a required field
-                elif factor.recommendation_type == 'remove' and not is_field_selected and factor.criteria_type != 'genre':
+                # Also allow 'remove' recommendations for character_types and thematic_elements
+                elif (factor.recommendation_type == 'remove' and 
+                      not is_field_selected and 
+                      factor.criteria_type not in ['genre', 'character_types', 'thematic_elements']):
                     skip_recommendation = True
                     skip_reason = "remove recommendation for unselected field"
                 

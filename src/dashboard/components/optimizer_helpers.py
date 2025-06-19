@@ -533,6 +533,12 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                         if 'remove' not in grouped:
                             grouped['remove'] = []
                         grouped['remove'].append(rec)
+                        
+                        # Also add it to the appropriate criteria_type group when rendering
+                        criteria_type = rec.get('criteria_type', 'unknown')
+                        if criteria_type not in by_criteria_type:
+                            by_criteria_type[criteria_type] = []
+                        by_criteria_type[criteria_type].append(rec)
             for rec_type, recs in grouped.items():
                 OptimizerConfig.debug(f"Group {rec_type}: {len(recs)} recommendations", category='recommendation')
                 if recs:
@@ -580,8 +586,27 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             # Group by criteria_type only, regardless of recommendation type
             # This ensures all recommendations for the same criteria type are grouped together
             by_criteria_type = {}
+            
+            # Count recommendations by type before grouping
+            rec_type_counts = {'add': 0, 'change': 0, 'remove': 0}
+            for rec in general_recommendations:
+                rec_type = rec.get('category', 'unknown')
+                if rec_type in rec_type_counts:
+                    rec_type_counts[rec_type] += 1
+            
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Recommendation counts by type: {rec_type_counts}", category='recommendation', force=True)
+                
+            # Process each recommendation for grouping
             for rec in general_recommendations:
                 criteria_type = rec.get('criteria_type', 'unknown')
+                rec_type = rec.get('category', 'unknown')
+                
+                # Debug output for each recommendation being processed
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Processing recommendation for grouping: {criteria_type}/{rec.get('title', 'unknown')} - Type: {rec_type}", category='recommendation')
+                    if rec_type == 'remove':
+                        OptimizerConfig.debug(f"FOUND REMOVE REC FOR GROUPING: {criteria_type}/{rec.get('title', 'unknown')}", category='recommendation', force=True)
                 
                 # Group by criteria_type only, not by recommendation type
                 # This ensures 'add', 'change', and 'remove' recommendations for the same criteria

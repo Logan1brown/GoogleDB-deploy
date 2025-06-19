@@ -333,8 +333,25 @@ class OptimizerView:
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Formatting {len(recommendations)} recommendations", category='recommendation', force=True)
             if recommendations:
-                types = {getattr(rec, 'recommendation_type', 'unknown') for rec in recommendations}
-                OptimizerConfig.debug(f"Recommendation types: {types}", category='recommendation', force=True)
+                # Count recommendations by type
+                type_counts = {}
+                for rec in recommendations:
+                    rec_type = getattr(rec, 'recommendation_type', 'unknown')
+                    if rec_type not in type_counts:
+                        type_counts[rec_type] = 0
+                    type_counts[rec_type] += 1
+                
+                OptimizerConfig.debug(f"Recommendation types: {type_counts}", category='recommendation', force=True)
+                
+                # Special debug for 'remove' recommendations
+                remove_recs = [rec for rec in recommendations if getattr(rec, 'recommendation_type', '') == 'remove']
+                if remove_recs:
+                    OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations before formatting", category='recommendation', force=True)
+                    for rec in remove_recs:
+                        OptimizerConfig.debug(f"Remove rec: {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
+                else:
+                    OptimizerConfig.debug("No 'remove' recommendations found in original recommendations", category='recommendation', force=True)
+                
                 # Show the first few recommendations in detail
                 for i, rec in enumerate(recommendations[:3]):
                     OptimizerConfig.debug(f"Recommendation {i+1} details:", category='recommendation', force=True)
@@ -377,6 +394,10 @@ class OptimizerView:
                 else:
                     # Default to 'add' if rec_type is None or empty and not a removal
                     rec_type = 'add'
+                    
+            # Special debug for 'remove' recommendations
+            if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Found 'remove' recommendation for {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
                 
             # Format impact percentage for display
             impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
