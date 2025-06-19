@@ -380,6 +380,10 @@ class OptimizerView:
             impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
             impact_direction = "Increase" if getattr(rec, 'impact_score', 0) > 0 else "Decrease"
             
+            # Debug the recommendation type
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Processing recommendation of type '{rec_type}' for {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
+            
             # Debug the recommendation attributes
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Formatting recommendation: {rec_type} - {getattr(rec, 'criteria_type', 'unknown')} - {getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')

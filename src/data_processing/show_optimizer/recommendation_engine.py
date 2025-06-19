@@ -592,8 +592,27 @@ class RecommendationEngine:
             
             # Debug log the total recommendations created
             if OptimizerConfig.DEBUG_MODE:
+                # Count recommendations by type
+                rec_types = {}
+                for rec in recommendations:
+                    rec_type = getattr(rec, 'recommendation_type', 'unknown')
+                    if rec_type not in rec_types:
+                        rec_types[rec_type] = 0
+                    rec_types[rec_type] += 1
+                
                 st.write(f"DEBUG: Created {len(recommendations)} recommendations from success factors")
+                st.write(f"DEBUG: Recommendation types: {rec_types}")
                 OptimizerConfig.debug(f"Created {len(recommendations)} recommendations from success factors", category='recommendation')
+                OptimizerConfig.debug(f"Recommendation types: {rec_types}", category='recommendation')
+                
+                # Debug the first few change recommendations
+                change_recs = [rec for rec in recommendations if getattr(rec, 'recommendation_type', '') == 'change']
+                if change_recs:
+                    st.write(f"DEBUG: Found {len(change_recs)} 'change' recommendations")
+                    for i, rec in enumerate(change_recs[:3]):
+                        st.write(f"DEBUG: Change recommendation {i+1}: {getattr(rec, 'criteria_type', '')}/{getattr(rec, 'suggested_name', '')} - impact: {getattr(rec, 'impact_score', 0)}")
+                else:
+                    st.write(f"DEBUG: No 'change' recommendations found")
             
             return recommendations
         except Exception as e:
