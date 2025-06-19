@@ -627,9 +627,9 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                 # Sort recommendations within each criteria type by impact (absolute value)
                 criteria_recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
                 
-                # Debug output for criteria type and recommendations
-                if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
-                    # Count recommendations by type within this criteria group
+                # Debug output for this criteria type
+                if OptimizerConfig.DEBUG_MODE:
+                    # Count recommendations by type
                     rec_types = {}
                     for rec in criteria_recs:
                         rec_type = rec.get('category', 'unknown')
@@ -637,14 +637,20 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                             rec_types[rec_type] = 0
                         rec_types[rec_type] += 1
                     
-                    # Display the count of each recommendation type
-                    st.write(f"DEBUG: Rendering criteria_type '{actual_criteria_type}' with {len(criteria_recs)} recommendations")
-                    st.write(f"DEBUG: Recommendation types: {rec_types}")
+                    OptimizerConfig.debug(f"Rendering criteria_type '{criteria_type}' with {len(criteria_recs)} recommendations", category='recommendation')
+                    OptimizerConfig.debug(f"Recommendation types: {rec_types}", category='recommendation')
+                    
+                    # Special debug for 'remove' recommendations
+                    remove_recs = [rec for rec in criteria_recs if rec.get('category') == 'remove']
+                    if remove_recs:
+                        OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations for criteria_type '{criteria_type}'", category='recommendation', force=True)
+                        for rec in remove_recs:
+                            OptimizerConfig.debug(f"Remove recommendation in criteria_type '{criteria_type}': {rec.get('title', 'unknown')}", category='recommendation', force=True)
                     
                     # Special debug for 'remove' recommendations
                     if 'remove' in rec_types and rec_types['remove'] > 0:
                         st.write(f"DEBUG: Found {rec_types['remove']} 'remove' recommendations for '{actual_criteria_type}'")
-                        for rec in [r for r in criteria_recs if r.get('category') == 'remove'][:2]:
+                        for rec in [r for r in recs if r.get('category') == 'remove'][:2]:
                             st.write(f"DEBUG: Remove rec - {rec.get('title')}: {rec.get('description')}")
                     
                 

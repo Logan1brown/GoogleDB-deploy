@@ -484,11 +484,17 @@ class OptimizerView:
                     grouped[rec_type].append(formatted_rec)
             elif rec_type in grouped:
                 grouped[rec_type].append(formatted_rec)
+                # Debug output for 'remove' recommendations
+                if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Added 'remove' recommendation to grouped dictionary: {formatted_rec['title']}", category='recommendation', force=True)
             else:
                 # Create group if it doesn't exist
                 if rec_type not in grouped:
                     grouped[rec_type] = []
                 grouped[rec_type].append(formatted_rec)
+                # Debug output for 'remove' recommendations
+                if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Created 'remove' group and added recommendation: {formatted_rec['title']}", category='recommendation', force=True)
                 
             # We no longer duplicate recommendations into 'add' and 'remove' groups
             # This preserves the original recommendation types (add, remove, change, etc.)
@@ -500,6 +506,32 @@ class OptimizerView:
             
         # Sort network-specific recommendations by impact score
         network_specific.sort(key=lambda x: abs(x["_impact_raw"]), reverse=True)
+        
+        # Check if we have any 'remove' recommendations that didn't make it into the grouped dictionary
+        if OptimizerConfig.DEBUG_MODE:
+            # Count recommendations by type in formatted_recommendations
+            rec_types_in_formatted = {}
+            for rec in formatted_recommendations:
+                rec_type = rec.get('category', 'unknown')
+                if rec_type not in rec_types_in_formatted:
+                    rec_types_in_formatted[rec_type] = 0
+                rec_types_in_formatted[rec_type] += 1
+            
+            OptimizerConfig.debug(f"Recommendation types in formatted_recommendations: {rec_types_in_formatted}", category='recommendation', force=True)
+            
+            # Check for 'remove' recommendations in formatted_recommendations that didn't make it to grouped
+            remove_recs = [rec for rec in formatted_recommendations if rec.get('category') == 'remove']
+            if remove_recs and 'remove' not in grouped:
+                OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations in formatted_recommendations but not in grouped", category='recommendation', force=True)
+                grouped['remove'] = remove_recs
+                
+            # Ensure all recommendations are in the grouped dictionary
+            for rec in formatted_recommendations:
+                rec_type = rec.get('category')
+                if rec_type and rec_type not in grouped:
+                    grouped[rec_type] = []
+                if rec_type and rec not in grouped[rec_type]:
+                    grouped[rec_type].append(rec)
         
         # Final debug output before returning
         if OptimizerConfig.DEBUG_MODE:

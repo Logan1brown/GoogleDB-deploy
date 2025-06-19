@@ -666,8 +666,9 @@ class RecommendationEngine:
                         OptimizerConfig.debug(f"REMOVE RECOMMENDATION CREATED: {factor.criteria_type}/{factor.criteria_name}", category='recommendation', force=True)
                         st.write(f"DEBUG: REMOVE RECOMMENDATION CREATED: {factor.criteria_type}/{factor.criteria_name}")
                         
-                        # Ensure the recommendation has the correct type
-                        recommendation.recommendation_type = 'remove'
+                # Ensure the recommendation has the correct type
+                # This is critical for 'remove' recommendations to be properly displayed
+                recommendation.recommendation_type = rec_type
                     
             if not recommendations and OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: No recommendations created from {len(success_factors)} success factors")
