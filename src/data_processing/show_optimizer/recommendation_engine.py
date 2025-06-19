@@ -514,20 +514,26 @@ class RecommendationEngine:
                 # Log success factors
                 st.write(f"DEBUG: Total success factors: {len(success_factors)}")
             
-            # Filter success factors by recommendation type and impact
-            # For testing, include all factors regardless of recommendation type
-            add_factors = [f for f in success_factors if f.impact_score > 0]
-            change_factors = [f for f in success_factors if f.impact_score < 0]
+            # Filter success factors by their actual recommendation type
+            add_factors = [f for f in success_factors if f.recommendation_type == 'add']
+            change_factors = [f for f in success_factors if f.recommendation_type == 'change']
+            remove_factors = [f for f in success_factors if f.recommendation_type == 'remove']
             
-            # Debug log the factors
+            # Debug log the factors by recommendation type
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Positive impact factors: {len(add_factors)}")
-                st.write(f"DEBUG: Negative impact factors: {len(change_factors)}")
-            
-            # Debug logs only if debug mode is enabled
-            if OptimizerConfig.DEBUG_MODE:
-                # Log filtered factors
-                st.write(f"DEBUG: Add factors: {len(add_factors)}, Change factors: {len(change_factors)}")
+                st.write(f"DEBUG: Add factors: {len(add_factors)}")
+                st.write(f"DEBUG: Change factors: {len(change_factors)}")
+                st.write(f"DEBUG: Remove factors: {len(remove_factors)}")
+                
+                # Also log by impact direction for reference
+                positive_impact = [f for f in success_factors if f.impact_score > 0]
+                negative_impact = [f for f in success_factors if f.impact_score < 0]
+                st.write(f"DEBUG: Positive impact factors: {len(positive_impact)}")
+                st.write(f"DEBUG: Negative impact factors: {len(negative_impact)}")
+                
+                # Show the actual recommendation types
+                rec_types = {f.recommendation_type for f in success_factors}
+                st.write(f"DEBUG: Recommendation types in success factors: {rec_types}")
                 
                 # Check if we have any matching shows to analyze
                 if isinstance(matching_shows, pd.DataFrame):
