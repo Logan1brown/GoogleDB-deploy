@@ -382,7 +382,6 @@ class OptimizerConfig:
         'remove': "Consider Removing",
         'change': "Successful Pattern",
         'consider': "Consider Adding",
-        'fallback': "Fallback Recommendation",
         'network_keep': "Network Strengths",
         'network_change': "Network Adjustments"
     }

@@ -282,11 +282,21 @@ class RecommendationEngine:
                         if confidence == 'none' and sample_size > self.config.CONFIDENCE['minimum_sample']:            
                             pass
                             
-                        # Determine recommendation type based on impact
-                        if impact > 0:
-                            recommendation_type = 'add'  # Positive impact - recommend adding
-                        else:
-                            recommendation_type = 'remove'  # Negative impact - recommend removing
+                        # Get recommendation type from impact data - NEVER override it
+                        recommendation_type = impact_data.get('recommendation_type')
+                        
+                        # If no recommendation_type is specified (which shouldn't happen), fall back to impact-based type
+                        if not recommendation_type:  
+                            if impact > 0:
+                                recommendation_type = 'add'  # Positive impact - recommend adding
+                            else:
+                                recommendation_type = 'remove'  # Negative impact - recommend removing
+                            
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"WARNING: No recommendation_type in impact data for {criteria_type}/{name}. Using impact-based fallback: {recommendation_type}", category='warning')
+                        
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Using recommendation type '{recommendation_type}' for {criteria_type}/{name}", category='recommendation')
                             
                         # Temporarily lower the minimum impact threshold to ensure we get some recommendations
                         min_impact = 0.01  # Lower threshold for testing
@@ -599,20 +609,27 @@ class RecommendationEngine:
                     if rec_type not in rec_types:
                         rec_types[rec_type] = 0
                     rec_types[rec_type] += 1
+                    
+                    # Log detailed info for each recommendation
+                    criteria_type = getattr(rec, 'criteria_type', 'unknown')
+                    name = getattr(rec, 'suggested_name', 'unknown')
+                    impact = getattr(rec, 'impact_score', 0)
+                    OptimizerConfig.debug(f"Recommendation: {criteria_type}/{name} - Type: {rec_type} - Impact: {impact}", category='recommendation')
                 
-                st.write(f"DEBUG: Created {len(recommendations)} recommendations from success factors")
-                st.write(f"DEBUG: Recommendation types: {rec_types}")
-                OptimizerConfig.debug(f"Created {len(recommendations)} recommendations from success factors", category='recommendation')
                 OptimizerConfig.debug(f"Recommendation types: {rec_types}", category='recommendation')
-                
-                # Debug the first few change recommendations
-                change_recs = [rec for rec in recommendations if getattr(rec, 'recommendation_type', '') == 'change']
-                if change_recs:
-                    st.write(f"DEBUG: Found {len(change_recs)} 'change' recommendations")
-                    for i, rec in enumerate(change_recs[:3]):
-                        st.write(f"DEBUG: Change recommendation {i+1}: {getattr(rec, 'criteria_type', '')}/{getattr(rec, 'suggested_name', '')} - impact: {getattr(rec, 'impact_score', 0)}")
-                else:
+                if 'change' not in rec_types or rec_types['change'] == 0:
+                    OptimizerConfig.debug(f"No 'change' recommendations found", category='recommendation')
                     st.write(f"DEBUG: No 'change' recommendations found")
+                else:
+                    change_recs = [rec for rec in recommendations if getattr(rec, 'recommendation_type', '') == 'change']
+                    st.write(f"DEBUG: Found {len(change_recs)} 'change' recommendations")
+                    OptimizerConfig.debug(f"Found {len(change_recs)} 'change' recommendations", category='recommendation')
+                    for i, rec in enumerate(change_recs[:3]):
+                        criteria_type = getattr(rec, 'criteria_type', 'unknown')
+                        name = getattr(rec, 'suggested_name', 'unknown')
+                        impact = getattr(rec, 'impact_score', 0)
+                        st.write(f"DEBUG: Change recommendation {i+1}: {criteria_type}/{name} - impact: {impact}")
+                        OptimizerConfig.debug(f"Change recommendation {i+1}: {criteria_type}/{name} - impact: {impact}", category='recommendation')
             
             return recommendations
         except Exception as e:

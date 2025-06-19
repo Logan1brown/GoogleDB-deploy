@@ -242,8 +242,25 @@ class CriteriaScorer:
             
             # Get all fields to analyze from the FIELD_CONFIGS dictionary
             all_fields = list(self.field_manager.FIELD_CONFIGS.keys())
-            # Update the fields_to_process that was initialized at the top level
+            
+            # Process both selected and unselected fields
+            # First, add all fields that are in the criteria
             fields_to_process = [field for field in criteria.keys() if field in all_fields]
+            
+            # Also add a selection of unselected fields to consider for true "Add" recommendations
+            # Limit to top N unselected fields to avoid performance issues
+            unselected_fields = [field for field in all_fields if field not in criteria]
+            max_unselected = OptimizerConfig.SUGGESTIONS.get('max_unselected_fields', 5)
+            
+            # Track which fields are unselected for proper recommendation type tagging
+            self._unselected_fields = set(unselected_fields)
+            
+            # Add debug output for unselected fields
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Found {len(unselected_fields)} unselected fields, will process up to {max_unselected}", category='impact')
+                
+            # Add a selection of unselected fields to process
+            fields_to_process.extend(unselected_fields[:max_unselected])
             
             # Only log critical base rate information
             
@@ -263,8 +280,7 @@ class CriteriaScorer:
             for current_field in fields_to_process:
                 # Skip fields that don't have options
                 options = self.field_manager.get_options(current_field)
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Field {current_field} has {len(options) if options else 0} options", category='impact')
+                # Removed excessive debug output for field options
                 if not options:
                     continue
                     
@@ -367,16 +383,14 @@ class CriteriaScorer:
                                 # Get matching shows for this option
                                 option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
                             
-                            # Debug only the number of matching shows if in debug mode
-                            if OptimizerConfig.DEBUG_MODE and option_shows is not None:
-                                OptimizerConfig.debug(f"Option {option_name} has {len(option_shows)} matching shows", category='impact')
+                                        # Removed excessive debug output for option matching shows
                             
                             # Check if we got valid shows
                             if option_shows is not None and not option_shows.empty:
                                 # Store in field_options_map
                                 field_options_map[option_id] = option_shows
                         except Exception as e:
-                            # Log exception only in debug mode
+                                            # Keep only essential error logging
                             if OptimizerConfig.DEBUG_MODE:
                                 OptimizerConfig.debug(f"Exception getting matching shows for option {option_name}: {str(e)}", category='impact')
                             # Skip this option
@@ -394,8 +408,7 @@ class CriteriaScorer:
                 impact_scores[current_field] = {}
                 
                 # Process each option in option_data
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Processing {len(option_data)} options for field {current_field}", category='impact')
+                # Removed excessive debug output for option processing
                     
                 for i, (option_id, option_name) in enumerate(option_data):
                     try:
@@ -411,17 +424,13 @@ class CriteriaScorer:
                         
                         if option_rate is None:
                             # Skip this option if we can't calculate a success rate
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Skipping option {option_name} - invalid success rate", category='impact')
+                            # Removed excessive debug output for skipped options
                             continue
                             
                         # Calculate impact as the difference from base rate
                         impact = option_rate - base_rate
                         
-                        # Debug the success rate and impact only in debug mode
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Option {option_name} success rate: {option_rate}", category='impact')
-                            OptimizerConfig.debug(f"Option {option_name} impact: {impact}", category='impact')
+                        # Removed excessive debug output for success rate and impact
                         
                         # Get minimum impact threshold
                         min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
@@ -434,8 +443,7 @@ class CriteriaScorer:
                             # Boost the impact slightly to ensure we get recommendations
                             # But preserve the sign (positive/negative)
                             impact = min_impact if impact >= 0 else -min_impact
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Boosting small impact for {option_name} from {original_impact} to {impact} to ensure recommendations", category='impact')
+                            # Removed excessive debug output for impact boosting
                         
                         # Determine recommendation type based on impact
                         if impact > 0:
@@ -446,6 +454,14 @@ class CriteriaScorer:
                         # Use the recommendation type from the list if available, otherwise use the determined type
                         try:
                             recommendation_type = recommendation_types[i] if i < len(recommendation_types) else rec_type
+                            
+                            # Enhance recommendation type to be more specific
+                            if recommendation_type == 'add':
+                                # Check if this is a true "add" (new field) or a "change" (different value for existing field)
+                                if current_field in self._unselected_fields:
+                                    recommendation_type = 'add'  # Keep as 'add' for adding a new field
+                                else:
+                                    recommendation_type = 'change'  # Change - modifying existing field
                         except (IndexError, TypeError):
                             recommendation_type = rec_type
                             
@@ -458,9 +474,7 @@ class CriteriaScorer:
                             'recommendation_type': recommendation_type
                         }
                         
-                        # Debug the stored impact score only in debug mode
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Added impact score for {option_name}: {impact}", category='impact')
+                        # Removed excessive debug output for impact scores
                     except Exception as e:
                         # Skip this option if there's an error
                         if OptimizerConfig.DEBUG_MODE:
@@ -468,86 +482,93 @@ class CriteriaScorer:
                         continue
                 
             # Check if we have any impact scores after processing all fields
+            # Keep only summary debug output for impact scores
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Impact scores after processing: {len(impact_scores)} fields with scores", category='impact')
-                for field, values in impact_scores.items():
-                    OptimizerConfig.debug(f"Field {field} has {len(values)} options with impact scores", category='impact')
             
             if not impact_scores and fields_to_process:
-                # If no impact scores were generated, log a message in debug mode
+                # Keep essential debug for no impact scores case
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug("No impact scores could be generated for the current criteria.", category='impact')
-                    OptimizerConfig.debug(f"Current criteria: {criteria}", category='impact')
                     
                 # Force generate some recommendations for testing
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Attempting to generate fallback impact scores...", category='impact')
+                # Removed excessive debug output for fallback impact scores
                     
                 # If we have fields to process but no impact scores were generated,
-                # let's try a fallback approach by generating impact scores for all available options
-                # for fields that are not in the criteria
-                for field in self.field_manager.FIELD_CONFIGS.keys():
-                    if field not in criteria and field in self.field_manager.get_all_fields():
-                        # Skip fields that don't have options
-                        options = self.field_manager.get_options(field)
-                        if not options:
-                            continue
-                            
-                        # Initialize field in impact scores
-                        impact_scores[field] = {}
-                        
-                        # For each option, calculate a default impact score
-                        for option in options:
-                            try:
-                                option_id = option.id
-                                option_name = self.field_manager.get_name(field, option_id)
-                                
-                                # Create a new criteria with this option
-                                option_criteria = criteria.copy()
-                                option_criteria[field] = option_id
-                                
-                                # Get matching shows for this option
-                                option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
-                                
-                                # Skip options with no matching shows
-                                if option_shows is None or option_shows.empty:
-                                    continue
-                                    
-                                # Calculate success rate for this option's matching shows
-                                option_rate, option_info = self._calculate_success_rate(option_shows)
-                                
-                                if option_rate is None:
-                                    continue
-                                    
-                                # Calculate impact as the difference from base rate
-                                impact = option_rate - base_rate
-                                
-                                # Skip if impact is too small
-                                min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
-                                if abs(impact) < min_impact:
-                                    continue
-                                    
-                                # Store the impact score
-                                impact_scores[field][option_id] = {
-                                    'option_id': option_id,
-                                    'option_name': option_name,
-                                    'impact': impact,
-                                    'success_rate': option_rate,
-                                    'sample_size': len(option_shows),
-                                    'recommendation_type': 'add' if impact > 0 else 'remove'
-                                }
-                                
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Added fallback impact score for {field}/{option_name}: {impact}", category='impact')
-                            except Exception as e:
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Error processing fallback option {field}: {str(e)}", category='impact')
+                # let's process additional unselected fields that weren't included in the main approach
+                
+                # Skip additional processing if we already have impact scores
+                if any(impact_scores.values()):
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Skipping additional unselected field processing as we already have impact scores for {len(impact_scores)} fields", category='impact')
+                else:
+                    # Only process fields we haven't already processed
+                    processed_fields = set(fields_to_process)
+                    for field in self.field_manager.FIELD_CONFIGS.keys():
+                        if field not in criteria and field in self.field_manager.get_all_fields() and field not in processed_fields:
+                            # Skip fields that don't have options
+                            options = self.field_manager.get_options(field)
+                            if not options:
                                 continue
+                            
+                            # Initialize field in impact scores
+                            impact_scores[field] = {}
+                            
+                            # For each option, calculate a default impact score
+                            for option in options:
+                                try:
+                                    option_id = option.id
+                                    option_name = self.field_manager.get_name(field, option_id)
+                                    
+                                    # Create a new criteria with this option
+                                    option_criteria = criteria.copy()
+                                    option_criteria[field] = option_id
+                                
+                                    # Get matching shows for this option
+                                    option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
+                                    
+                                    # Skip options with no matching shows
+                                    if option_shows is None or option_shows.empty:
+                                        continue
+                                        
+                                    # Calculate success rate for this option's matching shows
+                                    option_rate, option_info = self._calculate_success_rate(option_shows)
+                                    
+                                    if option_rate is None:
+                                        continue
+                                        
+                                    # Calculate impact as the difference from base rate
+                                    impact = option_rate - base_rate
+                                    
+                                    # Skip if impact is too small
+                                    min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
+                                    if abs(impact) < min_impact:
+                                        continue
+                                    
+                                    # Store the impact score
+                                    # For unselected fields, these are all true "add" recommendations
+                                    recommendation_type = 'add' if impact > 0 else 'remove'
+                                    
+                                    impact_scores[field][option_id] = {
+                                        'option_id': option_id,
+                                        'option_name': option_name,
+                                        'impact': impact,
+                                        'success_rate': option_rate,
+                                        'sample_size': len(option_shows),
+                                        'recommendation_type': recommendation_type
+                                    }
+                                    
+                                    # Removed excessive debug output for unselected field impact scores
+                                except Exception as e:
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        OptimizerConfig.debug(f"Error processing unselected field option {field}: {str(e)}", category='impact')
+                                    continue
                 
             # If we still have no impact scores, return empty dict
             if not any(impact_scores.values()):
+                # Keep essential debug for complete failure case
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("No impact scores could be generated, even with fallback approach.", category='impact')
+                    OptimizerConfig.debug("No impact scores could be generated from any selected or unselected fields.", category='impact')
                 return {}
                 
             return impact_scores
