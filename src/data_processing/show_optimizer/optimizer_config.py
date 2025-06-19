@@ -295,7 +295,8 @@ class OptimizerConfig:
         'minimum_impact': 0.01,        # Minimum impact score to generate suggestion (1%)
         'high_impact_threshold': 0.15, # Threshold for high impact suggestions (15%)
         'max_suggestions': 5,          # Maximum suggestions to return
-        'network_specific_ratio': 0.6   # Ratio of network-specific to general suggestions
+        'network_specific_ratio': 0.6,  # Ratio of network-specific to general suggestions
+        'max_unselected_fields': 5     # Maximum number of unselected fields to process for 'add' recommendations
     }
     
     # Success calculation settings

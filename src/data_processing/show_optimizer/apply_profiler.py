@@ -31,6 +31,7 @@ def apply_profiling():
     
     # Profile CriteriaScorer methods
     CriteriaScorer.calculate_component_scores = profile()(CriteriaScorer.calculate_component_scores)
+    CriteriaScorer.calculate_criteria_impact = profile()(CriteriaScorer.calculate_criteria_impact)
     CriteriaScorer._calculate_success_rate = profile()(CriteriaScorer._calculate_success_rate)
     CriteriaScorer._get_matching_shows = profile()(CriteriaScorer._get_matching_shows)
     

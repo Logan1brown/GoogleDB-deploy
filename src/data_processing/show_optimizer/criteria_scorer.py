@@ -247,20 +247,37 @@ class CriteriaScorer:
             # First, add all fields that are in the criteria
             fields_to_process = [field for field in criteria.keys() if field in all_fields]
             
-            # Also add a selection of unselected fields to consider for true "Add" recommendations
-            # Limit to top N unselected fields to avoid performance issues
+            # Add a selection of unselected fields to consider for true "Add" recommendations
+            # Prioritize fields based on importance defined in OptimizerConfig.CRITERIA_IMPORTANCE
             unselected_fields = [field for field in all_fields if field not in criteria]
             max_unselected = OptimizerConfig.SUGGESTIONS.get('max_unselected_fields', 5)
             
             # Track which fields are unselected for proper recommendation type tagging
             self._unselected_fields = set(unselected_fields)
             
+            # Sort unselected fields by importance category
+            importance_order = {'essential': 0, 'core': 1, 'primary': 2, 'secondary': 3}
+            prioritized_fields = []
+            
+            for field in unselected_fields:
+                # Get importance category, default to 'secondary' if not specified
+                importance = OptimizerConfig.CRITERIA_IMPORTANCE.get(field, 'secondary')
+                # Add to prioritized list with importance order value
+                prioritized_fields.append((field, importance_order.get(importance, 3)))
+            
+            # Sort by importance (lower value = higher importance)
+            prioritized_fields.sort(key=lambda x: x[1])
+            
+            # Extract just the field names in priority order
+            prioritized_unselected = [field for field, _ in prioritized_fields]
+            
             # Add debug output for unselected fields
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Found {len(unselected_fields)} unselected fields, will process up to {max_unselected}", category='impact')
+                OptimizerConfig.debug(f"Prioritized unselected fields: {prioritized_unselected[:max_unselected]}", category='impact')
                 
-            # Add a selection of unselected fields to process
-            fields_to_process.extend(unselected_fields[:max_unselected])
+            # Add the prioritized unselected fields to process (limited by max_unselected)
+            fields_to_process.extend(prioritized_unselected[:max_unselected])
             
             # Only log critical base rate information
             
