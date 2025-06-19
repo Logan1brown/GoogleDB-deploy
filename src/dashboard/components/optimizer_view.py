@@ -215,9 +215,10 @@ class OptimizerView:
             # Format matching shows if available
             if hasattr(summary, 'matching_shows') and not summary.matching_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"OptimizerView formatting matching_shows with columns: {summary.matching_shows.columns.tolist()}", category='recommendation')
+                    # Debug removed for clarity
                     if 'match_level' in summary.matching_shows.columns:
-                        OptimizerConfig.debug(f"match_level values before formatting: {summary.matching_shows['match_level'].value_counts().to_dict()}", category='recommendation')
+                        # Debug removed for clarity
+                        pass
                     else:
                         OptimizerConfig.debug("WARNING - match_level column is missing from matching_shows DataFrame in OptimizerView!", category='recommendation', force=True)
                 
@@ -341,6 +342,13 @@ class OptimizerView:
                 remove_recs = [rec for rec in recommendations if getattr(rec, 'recommendation_type', '') == 'remove']
                 if remove_recs:
                     OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations before formatting", category='recommendation', force=True)
+                    # Inspect the first few remove recommendations in detail
+                    for i, rec in enumerate(remove_recs[:3]):
+                        OptimizerConfig.debug(f"Remove recommendation {i+1} details:", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Type: {getattr(rec, 'recommendation_type', 'unknown')}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Criteria Type: {getattr(rec, 'criteria_type', 'unknown')}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Suggested Name: {getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Impact: {getattr(rec, 'impact_score', 0)}", category='recommendation', force=True)
                     for rec in remove_recs:
                         OptimizerConfig.debug(f"Remove rec: {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
                 else:
@@ -355,7 +363,7 @@ class OptimizerView:
                     OptimizerConfig.debug(f"  - Impact: {getattr(rec, 'impact_score', 0)}", category='recommendation')
                     OptimizerConfig.debug(f"  - Explanation: {getattr(rec, 'explanation', '')}", category='recommendation')
                     # Debug all attributes
-                    OptimizerConfig.debug(f"  - All attributes: {dir(rec)}", category='recommendation')
+                    # Debug removed for clarity
                 
         # If no recommendations, add debug output
         if not recommendations:
@@ -392,7 +400,8 @@ class OptimizerView:
                 
             # Debug output for recommendation type
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing recommendation with type '{rec_type}' for {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
+                # Debug removed for clarity
+                pass
                 
             # Format impact percentage for display
             impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
@@ -400,16 +409,18 @@ class OptimizerView:
             
             # Debug the recommendation type
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing recommendation of type '{rec_type}' for {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
+                # Debug removed for clarity
+                pass
                 
-                # Special debug for 'remove' recommendations
-                if rec_type == 'remove':
-                    OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
+            # Special debug for 'remove' recommendations
+            if rec_type == 'remove':
+                OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
             
             # Debug the recommendation attributes
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Formatting recommendation: {rec_type} - {getattr(rec, 'criteria_type', 'unknown')} - {getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
-                OptimizerConfig.debug(f"Impact: {getattr(rec, 'impact_score', 0)}", category='recommendation')
+                # Debug removed for clarity
+                # Debug removed for clarity
+                pass
             
             # Create recommendation title without impact percentage
             if rec_type and rec_type.startswith('network_'):
@@ -448,7 +459,7 @@ class OptimizerView:
                 "title": title,
                 "description": explanation,
                 "importance": getattr(rec, 'confidence', 'medium'),
-                "category": rec_type,
+                "category": rec_type,  # This is the key field for grouping
                 "impact": getattr(rec, 'impact_score', 0),
                 "criteria_type": getattr(rec, 'criteria_type', 'unknown'),
                 "suggested_name": getattr(rec, 'suggested_name', ''),
@@ -461,6 +472,11 @@ class OptimizerView:
                 "_rec_type": rec_type
             }
             
+            # Debug output for 'remove' recommendations
+            if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Created formatted 'remove' recommendation: {title}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"  - Category set to: {formatted_rec['category']}", category='recommendation', force=True)
+            
             # Add to formatted recommendations list
             formatted_recommendations.append(formatted_rec)
             
@@ -472,13 +488,21 @@ class OptimizerView:
             # Ensure the group exists
             if rec_type not in grouped:
                 grouped[rec_type] = []
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Created missing group '{rec_type}' in grouped dictionary", category='recommendation', force=True)
                 
             # Add the recommendation to its group
             grouped[rec_type].append(formatted_rec)
             
             # Debug output
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Added recommendation to '{rec_type}' group: {formatted_rec['title']}", category='recommendation')
+                # Debug removed for clarity
+                pass
+                
+            # Special debug for 'remove' recommendations
+            if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"VERIFY: Added 'remove' recommendation to grouped dictionary", category='recommendation', force=True)
+                OptimizerConfig.debug(f"  - Group 'remove' now has {len(grouped['remove'])} recommendations", category='recommendation', force=True)
                 
             # We no longer duplicate recommendations into 'add' and 'remove' groups
             # This preserves the original recommendation types (add, remove, change, etc.)
@@ -492,7 +516,7 @@ class OptimizerView:
         if OptimizerConfig.DEBUG_MODE:
             non_empty_groups = [k for k, v in grouped.items() if v]
             OptimizerConfig.debug(f"Formatted recommendations structure", category='recommendation', force=True)
-            OptimizerConfig.debug(f"Total recommendations: {len(formatted_recommendations)}", category='recommendation')
+            # Debug removed for clarity
             OptimizerConfig.debug(f"Non-empty groups: {non_empty_groups}", category='recommendation')
             OptimizerConfig.debug(f"Network-specific recommendations: {len(network_specific)}", category='recommendation')
             
@@ -515,12 +539,22 @@ class OptimizerView:
             OptimizerConfig.debug(f"Final all recommendations count: {len([rec for group in grouped.values() for rec in group] + network_specific)}", category='recommendation', force=True)
             OptimizerConfig.debug(f"Groups with recommendations: {[k for k, v in grouped.items() if v]}", category='recommendation', force=True)
             
+            # Specifically check for remove recommendations
+            remove_recs = grouped.get('remove', [])
+            OptimizerConfig.debug(f"FINAL CHECK: Found {len(remove_recs)} 'remove' recommendations in grouped dictionary", category='recommendation', force=True)
+            if remove_recs:
+                for i, rec in enumerate(remove_recs[:3]):
+                    OptimizerConfig.debug(f"  Remove rec {i+1}: {rec.get('title', 'No title')} - Category: {rec.get('category', 'unknown')}", category='recommendation', force=True)
+            else:
+                OptimizerConfig.debug("WARNING: No 'remove' recommendations found in final grouped dictionary!", category='recommendation', force=True)
+            
             # Detailed debug for each group
             for group_name, group_recs in grouped.items():
                 OptimizerConfig.debug(f"Group '{group_name}' has {len(group_recs)} recommendations", category='recommendation', force=True)
                 if group_recs:
                     for i, rec in enumerate(group_recs[:3]):
-                        OptimizerConfig.debug(f"  {i+1}. {rec.get('title', 'No title')} - Category: {rec.get('category', 'unknown')}", category='recommendation')
+                        # Debug removed for clarity
+                        pass
                         
             # Specifically check for change recommendations
             change_recs = [rec for rec in formatted_recommendations if rec.get('category') == 'change']
@@ -528,6 +562,13 @@ class OptimizerView:
             if change_recs:
                 for i, rec in enumerate(change_recs[:3]):
                     OptimizerConfig.debug(f"  Change rec {i+1}: {rec.get('title', 'No title')} - Impact: {rec.get('impact', 0)}", category='recommendation')
+                    
+            # Specifically check for remove recommendations in formatted recommendations
+            remove_recs_formatted = [rec for rec in formatted_recommendations if rec.get('category') == 'remove']
+            OptimizerConfig.debug(f"Found {len(remove_recs_formatted)} 'remove' recommendations in formatted_recommendations", category='recommendation', force=True)
+            if remove_recs_formatted:
+                for i, rec in enumerate(remove_recs_formatted[:3]):
+                    OptimizerConfig.debug(f"  Remove rec in formatted {i+1}: {rec.get('title', 'No title')} - Category: {rec.get('category', 'unknown')}", category='recommendation', force=True)
         
         # Return the formatted recommendations
         return {
