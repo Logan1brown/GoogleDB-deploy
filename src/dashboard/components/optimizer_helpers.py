@@ -508,10 +508,18 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
         grouped = formatted_recommendations.get("grouped", {})
         
         # Debug the recommendations
-        if OptimizerConfig.DEBUG_MODE:
+        if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
             OptimizerConfig.debug(f"Rendering recommendations: {len(grouped)} groups", category='recommendation')
+            st.write(f"DEBUG: Formatted recommendations structure")
+            st.write(f"Total recommendations: {len(all_recs)}")
+            st.write(f"Non-empty groups: {[k for k, v in grouped.items() if v]}")
+            st.write(f"Network-specific recommendations: {len(network_specific)}")
             for rec_type, recs in grouped.items():
                 OptimizerConfig.debug(f"Group {rec_type}: {len(recs)} recommendations", category='recommendation')
+                if recs:
+                    st.write(f"DEBUG: Group '{rec_type}' has {len(recs)} recommendations")
+                    if len(recs) > 0:
+                        st.write(f"DEBUG: First item in group '{rec_type}': {recs[0].get('title', 'No title')} - Category: {recs[0].get('category', 'unknown')}")
         
         # Track if we've rendered any general recommendations
         general_recs_rendered = False
@@ -533,50 +541,39 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                 OptimizerConfig.debug(f"  - Criteria Type: {rec.get('criteria_type', 'unknown')}", category='recommendation')
                 
         if general_recommendations:
-            # Group by recommendation category (add, remove, change, etc.)
-            by_category = {}
-            for rec in general_recommendations:
-                category = rec.get('category', 'unknown')
-                if category not in by_category:
-                    by_category[category] = []
-                by_category[category].append(rec)
-            
-            # Define the display order for recommendation types
-            category_display_order = ['change', 'add', 'remove', 'consider', 'fallback']
-            
-            # Sort categories by our preferred order
-            sorted_categories = sorted(
-                by_category.keys(),
-                key=lambda x: category_display_order.index(x) if x in category_display_order else 999
-            )
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Recommendation categories: {sorted_categories}", category='recommendation', force=True)
-            
             # Render general recommendations
             st.subheader("General Recommendations")
             
-            for category in sorted_categories:
-                # Sort recommendations by impact score
-                recs = by_category[category]
-                recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
+            # Debug output for recommendations
+            if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
+                st.write(f"DEBUG: Processing {len(general_recommendations)} general recommendations")
+            
+            # Sort all recommendations by impact score regardless of category
+            general_recommendations.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
+            
+            # Group by criteria_type across all categories
+            by_criteria_type = {}
+            for rec in general_recommendations:
+                criteria_type = rec.get('criteria_type', 'unknown')
+                if criteria_type not in by_criteria_type:
+                    by_criteria_type[criteria_type] = []
+                by_criteria_type[criteria_type].append(rec)
+            
+            # Debug output for criteria types
+            if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
+                st.write(f"DEBUG: Found {len(by_criteria_type)} criteria types: {list(by_criteria_type.keys())}")
+            
+            # Render recommendations grouped by criteria type
+            for criteria_type, criteria_recs in by_criteria_type.items():
+                # Debug output for criteria type
+                if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
+                    st.write(f"DEBUG: Rendering criteria_type '{criteria_type}' with {len(criteria_recs)} recommendations")
                 
-                # Group by criteria_type within each category
-                by_criteria_type = {}
-                for rec in recs:
-                    criteria_type = rec.get('criteria_type', 'unknown')
-                    if criteria_type not in by_criteria_type:
-                        by_criteria_type[criteria_type] = []
-                    by_criteria_type[criteria_type].append(rec)
+                # Sort recommendations within each criteria type by impact
+                criteria_recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
                 
-                # Display category header if we have recommendations
-                if recs:
-                    # Convert category name to title case for display
-                    category_display = category.replace('_', ' ').title()
-                    
-                    # Render each recommendation grouped by criteria type
-                    for criteria_type, criteria_recs in by_criteria_type.items():
-                        for rec in criteria_recs[:3]:  # Limit to top 3 per criteria type
+                # Render each recommendation (limit to top 3 per criteria type)
+                for rec in criteria_recs[:3]:
                             # Determine if this is a positive or negative recommendation based on impact
                             is_negative = rec.get('impact', 0) < 0
                             

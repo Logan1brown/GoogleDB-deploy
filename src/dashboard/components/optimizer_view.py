@@ -365,13 +365,16 @@ class OptimizerView:
             # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
             rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
             
-            # Check if this is a removal recommendation based on the suggested name
-            suggested_name = getattr(rec, 'suggested_name', '')
-            if suggested_name and 'remove' in suggested_name.lower():
-                rec_type = 'remove'
-            # Default to 'add' if rec_type is None or empty and not a removal
-            elif not rec_type:
-                rec_type = 'add'
+            # Only override rec_type if it's None or empty
+            # This preserves original recommendation types like 'change'
+            if not rec_type:
+                # Check if this is a removal recommendation based on the suggested name
+                suggested_name = getattr(rec, 'suggested_name', '')
+                if suggested_name and 'remove' in suggested_name.lower():
+                    rec_type = 'remove'
+                else:
+                    # Default to 'add' if rec_type is None or empty and not a removal
+                    rec_type = 'add'
                 
             # Format impact percentage for display
             impact_percent = abs(rec.impact_score * 100) if hasattr(rec, 'impact_score') and rec.impact_score is not None else 0
