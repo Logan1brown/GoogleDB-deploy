@@ -513,26 +513,33 @@ class OptimizerView:
         for rec_type in grouped:
             grouped[rec_type].sort(key=lambda x: abs(x["_impact_raw"]), reverse=True)
         
-        # Debug output for recommendation groups
+        # Debug log the formatted recommendations structure
         if OptimizerConfig.DEBUG_MODE:
-            # Log non-empty groups
-            non_empty_groups = [group for group in grouped.keys() if grouped[group]]
+            non_empty_groups = [k for k, v in grouped.items() if v]
+            OptimizerConfig.debug(f"Formatted recommendations structure", category='recommendation', force=True)
+            OptimizerConfig.debug(f"Total recommendations: {len(formatted_recommendations)}", category='recommendation')
             OptimizerConfig.debug(f"Non-empty groups: {non_empty_groups}", category='recommendation')
+            OptimizerConfig.debug(f"Network-specific recommendations: {len(network_specific)}", category='recommendation')
             
-            # Check if we have any 'remove' recommendations
+            # Check if 'remove' recommendations are in the grouped dictionary
             if 'remove' in grouped and grouped['remove']:
-                OptimizerConfig.debug(f"Found {len(grouped['remove'])} 'remove' recommendations in grouped dictionary", category='recommendation', force=True)
-                for rec in grouped['remove']:
-                    OptimizerConfig.debug(f"Remove recommendation in grouped dictionary: {rec['title']}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Group 'remove' has {len(grouped['remove'])} recommendations", category='recommendation')
+                if grouped['remove']:
+                    OptimizerConfig.debug(f"First item in group 'remove': {grouped['remove'][0]['title']} - Category: {grouped['remove'][0]['category']}", category='recommendation')
             else:
-                OptimizerConfig.debug("No 'remove' recommendations found in grouped dictionary", category='recommendation', force=True)
+                OptimizerConfig.debug(f"No 'remove' recommendations found in grouped dictionary", category='recommendation', force=True)
                 
-                # Check if we have any 'remove' recommendations in formatted_recommendations that didn't make it to grouped
-                remove_recs = [rec for rec in formatted_recommendations if rec.get('category') == 'remove']
-                if remove_recs:
-                    OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations in formatted_recommendations but not in grouped", category='recommendation', force=True)
-                    # Add them to the grouped dictionary
-                    grouped['remove'] = remove_recs
+            # Check if there are any 'remove' recommendations in the formatted list that didn't make it to the grouped dictionary
+            remove_formatted_recs = [rec for rec in formatted_recommendations if rec['category'] == 'remove']
+            if remove_formatted_recs:
+                OptimizerConfig.debug(f"Found {len(remove_formatted_recs)} 'remove' recommendations in formatted list but they're not in the grouped dictionary", category='recommendation', force=True)
+                # Add them to the grouped dictionary
+                for rec in remove_formatted_recs:
+                    if 'remove' not in grouped:
+                        grouped['remove'] = []
+                    if rec not in grouped['remove']:
+                        grouped['remove'].append(rec)
+                        OptimizerConfig.debug(f"Added missing 'remove' recommendation to grouped dictionary: {rec['title']}", category='recommendation', force=True)
                 
             # Ensure all recommendations are in the grouped dictionary
             for rec in formatted_recommendations:
@@ -720,6 +727,12 @@ class OptimizerView:
             'low': 1,
             'medium': 2,
             'high': 3
+        }
+        # Initialize empty groups for common recommendation types
+        grouped = {
+            'add': [],
+            'change': [],
+            'remove': []
         }
         return confidence_levels.get(confidence.lower(), 0)
         
