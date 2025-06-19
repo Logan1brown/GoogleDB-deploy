@@ -627,31 +627,33 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                 # Sort recommendations within each criteria type by impact (absolute value)
                 criteria_recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
                 
-                # Debug output for this criteria type
-                if OptimizerConfig.DEBUG_MODE:
-                    # Count recommendations by type
-                    rec_types = {}
-                    for rec in criteria_recs:
-                        rec_type = rec.get('category', 'unknown')
-                        if rec_type not in rec_types:
-                            rec_types[rec_type] = 0
-                        rec_types[rec_type] += 1
+                # Render each recommendation in this criteria type
+                for rec in criteria_recs:
+                    # Get the recommendation attributes
+                    title = rec.get('title', '')
+                    description = rec.get('description', '')
+                    importance = rec.get('importance', 'medium')
+                    category = rec.get('category', 'add')
+                    impact = rec.get('impact', 0)
                     
-                    OptimizerConfig.debug(f"Rendering criteria_type '{criteria_type}' with {len(criteria_recs)} recommendations", category='recommendation')
-                    OptimizerConfig.debug(f"Recommendation types: {rec_types}", category='recommendation')
+                    # Ensure description text matches the recommendation type
+                    # This is critical for 'remove' recommendations
+                    if category == 'remove' and 'Changing to' in description:
+                        # Fix the description for remove recommendations
+                        suggested_name = rec.get('suggested_name', '')
+                        impact_percent = abs(impact * 100)
+                        description = f"Removing '{suggested_name}' could improve success probability by approximately {impact_percent:.1f}%."
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Fixed description for remove recommendation: {title}", category='recommendation', force=True)
+                    
+                    # Debug output for this recommendation
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Rendering recommendation: {title} - {category} - {description}", category='recommendation')
                     
                     # Special debug for 'remove' recommendations
-                    remove_recs = [rec for rec in criteria_recs if rec.get('category') == 'remove']
-                    if remove_recs:
-                        OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations for criteria_type '{criteria_type}'", category='recommendation', force=True)
-                        for rec in remove_recs:
-                            OptimizerConfig.debug(f"Remove recommendation in criteria_type '{criteria_type}': {rec.get('title', 'unknown')}", category='recommendation', force=True)
-                    
-                    # Special debug for 'remove' recommendations
-                    if 'remove' in rec_types and rec_types['remove'] > 0:
-                        st.write(f"DEBUG: Found {rec_types['remove']} 'remove' recommendations for '{actual_criteria_type}'")
-                        for rec in [r for r in recs if r.get('category') == 'remove'][:2]:
-                            st.write(f"DEBUG: Remove rec - {rec.get('title')}: {rec.get('description')}")
+                    if category == 'remove' and OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Remove recommendation in criteria_type '{criteria_type}': {title}", category='recommendation', force=True)
+                        st.write(f"DEBUG: Remove rec - {title}: {description}")
                     
                 
                 # Render each recommendation (limit to top 3 per criteria type)
@@ -668,6 +670,13 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                             if rec_type == 'change' and 'Adding' in description:
                                 # Replace 'Adding' with 'Changing to' in the description
                                 description = description.replace('Adding', 'Changing to')
+                            elif rec_type == 'remove' and 'Changing to' in description:
+                                # Replace 'Changing to' with 'Removing' in the description
+                                suggested_name = rec.get('suggested_name', '')
+                                impact_percent = abs(rec.get('impact', 0) * 100)
+                                description = f"Removing '{suggested_name}' could improve success probability by approximately {impact_percent:.1f}%."
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Fixed description for remove recommendation during rendering: {title}", category='recommendation', force=True)
                             
                             if is_negative:
                                 # Use warning style for negative recommendations

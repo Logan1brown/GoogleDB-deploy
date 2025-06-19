@@ -384,6 +384,15 @@ class OptimizerView:
             # Get recommendation type, defaulting to rec_type if recommendation_type doesn't exist
             rec_type = getattr(rec, 'recommendation_type', getattr(rec, 'rec_type', None))
             
+            # For selected fields with negative impact, ensure they are marked as 'remove' recommendations
+            # This is critical for proper UI display
+            impact_score = getattr(rec, 'impact_score', 0)
+            if impact_score < 0 and rec_type == 'change':
+                # If it's a change recommendation with negative impact, it should be a remove recommendation
+                rec_type = 'remove'
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Changed recommendation type from 'change' to 'remove' for {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')} due to negative impact", category='recommendation', force=True)
+            
             # Only override rec_type if it's None or empty
             # This preserves original recommendation types like 'change'
             if not rec_type:
@@ -503,27 +512,27 @@ class OptimizerView:
         # Sort each group by impact score (descending)
         for rec_type in grouped:
             grouped[rec_type].sort(key=lambda x: abs(x["_impact_raw"]), reverse=True)
-            
-        # Sort network-specific recommendations by impact score
-        network_specific.sort(key=lambda x: abs(x["_impact_raw"]), reverse=True)
         
-        # Check if we have any 'remove' recommendations that didn't make it into the grouped dictionary
+        # Debug output for recommendation groups
         if OptimizerConfig.DEBUG_MODE:
-            # Count recommendations by type in formatted_recommendations
-            rec_types_in_formatted = {}
-            for rec in formatted_recommendations:
-                rec_type = rec.get('category', 'unknown')
-                if rec_type not in rec_types_in_formatted:
-                    rec_types_in_formatted[rec_type] = 0
-                rec_types_in_formatted[rec_type] += 1
+            # Log non-empty groups
+            non_empty_groups = [group for group in grouped.keys() if grouped[group]]
+            OptimizerConfig.debug(f"Non-empty groups: {non_empty_groups}", category='recommendation')
             
-            OptimizerConfig.debug(f"Recommendation types in formatted_recommendations: {rec_types_in_formatted}", category='recommendation', force=True)
-            
-            # Check for 'remove' recommendations in formatted_recommendations that didn't make it to grouped
-            remove_recs = [rec for rec in formatted_recommendations if rec.get('category') == 'remove']
-            if remove_recs and 'remove' not in grouped:
-                OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations in formatted_recommendations but not in grouped", category='recommendation', force=True)
-                grouped['remove'] = remove_recs
+            # Check if we have any 'remove' recommendations
+            if 'remove' in grouped and grouped['remove']:
+                OptimizerConfig.debug(f"Found {len(grouped['remove'])} 'remove' recommendations in grouped dictionary", category='recommendation', force=True)
+                for rec in grouped['remove']:
+                    OptimizerConfig.debug(f"Remove recommendation in grouped dictionary: {rec['title']}", category='recommendation', force=True)
+            else:
+                OptimizerConfig.debug("No 'remove' recommendations found in grouped dictionary", category='recommendation', force=True)
+                
+                # Check if we have any 'remove' recommendations in formatted_recommendations that didn't make it to grouped
+                remove_recs = [rec for rec in formatted_recommendations if rec.get('category') == 'remove']
+                if remove_recs:
+                    OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations in formatted_recommendations but not in grouped", category='recommendation', force=True)
+                    # Add them to the grouped dictionary
+                    grouped['remove'] = remove_recs
                 
             # Ensure all recommendations are in the grouped dictionary
             for rec in formatted_recommendations:
