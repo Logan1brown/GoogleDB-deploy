@@ -405,36 +405,13 @@ class OptimizerView:
                 # Create a clean title without the impact information
                 title = f"{criteria_type}: {suggested_name}"
                 
-            # Create enhanced description with impact information
+            # Use the explanation directly from the recommendation object
+            # The impact information should already be included when the recommendation was generated
             explanation = getattr(rec, 'explanation', '')
             
-            # Add impact information to the description based on recommendation type
-            # but only if it's not already included in the explanation
-            if impact_percent >= 1 and not rec_type.startswith('network_'):
-                # Format impact information based on recommendation type
-                if rec_type == 'change':
-                    # For 'change' recommendations (patterns that work well)
-                    impact_info = f"Using '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
-                elif rec_type == 'remove':
-                    # For 'remove' recommendations
-                    impact_info = f"Removing '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
-                elif rec_type == 'add':
-                    # For 'add' recommendations
-                    impact_info = f"Adding '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
-                else:
-                    # Default format for other types
-                    impact_info = f"Using '{suggested_name}' could {impact_direction.lower()} success probability by approximately {impact_percent:.1f}%."
-                
-                # Only add the impact info if it's not already in the explanation
-                # This prevents redundant information
-                if impact_info not in explanation:
-                    # If there's already an explanation, add the impact info as a new sentence
-                    if explanation and not explanation.strip().endswith('.'):
-                        explanation = f"{explanation}. {impact_info}"
-                    elif explanation:
-                        explanation = f"{explanation} {impact_info}"
-                    else:
-                        explanation = impact_info
+            # Make sure the explanation ends with a period for consistency
+            if explanation and not explanation.strip().endswith('.'):
+                explanation = f"{explanation}."
             
             # Create formatted recommendation dictionary with safe access to attributes
             formatted_rec = {
