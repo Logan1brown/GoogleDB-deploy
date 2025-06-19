@@ -456,13 +456,9 @@ class OptimizerView:
                     grouped[rec_type] = []
                 grouped[rec_type].append(formatted_rec)
                 
-            # For recommendations with positive impact, also add to 'add' group
-            if getattr(rec, 'impact_score', 0) > 0 and rec_type != 'add' and not rec_type.startswith('network_'):
-                grouped['add'].append(formatted_rec)
-                
-            # For recommendations with negative impact, also add to 'remove' group
-            if getattr(rec, 'impact_score', 0) < 0 and rec_type != 'remove' and not rec_type.startswith('network_'):
-                grouped['remove'].append(formatted_rec)
+            # We no longer duplicate recommendations into 'add' and 'remove' groups
+            # This preserves the original recommendation types (add, remove, change, etc.)
+            # and prevents redundant recommendations
         
         # Sort each group by impact score (descending)
         for rec_type in grouped:
