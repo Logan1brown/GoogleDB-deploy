@@ -577,19 +577,18 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             # Sort all recommendations by impact score regardless of category
             general_recommendations.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
             
-            # Group by criteria_type and respect recommendation type
+            # Group by criteria_type only, regardless of recommendation type
+            # This ensures all recommendations for the same criteria type are grouped together
             by_criteria_type = {}
             for rec in general_recommendations:
                 criteria_type = rec.get('criteria_type', 'unknown')
-                rec_type = rec.get('category', 'add')  # Default to 'add' if category not found
                 
-                # Create a composite key that includes both criteria_type and rec_type
-                # This ensures recommendations are grouped by both criteria type and recommendation type
-                composite_key = f"{criteria_type}_{rec_type}"
-                
-                if composite_key not in by_criteria_type:
-                    by_criteria_type[composite_key] = []
-                by_criteria_type[composite_key].append(rec)
+                # Group by criteria_type only, not by recommendation type
+                # This ensures 'add', 'change', and 'remove' recommendations for the same criteria
+                # are displayed together
+                if criteria_type not in by_criteria_type:
+                    by_criteria_type[criteria_type] = []
+                by_criteria_type[criteria_type].append(rec)
             
             # Debug output for criteria types
             if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
@@ -597,17 +596,32 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             
             # Render recommendations grouped by criteria type
             for criteria_type, criteria_recs in by_criteria_type.items():
-                # Parse the composite key back into criteria_type and rec_type
-                parts = criteria_type.split('_', 1)
-                actual_criteria_type = parts[0]
-                rec_type = parts[1] if len(parts) > 1 else 'add'  # Default to 'add' if no rec_type found
+                # We're now using the actual criteria_type directly since we're grouping only by criteria_type
+                actual_criteria_type = criteria_type
                 
-                # Debug output for criteria type and recommendation type
-                if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
-                    st.write(f"DEBUG: Rendering criteria_type '{actual_criteria_type}' with rec_type '{rec_type}' - {len(criteria_recs)} recommendations")
-                
-                # Sort recommendations within each criteria type by impact
+                # Sort recommendations within each criteria type by impact (absolute value)
                 criteria_recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
+                
+                # Debug output for criteria type and recommendations
+                if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
+                    # Count recommendations by type within this criteria group
+                    rec_types = {}
+                    for rec in criteria_recs:
+                        rec_type = rec.get('category', 'unknown')
+                        if rec_type not in rec_types:
+                            rec_types[rec_type] = 0
+                        rec_types[rec_type] += 1
+                    
+                    # Display the count of each recommendation type
+                    st.write(f"DEBUG: Rendering criteria_type '{actual_criteria_type}' with {len(criteria_recs)} recommendations")
+                    st.write(f"DEBUG: Recommendation types: {rec_types}")
+                    
+                    # Special debug for 'remove' recommendations
+                    if 'remove' in rec_types and rec_types['remove'] > 0:
+                        st.write(f"DEBUG: Found {rec_types['remove']} 'remove' recommendations for '{actual_criteria_type}'")
+                        for rec in [r for r in criteria_recs if r.get('category') == 'remove'][:2]:
+                            st.write(f"DEBUG: Remove rec - {rec.get('title')}: {rec.get('description')}")
+                    
                 
                 # Render each recommendation (limit to top 3 per criteria type)
                 for rec in criteria_recs[:3]:
