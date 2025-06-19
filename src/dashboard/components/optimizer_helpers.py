@@ -514,6 +514,25 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             st.write(f"Total recommendations: {len(all_recs)}")
             st.write(f"Non-empty groups: {[k for k, v in grouped.items() if v]}")
             st.write(f"Network-specific recommendations: {len(network_specific)}")
+            
+            # Special debug for 'remove' recommendations
+            remove_recs = grouped.get('remove', [])
+            if remove_recs:
+                st.write(f"DEBUG: Found {len(remove_recs)} 'remove' recommendations")
+                for rec in remove_recs:
+                    st.write(f"DEBUG: Remove recommendation: {rec.get('title', 'unknown')}")
+            else:
+                st.write(f"DEBUG: No 'remove' recommendations found in grouped dictionary")
+                # Check if there are any 'remove' recommendations in all_recs
+                remove_in_all = [rec for rec in all_recs if rec.get('category') == 'remove']
+                if remove_in_all:
+                    st.write(f"DEBUG: Found {len(remove_in_all)} 'remove' recommendations in all_recs but not in grouped")
+                    for rec in remove_in_all:
+                        st.write(f"DEBUG: Remove in all_recs: {rec.get('title', 'unknown')}")
+                        # Add it to the grouped dictionary
+                        if 'remove' not in grouped:
+                            grouped['remove'] = []
+                        grouped['remove'].append(rec)
             for rec_type, recs in grouped.items():
                 OptimizerConfig.debug(f"Group {rec_type}: {len(recs)} recommendations", category='recommendation')
                 if recs:

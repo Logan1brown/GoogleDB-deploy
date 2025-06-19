@@ -557,26 +557,43 @@ class RecommendationEngine:
                         st.write(f"DEBUG: Skipping {factor.criteria_type}/{factor.criteria_name} due to low impact: {factor.impact_score} < {min_impact}")
                     continue
                 
-                # Skip non-actionable recommendations (unselected fields with negative impact)
-                # These are "add" recommendations with negative impact - they just confirm the user's choice to not select them
+                # Get information about the selection status for debugging and filtering
+                is_field_selected = factor.criteria_type in criteria
+                option_id = getattr(factor, 'criteria_value', None)
+                is_option_selected = False
+                
+                # Check if this specific option is selected
+                if is_field_selected and option_id is not None:
+                    # For array fields (like character_types), check if the option_id is in the array
+                    if isinstance(criteria.get(factor.criteria_type), list):
+                        is_option_selected = option_id in criteria[factor.criteria_type]
+                    # For single value fields (like genre), check if the option_id matches the value
+                    else:
+                        is_option_selected = criteria[factor.criteria_type] == option_id
+                
+                # Skip non-actionable recommendations based on recommendation type
+                skip_recommendation = False
+                
+                # Debug all recommendations before filtering
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Processing recommendation: {factor.criteria_type}/{factor.criteria_name} - type: {factor.recommendation_type}, impact: {factor.impact_score}, field selected: {is_field_selected}, option selected: {is_option_selected}", category='recommendation')
+                
+                # Case 1: "add" recommendations with negative impact for unselected fields
+                # These just confirm the user's choice to not select them
                 if factor.recommendation_type == 'add' and factor.impact_score < 0:
-                    if OptimizerConfig.DEBUG_MODE:
-                        # Get more detailed information about the selection status
-                        is_field_selected = factor.criteria_type in criteria
-                        option_id = getattr(factor, 'criteria_value', None)
-                        is_option_selected = False
-                        
-                        # Check if this specific option is selected
-                        if is_field_selected and option_id is not None:
-                            # For array fields (like character_types), check if the option_id is in the array
-                            if isinstance(criteria.get(factor.criteria_type), list):
-                                is_option_selected = option_id in criteria[factor.criteria_type]
-                            # For single value fields (like genre), check if the option_id matches the value
-                            else:
-                                is_option_selected = criteria[factor.criteria_type] == option_id
-                        
-                        st.write(f"DEBUG: Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: unselected field with negative impact")
-                        OptimizerConfig.debug(f"Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: field selected={is_field_selected}, option selected={is_option_selected}, impact={factor.impact_score}", category='recommendation')
+                    skip_recommendation = True
+                    skip_reason = "unselected field with negative impact"
+                
+                # Case 2: "remove" recommendations for fields that aren't actually selected
+                # These don't make sense since you can't remove what's not selected
+                # Special case: For 'genre', we always allow 'remove' recommendations since it's a required field
+                elif factor.recommendation_type == 'remove' and not is_field_selected and factor.criteria_type != 'genre':
+                    skip_recommendation = True
+                    skip_reason = "remove recommendation for unselected field"
+                
+                if skip_recommendation and OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: {skip_reason}")
+                    OptimizerConfig.debug(f"Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: field selected={is_field_selected}, option selected={is_option_selected}, impact={factor.impact_score}, reason={skip_reason}", category='recommendation')
                     continue
                 
                 # Boost impact score slightly to ensure it's displayed
@@ -640,6 +657,14 @@ class RecommendationEngine:
                 if OptimizerConfig.DEBUG_MODE:
                     st.write(f"DEBUG: Created recommendation for {factor.criteria_type}/{factor.criteria_name} with impact {impact_score} (original: {factor.impact_score})")
                     OptimizerConfig.debug(f"Created recommendation for {factor.criteria_type}/{factor.criteria_name} with impact {impact_score} (original: {factor.impact_score})", category='recommendation')
+                    
+                    # Special debug for 'remove' recommendations
+                    if rec_type == 'remove':
+                        OptimizerConfig.debug(f"REMOVE RECOMMENDATION CREATED: {factor.criteria_type}/{factor.criteria_name}", category='recommendation', force=True)
+                        st.write(f"DEBUG: REMOVE RECOMMENDATION CREATED: {factor.criteria_type}/{factor.criteria_name}")
+                        
+                        # Ensure the recommendation has the correct type
+                        recommendation.recommendation_type = 'remove'
                     
             if not recommendations and OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: No recommendations created from {len(success_factors)} success factors")

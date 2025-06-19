@@ -385,6 +385,10 @@ class OptimizerView:
             # Debug the recommendation type
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Processing recommendation of type '{rec_type}' for {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
+                
+                # Special debug for 'remove' recommendations
+                if rec_type == 'remove':
+                    OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
             
             # Debug the recommendation attributes
             if OptimizerConfig.DEBUG_MODE:
