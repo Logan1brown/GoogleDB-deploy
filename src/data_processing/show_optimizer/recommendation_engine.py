@@ -610,21 +610,29 @@ class RecommendationEngine:
                 # This was properly determined in criteria_scorer.py based on field selection status
                 rec_type = factor.recommendation_type
                 
+                # For selected fields with negative impact, ensure they are marked as 'remove' recommendations
+                # This is critical for proper UI display
+                is_selected = factor.criteria_type in criteria
+                option_id = getattr(factor, 'criteria_value', None)
+                is_option_selected = False
+                
+                # Check if this specific option is selected
+                if is_selected and option_id is not None:
+                    # For array fields (like character_types), check if the option_id is in the array
+                    if isinstance(criteria.get(factor.criteria_type), list):
+                        is_option_selected = option_id in criteria[factor.criteria_type]
+                    # For single value fields (like genre), check if the option_id matches the value
+                    else:
+                        is_option_selected = criteria[factor.criteria_type] == option_id
+                
+                # If this is a selected field with negative impact, it should be a 'remove' recommendation
+                if is_selected and factor.impact_score < 0:
+                    rec_type = 'remove'
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Changed recommendation type to 'remove' for {factor.criteria_type}/{factor.criteria_name} due to negative impact on selected field", category='recommendation', force=True)
+                
                 # Debug logging for recommendation type
                 if OptimizerConfig.DEBUG_MODE:
-                    is_selected = factor.criteria_type in criteria
-                    option_id = getattr(factor, 'criteria_value', None)
-                    is_option_selected = False
-                    
-                    # Check if this specific option is selected
-                    if is_selected and option_id is not None:
-                        # For array fields (like character_types), check if the option_id is in the array
-                        if isinstance(criteria.get(factor.criteria_type), list):
-                            is_option_selected = option_id in criteria[factor.criteria_type]
-                        # For single value fields (like genre), check if the option_id matches the value
-                        else:
-                            is_option_selected = criteria[factor.criteria_type] == option_id
-                    
                     OptimizerConfig.debug(f"Using recommendation type '{rec_type}' for {factor.criteria_type}/{factor.criteria_name} (field selected: {is_selected}, option selected: {is_option_selected})", category='recommendation')
                 
                 # Format the explanation based on recommendation type
