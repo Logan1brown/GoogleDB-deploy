@@ -391,6 +391,14 @@ class OptimizerView:
                 # Default to 'add' if no type is specified
                 rec_type = 'add'
                 
+            # Special handling for 'remove' recommendations with 'Remove' in the name
+            criteria_name = getattr(rec, 'criteria_name', '')
+            impact_score = getattr(rec, 'impact_score', 0)
+            if criteria_name and 'Remove' in criteria_name:
+                rec_type = 'remove'
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Forced recommendation type to 'remove' for {getattr(rec, 'criteria_type', 'unknown')}/{criteria_name}", category='recommendation', force=True)
+                
             # Ensure the recommendation type is one of our standard types
             if rec_type not in ['add', 'change', 'remove'] and not rec_type.startswith('network_'):
                 # Default to 'add' for unknown types
@@ -516,8 +524,24 @@ class OptimizerView:
         if OptimizerConfig.DEBUG_MODE:
             non_empty_groups = [k for k, v in grouped.items() if v]
             OptimizerConfig.debug(f"Formatted recommendations structure", category='recommendation', force=True)
-            # Debug removed for clarity
-            OptimizerConfig.debug(f"Non-empty groups: {non_empty_groups}", category='recommendation')
+            OptimizerConfig.debug(f"Total recommendations: {len(formatted_recommendations)}", category='recommendation', force=True)
+            OptimizerConfig.debug(f"Non-empty groups: {non_empty_groups}", category='recommendation', force=True)
+            
+            # Check if 'remove' is in the grouped dictionary
+            if 'remove' in grouped and grouped['remove']:
+                OptimizerConfig.debug(f"Found {len(grouped['remove'])} 'remove' recommendations in grouped dictionary", category='recommendation', force=True)
+                for i, rec in enumerate(grouped['remove']):
+                    OptimizerConfig.debug(f"Remove rec {i+1}: {rec['title']} - {rec['description']}", category='recommendation', force=True)
+            else:
+                OptimizerConfig.debug(f"No 'remove' recommendations found in grouped dictionary", category='recommendation', force=True)
+                
+            # Check for any recommendations with 'remove' in their title or description
+            remove_titles = [rec for rec in formatted_recommendations if 'remove' in rec['title'].lower()]
+            if remove_titles:
+                OptimizerConfig.debug(f"Found {len(remove_titles)} recommendations with 'remove' in title", category='recommendation', force=True)
+                for rec in remove_titles:
+                    OptimizerConfig.debug(f"Title contains 'remove': {rec['title']} - Category: {rec['category']}", category='recommendation', force=True)
+            
             OptimizerConfig.debug(f"Network-specific recommendations: {len(network_specific)}", category='recommendation')
             
             # Log counts for each recommendation type
