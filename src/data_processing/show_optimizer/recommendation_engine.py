@@ -1072,10 +1072,6 @@ class RecommendationEngine:
                                                network: NetworkMatch,
                                                matching_shows: pd.DataFrame,
                                                integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
-        # Direct debug at the very beginning of the function
-        st.write(f"DEBUG: ENTERING network recommendation generation for {network.network_name}")
-        st.write(f"DEBUG: Criteria keys: {list(criteria.keys())}")
-        st.write(f"DEBUG: OptimizerConfig.THRESHOLDS: {OptimizerConfig.THRESHOLDS}")
         """
         Generate network-specific recommendations.        
         Args:
@@ -1112,10 +1108,16 @@ class RecommendationEngine:
                 return []
                 
             # Ensure all matching_shows in network_rates are DataFrames
-            for criteria_type, rate_data in network_rates.items():
-                if isinstance(rate_data, dict) and 'matching_shows' in rate_data:
-                    if not isinstance(rate_data['matching_shows'], pd.DataFrame):
-                        rate_data['matching_shows'] = pd.DataFrame()
+            try:
+                for criteria_type, rate_data in network_rates.items():
+                    if isinstance(rate_data, dict) and 'matching_shows' in rate_data:
+                        if not isinstance(rate_data['matching_shows'], pd.DataFrame):
+                            rate_data['matching_shows'] = pd.DataFrame()
+            except Exception as e:
+                st.write(f"DEBUG: Error processing network_rates: {str(e)}")
+                st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
+                st.write(f"DEBUG: network_rates content: {network_rates}")
+                return []
                 
             # Get overall success rates for each criteria
             overall_rates = {}
@@ -1123,14 +1125,10 @@ class RecommendationEngine:
             # Debug header for overall success rates
             st.write(f"DEBUG: ===== CALCULATING OVERALL SUCCESS RATES FOR COMPARISON =====")
             
-            # Display all overall rates for better debugging
-            for crit_type, rate in overall_rates.items():
-                st.write(f"DEBUG: Overall rate for {crit_type}: {rate:.4f}")
-            
-            
-            for criteria_type in network_rates.keys():
-                if criteria_type not in criteria:
-                    continue
+            try:
+                for criteria_type in network_rates.keys():
+                    if criteria_type not in criteria:
+                        continue
                     
                 single_criteria = {criteria_type: criteria[criteria_type]}
                 overall_rate, overall_details = self.criteria_scorer.calculate_success_rate(
@@ -1142,159 +1140,174 @@ class RecommendationEngine:
                 st.write(f"DEBUG: Overall success rate for {criteria_type}={criteria[criteria_type]}: {overall_rate:.4f} (sample size: {sample_size})")
                 
                 overall_rates[criteria_type] = overall_rate
+                
+                # Debug each overall rate as it's calculated
+                st.write(f"DEBUG: Overall rate for {criteria_type}: {overall_rate:.4f}")
+            except Exception as e:
+                st.write(f"DEBUG: Error calculating overall rates: {str(e)}")
+                st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
             
             recommendations = []
             
+            # Display summary of all overall rates after calculation
+            st.write(f"DEBUG: SUMMARY OF ALL OVERALL SUCCESS RATES:")
+            for crit_type, rate in overall_rates.items():
+                st.write(f"DEBUG: Overall rate for {crit_type}: {rate:.4f}")
+            
             # Find criteria where network rate differs significantly from overall rate
-            for criteria_type, network_rate_data in network_rates.items():
-                # Skip if criteria not in overall rates or network data is invalid
-                if criteria_type not in overall_rates or not isinstance(network_rate_data, dict):
-                    continue
+            try:
+                for criteria_type, network_rate_data in network_rates.items():
+                    # Skip if criteria not in overall rates or network data is invalid
+                    if criteria_type not in overall_rates or not isinstance(network_rate_data, dict):
+                        continue
                     
-                # Check if we have valid data
-                has_data = network_rate_data.get('has_data', False)
-                
-                # Debug output for network rates - always show this for debugging
-                # Format the network rate data for better readability
-                network_rate = network_rate_data.get('success_rate', network_rate_data.get('rate', 0))
-                sample_size = network_rate_data.get('sample_size', 0)
-                has_data = network_rate_data.get('has_data', False)
-                
-                # Direct debug in UI with detailed network rate information - ALWAYS SHOW THIS
-                st.write(f"DEBUG: NETWORK RATE - {network.network_name} - {criteria_type}={criteria.get(criteria_type, 'N/A')}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
-                
-                # Show raw network rate data for full transparency - ALWAYS SHOW THIS
-                st.write(f"DEBUG: Raw network rate data for {network.network_name} - {criteria_type}: {network_rate_data}")
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network rate for {network.network_name} - {criteria_type}: {network_rate_data}", category='recommendation', force=True)
-                
-                # Handle the matching_shows key
-                if 'matching_shows' in network_rate_data:
-                    matching_shows_data = network_rate_data['matching_shows']
-                else:
-                    # Use the matching_shows parameter as fallback
-                    matching_shows_data = matching_shows
-                    # Store it for future reference
-                    network_rate_data['matching_shows'] = matching_shows_data
-                
-                # Check if matching_shows_data is empty
-                is_empty = matching_shows_data is None or (
-                    isinstance(matching_shows_data, pd.DataFrame) and matching_shows_data.empty
-                )
-                
-                # Skip if no data available
-                if is_empty and not has_data:
-                    continue
+                    # Check if we have valid data
+                    has_data = network_rate_data.get('has_data', False)
                     
-                # Get the network and overall success rates
-                network_rate = network_rate_data.get('success_rate', 0)
-                if network_rate is None:
-                    network_rate = network_rate_data.get('rate', 0)
+                    # Debug output for network rates - always show this for debugging
+                    # Format the network rate data for better readability
+                    network_rate = network_rate_data.get('success_rate', network_rate_data.get('rate', 0))
+                    sample_size = network_rate_data.get('sample_size', 0)
+                    has_data = network_rate_data.get('has_data', False)
                     
-                overall_rate = overall_rates.get(criteria_type, 0)
-                difference = network_rate - overall_rate
-                
-                # Always log the network-specific impact scores for debugging - ALWAYS SHOW THIS
-                # Direct debug in UI - CRITICAL FOR DEBUGGING
-                st.write(f"DEBUG: COMPARISON - Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}")
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}", 
-                                          category='recommendation', force=True)
-                
-                # Use the configured threshold for network recommendations
-                network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
-                if abs(difference) < network_diff_threshold:
-                    # Always show debug output for threshold checks
-                    st.write(f"DEBUG: Skipping network recommendation for {network.network_name} - {criteria_type} due to small difference: {difference} (threshold: {network_diff_threshold})")
-                    continue
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Found significant network difference for {network.network_name} - {criteria_type}: {difference}", category='recommendation', force=True)
-                
-                # Check if we have enough data for this network
-                sample_size = network_rate_data.get('sample_size', 0)
-                has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
-                
-                # Debug sample size check with clearer formatting
-                st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: sample_size={sample_size}, min_required={OptimizerConfig.SUCCESS['min_data_points']}")
-                st.write(f"DEBUG: Thresholds - significant_diff: {OptimizerConfig.THRESHOLDS['significant_difference']}, network_diff: {OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)}")
-                
-                # Simplify the condition check display
-                condition1 = abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']
-                condition2 = has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
-                st.write(f"DEBUG: Condition 1: {condition1} | Condition 2: {condition2} | Final result: {condition1 or condition2}")
-                
-                # Direct debug for condition values
-                st.write(f"DEBUG: CRITICAL CHECK - Network {network.network_name} - {criteria_type}: abs(difference)={abs(difference):.4f}, significant_threshold={OptimizerConfig.THRESHOLDS['significant_difference']}, has_sufficient_data={has_sufficient_data}")
-                
-                # Generate recommendation if difference is significant
-                if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or \
-                   (has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)):
-                    st.write(f"DEBUG: PASSED THRESHOLD CHECK - Will generate recommendation for {network.network_name} - {criteria_type}")
+                    # Direct debug in UI with detailed network rate information - ALWAYS SHOW THIS
+                    st.write(f"DEBUG: NETWORK RATE - {network.network_name} - {criteria_type}={criteria.get(criteria_type, 'N/A')}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
                     
-                    current_value = criteria[criteria_type]
-                    current_name = self._get_criteria_name(criteria_type, current_value)
+                    # Show raw network rate data for full transparency - ALWAYS SHOW THIS
+                    st.write(f"DEBUG: Raw network rate data for {network.network_name} - {criteria_type}: {network_rate_data}")
                     
-                    # Format percentages for explanation
-                    direction = "higher" if difference > 0 else "lower"
-                    network_percent = network_rate * 100
-                    overall_percent = overall_rate * 100
-                    diff_percent = abs(difference) * 100
-                    
-                    # Create explanation
-                    explanation = f"Network {network.network_name} has a {direction} success rate for '{criteria_type}' "
-                    explanation += f"({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
-                    
-                    # Determine recommendation type based on difference direction
-                    rec_type = "keep" if difference > 0 else "change"
-                    
-                    if difference > 0:
-                        explanation += f" This criteria performs well on this network."
-                    else:
-                        explanation += f" Consider adjusting this criteria for better results on this network."
-                    
-                    # Create recommendation
-                    # Format the suggested_name to include the network name for better UI display
-                    suggested_name = f"{network.network_name}: {current_name}"
-                    
-                    # Debug log
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: CREATING NETWORK RECOMMENDATION for {network.network_name} - {criteria_type} - {current_name}")
-                        st.write(f"DEBUG: Network rate: {network_rate:.4f}, Overall rate: {overall_rate:.4f}, Difference: {difference:.4f}")
-                        st.write(f"DEBUG: Recommendation type: network_{rec_type}, Impact score: {impact_score:.4f}")
+                        OptimizerConfig.debug(f"Network rate for {network.network_name} - {criteria_type}: {network_rate_data}", category='recommendation', force=True)
                     
-                    # Set a minimum impact score to ensure recommendations are displayed
-                    impact_score = max(abs(difference), 0.05) * (1 if difference > 0 else -1)
-                    
-                    # Create a more detailed explanation with clear action steps
-                    if difference > 0:
-                        detailed_explanation = (
-                            f"<strong>Network Strength:</strong> {network.network_name} has a {direction} success rate "
-                            f"for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
-                            f"{diff_percent:.1f}% difference). <br><br>"
-                            f"<strong>Recommendation:</strong> Keep this criteria as it performs well on this network."
-                        )
+                    # Handle the matching_shows key
+                    if 'matching_shows' in network_rate_data:
+                        matching_shows_data = network_rate_data['matching_shows']
                     else:
-                        detailed_explanation = (
-                            f"<strong>Network Adjustment:</strong> {network.network_name} has a {direction} success rate "
-                            f"for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
-                            f"{diff_percent:.1f}% difference). <br><br>"
-                            f"<strong>Recommendation:</strong> Consider adjusting this criteria for better results on this network."
-                        )
+                        # Use the matching_shows parameter as fallback
+                        matching_shows_data = matching_shows
+                        # Store it for future reference
+                        network_rate_data['matching_shows'] = matching_shows_data
                     
-                    recommendations.append(Recommendation(
-                        recommendation_type=f"network_{rec_type}",  # Ensure network_ prefix for proper categorization
-                        criteria_type=criteria_type,
-                        current_value=current_value,
-                        current_name=current_name,
-                        suggested_value=current_value,  # Use current value for network recommendations
-                        suggested_name=suggested_name,
-                        impact_score=impact_score,  # Use our boosted impact score to ensure display
-                        confidence=network_rate_data.get('confidence', 'medium'),
-                        explanation=detailed_explanation
-                    ))
+                    # Check if matching_shows_data is empty
+                    is_empty = matching_shows_data is None or (
+                        isinstance(matching_shows_data, pd.DataFrame) and matching_shows_data.empty
+                    )
+                    
+                    # Skip if no data available
+                    if is_empty and not has_data:
+                        continue
+                        
+                    # Get the network and overall success rates
+                    network_rate = network_rate_data.get('success_rate', 0)
+                    if network_rate is None:
+                        network_rate = network_rate_data.get('rate', 0)
+                        
+                    overall_rate = overall_rates.get(criteria_type, 0)
+                    difference = network_rate - overall_rate
+                    
+                    # Always log the network-specific impact scores for debugging - ALWAYS SHOW THIS
+                    # Direct debug in UI - CRITICAL FOR DEBUGGING
+                    st.write(f"DEBUG: COMPARISON - Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}")
+                    
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}", 
+                                              category='recommendation', force=True)
+                
+                    # Use the configured threshold for network recommendations
+                    network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
+                    if abs(difference) < network_diff_threshold:
+                        # Always show debug output for threshold checks
+                        st.write(f"DEBUG: Skipping network recommendation for {network.network_name} - {criteria_type} due to small difference: {difference} (threshold: {network_diff_threshold})")
+                        continue
+                    
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Found significant network difference for {network.network_name} - {criteria_type}: {difference}", category='recommendation', force=True)
+                    
+                    # Check if we have enough data for this network
+                    sample_size = network_rate_data.get('sample_size', 0)
+                    has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
+                    
+                    # Debug sample size check with clearer formatting
+                    st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: sample_size={sample_size}, min_required={OptimizerConfig.SUCCESS['min_data_points']}")
+                    st.write(f"DEBUG: Thresholds - significant_diff: {OptimizerConfig.THRESHOLDS['significant_difference']}, network_diff: {OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)}")
+                    
+                    # Simplify the condition check display
+                    condition1 = abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']
+                    condition2 = has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
+                    st.write(f"DEBUG: Condition 1: {condition1} | Condition 2: {condition2} | Final result: {condition1 or condition2}")
+                    
+                    # Direct debug for condition values
+                    st.write(f"DEBUG: CRITICAL CHECK - Network {network.network_name} - {criteria_type}: abs(difference)={abs(difference):.4f}, significant_threshold={OptimizerConfig.THRESHOLDS['significant_difference']}, has_sufficient_data={has_sufficient_data}")
+                    
+                    # Generate recommendation if difference is significant
+                    if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or \
+                       (has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)):
+                        st.write(f"DEBUG: PASSED THRESHOLD CHECK - Will generate recommendation for {network.network_name} - {criteria_type}")
+                        
+                        current_value = criteria[criteria_type]
+                        current_name = self._get_criteria_name(criteria_type, current_value)
+                    
+                        # Format percentages for explanation
+                        direction = "higher" if difference > 0 else "lower"
+                        network_percent = network_rate * 100
+                        overall_percent = overall_rate * 100
+                        diff_percent = abs(difference) * 100
+                        
+                        # Create explanation
+                        explanation = f"Network {network.network_name} has a {direction} success rate for '{criteria_type}' "
+                        explanation += f"({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
+                        
+                        # Determine recommendation type based on difference direction
+                        rec_type = "keep" if difference > 0 else "change"
+                        
+                        if difference > 0:
+                            explanation += f" This criteria performs well on this network."
+                        else:
+                            explanation += f" Consider adjusting this criteria for better results on this network."
+                        
+                        # Create recommendation
+                        # Format the suggested_name to include the network name for better UI display
+                        suggested_name = f"{network.network_name}: {current_name}"
+                        
+                        # Set a minimum impact score to ensure recommendations are displayed
+                        impact_score = max(abs(difference), 0.05) * (1 if difference > 0 else -1)
+                        
+                        # Debug log
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: CREATING NETWORK RECOMMENDATION for {network.network_name} - {criteria_type} - {current_name}")
+                            st.write(f"DEBUG: Network rate: {network_rate:.4f}, Overall rate: {overall_rate:.4f}, Difference: {difference:.4f}")
+                            st.write(f"DEBUG: Recommendation type: network_{rec_type}, Impact score: {impact_score:.4f}")
+                    
+                        # Create a more detailed explanation with clear action steps
+                        if difference > 0:
+                            detailed_explanation = (
+                                f"<strong>Network Strength:</strong> {network.network_name} has a {direction} success rate "
+                                f"for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
+                                f"{diff_percent:.1f}% difference). <br><br>"
+                                f"<strong>Recommendation:</strong> Keep this criteria as it performs well on this network."
+                            )
+                        else:
+                            detailed_explanation = (
+                                f"<strong>Network Adjustment:</strong> {network.network_name} has a {direction} success rate "
+                                f"for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
+                                f"{diff_percent:.1f}% difference). <br><br>"
+                                f"<strong>Recommendation:</strong> Consider adjusting this criteria for better results on this network."
+                            )
+                        
+                        recommendations.append(Recommendation(
+                            recommendation_type=f"network_{rec_type}",  # Ensure network_ prefix for proper categorization
+                            criteria_type=criteria_type,
+                            current_value=current_value,
+                            current_name=current_name,
+                            suggested_value=current_value,  # Use current value for network recommendations
+                            suggested_name=suggested_name,
+                            impact_score=impact_score,  # Use our boosted impact score to ensure display
+                            confidence=network_rate_data.get('confidence', 'medium'),
+                            explanation=detailed_explanation
+                        ))
+            except Exception as e:
+                st.write(f"DEBUG: Error processing network recommendations: {str(e)}")
+                st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
             
             return recommendations
         except Exception as e:
