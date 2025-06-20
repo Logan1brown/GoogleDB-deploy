@@ -625,11 +625,18 @@ class RecommendationEngine:
                     else:
                         is_option_selected = criteria[factor.criteria_type] == option_id
                 
-                # If this is a selected field with negative impact, it should be a 'remove' recommendation
-                if is_selected and factor.impact_score < 0:
+                # If this specific option is selected and has negative impact, it should be a 'remove' recommendation
+                if is_option_selected and factor.impact_score < 0:
                     rec_type = 'remove'
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Changed recommendation type to 'remove' for {factor.criteria_type}/{factor.criteria_name} due to negative impact on selected field", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"Changed recommendation type to 'remove' for {factor.criteria_type}/{factor.criteria_name} due to negative impact on selected option", category='recommendation', force=True)
+                # If the field is selected but with a different option, and this option has negative impact,
+                # it should be filtered out as non-actionable or kept as 'change' with negative impact
+                elif is_selected and not is_option_selected and factor.impact_score < 0:
+                    # Skip non-actionable recommendations (unselected options with negative impact)
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: unselected option with negative impact", category='recommendation', force=True)
+                    continue
                 
                 # Debug logging for recommendation type
                 if OptimizerConfig.DEBUG_MODE:

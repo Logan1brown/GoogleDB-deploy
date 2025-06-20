@@ -282,7 +282,7 @@ class ConceptAnalyzer:
             formatted = summary.formatted_data
             
             # Log summary creation through centralized debug method
-            OptimizerConfig.debug(f"Created optimization summary with {len(summary.top_networks)} networks", category='analyzer')
+            # Debug removed for clarity
             return summary
             
         except Exception as e:

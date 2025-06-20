@@ -461,28 +461,17 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
         
         # Debug the raw recommendations (only log to debug system, not UI)
         if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Raw formatted recommendations keys: {list(formatted_recommendations.keys())}", category='recommendation')
-            OptimizerConfig.debug(f"All recommendations count: {len(formatted_recommendations.get('all', []))}", category='recommendation', force=True)
-            if "grouped" in formatted_recommendations:
-                OptimizerConfig.debug(f"Grouped keys: {list(formatted_recommendations['grouped'].keys())}", category='recommendation')
-                for group_key, group_items in formatted_recommendations['grouped'].items():
-                    OptimizerConfig.debug(f"Group '{group_key}' has {len(group_items)} items", category='recommendation', force=True)
-                    if group_items and len(group_items) > 0:
-                        OptimizerConfig.debug(f"First item in group '{group_key}': {group_items[0]}", category='recommendation')
+            pass
                 
         # If there are recommendations but no grouped recommendations, create a default group
         if all_recs and (not grouped or all(len(recs) == 0 for recs in grouped.values())):
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Creating default 'add' group with {len(all_recs)} recommendations", category='recommendation', force=True)
+            # Create default group with all recommendations
             grouped = {"add": all_recs}
             
         # If still no recommendations to display after trying to create a default group
         if not grouped or all(len(recs) == 0 for recs in grouped.values()):
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("No recommendations available in any group", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Grouped keys: {list(grouped.keys())}", category='recommendation', force=True)
-                for k, v in grouped.items():
-                    OptimizerConfig.debug(f"Group '{k}' has {len(v)} items", category='recommendation', force=True)
+                pass
             st.info("No recommendations available.")
             return
                 
@@ -492,7 +481,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             if recs:
                 has_recommendations = True
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Found recommendations in group '{rec_type}': {len(recs)}", category='recommendation', force=True)
+                    pass
                 break
                 
         if not has_recommendations:
