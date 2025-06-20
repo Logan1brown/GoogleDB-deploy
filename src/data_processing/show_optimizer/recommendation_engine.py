@@ -470,22 +470,6 @@ class RecommendationEngine:
                         st.write(f"DEBUG: Adding {len(network_specific_recs)} network-specific recommendations to main list")
                     recommendations.extend(network_specific_recs)
             
-            # Generate fallback recommendations if needed
-            # Only do this if we don't have enough high-quality recommendations already
-            if len(recommendations) < self.config.SUGGESTIONS.get('max_suggestions', 5):
-                try:
-                    # Make sure fallback_recs is always a list
-                    fallback_recs = self._generate_fallback_recommendations(criteria, matching_shows, confidence_info)
-                    if fallback_recs is None:
-                        fallback_recs = []
-                    recommendations.extend(fallback_recs)
-                except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Error generating fallback recommendations: {str(e)}")
-                        import traceback
-                        st.write(f"DEBUG: {traceback.format_exc()}")
-                    st.error("Unable to generate additional recommendations.")
-            
             # Sort by impact score (absolute value, as negative impacts are also important)
             recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
             
@@ -1300,22 +1284,19 @@ class RecommendationEngine:
                     sample_size = network_rate_data.get('sample_size', 0)
                     has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
                     
-                    # Debug sample size check with clearer formatting
-                    st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: sample_size={sample_size}, min_required={OptimizerConfig.SUCCESS['min_data_points']}")
-                    st.write(f"DEBUG: Thresholds - significant_diff: {OptimizerConfig.THRESHOLDS['significant_difference']}, network_diff: {OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)}")
-                    
-                    # Simplify the condition check display
+                    # Check conditions for recommendation generation
                     condition1 = abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']
                     condition2 = has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
-                    st.write(f"DEBUG: Condition 1: {condition1} | Condition 2: {condition2} | Final result: {condition1 or condition2}")
                     
-                    # Direct debug for condition values
-                    st.write(f"DEBUG: CRITICAL CHECK - Network {network.network_name} - {criteria_type}: abs(difference)={abs(difference):.4f}, significant_threshold={OptimizerConfig.THRESHOLDS['significant_difference']}, has_sufficient_data={has_sufficient_data}")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: sample_size={sample_size}, min_required={OptimizerConfig.SUCCESS['min_data_points']}")
+                        st.write(f"DEBUG: Thresholds check: abs(diff)={abs(difference):.4f}, threshold={OptimizerConfig.THRESHOLDS['significant_difference']}, has_data={has_sufficient_data}")
                     
                     # Generate recommendation if difference is significant
                     if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or \
                        (has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)):
-                        st.write(f"DEBUG: PASSED THRESHOLD CHECK - Will generate recommendation for {network.network_name} - {criteria_type}")
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Creating recommendation for {network.network_name} - {criteria_type}")
                         
                         current_value = criteria[criteria_type]
                         current_name = self._get_criteria_name(criteria_type, current_value)
