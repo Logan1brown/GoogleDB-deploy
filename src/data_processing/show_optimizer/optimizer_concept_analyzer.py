@@ -210,9 +210,6 @@ class ConceptAnalyzer:
             OptimizationSummary with success probability, recommendations, etc.
         """
         try:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Starting concept analysis with {len(criteria)} criteria", category='analyzer')
-                OptimizerConfig.debug(f"Criteria: {criteria}", category='analyzer')
             
             # Step 1: Find matching shows using integrated data
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data)
@@ -308,8 +305,6 @@ class ConceptAnalyzer:
             return pd.DataFrame(), {'level': 'none', 'error': 'No shows data available'}
             
         shows_data = integrated_data['shows']
-        if OptimizerConfig.DEBUG_MODE:
-            pass
         
         # Get minimum sample size from config
         min_sample_size = self.config.CONFIDENCE['minimum_sample']
@@ -329,8 +324,6 @@ class ConceptAnalyzer:
         
         # Log the match results
         match_count = len(matching_shows) if not matching_shows.empty else 0
-        if OptimizerConfig.DEBUG_MODE:
-            pass
         
         # Match results logged above
         
@@ -406,18 +399,14 @@ class ConceptAnalyzer:
                 
             if not integrated_data:
                 return []
-                
-
-
-            
+                          
             # Use the matching shows that were passed in, or get them if not provided
             if matching_shows is None or matching_shows.empty:
                 # Only call _find_matching_shows if we don't already have matching shows
                 matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data=integrated_data)
                 
                 if matching_shows is None or matching_shows.empty:
-                    if st.session_state.get('debug_mode', False):
-                        pass
+                    pass
                     return []
             
             # Use NetworkAnalyzer to rank networks by compatibility
@@ -429,8 +418,7 @@ class ConceptAnalyzer:
             
             # Check if network_analyzer is available
             if self.criteria_scorer.network_analyzer is None:
-                if st.session_state.get('debug_mode', False):
-                    pass
+                pass
                 return []
                 
             # Call rank_networks_by_compatibility with proper error handling
@@ -488,9 +476,6 @@ class ConceptAnalyzer:
             Dictionary mapping component names to ComponentScore objects
         """
         try:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Starting concept analysis with {len(criteria)} criteria", category='analyzer')
-                OptimizerConfig.debug(f"Criteria: {criteria}", category='analyzer')
             
             # Get confidence info from the matching shows
             confidence_info = {'match_level': 1}  # Default to exact match level
@@ -598,9 +583,6 @@ class ConceptAnalyzer:
             List of Recommendation objects
         """
         try:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Starting concept analysis with {len(criteria)} criteria", category='analyzer')
-                OptimizerConfig.debug(f"Criteria: {criteria}", category='analyzer')
             
             # Delegate to RecommendationEngine for general recommendation generation
             recommendations = self.recommendation_engine.generate_recommendations(                criteria=criteria,
