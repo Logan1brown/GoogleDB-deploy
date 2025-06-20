@@ -1072,6 +1072,10 @@ class RecommendationEngine:
                                                network: NetworkMatch,
                                                matching_shows: pd.DataFrame,
                                                integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
+        # Direct debug at the very beginning of the function
+        st.write(f"DEBUG: ENTERING network recommendation generation for {network.network_name}")
+        st.write(f"DEBUG: Criteria keys: {list(criteria.keys())}")
+        st.write(f"DEBUG: OptimizerConfig.THRESHOLDS: {OptimizerConfig.THRESHOLDS}")
         """
         Generate network-specific recommendations.        
         Args:
@@ -1142,7 +1146,7 @@ class RecommendationEngine:
                     sample_size = network_rate_data.get('sample_size', 0)
                     has_data = network_rate_data.get('has_data', False)
                     
-                    # Show detailed debug for ALL criteria to help diagnose the issue
+                    # Direct debug in UI
                     st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
                     
                     OptimizerConfig.debug(f"Network rate for {network.network_name} - {criteria_type}: {network_rate_data}", category='recommendation', force=True)
@@ -1178,7 +1182,7 @@ class RecommendationEngine:
                     OptimizerConfig.debug(f"Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}", 
                                           category='recommendation', force=True)
                     
-                        # Always show debug output for all criteria to diagnose the issue
+                    # Direct debug in UI
                     st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}")
                 
                 # Use the configured threshold for network recommendations
@@ -1195,15 +1199,22 @@ class RecommendationEngine:
                 sample_size = network_rate_data.get('sample_size', 0)
                 has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
                 
-                # Debug sample size check - show for ALL criteria to diagnose the issue
-                st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: sample_size={sample_size}, min_required={OptimizerConfig.SUCCESS['min_data_points']}, has_sufficient_data={has_sufficient_data}")
-                st.write(f"DEBUG: Significant difference threshold: {OptimizerConfig.THRESHOLDS['significant_difference']}")
-                st.write(f"DEBUG: Condition check: abs(difference)={abs(difference):.4f} >= significant_threshold={OptimizerConfig.THRESHOLDS['significant_difference']} OR (has_sufficient_data={has_sufficient_data} AND abs(difference)={abs(difference):.4f} > network_threshold={OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)})")
-                st.write(f"DEBUG: Combined condition result: {abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or (has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02))}")
+                # Debug sample size check with clearer formatting
+                st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: sample_size={sample_size}, min_required={OptimizerConfig.SUCCESS['min_data_points']}")
+                st.write(f"DEBUG: Thresholds - significant_diff: {OptimizerConfig.THRESHOLDS['significant_difference']}, network_diff: {OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)}")
+                
+                # Simplify the condition check display
+                condition1 = abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']
+                condition2 = has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
+                st.write(f"DEBUG: Condition 1: {condition1} | Condition 2: {condition2} | Final result: {condition1 or condition2}")
+                
+                # Direct debug for condition values
+                st.write(f"DEBUG: CRITICAL CHECK - Network {network.network_name} - {criteria_type}: abs(difference)={abs(difference):.4f}, significant_threshold={OptimizerConfig.THRESHOLDS['significant_difference']}, has_sufficient_data={has_sufficient_data}")
                 
                 # Generate recommendation if difference is significant
                 if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or \
                    (has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)):
+                    st.write(f"DEBUG: PASSED THRESHOLD CHECK - Will generate recommendation for {network.network_name} - {criteria_type}")
                     
                     current_value = criteria[criteria_type]
                     current_name = self._get_criteria_name(criteria_type, current_value)

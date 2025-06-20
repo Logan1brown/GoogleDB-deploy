@@ -348,7 +348,8 @@ class OptimizerConfig:
         'major_difference': 0.2,        # 20% difference is considered major
         'minimum_compatibility': 0.3,   # Minimum compatibility score for recommendations
         'strong_compatibility': 0.7,    # Strong compatibility threshold
-        'success_threshold': 0.6        # Threshold for considering a show successful (60%)
+        'success_threshold': 0.6,       # Threshold for considering a show successful (60%)
+        'network_difference': 0.02      # Minimum difference for network-specific recommendations (2%)
     }
     
     # Network tier thresholds for compatibility scoring
