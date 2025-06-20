@@ -45,6 +45,42 @@ class Recommendation:
 class RecommendationEngine:
     """Analyzes show data to identify success factors and generate recommendations."""
     
+
+    
+    def _format_key(self, field_name, value_name):
+        """Standardize key formatting for consistent matching between network and overall rates.
+        
+        Args:
+            field_name: Field name part of the key
+            value_name: Value name part of the key
+            
+        Returns:
+            Tuple of (standard_key, original_key, clean_value_name)
+        """
+        # Convert value_name to string if it's not already
+        value_name = str(value_name)
+        
+        # Clean up value_name if it contains "Unknown" with a number in parentheses
+        clean_value_name = value_name
+        if isinstance(value_name, str) and "Unknown" in value_name and "(" in value_name and ")" in value_name:
+            try:
+                # Extract the value inside parentheses
+                start_idx = value_name.find("(") + 1
+                end_idx = value_name.find(")")
+                if start_idx > 0 and end_idx > start_idx:
+                    clean_value = value_name[start_idx:end_idx].strip()
+
+                    clean_value_name = clean_value
+            except Exception:
+                # If extraction fails, keep the original value_name
+                pass
+        
+        # Create keys for this field-value combination
+        standard_key = f"{field_name}:{clean_value_name}"
+        original_key = f"{field_name}:{value_name}"
+        
+        return standard_key, original_key, clean_value_name
+    
     def __init__(self, shows_analyzer, success_analyzer, field_manager, criteria_scorer=None):
         """Initialize the recommendation engine.
         
@@ -152,22 +188,11 @@ class RecommendationEngine:
         Returns:
             List of SuccessFactor objects
         """
-        # Add detailed debug logging at the start of the method
-        if OptimizerConfig.DEBUG_MODE:
-            st.write("DEBUG: Starting identify_success_factors method")
-            st.write(f"DEBUG: Criteria: {criteria}")
-            st.write(f"DEBUG: Matching shows count: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'Not a DataFrame'}")
-            st.write(f"DEBUG: Limit: {limit}")
-            
-            # Check if criteria is valid
-            if not criteria:
-                st.write("DEBUG: Warning - Empty criteria provided to identify_success_factors")
-            
-            # Check if matching_shows is valid
-            if matching_shows is None or not isinstance(matching_shows, pd.DataFrame) or matching_shows.empty:
-                st.write("DEBUG: Warning - Invalid or empty matching_shows provided to identify_success_factors")
-        
-        
+        # Check if criteria is valid
+        # Check if matching_shows is valid
+        if matching_shows is None or not isinstance(matching_shows, pd.DataFrame) or matching_shows.empty:
+            pass  # Skip processing for invalid data
+              
         # Process input arguments
         # If matching_shows not provided, get them
         if matching_shows is None or \
@@ -183,48 +208,21 @@ class RecommendationEngine:
                 return []
                 
         try:
-            # No diagnostic logging needed
-        
             # Calculate criteria impact
             try:
                 # Calculate impact data using the criteria scorer
                 impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
                 
-                # Log impact data details if in debug mode
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Impact data returned: {impact_data is not None}")
-                    if impact_data:
-                        st.write(f"Impact data fields: {list(impact_data.keys())}")
-                        for field, values in impact_data.items():
-                            st.write(f"Field {field} has {len(values)} options with impact scores")
             
                 # Return empty list if no impact data was found
                 if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write("No impact data found for recommendations.")
                     return []
                 
             except Exception as impact_e:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"Error analyzing criteria impact: {str(impact_e)}")
+
                 return []
             # Convert to SuccessFactor objects
             success_factors = []
-            
-            # Debug log the impact data structure
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Processing impact data for {len(impact_data)} criteria types")
-                for criteria_type, values in impact_data.items():
-                    st.write(f"DEBUG: Criteria type {criteria_type} has {len(values)} options with impact scores")
-                    # Show the first few options and their impact scores
-                    for i, (option_id, option_data) in enumerate(values.items()):
-                        if i >= 3:  # Limit to first 3 options to avoid clutter
-                            break
-                        impact = option_data.get('impact', 'N/A')
-                        rec_type = option_data.get('recommendation_type', 'N/A')
-                        st.write(f"DEBUG: Option {option_id} has impact {impact} and recommendation_type {rec_type}")
-                if not impact_data:
-                    st.write("DEBUG: No impact data available - check calculate_criteria_impact method")
             
             for criteria_type, values in impact_data.items():
                 processed_count = 0
@@ -291,30 +289,7 @@ class RecommendationEngine:
                                 recommendation_type = 'add'  # Positive impact - recommend adding
                             else:
                                 recommendation_type = 'remove'  # Negative impact - recommend removing
-                            
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"WARNING: No recommendation_type in impact data for {criteria_type}/{name}. Using impact-based fallback: {recommendation_type}", category='warning')
-                        
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Using recommendation type '{recommendation_type}' for {criteria_type}/{name}", category='recommendation')
-                            
-                        # Temporarily lower the minimum impact threshold to ensure we get some recommendations
-                        min_impact = 0.01  # Lower threshold for testing
-                        
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Impact for {criteria_type}/{name}: {impact} (threshold: {min_impact})")
-                            OptimizerConfig.debug(f"Impact for {criteria_type}/{name}: {impact} (threshold: {min_impact})", category='recommendation')
-                        
-                        # Ensure we have at least some minimal impact to generate recommendations
-                        original_impact = impact
-                        # Always boost impact to at least 0.05 (5%) to ensure recommendations are generated
-                        # This is a temporary fix to ensure recommendations appear
-                        min_display_impact = 0.05  # 5% minimum for display
-                        if abs(impact) < min_display_impact:
-                            impact = min_display_impact if impact >= 0 else -min_display_impact
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Boosting small impact for {criteria_type}/{name} from {original_impact} to {impact} to ensure recommendations are displayed")
-                                OptimizerConfig.debug(f"Boosting small impact for {criteria_type}/{name} from {original_impact} to {impact} to ensure recommendations are displayed", category='recommendation')
+
                         matching_titles = []
                         try:
                             # Convert tuple back to list for matching if needed
@@ -377,29 +352,7 @@ class RecommendationEngine:
         Returns:
             List of Recommendation objects
         """
-        # Add debug logging for success factors
-        if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Generate recommendations called with {len(success_factors) if success_factors else 0} success factors")
-            if success_factors:
-                for i, factor in enumerate(success_factors[:3]):  # Show first 3 factors
-                    st.write(f"DEBUG: Success factor {i+1}: {factor.criteria_type} - {factor.criteria_name} - impact: {factor.impact_score} - type: {factor.recommendation_type}")
-            else:
-                st.write("DEBUG: No success factors available - check identify_success_factors method")
-                # Show the criteria to help diagnose why no success factors were found
-                st.write(f"DEBUG: Current criteria: {criteria}")
-                # Show the matching shows count to help diagnose why no success factors were found
-                if isinstance(matching_shows, pd.DataFrame):
-                    st.write(f"DEBUG: Matching shows count: {len(matching_shows)}")
-                    if not matching_shows.empty and 'title' in matching_shows.columns:
-                        st.write(f"DEBUG: First few matching shows: {', '.join(matching_shows['title'].head(3).tolist())}")
-                else:
-                    st.write("DEBUG: No matching shows DataFrame available")
-                
-            # Debug the top networks
-            if top_networks:
-                st.write(f"DEBUG: Top networks: {', '.join([n.network_name for n in top_networks[:3]])}")
-            else:
-                st.write("DEBUG: No top networks available")
+        # Process recommendations
                 
         try:
             # Handle missing inputs gracefully
@@ -435,64 +388,33 @@ class RecommendationEngine:
             except Exception as e:
                 st.error("Unable to analyze successful patterns. Some recommendations may be missing.")
                 
-            # Generate network-specific recommendations for top networks
             network_specific_recs = []
             if top_networks and len(top_networks) > 0:
                 # Limit to top 3 networks for performance
                 for network in top_networks[:3]:
                     try:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Generating recommendations for network {network.network_name}")
-                        
                         network_recs = self.generate_network_specific_recommendations(
                             criteria, network, matching_shows, integrated_data
                         )
-                        
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Generated {len(network_recs)} recommendations for network {network.network_name}")
-                            OptimizerConfig.debug(f"Generated {len(network_recs)} recommendations for network {network.network_name}", category='recommendation')
-                            if network_recs:
-                                for i, rec in enumerate(network_recs[:2]):  # Show first 2 recommendations
-                                    st.write(f"DEBUG: Network recommendation {i+1}: {rec.criteria_type} - {rec.suggested_name} - impact: {rec.impact_score}")
-                                    OptimizerConfig.debug(f"Network recommendation {i+1}: {rec.criteria_type} - {rec.suggested_name} - impact: {rec.impact_score}", category='recommendation')
-                            
                         network_specific_recs.extend(network_recs)
                     except Exception as e:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Error generating recommendations for network {network.network_name}: {str(e)}")
+                        pass
                             
                 # Add network-specific recommendations to the main list
                 try:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: network_specific_recs type: {type(network_specific_recs).__name__}")
-                        if network_specific_recs:
-                            st.write(f"DEBUG: First item type: {type(network_specific_recs[0]).__name__ if len(network_specific_recs) > 0 else 'empty'}")
                             
                     # Ensure network_specific_recs is a list before extending
                     if isinstance(network_specific_recs, list):
                         if network_specific_recs:
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Adding {len(network_specific_recs)} network-specific recommendations to main list")
                             recommendations.extend(network_specific_recs)
                     else:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: network_specific_recs is not a list, it's a {type(network_specific_recs).__name__}")
+                        pass
                 except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Error adding network recommendations: {str(e)}")
-                        st.write(f"DEBUG: recommendations type: {type(recommendations).__name__}")
-                        st.write(f"DEBUG: network_specific_recs type: {type(network_specific_recs).__name__}")
-            
-            # Check recommendations type before sorting
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Final recommendations type: {type(recommendations).__name__}")
-                if recommendations:
-                    st.write(f"DEBUG: First recommendation type: {type(recommendations[0]).__name__ if len(recommendations) > 0 else 'empty'}")
+                    pass
             
             # Ensure recommendations is a list before sorting
             if not isinstance(recommendations, list):
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: recommendations is not a list, converting from {type(recommendations).__name__}")
+
                 recommendations = list(recommendations) if recommendations else []
             
             # Sort by impact score (absolute value, as negative impacts are also important)
@@ -503,16 +425,12 @@ class RecommendationEngine:
                     if hasattr(rec, 'impact_score'):
                         valid_recommendations.append(rec)
                     else:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Skipping invalid recommendation of type {type(rec).__name__}")
+                        pass
                 
                 recommendations = valid_recommendations
                 recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
             except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Error sorting recommendations: {str(e)}")
-                    for i, rec in enumerate(recommendations[:5] if recommendations else []):
-                        st.write(f"DEBUG: Recommendation {i} type: {type(rec).__name__}")
+
                 recommendations = []
             
             # Limit to max suggestions
@@ -541,56 +459,17 @@ class RecommendationEngine:
         """
         try:
             recommendations = []
-            
-            # Debug logs only if debug mode is enabled
-            if OptimizerConfig.DEBUG_MODE:
-                # Log success factors
-                st.write(f"DEBUG: Total success factors: {len(success_factors)}")
-            
-            # We don't need to categorize recommendations here
-            # The recommendation type is already determined in criteria_scorer.py
-            # Just log the distribution of recommendation types for debugging
-            if OptimizerConfig.DEBUG_MODE:
-                # Count factors by recommendation type
-                rec_types = {}
-                for factor in success_factors:
-                    rec_type = factor.recommendation_type
-                    if rec_type not in rec_types:
-                        rec_types[rec_type] = 0
-                    rec_types[rec_type] += 1
-                
-                # Log the counts
-                for rec_type, count in rec_types.items():
-                    st.write(f"DEBUG: {rec_type} factors: {count}")
-                
-                # Also log by impact direction for reference
-                positive_impact = [f for f in success_factors if f.impact_score > 0]
-                negative_impact = [f for f in success_factors if f.impact_score < 0]
-                st.write(f"DEBUG: Positive impact factors: {len(positive_impact)}")
-                st.write(f"DEBUG: Negative impact factors: {len(negative_impact)}")
-                
-                # Check if we have any matching shows to analyze
-                if isinstance(matching_shows, pd.DataFrame):
-                    st.write(f"DEBUG: Matching shows for recommendations: {len(matching_shows)}")
-                    if not matching_shows.empty:
-                        st.write(f"DEBUG: Sample of columns: {list(matching_shows.columns)[:5]}")
-                else:
-                    st.write("DEBUG: No matching shows DataFrame available")
-            
-            # Process all success factors to create recommendations
+
+            j# Process all success factors to create recommendations
             min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.01)
-            
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Using minimum impact threshold of {min_impact} for recommendations")
-            
+              
             for factor in success_factors:
                 # Skip factors with impact below threshold
                 if abs(factor.impact_score) < min_impact:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Skipping {factor.criteria_type}/{factor.criteria_name} due to low impact: {factor.impact_score} < {min_impact}")
+
                     continue
                 
-                # Get information about the selection status for debugging and filtering
+                # Get information about the selection status for filtering
                 is_field_selected = factor.criteria_type in criteria
                 option_id = getattr(factor, 'criteria_value', None)
                 is_option_selected = False
@@ -604,10 +483,6 @@ class RecommendationEngine:
                     else:
                         is_option_selected = criteria[factor.criteria_type] == option_id
                 
-                # Debug all recommendations before filtering
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Processing recommendation: {factor.criteria_type}/{factor.criteria_name} - type: {factor.recommendation_type}, impact: {factor.impact_score}, field selected: {is_field_selected}, option selected: {is_option_selected}", category='recommendation')
-                
                 # Determine the correct recommendation type based on selection status and impact
                 rec_type = factor.recommendation_type
                 skip_recommendation = False
@@ -617,18 +492,13 @@ class RecommendationEngine:
                 if is_option_selected and factor.impact_score < 0:
                     # Selected option with negative impact should be a 'remove' recommendation
                     rec_type = 'remove'
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Setting recommendation type to 'remove' for selected option {factor.criteria_type}/{factor.criteria_name} with negative impact", category='recommendation')
+                    # Option with negative impact - set to remove
                 elif not is_field_selected and factor.impact_score > 0:
                     # Unselected field with positive impact should be an 'add' recommendation
                     rec_type = 'add'
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Setting recommendation type to 'add' for unselected field {factor.criteria_type}/{factor.criteria_name} with positive impact", category='recommendation')
                 elif is_field_selected and not is_option_selected and factor.impact_score > 0:
                     # Selected field but different option with positive impact should be a 'change' recommendation
                     rec_type = 'change'
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Setting recommendation type to 'change' for selected field {factor.criteria_type} with unselected option {factor.criteria_name} with positive impact", category='recommendation')
                 elif factor.recommendation_type == 'add' and factor.impact_score < 0:
                     # Don't recommend adding something with negative impact
                     skip_recommendation = True
@@ -640,9 +510,6 @@ class RecommendationEngine:
                 
                 # Skip non-actionable recommendations
                 if skip_recommendation:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: {skip_reason}")
-                        OptimizerConfig.debug(f"Skipping recommendation: {factor.criteria_type}/{factor.criteria_name}, reason={skip_reason}", category='recommendation')
                     continue
                 
                 # Update the recommendation type in the factor object for consistency
@@ -655,16 +522,11 @@ class RecommendationEngine:
                 if rec_type == 'remove' and abs(impact_score) < 0.15:
                     # Higher threshold for remove recommendations
                     impact_score = -0.15
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Boosted remove recommendation impact from {factor.impact_score} to {impact_score}", category='recommendation')
                 elif abs(impact_score) < 0.05:
                     # Minimum threshold for all other recommendations
                     impact_score = 0.05 if impact_score > 0 else -0.05
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Boosted impact for {factor.criteria_type}/{factor.criteria_name} from {factor.impact_score} to {impact_score}", category='recommendation')
                 
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Final recommendation type: '{rec_type}' for {factor.criteria_type}/{factor.criteria_name} with impact {impact_score}", category='recommendation')
+                # Recommendation type and impact score finalized
                     
                 # Format the explanation based on recommendation type
                 if rec_type == 'change':
@@ -695,60 +557,18 @@ class RecommendationEngine:
                 # Add to recommendations list
                 recommendations.append(recommendation)
                 
-                # Debug log
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Created recommendation for {factor.criteria_type}/{factor.criteria_name} with impact {impact_score} (original: {factor.impact_score})")
-                    OptimizerConfig.debug(f"Created recommendation for {factor.criteria_type}/{factor.criteria_name} with impact {impact_score} (original: {factor.impact_score})", category='recommendation')
-                    
-                    # Special debug for 'remove' recommendations
-                    if rec_type == 'remove':
-                        OptimizerConfig.debug(f"REMOVE RECOMMENDATION CREATED: {factor.criteria_type}/{factor.criteria_name}", category='recommendation', force=True)
-                        st.write(f"DEBUG: REMOVE RECOMMENDATION CREATED: {factor.criteria_type}/{factor.criteria_name}")
+
                         
                 # Ensure the recommendation has the correct type
                 # This is critical for 'remove' recommendations to be properly displayed
                 recommendation.recommendation_type = rec_type
                     
-            if not recommendations and OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: No recommendations created from {len(success_factors)} success factors")
-                OptimizerConfig.debug(f"No recommendations created from {len(success_factors)} success factors", category='recommendation')
-            
-            # Debug log the total recommendations created
-            if OptimizerConfig.DEBUG_MODE:
-                # Count recommendations by type
-                rec_types = {}
-                for rec in recommendations:
-                    rec_type = getattr(rec, 'recommendation_type', 'unknown')
-                    if rec_type not in rec_types:
-                        rec_types[rec_type] = 0
-                    rec_types[rec_type] += 1
-                    
-                    # Log detailed info for each recommendation
-                    criteria_type = getattr(rec, 'criteria_type', 'unknown')
-                    name = getattr(rec, 'suggested_name', 'unknown')
-                    impact = getattr(rec, 'impact_score', 0)
-                    
-                    # Check if this field is in the original criteria (selected)
-                    is_selected = criteria_type in criteria
-                    expected_type = 'change' if is_selected and impact > 0 else 'add' if impact > 0 else 'remove'
-                    
-                    # Log detailed info with selection status
-                    OptimizerConfig.debug(f"Recommendation: {criteria_type}/{name} - Type: {rec_type} - Impact: {impact} - Selected: {is_selected} - Expected: {expected_type}", category='recommendation')
+                # Check if this field is in the original criteria (selected)
+                is_selected = criteria_type in criteria
+                expected_type = 'change' if is_selected and impact > 0 else 'add' if impact > 0 else 'remove'
+
                 
-                OptimizerConfig.debug(f"Recommendation types: {rec_types}", category='recommendation')
-                if 'change' not in rec_types or rec_types['change'] == 0:
-                    OptimizerConfig.debug(f"No 'change' recommendations found", category='recommendation')
-                    st.write(f"DEBUG: No 'change' recommendations found")
-                else:
-                    change_recs = [rec for rec in recommendations if getattr(rec, 'recommendation_type', '') == 'change']
-                    st.write(f"DEBUG: Found {len(change_recs)} 'change' recommendations")
-                    OptimizerConfig.debug(f"Found {len(change_recs)} 'change' recommendations", category='recommendation')
-                    for i, rec in enumerate(change_recs[:3]):
-                        criteria_type = getattr(rec, 'criteria_type', 'unknown')
-                        name = getattr(rec, 'suggested_name', 'unknown')
-                        impact = getattr(rec, 'impact_score', 0)
-                        st.write(f"DEBUG: Change recommendation {i+1}: {criteria_type}/{name} - impact: {impact}")
-                        OptimizerConfig.debug(f"Change recommendation {i+1}: {criteria_type}/{name} - impact: {impact}", category='recommendation')
+                # Recommendation processing complete
             
             return recommendations
         except Exception as e:
@@ -882,9 +702,7 @@ class RecommendationEngine:
                         elif not isinstance(current_value, (str, int, float, bool, tuple)) or pd.isna(current_value):
                             current_value = str(current_value)
                     except Exception as e:
-                        # If conversion fails, use string representation
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Error converting current_value to hashable: {str(e)}")
+                        # Handle conversion error
                         current_value = str(current_value)
                     
                     # Calculate success rate for each value of this criteria
@@ -897,9 +715,6 @@ class RecommendationEngine:
                         has_list_values = any(isinstance(val, list) for val in sample_values)
                         
                         if has_list_values:
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Column {criteria_type} contains list values, using special handling")
-                            
                             # For list columns, we need to convert to string for comparison
                             # Get unique string representations
                             unique_str_values = successful_shows[criteria_type].astype(str).unique()
@@ -957,8 +772,6 @@ class RecommendationEngine:
                                     
                                 value_success[hashable_value] = avg_success
                     except Exception as e:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Error processing values in pattern analysis: {str(e)}")
                         continue
                         
                     # Sort values by success score
@@ -1007,8 +820,7 @@ class RecommendationEngine:
             
             return recommendations
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Error in _analyze_successful_patterns: {str(e)}")
+            # Handle pattern analysis error
             return []
     
     def _get_criteria_name(self, criteria_type, value):
@@ -1058,9 +870,9 @@ class RecommendationEngine:
             return str(value)
             
     def generate_network_specific_recommendations(self, criteria: Dict[str, Any], 
-                                               network: NetworkMatch,
-                                               matching_shows: pd.DataFrame,
-                                               integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
+                                                network: NetworkMatch,
+                                                matching_shows: pd.DataFrame,
+                                                integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
         """
         Generate network-specific recommendations.        
         Args:
@@ -1072,379 +884,140 @@ class RecommendationEngine:
         Returns:
             List of Recommendation objects specific to the network
         """
+        # Skip if we don't have valid criteria or network
+        if not criteria or not network:
+            return []
+            
+        # Get network-specific success rates for each criteria using matching_shows
         try:
-            # Skip if we don't have valid criteria or network
-            if not criteria or not network:
-                return []
+            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
+                matching_shows=matching_shows,
+                network_id=network.network_id
+            )
+        except Exception as e:
+            st.error(f"Error getting network-specific success rates: {str(e)}")
+            return []
+            
+        # Skip if network_rates is empty
+        if not network_rates:
+            return []
+        # Calculate overall success rates for comparison with network-specific rates
+        overall_rates = {}
+        
+        # Process each key in network rates to calculate corresponding overall rates
+        for key, network_rate_data in network_rates.items():
+            # Extract field name from key using standard format
+            field_name = key.split(':', 1)[0] if ':' in key else key
+            
+            # Skip if this field is not in our criteria
+            if field_name not in criteria:
+                continue
                 
-            # Get network-specific success rates for each criteria using matching_shows
+            # Calculate the overall success rate for this criteria
+            single_criteria = {field_name: criteria[field_name]}
             try:
-                # Add debug information about the network and matching shows
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Starting network recommendation generation for {network.network_name} (ID: {network.network_id})")
-                    st.write(f"DEBUG: Network compatibility score: {network.compatibility_score:.4f}, Sample size: {network.sample_size}")
-                    if matching_shows is not None and isinstance(matching_shows, pd.DataFrame):
-                        st.write(f"DEBUG: Matching shows count: {len(matching_shows)}")
-                        if 'network_id' in matching_shows.columns:
-                            network_show_count = len(matching_shows[matching_shows['network_id'] == network.network_id])
-                            st.write(f"DEBUG: Shows for this network: {network_show_count}")
-                
-                # Use the correct parameter pattern for get_network_specific_success_rates
-                # The method only accepts matching_shows and network_id parameters
-                network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
-                    matching_shows=matching_shows,
-                    network_id=network.network_id
+                overall_rate, overall_details = self.criteria_scorer.calculate_success_rate(
+                    single_criteria, integrated_data=integrated_data
                 )
                 
-                # Debug output to check the structure of network_rates
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Network rates for {network.network_name}: {type(network_rates)}")
-                    st.write(f"DEBUG: Network rates keys count: {len(network_rates) if isinstance(network_rates, dict) else 0}")
-                    if isinstance(network_rates, dict) and len(network_rates) > 0:
-                        st.write(f"DEBUG: Sample network rate keys: {list(network_rates.keys())[:5]}")
-                        
-                # Ensure network_rates is a dictionary as expected
-                if not isinstance(network_rates, dict):
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Expected network_rates to be a dictionary but got {type(network_rates)}")
-                        st.write(f"DEBUG: Will use empty dictionary instead")
-                    network_rates = {}
-                    
-                # Store original network_rates for debugging
-                original_network_rates = network_rates
-                    
-                # Handle case where network_rates is not a dictionary
-                if not isinstance(network_rates, dict):
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Aborting - network_rates is not a dictionary")
-                    return []
-                    
-                # Handle case where network_rates is empty
-                if not network_rates:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Aborting - network_rates dictionary is empty")
-                    return []
-                    
-            except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Error getting network-specific success rates: {str(e)}")
-                return []
-                
-            # Ensure all matching_shows in network_rates are DataFrames
-            try:
-                for criteria_type, rate_data in network_rates.items():
-                    if isinstance(rate_data, dict) and 'matching_shows' in rate_data:
-                        if not isinstance(rate_data['matching_shows'], pd.DataFrame):
-                            rate_data['matching_shows'] = pd.DataFrame()
-            except Exception as e:
-                st.write(f"DEBUG: Error ensuring DataFrames: {str(e)}")
-                return []
+                # Store the overall rate using both key formats for flexible lookup
+                overall_rates[key] = overall_rate
+                overall_rates[field_name] = overall_rate
+            except Exception:
+                # Skip this criteria if calculation fails
+                continue
+        
+        recommendations = []
+                 
+        # Analyze each criteria to find significant differences between network and overall rates
+        for key, network_rate_data in network_rates.items():
+            # Extract field name from the key using standard format
+            field_name = key.split(':', 1)[0] if ':' in key else key
             
-            # Calculate overall success rates for each criteria type
-            # to compare with network-specific rates
-            overall_rates = {}
+            # Get the overall success rate using flexible key lookup
+            overall_rate = overall_rates.get(key, overall_rates.get(field_name))
+            if overall_rate is None:
+                # Skip criteria without overall rates
+                continue
+                
+            # Get network success rate and sample size
+            network_rate = network_rate_data.get('success_rate', 0)
+            sample_size = network_rate_data.get('sample_size', 0)
             
-            try:
-                # Ensure network_rates is a dictionary before accessing keys
-                if not isinstance(network_rates, dict):
-                    return []
+            # Calculate the difference between network and overall rates
+            difference = network_rate - overall_rate
+            
+            # Check if we have enough data points for reliable comparison
+            has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
+            
+            # Get thresholds from config
+            network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.001)
+            significant_diff_threshold = OptimizerConfig.THRESHOLDS['significant_difference']
+            
+            # Determine if the difference is significant enough for a recommendation
+            condition1 = abs(difference) >= significant_diff_threshold  # Large difference
+            condition2 = has_sufficient_data and abs(difference) > network_diff_threshold  # Smaller difference with sufficient data
+            should_generate = condition1 or condition2
+            
+            # Create recommendation if the difference is significant
+            if should_generate:
+                # Get current criteria value and display name
+                current_value = criteria.get(field_name)
+                current_name = self._get_criteria_name(field_name, current_value)
                 
-                # Calculate overall success rates for each criteria type
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Network rates keys: {list(network_rates.keys())[:5]}")
+                # Format percentages for explanation
+                direction = "higher" if difference > 0 else "lower"
+                network_percent = network_rate * 100
+                overall_percent = overall_rate * 100
+                diff_percent = abs(difference) * 100
+                    
+                # Create basic explanation text
+                explanation = f"Network {network.network_name} has a {direction} success rate for '{field_name}' "
+                explanation += f"({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
                 
-                # Process each key in network rates to calculate overall rates
-                for key, network_rate_data in network_rates.items():
-                    # Extract field name and value from key
-                    field_parts = key.split(':', 1)
-                    if len(field_parts) != 2:
-                        continue
-                        
-                    field_name = field_parts[0]
-                    field_value = field_parts[1]
-                    
-                    # Skip if this field is not in our criteria
-                    if field_name not in criteria:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Field {field_name} not in criteria, skipping")
-                        continue
-                    
-                    # Get the overall success rate for this criteria
-                    single_criteria = {field_name: criteria[field_name]}
-                    overall_rate, overall_details = self.criteria_scorer.calculate_success_rate(
-                        single_criteria, integrated_data=integrated_data
+                # Determine recommendation type based on difference direction
+                rec_type = "keep" if difference > 0 else "change"
+                
+                # Add action-oriented text to explanation
+                if difference > 0:
+                    explanation += f" This criteria performs well on this network."
+                else:
+                    explanation += f" Consider adjusting this criteria for better results on this network."
+                
+                # Create network-specific suggested name
+                suggested_name = f"{network.network_name}: {current_name}"
+                
+                # Calculate impact score with minimum threshold to ensure visibility
+                impact_score = max(abs(difference), 0.05) * (1 if difference > 0 else -1)
+                
+                # Create a plain text explanation with clear action steps
+                if difference > 0:
+                    detailed_explanation = (
+                        f"Network Strength: {network.network_name} has a {direction} success rate "
+                        f"for '{field_name}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
+                        f"{diff_percent:.1f}% difference). "
+                        f"Recommendation: Keep this criteria as it performs well on this network."
                     )
-                    
-                    # Store the overall rate using the same key format as network_rates
-                    overall_rates[key] = overall_rate
-                    
-                    # Also store by field name for backward compatibility
-                    overall_rates[field_name] = overall_rate
-                    
-                    # Debug output
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Calculated overall rate for {key}: {overall_rate:.4f}")
-            except Exception as e:
-                st.write(f"DEBUG: Error calculating overall rates: {str(e)}")
-                # Continue with empty overall_rates if there was an error
-            
-            recommendations = []
-                     
-            # Find criteria where network rate differs significantly from overall rate
-            try:
-                # Double-check that network_rates is a dictionary before iterating
-                if not isinstance(network_rates, dict):
-                    return []
+                else:
+                    detailed_explanation = (
+                        f"Network Adjustment: {network.network_name} has a {direction} success rate "
+                        f"for '{field_name}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
+                        f"{diff_percent:.1f}% difference). "
+                        f"Recommendation: Consider adjusting this criteria for better results on this network."
+                    )
                 
-                # Debug output for network rates structure - only in debug mode
-                if OptimizerConfig.DEBUG_MODE and len(network_rates) > 0:
-                    st.write(f"DEBUG: Processing {len(network_rates)} keys for {network.network_name}")
-                    
-                for key, network_rate_data in network_rates.items():
-                    # Get the field name and value from the network rate data
-                    field_name = network_rate_data.get('field_name')
-                    value_name = network_rate_data.get('value_name')
-                    value = network_rate_data.get('value')
-                    
-                    # If field_name is not available, try to parse it from the key
-                    if not field_name and ':' in key:
-                        field_parts = key.split(':', 1)
-                        field_name = field_parts[0]
-                        # Also extract value_name from key if not available
-                        if not value_name and len(field_parts) > 1:
-                            value_name = field_parts[1]
-                    elif not field_name:
-                        field_name = key
-                        
-                    # Debug the field name and value extraction
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Extracted field_name={field_name}, value_name={value_name}, value={value} from key {key}")
-                        
-                    # Clean up value_name if it contains "Unknown" with a number in parentheses
-                    if isinstance(value_name, str) and "Unknown" in value_name and "(" in value_name and ")" in value_name:
-                        try:
-                            # Extract the value inside parentheses
-                            start_idx = value_name.find("(") + 1
-                            end_idx = value_name.find(")")
-                            if start_idx > 0 and end_idx > start_idx:
-                                clean_value = value_name[start_idx:end_idx].strip()
-                                if OptimizerConfig.DEBUG_MODE:
-                                    st.write(f"DEBUG: Cleaned value from '{value_name}' to '{clean_value}'")
-                                value_name = clean_value
-                        except:
-                            # If extraction fails, keep the original value_name
-                            pass
-                    
-                    # Skip if network data is invalid
-                    if not isinstance(network_rate_data, dict):
-                        continue
-                    
-                    # Skip if this key is not in overall rates
-                    if key not in overall_rates:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Key {key} not found in overall rates, trying alternative lookups")
-                        
-                        # Try to find a matching key in overall_rates
-                        field_parts = key.split(':', 1)
-                        if len(field_parts) == 2:
-                            field_name = field_parts[0]
-                            
-                            # Try the field name directly
-                            if field_name in overall_rates:
-                                if OptimizerConfig.DEBUG_MODE:
-                                    st.write(f"DEBUG: Found alternative key {field_name} for {key}")
-                                overall_rates[key] = overall_rates[field_name]
-                            else:
-                                # Try variations of the field name
-                                for overall_key in overall_rates.keys():
-                                    if field_name in overall_key or field_name.replace('_id', '') in overall_key:
-                                        if OptimizerConfig.DEBUG_MODE:
-                                            st.write(f"DEBUG: Found alternative key {overall_key} for {key}")
-                                        overall_rates[key] = overall_rates[overall_key]
-                                        break
-                        
-                        # If we still don't have a match, skip this key
-                        if key not in overall_rates:
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: No matching key found for {key}, skipping")
-                            continue
-                    
-                    # Get the network success rate and sample size
-                    network_rate = network_rate_data.get('rate', 0)
-                    sample_size = network_rate_data.get('sample_size', 0)
-                    
-                    # Create a standardized key for comparison
-                    standardized_key = key
-                    if ':' in key:
-                        field_parts = key.split(':', 1)
-                        field = field_parts[0]
-                        value = field_parts[1]
-                        # Remove any "Unknown" text and just keep the ID if present
-                        if isinstance(value, str) and "Unknown" in value and "(" in value and ")" in value:
-                            try:
-                                start_idx = value.find("(") + 1
-                                end_idx = value.find(")")
-                                if start_idx > 0 and end_idx > start_idx:
-                                    value = value[start_idx:end_idx].strip()
-                                    standardized_key = f"{field}:{value}"
-                            except:
-                                pass
-                    
-                    # Try to get the overall success rate using different key formats
-                    if key in overall_rates:
-                        overall_rate = overall_rates[key]
-                    elif standardized_key in overall_rates:
-                        overall_rate = overall_rates[standardized_key]
-                    elif field_name in overall_rates:
-                        overall_rate = overall_rates[field_name]
-                    else:
-                        # Default if no matching key is found
-                        overall_rate = 0
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: No matching overall rate found for {key} or {standardized_key} or {field_name}")
-                            st.write(f"DEBUG: Available keys: {list(overall_rates.keys())[:5]}")
-                            
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Using overall_rate={overall_rate} for key={key}")
-                    
-                    
-                    # Calculate the difference between network and overall rates
-                    difference = network_rate - overall_rate
-                    
-                    # Always show detailed network rate information for debugging
-                    st.write(f"DEBUG: Network {network.network_name} - {key} comparison:")
-                    st.write(f"DEBUG: - Network rate: {network_rate:.4f}")
-                    st.write(f"DEBUG: - Overall rate: {overall_rate:.4f}")
-                    st.write(f"DEBUG: - Difference: {difference:.4f}")
-                    
-                    # Check if we have enough data for this network
-                    has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
-                    
-                    st.write(f"DEBUG: - Sample size: {sample_size}")
-                    st.write(f"DEBUG: - Min required: {OptimizerConfig.SUCCESS['min_data_points']}")
-                    st.write(f"DEBUG: - Has sufficient data: {has_sufficient_data}")
-                    
-                    # Calculate network difference threshold
-                    network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)
-                    significant_diff_threshold = OptimizerConfig.THRESHOLDS['significant_difference']
-                    
-                    st.write(f"DEBUG: - Network difference threshold: {network_diff_threshold:.4f}")
-                    st.write(f"DEBUG: - Significant difference threshold: {significant_diff_threshold:.4f}")
-                    st.write(f"DEBUG: - Meets network threshold: {abs(difference) > network_diff_threshold}")
-                    st.write(f"DEBUG: - Meets significant threshold: {abs(difference) >= significant_diff_threshold}")
-                    
-                    
-                    # Check conditions for recommendation generation
-                    network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.001)
-                    significant_diff_threshold = OptimizerConfig.THRESHOLDS['significant_difference']
-                    
-                    # Simplify the condition logic to make it clearer
-                    condition1 = abs(difference) >= significant_diff_threshold
-                    condition2 = has_sufficient_data and abs(difference) > network_diff_threshold
-                    
-                    # Always show debug output for recommendation conditions
-                    st.write(f"DEBUG: Network recommendation conditions for {network.network_name} - {key}:")
-                    st.write(f"DEBUG: Condition 1 (significant_difference): {condition1} (diff={abs(difference):.4f}, threshold={significant_diff_threshold})")
-                    st.write(f"DEBUG: Condition 2 (network_difference): {condition2} (diff={abs(difference):.4f}, threshold={network_diff_threshold}, has_sufficient_data={has_sufficient_data})")
-                    
-                    # Generate recommendation if either condition is met
-                    # Use a more lenient approach - if there's any meaningful difference, generate a recommendation
-                    should_generate = condition1 or condition2
-                    st.write(f"DEBUG: Should generate recommendation: {should_generate}")
-                    
-                    # Generate recommendation if difference is significant
-                    if should_generate:
+                # Create and add the recommendation object
+                recommendations.append(Recommendation(
+                    recommendation_type=f"network_{rec_type}",  # Network-specific recommendation type
+                    criteria_type=field_name,
+                    current_value=current_value,
+                    current_name=current_name,
+                    suggested_value=current_value,  # Keep same value for network recommendations
+                    suggested_name=suggested_name,
+                    impact_score=impact_score,
+                    confidence=network_rate_data.get('confidence', 'medium'),
+                    explanation=detailed_explanation
+                ))
 
-                        
-                        # Extract field name from the key
-                        if ':' in key:
-                            field_name = key.split(':', 1)[0]
-                        else:
-                            field_name = network_rate_data.get('field_name', key)
-                        
-                        # Get current value from criteria
-                        current_value = criteria.get(field_name)
-                        current_name = self._get_criteria_name(field_name, current_value)
-                        
-                        # Get value name for display
-                        value_name = network_rate_data.get('value_name', '')
-                        
-                        # Debug output for field values
-                        st.write(f"DEBUG: Creating recommendation for field '{field_name}' with value '{value_name}'")
-                        st.write(f"DEBUG: Current criteria value: {current_value}")
-                    
-                        # Format percentages for explanation
-                        direction = "higher" if difference > 0 else "lower"
-                        network_percent = network_rate * 100
-                        overall_percent = overall_rate * 100
-                        diff_percent = abs(difference) * 100
-                        
-                        # Create explanation
-                        explanation = f"Network {network.network_name} has a {direction} success rate for '{field_name}' "
-                        explanation += f"({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
-                        
-                        # Determine recommendation type based on difference direction
-                        rec_type = "keep" if difference > 0 else "change"
-                        
-                        if difference > 0:
-                            explanation += f" This criteria performs well on this network."
-                        else:
-                            explanation += f" Consider adjusting this criteria for better results on this network."
-                        
-                        # Create recommendation
-                        # Format the suggested_name to include the network name for better UI display
-                        suggested_name = f"{network.network_name}: {current_name}"
-                        
-                        # Set a minimum impact score to ensure recommendations are displayed
-                        impact_score = max(abs(difference), 0.05) * (1 if difference > 0 else -1)
-                        
-                        # Debug log
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: CREATING NETWORK RECOMMENDATION for {network.network_name} - {criteria_type} - {current_name}")
-                            st.write(f"DEBUG: Network rate: {network_rate:.4f}, Overall rate: {overall_rate:.4f}, Difference: {difference:.4f}")
-                            st.write(f"DEBUG: Recommendation type: network_{rec_type}, Impact score: {impact_score:.4f}")
-                    
-                        # Create a more detailed explanation with clear action steps
-                        if difference > 0:
-                            detailed_explanation = (
-                                f"<strong>Network Strength:</strong> {network.network_name} has a {direction} success rate "
-                                f"for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
-                                f"{diff_percent:.1f}% difference). <br><br>"
-                                f"<strong>Recommendation:</strong> Keep this criteria as it performs well on this network."
-                            )
-                        else:
-                            detailed_explanation = (
-                                f"<strong>Network Adjustment:</strong> {network.network_name} has a {direction} success rate "
-                                f"for '{criteria_type}' ({network_percent:.1f}% vs {overall_percent:.1f}% overall, "
-                                f"{diff_percent:.1f}% difference). <br><br>"
-                                f"<strong>Recommendation:</strong> Consider adjusting this criteria for better results on this network."
-                            )
-                        
-                        recommendations.append(Recommendation(
-                            recommendation_type=f"network_{rec_type}",  # Ensure network_ prefix for proper categorization
-                            criteria_type=criteria_type,
-                            current_value=current_value,
-                            current_name=current_name,
-                            suggested_value=current_value,  # Use current value for network recommendations
-                            suggested_name=suggested_name,
-                            impact_score=impact_score,  # Use our boosted impact score to ensure display
-                            confidence=network_rate_data.get('confidence', 'medium'),
-                            explanation=detailed_explanation
-                        ))
-            except Exception as e:
-                st.write(f"DEBUG: Error processing network recommendations: {str(e)}")
-                st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
-                
-                # Check if network_rates changed during processing
-                if 'original_network_rates' in locals():
-                    if id(original_network_rates) != id(network_rates):
-                        st.write(f"DEBUG: WARNING - network_rates object changed during processing!")
-                        st.write(f"DEBUG: Original network_rates type: {type(original_network_rates).__name__}")
-                        st.write(f"DEBUG: Current network_rates type: {type(network_rates).__name__}")
-            
-            return recommendations
-        except Exception as e:
-            # Only show error in UI if it's not the known 'empty' attribute error
-            if 'empty' not in str(e):
-                st.error(f"Error generating network recommendations: {str(e)}")
-            return []
+        # Return all generated network-specific recommendations
+        return recommendations

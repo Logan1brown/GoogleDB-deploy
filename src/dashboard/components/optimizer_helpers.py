@@ -456,11 +456,6 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
         if st.session_state.get('debug_mode', False):
             st.write(f"DEBUG: Total recommendations: {len(all_recs)}")
             st.write(f"DEBUG: Network-specific recommendations: {len(network_specific)}")
-        
-        
-        # Debug the raw recommendations (only log to debug system, not UI)
-        if OptimizerConfig.DEBUG_MODE:
-            pass
                 
         # If there are recommendations but no grouped recommendations, create a default group
         if all_recs and (not grouped or all(len(recs) == 0 for recs in grouped.values())):
@@ -490,12 +485,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             
         # Get the grouped recommendations
         grouped = formatted_recommendations.get("grouped", {})
-        
-        # Debug the recommendations (simplified)
-        if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
-            st.write(f"DEBUG: Total recommendations: {len(all_recs)}")
-            st.write(f"DEBUG: Network-specific recommendations: {len(network_specific)}")
-        
+                
         # Track if we've rendered any general recommendations
         general_recs_rendered = False
         network_recs_rendered = False
@@ -537,25 +527,19 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                 if rec_type in rec_type_counts:
                     rec_type_counts[rec_type] += 1
                 # No longer need special debug for remove recommendations
-            
-            # Debug output removed
-                
+                            
             # Process each recommendation for grouping
             for rec in general_recommendations:
                 criteria_type = rec.get('criteria_type', 'unknown')
                 rec_type = rec.get('category', 'unknown')
-                
-                # Debug output removed
-                
+                                
                 # Group by criteria_type only, not by recommendation type
                 # This ensures 'add', 'change', and 'remove' recommendations for the same criteria
                 # are displayed together
                 if criteria_type not in by_criteria_type:
                     by_criteria_type[criteria_type] = []
                 by_criteria_type[criteria_type].append(rec)
-            
-            # Debug output removed
-            
+                        
             # Render recommendations grouped by criteria type
             for criteria_type, criteria_recs in by_criteria_type.items():
                 # We're now using the actual criteria_type directly since we're grouping only by criteria_type
@@ -580,16 +564,11 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                         suggested_name = rec.get('suggested_name', '')
                         impact_percent = abs(impact * 100)
                         description = f"Removing '{suggested_name}' could improve success probability by approximately {impact_percent:.1f}%."
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Fixed description for remove recommendation: {title}", category='recommendation', force=True)
-                    
+                      
                     # Debug output for this recommendation
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(f"Rendering recommendation: {title} - {category} - {description}", category='recommendation')
-                    
-                    # No longer need special debug for remove recommendations
-                    
-                
+                                        
                 # Render each recommendation (limit to top 20 per criteria type)
                 for rec in criteria_recs[:20]:
                             # Determine if this is a positive or negative recommendation based on impact and type
@@ -631,20 +610,6 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                                 render_info_card(title, description)
                         
             general_recs_rendered = True
-        # This else clause is no longer needed as we're handling all recommendation types above
-        # But we'll keep it as a fallback just in case
-        else:
-            # Debug what's happening
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Falling back to old rendering method", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Groups: {list(grouped.keys())}", category='recommendation', force=True)
-                for k, v in grouped.items():
-                    OptimizerConfig.debug(f"Group '{k}' has {len(v)} items", category='recommendation', force=True)
-                    
-            # Use the old rendering method as a fallback
-            for rec_type, recs in grouped.items():
-                    render_recommendation_group(rec_type, recs)
-                    general_recs_rendered = True
         
         # We don't render network-specific recommendations in the Recommendations tab anymore
         # They will be shown only in the Network Analysis tab
