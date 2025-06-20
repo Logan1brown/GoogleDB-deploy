@@ -398,17 +398,29 @@ class CriteriaScorer:
                                     # Create a modified version of the original criteria with this option
                                     option_criteria = criteria.copy()
                                     option_criteria[current_field] = option_id
+                                    
+                                    # For 'change', we need a fresh match since we're replacing a value
+                                    # (e.g., changing from one genre to another)
+                                    use_matching_shows = False
                                 else:
                                     # For 'add' recommendations, just test the field by itself
                                     option_criteria = {current_field: option_id}
+                                    
+                                    # For 'add', we could filter the existing matches further if they exist
+                                    use_matching_shows = matching_shows is not None and not matching_shows.empty
                                 
                                 # Use field_manager to normalize criteria values based on field types
                                 option_criteria = self.field_manager.normalize_criteria(option_criteria)
                                 
-                                # Get matching shows for this option - use None for data to search the full dataset
                                 if OptimizerConfig.DEBUG_MODE:
                                     OptimizerConfig.debug(f"Testing option {option_name} with criteria: {option_criteria} (type: {recommendation_types[i]})", category='impact')
-                                option_shows, _, _ = self._get_matching_shows(option_criteria, None)
+                                
+                                # For 'change' recommendations, run a fresh match
+                                # For 'add' recommendations, we can filter the existing matches if available
+                                if use_matching_shows:
+                                    option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
+                                else:
+                                    option_shows, _, _ = self._get_matching_shows(option_criteria)
                             
                                         # Removed excessive debug output for option matching shows
                             
@@ -582,11 +594,23 @@ class CriteriaScorer:
                                     
                                     # Use field_manager to normalize criteria values based on field types
                                     option_criteria = self.field_manager.normalize_criteria(option_criteria)
+                                    
+                                    # Determine if we should use existing matching shows or run a fresh match
+                                    # For adding a new field, we could filter existing matches if they exist
+                                    use_matching_shows = matching_shows is not None and not matching_shows.empty
+                                    
+                                    # If the field is already in criteria (but with a different value), we need a fresh match
+                                    if field in criteria:
+                                        use_matching_shows = False
                                 
-                                    # Get matching shows for this option - use None for data to search the full dataset
                                     if OptimizerConfig.DEBUG_MODE:
-                                        OptimizerConfig.debug(f"Testing 'add' option {option_name} with criteria: {option_criteria}", category='impact')
-                                    option_shows, _, _ = self._get_matching_shows(option_criteria, None)
+                                        OptimizerConfig.debug(f"Testing 'add' option {option_name} with criteria: {option_criteria} (using existing matches: {use_matching_shows})", category='impact')
+                                    
+                                    # Use existing matches if appropriate, otherwise run a fresh match
+                                    if use_matching_shows:
+                                        option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
+                                    else:
+                                        option_shows, _, _ = self._get_matching_shows(option_criteria)
                                     
                                     # Skip options with no matching shows
                                     if option_shows is None or option_shows.empty:
