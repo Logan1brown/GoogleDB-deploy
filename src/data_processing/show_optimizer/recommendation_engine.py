@@ -953,32 +953,6 @@ class RecommendationEngine:
             
             return recommendations
         except Exception as e:
-            import traceback
-            st.error(f"Error analyzing successful patterns: {str(e)}")
-            st.write(f"DEBUG: Full traceback for pattern analysis error: {traceback.format_exc()}")
-            return []
-    
-    def _generate_fallback_recommendations(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, 
-                                        confidence_info: Dict[str, Any]) -> List[Recommendation]:
-        """Generate fallback recommendations when data is limited.
-        
-        Args:
-            criteria: Dictionary of criteria
-            matching_shows: DataFrame of matching shows
-            confidence_info: Dictionary with confidence metrics
-            
-        Returns:
-            List of Recommendation objects with fallback suggestions
-        """
-        try:
-            recommendations = []
-            
-            # Only generate fallback recommendations if we have very few matches
-            if isinstance(matching_shows, pd.DataFrame) and not matching_shows.empty and len(matching_shows) >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                return []
-                
-            # Get the most common successful criteria combinations from the database
-            # This is a fallback when we don't have enough matching shows for the specific criteria
             try:
                 common_successful_criteria = self.shows_analyzer.get_common_successful_criteria(limit=5)
             except Exception as inner_e:
@@ -1100,20 +1074,27 @@ class RecommendationEngine:
                 )
                 
                 # Debug output to check the structure of network_rates
-                st.write(f"DEBUG: Network rates for {network.network_name}: {type(network_rates)}")
-                
-                # Additional debug to inspect network_rates content
-                if isinstance(network_rates, dict):
-                    st.write(f"DEBUG: Network rates keys: {list(network_rates.keys())[:5]}... (showing first 5)")
-                    if len(network_rates) > 0:
-                        sample_key = list(network_rates.keys())[0]
-                        st.write(f"DEBUG: Sample network rate data structure for key '{sample_key}': {type(network_rates[sample_key])}")
-                elif isinstance(network_rates, list):
-                    st.write(f"DEBUG: Network rates is a list with {len(network_rates)} items")
-                    if len(network_rates) > 0:
-                        st.write(f"DEBUG: First item type: {type(network_rates[0])}")
-                else:
-                    st.write(f"DEBUG: Network rates is neither dict nor list: {type(network_rates)}")
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Network rates for {network.network_name}: {type(network_rates)}")
+                    
+                    # Only show detailed debug info in debug mode
+                    if isinstance(network_rates, dict):
+                        if len(network_rates) > 0:
+                            sample_key = list(network_rates.keys())[0]
+                            st.write(f"DEBUG: Sample key format: '{sample_key}'")
+                    elif isinstance(network_rates, list):
+                        st.write(f"DEBUG: Network rates is a list with {len(network_rates)} items")
+                        if len(network_rates) > 0:
+                            st.write(f"DEBUG: First item type: {type(network_rates[0])}")
+                    else:
+                        st.write(f"DEBUG: Network rates is neither dict nor list: {type(network_rates)}")
+                        
+                # Ensure network_rates is a dictionary as expected
+                if not isinstance(network_rates, dict):
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Expected network_rates to be a dictionary but got {type(network_rates)}")
+                        st.write(f"DEBUG: Will use empty dictionary instead")
+                    network_rates = {}
                     
                 # Store original network_rates for debugging
                 original_network_rates = network_rates
@@ -1176,12 +1157,11 @@ class RecommendationEngine:
                         st.write(f"DEBUG: Cannot process network rates for {network.network_name} - not a dictionary: {type(network_rates)}")
                     return []
                 
-                # Debug output for network rates structure
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Processing network rates for {network.network_name} with {len(network_rates)} keys")
-                    if len(network_rates) > 0:
-                        sample_key = list(network_rates.keys())[0]
-                        st.write(f"DEBUG: Sample key format: '{sample_key}'")
+                # Debug output for network rates structure - only in debug mode
+                if OptimizerConfig.DEBUG_MODE and len(network_rates) > 0:
+                    st.write(f"DEBUG: Processing {len(network_rates)} keys for {network.network_name}")
+                    sample_key = list(network_rates.keys())[0]
+                    st.write(f"DEBUG: Sample key format: '{sample_key}'")
                     
                 for key, network_rate_data in network_rates.items():
                     # Parse the key which is in format "field_name:value_name"
@@ -1204,11 +1184,13 @@ class RecommendationEngine:
                     sample_size = network_rate_data.get('sample_size', 0)
                     has_data = network_rate_data.get('has_data', False)
                     
-                    # Direct debug in UI with detailed network rate information - ALWAYS SHOW THIS
-                    st.write(f"DEBUG: NETWORK RATE - {network.network_name} - {criteria_type}={criteria.get(criteria_type, 'N/A')}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
-                    
-                    # Show raw network rate data for full transparency - ALWAYS SHOW THIS
-                    st.write(f"DEBUG: Raw network rate data for {network.network_name} - {criteria_type} (original key: {key}): {network_rate_data}")
+                    # Only show detailed network rate information in debug mode
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: NETWORK RATE - {network.network_name} - {criteria_type}={criteria.get(criteria_type, 'N/A')}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
+                        
+                        # Only show raw data in debug mode to avoid cluttering the UI
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Key: {key}, Value type: {type(network_rate_data).__name__}")
                     
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(f"Network rate for {network.network_name} - {criteria_type}: {network_rate_data}", category='recommendation', force=True)
@@ -1239,15 +1221,16 @@ class RecommendationEngine:
                     overall_rate = overall_rates.get(criteria_type, 0)
                     difference = network_rate - overall_rate
                     
-                    # Always log the network-specific impact scores for debugging - ALWAYS SHOW THIS
-                    # Direct debug in UI - CRITICAL FOR DEBUGGING
-                    st.write(f"DEBUG: COMPARISON - Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}")
+                    # Log network-specific impact scores only in debug mode
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: COMPARISON - Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}")
                 
                     # Use the configured threshold for network recommendations
                     network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
                     if abs(difference) < network_diff_threshold:
-                        # Always show debug output for threshold checks
-                        st.write(f"DEBUG: Skipping network recommendation for {network.network_name} - {criteria_type} due to small difference: {difference} (threshold: {network_diff_threshold})")
+                        # Show threshold debug output only in debug mode
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Skipping recommendation for {network.network_name} - {criteria_type}: diff={difference:.4f} (threshold: {network_diff_threshold})")
                         continue
                     
                     if OptimizerConfig.DEBUG_MODE:
