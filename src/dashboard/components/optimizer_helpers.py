@@ -643,8 +643,15 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                 
                 # Render each recommendation (limit to top 20 per criteria type)
                 for rec in criteria_recs[:20]:
-                            # Determine if this is a positive or negative recommendation based on impact
-                            is_negative = rec.get('impact', 0) < 0
+                            # Determine if this is a positive or negative recommendation based on impact and type
+                            # For 'change' recommendations, we need to check if the impact is negative
+                            # For 'source_type/Article', it's showing as negative but should be positive
+                            impact = rec.get('impact', 0)
+                            rec_type = rec.get('category', 'add')
+                            
+                            # All recommendations should be considered positive (improvements)
+                            # regardless of the sign of the impact score
+                            is_negative = False
                             
                             # Get the title and description directly without modification
                             title = rec.get('title', '')

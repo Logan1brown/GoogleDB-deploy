@@ -586,13 +586,32 @@ class RecommendationEngine:
                 
                 # Case 2: "remove" recommendations for fields that aren't actually selected
                 # These don't make sense since you can't remove what's not selected
-                # Special case: For 'genre', we always allow 'remove' recommendations since it's a required field
-                # Also allow 'remove' recommendations for character_types and thematic_elements
+                # Skip generic "Remove [field]" recommendations with small impact
                 elif (factor.recommendation_type == 'remove' and 
-                      not is_field_selected and 
-                      factor.criteria_type not in ['genre', 'character_types', 'thematic_elements']):
+                      (not is_field_selected or factor.criteria_name.startswith('Remove '))):
                     skip_recommendation = True
-                    skip_reason = "remove recommendation for unselected field"
+                    skip_reason = "remove recommendation for unselected field or generic remove option"
+                    
+                # Case 3: Generate proper "remove" recommendations for currently selected options with negative impact
+                # This ensures we have meaningful "remove" recommendations in the UI
+                elif is_field_selected and factor.impact_score < 0:
+                    # Check if this specific option is selected
+                    option_id = getattr(factor, 'criteria_value', None)
+                    is_option_selected = False
+                    
+                    if option_id is not None:
+                        # For array fields (like character_types), check if the option_id is in the array
+                        if isinstance(criteria.get(factor.criteria_type), list):
+                            is_option_selected = option_id in criteria[factor.criteria_type]
+                        # For single value fields (like genre), check if the option_id matches the value
+                        else:
+                            is_option_selected = criteria[factor.criteria_type] == option_id
+                    
+                    # If this specific option is selected and has negative impact, make it a "remove" recommendation
+                    if is_option_selected and not factor.criteria_name.startswith('Remove '):
+                        factor.recommendation_type = 'remove'
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Generated proper 'remove' recommendation for selected option {factor.criteria_type}/{factor.criteria_name}", category='recommendation', force=True)
                 
                 if skip_recommendation and OptimizerConfig.DEBUG_MODE:
                     st.write(f"DEBUG: Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: {skip_reason}")
@@ -629,8 +648,14 @@ class RecommendationEngine:
                 # Only generate 'remove' recommendations for options that are actually selected
                 if is_option_selected and factor.impact_score < 0:
                     rec_type = 'remove'
+                    # Boost the impact score for remove recommendations to make them more significant
+                    # This ensures they'll appear in the UI alongside other high-impact recommendations
+                    if abs(factor.impact_score) < 0.15:  # Ensure at least 15% impact for remove recommendations
+                        impact_score = -0.15
+                    
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(f"Changed recommendation type to 'remove' for {factor.criteria_type}/{factor.criteria_name} due to negative impact on selected option", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"Boosted remove recommendation impact from {factor.impact_score} to {impact_score}", category='recommendation', force=True)
                 
                 # Debug logging for recommendation type
                 if OptimizerConfig.DEBUG_MODE:
