@@ -1092,8 +1092,31 @@ class RecommendationEngine:
             try:
                 # Use the correct parameter pattern for get_network_specific_success_rates
                 # The method only accepts matching_shows and network_id parameters
+                # Get network-specific success rates
                 network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
-                    matching_shows, network.network_id)
+                    matching_shows=matching_shows,
+                    network_id=network.network_id
+                )
+                
+                # Debug the type of network_rates
+                st.write(f"DEBUG: Network rates type for {network.network_name}: {type(network_rates)}")
+                
+                # Handle case where network_rates is a list instead of a dict
+                if isinstance(network_rates, list):
+                    st.write(f"DEBUG: Converting network_rates from list to dict for {network.network_name}")
+                    # Convert list to dict using field names as keys
+                    converted_rates = {}
+                    for item in network_rates:
+                        if isinstance(item, dict) and 'field_name' in item:
+                            key = item['field_name']
+                            converted_rates[key] = item
+                    network_rates = converted_rates
+                
+                # Final check to ensure we have a dictionary
+                if not isinstance(network_rates, dict):
+                    st.write(f"DEBUG: Unable to convert network_rates to dictionary for {network.network_name}. Type: {type(network_rates)}")
+                    return []
+                
             except Exception as e:
                 return []
                 
@@ -1127,6 +1150,11 @@ class RecommendationEngine:
                      
             # Find criteria where network rate differs significantly from overall rate
             try:
+                # Double-check that network_rates is a dictionary before iterating
+                if not isinstance(network_rates, dict):
+                    st.write(f"DEBUG: Cannot process network rates for {network.network_name} - not a dictionary: {type(network_rates)}")
+                    return []
+                    
                 for key, network_rate_data in network_rates.items():
                     # Parse the key which is in format "field_name:value_name"
                     if ':' in key:

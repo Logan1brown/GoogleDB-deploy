@@ -59,14 +59,10 @@ class NetworkAnalyzer:
         try:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 return []
             
             # Check if network_id column exists
             if 'network_id' not in matching_shows.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 return []
             
             # Calculate network compatibility scores directly from matching shows
@@ -84,9 +80,8 @@ class NetworkAnalyzer:
                     try:
                         network_name = self.field_manager.get_name('network', network_id) or "Unknown Network"
                     except Exception as e:
-                        if OptimizerConfig.DEBUG_MODE:
-                            pass
                         # Keep the default name
+                        pass
                 
                 # Calculate compatibility score based on match levels
                 # Lower match_level is better (1 is exact match)
