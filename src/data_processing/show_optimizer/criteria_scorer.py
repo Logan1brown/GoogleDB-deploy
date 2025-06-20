@@ -391,6 +391,9 @@ class CriteriaScorer:
                             if option_id == 'remove':
                                 # For 'remove', we use all shows without this field
                                 option_shows = matching_shows.copy() if matching_shows is not None else None
+                                
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Testing 'remove' option for {current_field} (using existing matches)", category='impact')
                             else:
                                 # For 'change' recommendations, we need to replace the existing value in the criteria
                                 # For 'add' recommendations, we need to add the new field
