@@ -591,10 +591,17 @@ class OptimizerView:
                     OptimizerConfig.debug(f"Added missing remove recommendation to grouped dictionary: {rec.get('title', 'unknown')}", category='recommendation', force=True)
         
         # Return the formatted recommendations
+        # Ensure network-specific recommendations aren't duplicated in the 'all' list
+        # Since they're already included in grouped['network_specific']
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Preparing final recommendations dictionary", category='recommendation', force=True)
+            OptimizerConfig.debug(f"Network-specific count: {len(network_specific)}", category='recommendation', force=True)
+            OptimizerConfig.debug(f"Grouped keys: {list(grouped.keys())}", category='recommendation', force=True)
+            
         return {
             "grouped": grouped,
             "network_specific": network_specific,
-            "all": [rec for group in grouped.values() for rec in group] + network_specific
+            "all": [rec for group in grouped.values() for rec in group]
         }
     
     def _format_network_matches(self, network_matches: List[NetworkMatch]) -> List[Dict[str, Any]]:

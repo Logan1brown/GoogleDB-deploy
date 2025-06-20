@@ -496,11 +496,21 @@ class RecommendationEngine:
             
             # Sort by impact score (absolute value, as negative impacts are also important)
             try:
+                # Ensure all items in recommendations are Recommendation objects
+                valid_recommendations = []
+                for rec in recommendations:
+                    if hasattr(rec, 'impact_score'):
+                        valid_recommendations.append(rec)
+                    else:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Skipping invalid recommendation of type {type(rec).__name__}")
+                
+                recommendations = valid_recommendations
                 recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
             except Exception as e:
                 if OptimizerConfig.DEBUG_MODE:
                     st.write(f"DEBUG: Error sorting recommendations: {str(e)}")
-                    for i, rec in enumerate(recommendations[:5]):
+                    for i, rec in enumerate(recommendations[:5] if recommendations else []):
                         st.write(f"DEBUG: Recommendation {i} type: {type(rec).__name__}")
                 recommendations = []
             
