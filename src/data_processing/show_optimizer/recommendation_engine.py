@@ -993,51 +993,8 @@ class RecommendationEngine:
             
             return recommendations
         except Exception as e:
-            try:
-                common_successful_criteria = self.shows_analyzer.get_common_successful_criteria(limit=5)
-            except Exception as inner_e:
-                st.error("Unable to retrieve common successful patterns.")
-                return []
-            
-            # Convert to recommendations
-            for criteria_type, values in common_successful_criteria.items():
-                # Skip if this criteria type is already in the user's criteria
-                if criteria_type in criteria:
-                    continue
-                    
-                # Get the top value for this criteria type
-                if not values:
-                    continue
-                    
-                top_value = values[0]['value']
-                impact_score = values[0].get('impact', self.config.DEFAULT_VALUES.get('fallback_impact_score', 0.1))
-                
-                # Get the name for this criteria value
-                suggested_name = str(top_value)
-                options = self.field_manager.get_options(criteria_type)
-                for option in options:
-                    if option.id == top_value:
-                        suggested_name = option.name
-                        break
-                
-                # Create a fallback recommendation
-                recommendation = Recommendation(
-                    recommendation_type="consider",  # Use "consider" type for fallbacks
-                    criteria_type=criteria_type,
-                    current_value=None,
-                    suggested_value=top_value,
-                    suggested_name=suggested_name,
-                    impact_score=impact_score,
-                    confidence="low",  # Always low confidence for fallbacks
-                    explanation=f"Consider adding '{suggested_name}' as it's commonly found in successful shows. "
-                               f"(Note: This is a general recommendation based on limited data for your specific criteria.)"
-                )
-                recommendations.append(recommendation)
-            
-            return recommendations
-        except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Error in _generate_fallback_recommendations: {str(e)}")
+                st.write(f"DEBUG: Error in _analyze_successful_patterns: {str(e)}")
                 import traceback
                 st.write(f"DEBUG: {traceback.format_exc()}")
             return []
