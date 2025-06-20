@@ -645,8 +645,8 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                         st.write(f"DEBUG: Remove rec - {title}: {description}")
                     
                 
-                # Render each recommendation (limit to top 3 per criteria type)
-                for rec in criteria_recs[:3]:
+                # Render each recommendation (limit to top 20 per criteria type)
+                for rec in criteria_recs[:20]:
                             # Determine if this is a positive or negative recommendation based on impact
                             is_negative = rec.get('impact', 0) < 0
                             
