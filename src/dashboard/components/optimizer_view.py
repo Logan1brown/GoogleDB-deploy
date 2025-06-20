@@ -572,6 +572,21 @@ class OptimizerView:
                 for i, rec in enumerate(remove_recs_formatted[:3]):
                     OptimizerConfig.debug(f"  Remove rec in formatted {i+1}: {rec.get('title', 'No title')} - Category: {rec.get('category', 'unknown')}", category='recommendation', force=True)
         
+        # Make sure 'remove' recommendations are included in the grouped dictionary
+        # This is a critical check to ensure we don't lose any remove recommendations
+        remove_recs_formatted = [rec for rec in formatted_recommendations if rec.get('category') == 'remove']
+        if remove_recs_formatted and 'remove' not in grouped:
+            grouped['remove'] = []
+            
+        # Add any remove recommendations that might have been missed
+        for rec in remove_recs_formatted:
+            if rec not in grouped.get('remove', []):
+                if 'remove' not in grouped:
+                    grouped['remove'] = []
+                grouped['remove'].append(rec)
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Added missing remove recommendation to grouped dictionary: {rec.get('title', 'unknown')}", category='recommendation', force=True)
+        
         # Return the formatted recommendations
         return {
             "grouped": grouped,
