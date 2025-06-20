@@ -953,7 +953,9 @@ class RecommendationEngine:
             
             return recommendations
         except Exception as e:
+            import traceback
             st.error(f"Error analyzing successful patterns: {str(e)}")
+            st.write(f"DEBUG: Full traceback for pattern analysis error: {traceback.format_exc()}")
             return []
     
     def _generate_fallback_recommendations(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, 
@@ -1092,42 +1094,41 @@ class RecommendationEngine:
             try:
                 # Use the correct parameter pattern for get_network_specific_success_rates
                 # The method only accepts matching_shows and network_id parameters
-                # Get network-specific success rates
                 network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
                     matching_shows=matching_shows,
                     network_id=network.network_id
                 )
                 
                 # Debug output to check the structure of network_rates
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Network rates for {network.network_name}: {type(network_rates)}")
+                st.write(f"DEBUG: Network rates for {network.network_name}: {type(network_rates)}")
                 
-                # Handle unexpected data structure - network_rates should be a dictionary
+                # Additional debug to inspect network_rates content
+                if isinstance(network_rates, dict):
+                    st.write(f"DEBUG: Network rates keys: {list(network_rates.keys())[:5]}... (showing first 5)")
+                    if len(network_rates) > 0:
+                        sample_key = list(network_rates.keys())[0]
+                        st.write(f"DEBUG: Sample network rate data structure for key '{sample_key}': {type(network_rates[sample_key])}")
+                elif isinstance(network_rates, list):
+                    st.write(f"DEBUG: Network rates is a list with {len(network_rates)} items")
+                    if len(network_rates) > 0:
+                        st.write(f"DEBUG: First item type: {type(network_rates[0])}")
+                else:
+                    st.write(f"DEBUG: Network rates is neither dict nor list: {type(network_rates)}")
+                    
+                # Store original network_rates for debugging
+                original_network_rates = network_rates
+                    
+                # Handle case where network_rates is not a dictionary
                 if not isinstance(network_rates, dict):
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Invalid network_rates structure for {network.network_name}: {type(network_rates)}")
+                        st.write(f"DEBUG: Network rates is not a dictionary for {network.network_name}: {type(network_rates)}")
+                    return []
                     
-                    # If it's a list, try to convert it to a dictionary
-                    if isinstance(network_rates, list):
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Attempting to convert network_rates from list to dict for {network.network_name}")
-                        
-                        converted_rates = {}
-                        for item in network_rates:
-                            if isinstance(item, dict) and 'field_name' in item:
-                                key = item['field_name']
-                                converted_rates[key] = item
-                        
-                        network_rates = converted_rates
-                        
-                        # Check if conversion was successful
-                        if not isinstance(network_rates, dict) or not network_rates:
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Failed to convert network_rates to a valid dictionary for {network.network_name}")
-                            return []
-                    else:
-                        # Not a list or dict, can't process
-                        return []
+                # Handle case where network_rates is empty
+                if not network_rates:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: No network rates data available for {network.network_name}")
+                    return []
                 
             except Exception as e:
                 return []
@@ -1145,7 +1146,13 @@ class RecommendationEngine:
             overall_rates = {}
             
             try:
-                for criteria_type in network_rates.keys():
+                for key in network_rates.keys():
+                    # Parse the key which is in format "field_name:value_name"
+                    if ':' in key:
+                        criteria_type = key.split(':', 1)[0]
+                    else:
+                        criteria_type = key
+                        
                     if criteria_type not in criteria:
                         continue
                     
@@ -1154,6 +1161,7 @@ class RecommendationEngine:
                         single_criteria, integrated_data=integrated_data
                     )
                     
+                    # Store using the original key format to match network_rates keys
                     overall_rates[criteria_type] = overall_rate
             except Exception as e:
                 pass
@@ -1164,8 +1172,16 @@ class RecommendationEngine:
             try:
                 # Double-check that network_rates is a dictionary before iterating
                 if not isinstance(network_rates, dict):
-                    st.write(f"DEBUG: Cannot process network rates for {network.network_name} - not a dictionary: {type(network_rates)}")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Cannot process network rates for {network.network_name} - not a dictionary: {type(network_rates)}")
                     return []
+                
+                # Debug output for network rates structure
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Processing network rates for {network.network_name} with {len(network_rates)} keys")
+                    if len(network_rates) > 0:
+                        sample_key = list(network_rates.keys())[0]
+                        st.write(f"DEBUG: Sample key format: '{sample_key}'")
                     
                 for key, network_rate_data in network_rates.items():
                     # Parse the key which is in format "field_name:value_name"
@@ -1320,12 +1336,24 @@ class RecommendationEngine:
                             explanation=detailed_explanation
                         ))
             except Exception as e:
+                import traceback
                 st.write(f"DEBUG: Error processing network recommendations: {str(e)}")
                 st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
+                
+                # Check if network_rates changed during processing
+                if 'original_network_rates' in locals():
+                    if id(original_network_rates) != id(network_rates):
+                        st.write(f"DEBUG: WARNING - network_rates object changed during processing!")
+                        st.write(f"DEBUG: Original network_rates type: {type(original_network_rates).__name__}")
+                        st.write(f"DEBUG: Current network_rates type: {type(network_rates).__name__}")
+                
+                st.write(f"DEBUG: Traceback: {traceback.format_exc()}")
             
             return recommendations
         except Exception as e:
             # Only show error in UI if it's not the known 'empty' attribute error
             if 'empty' not in str(e):
+                import traceback
                 st.error(f"Error generating network recommendations: {str(e)}")
+                st.write(f"DEBUG: Full traceback: {traceback.format_exc()}")
             return []
