@@ -643,15 +643,6 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                     
             # Use the old rendering method as a fallback
             for rec_type, recs in grouped.items():
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Checking group '{rec_type}' with {len(recs)} recommendations", category='recommendation')
-                    
-                if recs and not rec_type.startswith('network_'):
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Rendering group '{rec_type}' with {len(recs)} recommendations", category='recommendation')
-                        if recs:
-                            OptimizerConfig.debug(f"First recommendation in group: {recs[0]}", category='recommendation')
-                            
                     render_recommendation_group(rec_type, recs)
                     general_recs_rendered = True
         
@@ -682,14 +673,7 @@ Args:
         recommendations: List of pre-formatted recommendations of this type
         limit: Maximum number of recommendations to show
     """
-    if OptimizerConfig.DEBUG_MODE:
-        st.write(f"DEBUG: render_recommendation_group called with type '{rec_type}' and {len(recommendations)} recommendations")
-        if recommendations:
-            st.write(f"DEBUG: First recommendation keys: {list(recommendations[0].keys())}")
-    
     if not recommendations:
-        if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: No recommendations for group '{rec_type}'")
         return
     
     # Get recommendation type display names from config
@@ -720,9 +704,6 @@ Args:
     
     # Display recommendations
     for rec in recommendations[:limit]:
-        # Debug the recommendation structure if in debug mode
-        if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Rendering recommendation: {rec}")
         
         # Use info card style for all recommendations, but only show the description
         st.markdown(f"""
