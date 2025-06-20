@@ -1098,24 +1098,36 @@ class RecommendationEngine:
                     network_id=network.network_id
                 )
                 
-                # Debug the type of network_rates
-                st.write(f"DEBUG: Network rates type for {network.network_name}: {type(network_rates)}")
+                # Debug output to check the structure of network_rates
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Network rates for {network.network_name}: {type(network_rates)}")
                 
-                # Handle case where network_rates is a list instead of a dict
-                if isinstance(network_rates, list):
-                    st.write(f"DEBUG: Converting network_rates from list to dict for {network.network_name}")
-                    # Convert list to dict using field names as keys
-                    converted_rates = {}
-                    for item in network_rates:
-                        if isinstance(item, dict) and 'field_name' in item:
-                            key = item['field_name']
-                            converted_rates[key] = item
-                    network_rates = converted_rates
-                
-                # Final check to ensure we have a dictionary
+                # Handle unexpected data structure - network_rates should be a dictionary
                 if not isinstance(network_rates, dict):
-                    st.write(f"DEBUG: Unable to convert network_rates to dictionary for {network.network_name}. Type: {type(network_rates)}")
-                    return []
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Invalid network_rates structure for {network.network_name}: {type(network_rates)}")
+                    
+                    # If it's a list, try to convert it to a dictionary
+                    if isinstance(network_rates, list):
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Attempting to convert network_rates from list to dict for {network.network_name}")
+                        
+                        converted_rates = {}
+                        for item in network_rates:
+                            if isinstance(item, dict) and 'field_name' in item:
+                                key = item['field_name']
+                                converted_rates[key] = item
+                        
+                        network_rates = converted_rates
+                        
+                        # Check if conversion was successful
+                        if not isinstance(network_rates, dict) or not network_rates:
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Failed to convert network_rates to a valid dictionary for {network.network_name}")
+                            return []
+                    else:
+                        # Not a list or dict, can't process
+                        return []
                 
             except Exception as e:
                 return []
@@ -1137,12 +1149,12 @@ class RecommendationEngine:
                     if criteria_type not in criteria:
                         continue
                     
-                single_criteria = {criteria_type: criteria[criteria_type]}
-                overall_rate, overall_details = self.criteria_scorer.calculate_success_rate(
-                    single_criteria, integrated_data=integrated_data
-                )
-                
-                overall_rates[criteria_type] = overall_rate
+                    single_criteria = {criteria_type: criteria[criteria_type]}
+                    overall_rate, overall_details = self.criteria_scorer.calculate_success_rate(
+                        single_criteria, integrated_data=integrated_data
+                    )
+                    
+                    overall_rates[criteria_type] = overall_rate
             except Exception as e:
                 pass
             
