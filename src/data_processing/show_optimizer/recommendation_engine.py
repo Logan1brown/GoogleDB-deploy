@@ -626,8 +626,8 @@ class RecommendationEngine:
                         is_option_selected = criteria[factor.criteria_type] == option_id
                 
                 # If this is a selected option with negative impact, it should be a 'remove' recommendation
-                # For special fields like 'genre', we allow remove recommendations for the field even if not this specific option
-                if (is_option_selected or factor.criteria_type in ['genre']) and factor.impact_score < 0:
+                # Only generate 'remove' recommendations for options that are actually selected
+                if is_option_selected and factor.impact_score < 0:
                     rec_type = 'remove'
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(f"Changed recommendation type to 'remove' for {factor.criteria_type}/{factor.criteria_name} due to negative impact on selected option", category='recommendation', force=True)

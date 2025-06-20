@@ -582,27 +582,19 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                 rec_type = rec.get('category', 'unknown')
                 if rec_type in rec_type_counts:
                     rec_type_counts[rec_type] += 1
-                # Debug each remove recommendation
-                if rec_type == 'remove':
-                    st.write(f"DEBUG: Found 'remove' recommendation before grouping: {rec.get('title', 'unknown')}")
+                # No longer need special debug for remove recommendations
             
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Recommendation counts by type: {rec_type_counts}", category='recommendation', force=True)
-                if rec_type_counts['remove'] == 0:
-                    st.write(f"DEBUG: No 'remove' recommendations found in general_recommendations!")
-                else:
-                    st.write(f"DEBUG: Found {rec_type_counts['remove']} 'remove' recommendations in general_recommendations")
+                OptimizerConfig.debug(f"Recommendation counts by type: {rec_type_counts}", category='recommendation')
                 
             # Process each recommendation for grouping
             for rec in general_recommendations:
                 criteria_type = rec.get('criteria_type', 'unknown')
                 rec_type = rec.get('category', 'unknown')
                 
-                # Debug output for each recommendation being processed
+                # Debug output for each recommendation being processed (simplified)
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Processing recommendation for grouping: {criteria_type}/{rec.get('title', 'unknown')} - Type: {rec_type}", category='recommendation')
-                    if rec_type == 'remove':
-                        OptimizerConfig.debug(f"FOUND REMOVE REC FOR GROUPING: {criteria_type}/{rec.get('title', 'unknown')}", category='recommendation', force=True)
                 
                 # Group by criteria_type only, not by recommendation type
                 # This ensures 'add', 'change', and 'remove' recommendations for the same criteria
@@ -646,10 +638,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(f"Rendering recommendation: {title} - {category} - {description}", category='recommendation')
                     
-                    # Special debug for 'remove' recommendations
-                    if category == 'remove' and OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Remove recommendation in criteria_type '{criteria_type}': {title}", category='recommendation', force=True)
-                        st.write(f"DEBUG: Remove rec - {title}: {description}")
+                    # No longer need special debug for remove recommendations
                     
                 
                 # Render each recommendation (limit to top 20 per criteria type)
