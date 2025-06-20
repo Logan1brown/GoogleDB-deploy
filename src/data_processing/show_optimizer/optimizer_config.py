@@ -344,12 +344,12 @@ class OptimizerConfig:
     
     # Threshold values for various comparisons
     THRESHOLDS = {
-        'significant_difference': 0.05,  # 5% difference is considered significant (lowered from 10% to account for clustered scores)
+        'significant_difference': 0.01,  # 1% difference is considered significant (lowered from 5% to allow more recommendations)
         'major_difference': 0.2,        # 20% difference is considered major
         'minimum_compatibility': 0.3,   # Minimum compatibility score for recommendations
         'strong_compatibility': 0.7,    # Strong compatibility threshold
         'success_threshold': 0.6,       # Threshold for considering a show successful (60%)
-        'network_difference': 0.01      # Minimum difference for network-specific recommendations (lowered from 2% to 1%)
+        'network_difference': 0.001     # Minimum difference for network-specific recommendations (lowered to 0.1%)
     }
     
     # Network tier thresholds for compatibility scoring

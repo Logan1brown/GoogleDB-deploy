@@ -1164,35 +1164,55 @@ class RecommendationEngine:
                         if not isinstance(rate_data['matching_shows'], pd.DataFrame):
                             rate_data['matching_shows'] = pd.DataFrame()
             except Exception as e:
+                st.write(f"DEBUG: Error ensuring DataFrames: {str(e)}")
                 return []
-                
-            # Get overall success rates for each criteria
+            
+            # Calculate overall success rates for each criteria type
+            # to compare with network-specific rates
             overall_rates = {}
             
             try:
                 # Ensure network_rates is a dictionary before accessing keys
                 if not isinstance(network_rates, dict):
                     return []
-                    
+                
+                # Debug output for network rates keys
+                st.write(f"DEBUG: Network rates keys: {list(network_rates.keys())[:5]}")
+                
                 for key in network_rates.keys():
-                    # Parse the key which is in format "field_name:value_name"
-                    if ':' in key:
-                        criteria_type = key.split(':', 1)[0]
-                    else:
-                        criteria_type = key
-                        
-                    if criteria_type not in criteria:
-                        continue
+                    # Get the network rate data for this key
+                    network_rate_data = network_rates[key]
                     
-                    single_criteria = {criteria_type: criteria[criteria_type]}
+                    # Extract field name from the network rate data
+                    field_name = network_rate_data.get('field_name')
+                    
+                    # If field_name is not available, try to parse it from the key
+                    if not field_name and ':' in key:
+                        field_name = key.split(':', 1)[0]
+                    elif not field_name:
+                        field_name = key
+                        
+                    # Skip if this field is not in our criteria
+                    if field_name not in criteria:
+                        continue
+                        
+                    # Get the overall success rate for this criteria
+                    single_criteria = {field_name: criteria[field_name]}
                     overall_rate, overall_details = self.criteria_scorer.calculate_success_rate(
                         single_criteria, integrated_data=integrated_data
                     )
                     
-                    # Store using the original key format to match network_rates keys
-                    overall_rates[criteria_type] = overall_rate
+                    # Store the overall rate using the same key format as network_rates
+                    overall_rates[key] = overall_rate
+                    
+                    # Also store by field name for backward compatibility
+                    overall_rates[field_name] = overall_rate
+                    
+                    # Debug output
+                    st.write(f"DEBUG: Calculated overall rate for {key}: {overall_rate:.4f}")
             except Exception as e:
-                pass
+                st.write(f"DEBUG: Error calculating overall rates: {str(e)}")
+                # Continue with empty overall_rates if there was an error
             
             recommendations = []
                      
@@ -1207,68 +1227,96 @@ class RecommendationEngine:
                     st.write(f"DEBUG: Processing {len(network_rates)} keys for {network.network_name}")
                     
                 for key, network_rate_data in network_rates.items():
-                    # Parse the key which is in format "field_name:value_name"
-                    if ':' in key:
-                        parts = key.split(':', 1)
-                        criteria_type = parts[0]  # Extract just the field name part
-                    else:
-                        criteria_type = key
-                        
-                    # Skip if criteria not in overall rates or network data is invalid
-                    if criteria_type not in overall_rates or not isinstance(network_rate_data, dict):
+                    # Get the field name and value from the network rate data
+                    field_name = network_rate_data.get('field_name')
+                    value_name = network_rate_data.get('value_name')
+                    
+                    # If field_name is not available, try to parse it from the key
+                    if not field_name and ':' in key:
+                        field_name = key.split(':', 1)[0]
+                    elif not field_name:
+                        field_name = key
+                    
+                    # Skip if network data is invalid
+                    if not isinstance(network_rate_data, dict):
                         continue
                     
-                    # Check if we have valid data
-                    has_data = network_rate_data.get('has_data', False)
+                    # Skip if this key is not in overall rates
+                    if key not in overall_rates:
+                        st.write(f"DEBUG: Key {key} not found in overall rates")
+                        continue
                     
-                    # Debug output for network rates - always show this for debugging
-                    # Format the network rate data for better readability
-                    network_rate = network_rate_data.get('success_rate', network_rate_data.get('rate', 0))
-                    sample_size = network_rate_data.get('sample_size', 0)
-                    has_data = network_rate_data.get('has_data', False)
-                    
-                    # Get network-specific success rate
+                    # Get the network success rate and sample size
                     network_rate = network_rate_data.get('rate', 0)
+                    sample_size = network_rate_data.get('sample_size', 0)
                     
-                    # Get overall success rate for this criteria
-                    overall_rate = overall_rates.get(criteria_type, 0)
+                    # Get the overall success rate for this criteria
+                    overall_rate = overall_rates[key]
                     
                     # Calculate the difference between network and overall rates
                     difference = network_rate - overall_rate
                     
-                    # Only show detailed network rate information in debug mode
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Network {network.network_name} - {criteria_type} comparison:")
-                        st.write(f"DEBUG: - Network rate: {network_rate:.4f}")
-                        st.write(f"DEBUG: - Overall rate: {overall_rate:.4f}")
-                        st.write(f"DEBUG: - Difference: {difference:.4f}")
+                    # Always show detailed network rate information for debugging
+                    st.write(f"DEBUG: Network {network.network_name} - {key} comparison:")
+                    st.write(f"DEBUG: - Network rate: {network_rate:.4f}")
+                    st.write(f"DEBUG: - Overall rate: {overall_rate:.4f}")
+                    st.write(f"DEBUG: - Difference: {difference:.4f}")
                     
                     # Check if we have enough data for this network
-                    sample_size = network_rate_data.get('sample_size', 0)
                     has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
                     
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: - Sample size: {sample_size}")
-                        st.write(f"DEBUG: - Min required: {OptimizerConfig.SUCCESS['min_data_points']}")
-                        st.write(f"DEBUG: - Has sufficient data: {has_sufficient_data}")
+                    st.write(f"DEBUG: - Sample size: {sample_size}")
+                    st.write(f"DEBUG: - Min required: {OptimizerConfig.SUCCESS['min_data_points']}")
+                    st.write(f"DEBUG: - Has sufficient data: {has_sufficient_data}")
+                    
+                    # Calculate network difference threshold
+                    network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)
+                    significant_diff_threshold = OptimizerConfig.THRESHOLDS['significant_difference']
+                    
+                    st.write(f"DEBUG: - Network difference threshold: {network_diff_threshold:.4f}")
+                    st.write(f"DEBUG: - Significant difference threshold: {significant_diff_threshold:.4f}")
+                    st.write(f"DEBUG: - Meets network threshold: {abs(difference) > network_diff_threshold}")
+                    st.write(f"DEBUG: - Meets significant threshold: {abs(difference) >= significant_diff_threshold}")
+                    
                     
                     # Check conditions for recommendation generation
-                    condition1 = abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']
-                    condition2 = has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)
+                    network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.001)
+                    significant_diff_threshold = OptimizerConfig.THRESHOLDS['significant_difference']
                     
-                    # Add debug output for recommendation conditions
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Network recommendation conditions for {network.network_name} - {criteria_type}:")
-                        st.write(f"DEBUG: Condition 1 (significant_difference): {condition1} (diff={difference:.4f}, threshold={OptimizerConfig.THRESHOLDS['significant_difference']})")
-                        st.write(f"DEBUG: Condition 2 (network_difference): {condition2} (diff={difference:.4f}, threshold={OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)}, has_sufficient_data={has_sufficient_data})")
+                    # Simplify the condition logic to make it clearer
+                    condition1 = abs(difference) >= significant_diff_threshold
+                    condition2 = has_sufficient_data and abs(difference) > network_diff_threshold
+                    
+                    # Always show debug output for recommendation conditions
+                    st.write(f"DEBUG: Network recommendation conditions for {network.network_name} - {key}:")
+                    st.write(f"DEBUG: Condition 1 (significant_difference): {condition1} (diff={abs(difference):.4f}, threshold={significant_diff_threshold})")
+                    st.write(f"DEBUG: Condition 2 (network_difference): {condition2} (diff={abs(difference):.4f}, threshold={network_diff_threshold}, has_sufficient_data={has_sufficient_data})")
+                    
+                    # Generate recommendation if either condition is met
+                    # Use a more lenient approach - if there's any meaningful difference, generate a recommendation
+                    should_generate = condition1 or condition2
+                    st.write(f"DEBUG: Should generate recommendation: {should_generate}")
                     
                     # Generate recommendation if difference is significant
-                    if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or \
-                       (has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)):
+                    if should_generate:
 
                         
-                        current_value = criteria[criteria_type]
-                        current_name = self._get_criteria_name(criteria_type, current_value)
+                        # Extract field name from the key
+                        if ':' in key:
+                            field_name = key.split(':', 1)[0]
+                        else:
+                            field_name = network_rate_data.get('field_name', key)
+                        
+                        # Get current value from criteria
+                        current_value = criteria.get(field_name)
+                        current_name = self._get_criteria_name(field_name, current_value)
+                        
+                        # Get value name for display
+                        value_name = network_rate_data.get('value_name', '')
+                        
+                        # Debug output for field values
+                        st.write(f"DEBUG: Creating recommendation for field '{field_name}' with value '{value_name}'")
+                        st.write(f"DEBUG: Current criteria value: {current_value}")
                     
                         # Format percentages for explanation
                         direction = "higher" if difference > 0 else "lower"
@@ -1277,7 +1325,7 @@ class RecommendationEngine:
                         diff_percent = abs(difference) * 100
                         
                         # Create explanation
-                        explanation = f"Network {network.network_name} has a {direction} success rate for '{criteria_type}' "
+                        explanation = f"Network {network.network_name} has a {direction} success rate for '{field_name}' "
                         explanation += f"({network_percent:.1f}% vs {overall_percent:.1f}% overall, {diff_percent:.1f}% difference)."
                         
                         # Determine recommendation type based on difference direction
