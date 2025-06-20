@@ -1128,6 +1128,12 @@ class RecommendationEngine:
             overall_rates = {}
             
             try:
+                # Ensure network_rates is a dictionary before accessing keys
+                if not isinstance(network_rates, dict):
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: network_rates is not a dictionary: {type(network_rates)}")
+                    return []
+                    
                 for key in network_rates.keys():
                     # Parse the key which is in format "field_name:value_name"
                     if ':' in key:
