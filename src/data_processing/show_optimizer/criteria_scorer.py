@@ -392,17 +392,23 @@ class CriteriaScorer:
                                 # For 'remove', we use all shows without this field
                                 option_shows = matching_shows.copy() if matching_shows is not None else None
                             else:
-                                # Normal option, create criteria
-                                option_criteria = {current_field: option_id}
+                                # For 'change' recommendations, we need to replace the existing value in the criteria
+                                # For 'add' recommendations, we need to add the new field
+                                if recommendation_types[i] == 'change':
+                                    # Create a modified version of the original criteria with this option
+                                    option_criteria = criteria.copy()
+                                    option_criteria[current_field] = option_id
+                                else:
+                                    # For 'add' recommendations, just test the field by itself
+                                    option_criteria = {current_field: option_id}
                                 
                                 # Use field_manager to normalize criteria values based on field types
-                                # This ensures array fields have list values and scalar fields have scalar values
                                 option_criteria = self.field_manager.normalize_criteria(option_criteria)
                                 
-                                # Get matching shows for this option
+                                # Get matching shows for this option - use None for data to search the full dataset
                                 if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Testing option {option_name} with criteria: {option_criteria}", category='impact')
-                                option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
+                                    OptimizerConfig.debug(f"Testing option {option_name} with criteria: {option_criteria} (type: {recommendation_types[i]})", category='impact')
+                                option_shows, _, _ = self._get_matching_shows(option_criteria, None)
                             
                                         # Removed excessive debug output for option matching shows
                             
@@ -575,13 +581,12 @@ class CriteriaScorer:
                                     option_criteria[field] = option_id
                                     
                                     # Use field_manager to normalize criteria values based on field types
-                                    # This ensures array fields have list values and scalar fields have scalar values
                                     option_criteria = self.field_manager.normalize_criteria(option_criteria)
                                 
-                                    # Get matching shows for this option
+                                    # Get matching shows for this option - use None for data to search the full dataset
                                     if OptimizerConfig.DEBUG_MODE:
-                                        OptimizerConfig.debug(f"Testing fallback option {option_name} with criteria: {option_criteria}", category='impact')
-                                    option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
+                                        OptimizerConfig.debug(f"Testing 'add' option {option_name} with criteria: {option_criteria}", category='impact')
+                                    option_shows, _, _ = self._get_matching_shows(option_criteria, None)
                                     
                                     # Skip options with no matching shows
                                     if option_shows is None or option_shows.empty:
