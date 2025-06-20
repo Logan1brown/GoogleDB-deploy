@@ -1073,8 +1073,7 @@ class RecommendationEngine:
                                                matching_shows: pd.DataFrame,
                                                integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
         """
-        Generate network-specific recommendations.
-        
+        Generate network-specific recommendations.        
         Args:
             criteria: Dictionary of criteria
             network: Target network
@@ -1138,14 +1137,14 @@ class RecommendationEngine:
                 
                 # Debug output for network rates
                 if OptimizerConfig.DEBUG_MODE:
-                        # Format the network rate data for better readability
+                    # Format the network rate data for better readability
                     network_rate = network_rate_data.get('success_rate', network_rate_data.get('rate', 0))
                     sample_size = network_rate_data.get('sample_size', 0)
                     has_data = network_rate_data.get('has_data', False)
                     
                     # Show detailed debug for ALL criteria to help diagnose the issue
                     st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
-                        
+                    
                     OptimizerConfig.debug(f"Network rate for {network.network_name} - {criteria_type}: {network_rate_data}", category='recommendation', force=True)
                 
                 # Handle the matching_shows key

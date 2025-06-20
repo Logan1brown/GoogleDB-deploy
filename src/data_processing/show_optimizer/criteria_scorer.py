@@ -257,7 +257,7 @@ class CriteriaScorer:
             
             # Add debug output for unselected fields tracking
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Tracking unselected fields: {self._unselected_fields}", category='impact')
+                pass
             
             # Sort unselected fields by importance category
             importance_order = {'essential': 0, 'core': 1, 'primary': 2, 'secondary': 3}
@@ -278,7 +278,6 @@ class CriteriaScorer:
             # Add debug output for unselected fields
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Found {len(unselected_fields)} unselected fields, will process up to {max_unselected}", category='impact')
-                OptimizerConfig.debug(f"Prioritized unselected fields: {prioritized_unselected[:max_unselected]}", category='impact')
                 
             # Add the prioritized unselected fields to process (limited by max_unselected)
             fields_to_process.extend(prioritized_unselected[:max_unselected])
@@ -507,11 +506,11 @@ class CriteriaScorer:
                             if OptimizerConfig.DEBUG_MODE:
                                 # Show detailed selection status
                                 if is_option_selected:
-                                    OptimizerConfig.debug(f"Option {option_id} ({option_name}) for field {current_field} IS SELECTED, recommendation_type is '{recommendation_type}'", category='impact')
+                                    pass
                                 elif is_field_selected:
-                                    OptimizerConfig.debug(f"Field {current_field} is selected but with different value(s), option {option_id} ({option_name}) is NOT selected, recommendation_type is '{recommendation_type}'", category='impact')
+                                    pass
                                 else:
-                                    OptimizerConfig.debug(f"Field {current_field} is NOT selected, option {option_id} ({option_name}) is NOT selected, recommendation_type is '{recommendation_type}'", category='impact')
+                                    pass
                         except (IndexError, TypeError):
                             recommendation_type = rec_type
                             
@@ -550,7 +549,7 @@ class CriteriaScorer:
                 # Skip additional processing if we already have impact scores
                 if any(impact_scores.values()):
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Skipping additional unselected field processing as we already have impact scores for {len(impact_scores)} fields", category='impact')
+                        pass
                 else:
                     # Only process fields we haven't already processed
                     processed_fields = set(fields_to_process)
@@ -625,19 +624,17 @@ class CriteriaScorer:
 
         except ValueError as ve:
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: ValueError in calculate_criteria_impact: {str(ve)}")
+                pass
             return {}
         except Exception as e:
             # Log the exception with detailed traceback
             if OptimizerConfig.DEBUG_MODE:
                 import traceback
-                # Use OptimizerConfig.debug instead of st.write for debug messages
                 OptimizerConfig.debug(f"Exception in calculate_criteria_impact: {str(e)}", category='error')
-                OptimizerConfig.debug(f"Exception traceback: {traceback.format_exc()}", category='error')
+                pass
                 # Log the state of key variables to help diagnose the issue
                 OptimizerConfig.debug(f"Criteria: {criteria}", category='error')
                 OptimizerConfig.debug(f"Matching shows shape: {matching_shows.shape if matching_shows is not None else 'None'}", category='error')
-                OptimizerConfig.debug(f"Impact scores so far: {impact_scores}", category='error')
             return {}
             
     def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:
