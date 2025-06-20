@@ -474,9 +474,16 @@ class RecommendationEngine:
             # Only do this if we don't have enough high-quality recommendations already
             if len(recommendations) < self.config.SUGGESTIONS.get('max_suggestions', 5):
                 try:
+                    # Make sure fallback_recs is always a list
                     fallback_recs = self._generate_fallback_recommendations(criteria, matching_shows, confidence_info)
+                    if fallback_recs is None:
+                        fallback_recs = []
                     recommendations.extend(fallback_recs)
                 except Exception as e:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Error generating fallback recommendations: {str(e)}")
+                        import traceback
+                        st.write(f"DEBUG: {traceback.format_exc()}")
                     st.error("Unable to generate additional recommendations.")
             
             # Sort by impact score (absolute value, as negative impacts are also important)
@@ -1045,53 +1052,57 @@ class RecommendationEngine:
             
             return recommendations
         except Exception as e:
-            st.error("Unable to generate additional recommendations.")
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Error in _generate_fallback_recommendations: {str(e)}")
+                import traceback
+                st.write(f"DEBUG: {traceback.format_exc()}")
             return []
     
-    def _get_criteria_name(self, criteria_type: str, criteria_value: Any) -> str:
-        """Get the human-readable name for a criteria value.
+    def _get_criteria_name(self, criteria_type, value):
+        """Get the display name for a criteria value.
         
         Args:
-            criteria_type: Type of criteria (e.g., 'genre', 'network')
-            criteria_value: Value of the criteria
+            criteria_type: Type of criteria (e.g., 'genre', 'source_type')
+            value: Value of the criteria
             
         Returns:
-            Human-readable name for the criteria value
+            Display name for the criteria value
         """
         try:
             # Handle None values
-            if criteria_value is None:
+            if value is None:
                 return "None"
+            
                 
             # Handle list or numpy array values
-            if isinstance(criteria_value, (list, np.ndarray)):
+            if isinstance(value, (list, np.ndarray)):
                 try:
                     names = []
-                    for value in criteria_value:
-                        name = self._get_criteria_name(criteria_type, value)
+                    for val in value:
+                        name = self._get_criteria_name(criteria_type, val)
                         names.append(name)
                     return ", ".join(names)
                 except:
                     # If iteration fails, use string representation
-                    return str(criteria_value)
+                    return str(value)
                 
             # Handle unhashable types
-            if isinstance(criteria_value, (dict, list, np.ndarray)):
-                return str(criteria_value)
+            if isinstance(value, (dict, list, np.ndarray)):
+                return str(value)
                 
             # Get options from field manager
             options = self.field_manager.get_options(criteria_type)
             
             # Look for matching option
             for option in options:
-                if option.id == criteria_value:
+                if option.id == value:
                     return option.name
                     
             # Fallback to string representation
-            return str(criteria_value)
+            return str(value)
         except Exception as e:
             st.error(f"Error getting criteria name for {criteria_type}: {str(e)}")
-            return str(criteria_value)
+            return str(value)
             
     def generate_network_specific_recommendations(self, criteria: Dict[str, Any], 
                                                network: NetworkMatch,
