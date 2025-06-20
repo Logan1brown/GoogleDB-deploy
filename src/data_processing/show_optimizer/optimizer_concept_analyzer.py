@@ -597,12 +597,28 @@ class ConceptAnalyzer:
             if top_networks:
                 OptimizerConfig.debug(f"Processing network recommendations for top networks")
                 
+                # Debug output for success factors to understand available data
+                st.write(f"DEBUG: Success factors available for network recommendations: {list(success_factors.keys()) if success_factors else 'None'}")
+                st.write(f"DEBUG: Number of matching shows for network recommendations: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'Not a DataFrame'}")
+                
                 # First check if matching_shows is valid to avoid multiple errors
                 if matching_shows is None or (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty):
                     st.warning("No matching shows available for network-specific recommendations")
                 else:
+                    # Debug output for top networks
+                    st.write(f"DEBUG: Processing network recommendations for top {min(3, len(top_networks))} networks:")
+                    for i, net in enumerate(top_networks[:3]):
+                        st.write(f"DEBUG: Top network {i+1}: {net.network_name} (ID: {net.network_id}) - Score: {net.score:.4f}, Count: {net.count}")
+                    
                     for network in top_networks[:3]:  # Limit to top 3 networks
                         try:
+                            st.write(f"DEBUG: ===== STARTING NETWORK ANALYSIS FOR {network.network_name} =====")
+                            
+                            # Debug output for network shows
+                            network_shows = matching_shows[matching_shows['network_id'] == network.network_id] if isinstance(matching_shows, pd.DataFrame) else None
+                            show_count = len(network_shows) if network_shows is not None else 0
+                            st.write(f"DEBUG: Found {show_count} shows on network {network.network_name} in matching shows")
+                            
                             # Generate network-specific recommendations using the RecommendationEngine directly
                             network_recommendations = self.recommendation_engine.generate_network_specific_recommendations(
                                 criteria=criteria,
@@ -611,12 +627,21 @@ class ConceptAnalyzer:
                                 integrated_data=integrated_data
                             )
                             
-                            # Add network-specific recommendations to the list
+                            # Debug output for recommendations result
+                            st.write(f"DEBUG: Generated {len(network_recommendations)} recommendations for network {network.network_name}")
                             if network_recommendations:
+                                for i, rec in enumerate(network_recommendations):
+                                    st.write(f"DEBUG: Network recommendation {i+1}: {rec.criteria_type} - Type: {rec.recommendation_type} - Impact: {rec.impact_score:.4f}")
                                 recommendations.extend(network_recommendations)
+                            else:
+                                st.write(f"DEBUG: No recommendations generated for network {network.network_name} - check threshold values")
+                                
+                            st.write(f"DEBUG: ===== COMPLETED NETWORK ANALYSIS FOR {network.network_name} =====")
                         except Exception as network_error:
                             # Use a more specific error message that includes the network name
                             st.error(f"Error generating recommendations for network {network.network_name}: {str(network_error)}")
+                            import traceback
+                            st.write(f"DEBUG: Network recommendation error traceback: {traceback.format_exc()}")
             
             return recommendations
             

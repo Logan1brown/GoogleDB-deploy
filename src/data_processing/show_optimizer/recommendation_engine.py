@@ -1119,13 +1119,23 @@ class RecommendationEngine:
                 
             # Get overall success rates for each criteria
             overall_rates = {}
+            
+            # Debug header for overall success rates
+            st.write(f"DEBUG: ===== CALCULATING OVERALL SUCCESS RATES FOR COMPARISON =====")
+            
             for criteria_type in network_rates.keys():
                 if criteria_type not in criteria:
                     continue
+                    
                 single_criteria = {criteria_type: criteria[criteria_type]}
-                overall_rate, _ = self.criteria_scorer.calculate_success_rate(
+                overall_rate, overall_details = self.criteria_scorer.calculate_success_rate(
                     single_criteria, integrated_data=integrated_data
                 )
+                
+                # Debug output for overall success rates
+                sample_size = overall_details.get('sample_size', 0) if isinstance(overall_details, dict) else 0
+                st.write(f"DEBUG: Overall success rate for {criteria_type}={criteria[criteria_type]}: {overall_rate:.4f} (sample size: {sample_size})")
+                
                 overall_rates[criteria_type] = overall_rate
             
             recommendations = []
@@ -1139,16 +1149,19 @@ class RecommendationEngine:
                 # Check if we have valid data
                 has_data = network_rate_data.get('has_data', False)
                 
-                # Debug output for network rates
+                # Debug output for network rates - always show this for debugging
+                # Format the network rate data for better readability
+                network_rate = network_rate_data.get('success_rate', network_rate_data.get('rate', 0))
+                sample_size = network_rate_data.get('sample_size', 0)
+                has_data = network_rate_data.get('has_data', False)
+                
+                # Direct debug in UI with detailed network rate information
+                st.write(f"DEBUG: NETWORK RATE - {network.network_name} - {criteria_type}={criteria.get(criteria_type, 'N/A')}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
+                
+                # Show raw network rate data for full transparency
+                st.write(f"DEBUG: Raw network rate data for {network.network_name} - {criteria_type}: {network_rate_data}")
+                
                 if OptimizerConfig.DEBUG_MODE:
-                    # Format the network rate data for better readability
-                    network_rate = network_rate_data.get('success_rate', network_rate_data.get('rate', 0))
-                    sample_size = network_rate_data.get('sample_size', 0)
-                    has_data = network_rate_data.get('has_data', False)
-                    
-                    # Direct debug in UI
-                    st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
-                    
                     OptimizerConfig.debug(f"Network rate for {network.network_name} - {criteria_type}: {network_rate_data}", category='recommendation', force=True)
                 
                 # Handle the matching_shows key
