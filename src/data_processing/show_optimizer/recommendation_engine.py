@@ -165,7 +165,6 @@ class RecommendationEngine:
             # Check if matching_shows is valid
             if matching_shows is None or not isinstance(matching_shows, pd.DataFrame) or matching_shows.empty:
                 st.write("DEBUG: Warning - Invalid or empty matching_shows provided to identify_success_factors")
-        import traceback
         
         
         # Process input arguments
@@ -460,24 +459,50 @@ class RecommendationEngine:
                     except Exception as e:
                         if OptimizerConfig.DEBUG_MODE:
                             st.write(f"DEBUG: Error generating recommendations for network {network.network_name}: {str(e)}")
-                            import traceback
-                            st.write(traceback.format_exc())
                             
                 # Add network-specific recommendations to the main list
                 try:
-                    if network_specific_recs:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: network_specific_recs type: {type(network_specific_recs).__name__}")
+                        if network_specific_recs:
+                            st.write(f"DEBUG: First item type: {type(network_specific_recs[0]).__name__ if len(network_specific_recs) > 0 else 'empty'}")
+                            
+                    # Ensure network_specific_recs is a list before extending
+                    if isinstance(network_specific_recs, list):
+                        if network_specific_recs:
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Adding {len(network_specific_recs)} network-specific recommendations to main list")
+                            recommendations.extend(network_specific_recs)
+                    else:
                         if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Adding {len(network_specific_recs)} network-specific recommendations to main list")
-                        recommendations.extend(network_specific_recs)
+                            st.write(f"DEBUG: network_specific_recs is not a list, it's a {type(network_specific_recs).__name__}")
                 except Exception as e:
                     if OptimizerConfig.DEBUG_MODE:
                         st.write(f"DEBUG: Error adding network recommendations: {str(e)}")
-                        import traceback
-                        st.write("DEBUG: Traceback for network recommendations error:")
-                        st.write(traceback.format_exc())
+                        st.write(f"DEBUG: recommendations type: {type(recommendations).__name__}")
+                        st.write(f"DEBUG: network_specific_recs type: {type(network_specific_recs).__name__}")
+            
+            # Check recommendations type before sorting
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Final recommendations type: {type(recommendations).__name__}")
+                if recommendations:
+                    st.write(f"DEBUG: First recommendation type: {type(recommendations[0]).__name__ if len(recommendations) > 0 else 'empty'}")
+            
+            # Ensure recommendations is a list before sorting
+            if not isinstance(recommendations, list):
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: recommendations is not a list, converting from {type(recommendations).__name__}")
+                recommendations = list(recommendations) if recommendations else []
             
             # Sort by impact score (absolute value, as negative impacts are also important)
-            recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
+            try:
+                recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
+            except Exception as e:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Error sorting recommendations: {str(e)}")
+                    for i, rec in enumerate(recommendations[:5]):
+                        st.write(f"DEBUG: Recommendation {i} type: {type(rec).__name__}")
+                recommendations = []
             
             # Limit to max suggestions
             max_suggestions = self.config.SUGGESTIONS.get('max_suggestions', 5)
@@ -1001,8 +1026,6 @@ class RecommendationEngine:
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: Error in _analyze_successful_patterns: {str(e)}")
-                import traceback
-                st.write(f"DEBUG: {traceback.format_exc()}")
             return []
     
     def _get_criteria_name(self, criteria_type, value):
@@ -1297,7 +1320,6 @@ class RecommendationEngine:
                             explanation=detailed_explanation
                         ))
             except Exception as e:
-                import traceback
                 st.write(f"DEBUG: Error processing network recommendations: {str(e)}")
                 st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
                 
@@ -1307,14 +1329,10 @@ class RecommendationEngine:
                         st.write(f"DEBUG: WARNING - network_rates object changed during processing!")
                         st.write(f"DEBUG: Original network_rates type: {type(original_network_rates).__name__}")
                         st.write(f"DEBUG: Current network_rates type: {type(network_rates).__name__}")
-                
-                st.write(f"DEBUG: Traceback: {traceback.format_exc()}")
             
             return recommendations
         except Exception as e:
             # Only show error in UI if it's not the known 'empty' attribute error
             if 'empty' not in str(e):
-                import traceback
                 st.error(f"Error generating network recommendations: {str(e)}")
-                st.write(f"DEBUG: Full traceback: {traceback.format_exc()}")
             return []
