@@ -488,6 +488,14 @@ class OptimizerView:
                 # Handle network-specific recommendations
                 network_specific.append(formatted_rec)
                 
+                # Ensure network-specific recommendations are properly grouped
+                if 'network_specific' not in grouped:
+                    grouped['network_specific'] = []
+                grouped['network_specific'].append(formatted_rec)
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Added network recommendation to 'network_specific' group: {formatted_rec['title']}", category='recommendation', force=True)
+                
             # Ensure the group exists
             if rec_type not in grouped:
                 grouped[rec_type] = []
@@ -506,10 +514,6 @@ class OptimizerView:
             if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"VERIFY: Added 'remove' recommendation to grouped dictionary", category='recommendation', force=True)
                 OptimizerConfig.debug(f"  - Group 'remove' now has {len(grouped['remove'])} recommendations", category='recommendation', force=True)
-                
-            # We no longer duplicate recommendations into 'add' and 'remove' groups
-            # This preserves the original recommendation types (add, remove, change, etc.)
-            # and prevents redundant recommendations
         
         # Sort each group by impact score (descending)
         for rec_type in grouped:
@@ -555,7 +559,6 @@ class OptimizerView:
                 OptimizerConfig.debug(f"Group '{group_name}' has {len(group_recs)} recommendations", category='recommendation', force=True)
                 if group_recs:
                     for i, rec in enumerate(group_recs[:3]):
-                        # Debug removed for clarity
                         pass
                         
             # Specifically check for change recommendations

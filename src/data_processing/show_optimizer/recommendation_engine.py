@@ -1136,6 +1136,10 @@ class RecommendationEngine:
                 # Check if we have valid data
                 has_data = network_rate_data.get('has_data', False)
                 
+                # Debug output for network rates
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network rate for {network.network_name} - {criteria_type}: {network_rate_data}", category='recommendation', force=True)
+                
                 # Handle the matching_shows key
                 if 'matching_shows' in network_rate_data:
                     matching_shows_data = network_rate_data['matching_shows']
@@ -1154,13 +1158,28 @@ class RecommendationEngine:
                 if is_empty and not has_data:
                     continue
                     
-                # Skip if rate data is missing
-                network_rate = network_rate_data.get('rate')
+                # Get the network and overall success rates
+                network_rate = network_rate_data.get('success_rate', 0)
                 if network_rate is None:
-                    continue
+                    network_rate = network_rate_data.get('rate', 0)
                     
-                overall_rate = overall_rates[criteria_type]
+                overall_rate = overall_rates.get(criteria_type, 0)
                 difference = network_rate - overall_rate
+                
+                # Always log the network-specific impact scores for debugging
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}", 
+                                          category='recommendation', force=True)
+                
+                # Use a very low threshold to ensure we generate at least some network recommendations
+                # This will help ensure network recommendations appear in the UI
+                if abs(difference) < 0.01:  # 1% difference threshold - extremely permissive
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Skipping network recommendation for {network.network_name} - {criteria_type} due to small difference: {difference}", category='recommendation')
+                    continue
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Found significant network difference for {network.network_name} - {criteria_type}: {difference}", category='recommendation', force=True)
                 
                 # Check if we have enough data for this network
                 sample_size = network_rate_data.get('sample_size', 0)

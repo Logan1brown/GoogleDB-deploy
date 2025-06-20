@@ -707,60 +707,9 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                     render_recommendation_group(rec_type, recs)
                     general_recs_rendered = True
         
-        # Then render network-specific recommendations
-        network_specific_recs = []
-        for rec_type, recs in grouped.items():
-            if recs and rec_type.startswith('network_'):
-                network_specific_recs.extend(recs)
-                
-        if network_specific_recs:
-            # Group by network name for better organization
-            by_network = {}
-            for rec in network_specific_recs:
-                # Extract network name from category or title
-                network_name = rec.get('category', '').replace('network_', '').replace('_', ' ').title()
-                if not network_name and 'title' in rec:
-                    # Try to extract from title
-                    title = rec.get('title', '')
-                    if ':' in title:
-                        network_name = title.split(':', 1)[0].strip()
-                        
-                if not network_name:
-                    network_name = 'Unknown Network'
-                    
-                if network_name not in by_network:
-                    by_network[network_name] = []
-                by_network[network_name].append(rec)
-                
-            # Sort by impact score within each network
-            for network, recs in by_network.items():
-                recs.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
-                
-            # Render network-specific recommendations
-            st.subheader("Network-Specific Recommendations")
-            for network, recs in by_network.items():
-                st.write(f"**{network} Recommendations:**")
-                for rec in recs[:3]:  # Limit to top 3 per network
-                    # Determine if this is a positive or negative recommendation based on impact
-                    is_negative = rec.get('impact', 0) < 0
-                    
-                    # Get the title and description directly without modification
-                    title = rec.get('title', '')
-                    description = rec.get('description', '')
-                    
-                    if is_negative:
-                        # Use warning style for negative recommendations
-                        st.markdown(f"""
-                        <div style="border: 1px solid #f77; border-radius: 5px; padding: 10px; margin-bottom: 10px; background-color: #fff8f8;">
-                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #c00;">{title}</p>
-                            <p style="font-size: 12px; margin: 0; color: #333;">{description}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        # Use info card style for positive recommendations
-                        render_info_card(title, description)
-                        
-            network_recs_rendered = True
+        # We don't render network-specific recommendations in the Recommendations tab anymore
+        # They will be shown only in the Network Analysis tab
+        network_recs_rendered = False
         
         # Check if we actually rendered any recommendations
         if not general_recs_rendered:
