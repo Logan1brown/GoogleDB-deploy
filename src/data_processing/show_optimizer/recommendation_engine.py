@@ -1123,6 +1123,11 @@ class RecommendationEngine:
             # Debug header for overall success rates
             st.write(f"DEBUG: ===== CALCULATING OVERALL SUCCESS RATES FOR COMPARISON =====")
             
+            # Display all overall rates for better debugging
+            for crit_type, rate in overall_rates.items():
+                st.write(f"DEBUG: Overall rate for {crit_type}: {rate:.4f}")
+            
+            
             for criteria_type in network_rates.keys():
                 if criteria_type not in criteria:
                     continue
@@ -1155,10 +1160,10 @@ class RecommendationEngine:
                 sample_size = network_rate_data.get('sample_size', 0)
                 has_data = network_rate_data.get('has_data', False)
                 
-                # Direct debug in UI with detailed network rate information
+                # Direct debug in UI with detailed network rate information - ALWAYS SHOW THIS
                 st.write(f"DEBUG: NETWORK RATE - {network.network_name} - {criteria_type}={criteria.get(criteria_type, 'N/A')}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
                 
-                # Show raw network rate data for full transparency
+                # Show raw network rate data for full transparency - ALWAYS SHOW THIS
                 st.write(f"DEBUG: Raw network rate data for {network.network_name} - {criteria_type}: {network_rate_data}")
                 
                 if OptimizerConfig.DEBUG_MODE:
@@ -1190,13 +1195,13 @@ class RecommendationEngine:
                 overall_rate = overall_rates.get(criteria_type, 0)
                 difference = network_rate - overall_rate
                 
-                # Always log the network-specific impact scores for debugging
+                # Always log the network-specific impact scores for debugging - ALWAYS SHOW THIS
+                # Direct debug in UI - CRITICAL FOR DEBUGGING
+                st.write(f"DEBUG: COMPARISON - Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}")
+                
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}", 
                                           category='recommendation', force=True)
-                    
-                    # Direct debug in UI
-                    st.write(f"DEBUG: Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}")
                 
                 # Use the configured threshold for network recommendations
                 network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
