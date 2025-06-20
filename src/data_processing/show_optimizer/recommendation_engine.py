@@ -876,36 +876,85 @@ class RecommendationEngine:
                             current_value = str(current_value)
                         elif not isinstance(current_value, (str, int, float, bool, tuple)) or pd.isna(current_value):
                             current_value = str(current_value)
-                    except:
+                    except Exception as e:
                         # If conversion fails, use string representation
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Error converting current_value to hashable: {str(e)}")
                         current_value = str(current_value)
                     
                     # Calculate success rate for each value of this criteria
                     value_success = {}
-                    for value in successful_shows[criteria_type].unique():
-                        if pd.isna(value) or value == '':
-                            continue
-                            
-                        # Calculate average success score for shows with this value
-                        shows_with_value = successful_shows[successful_shows[criteria_type] == value]
-                        avg_success = shows_with_value['success_score'].mean()
+                    
+                    # Check if column contains list values
+                    try:
+                        # Get a sample of non-null values to check type
+                        sample_values = successful_shows[criteria_type].dropna().head(5).tolist()
+                        has_list_values = any(isinstance(val, list) for val in sample_values)
                         
-                        # Make sure the key is hashable
-                        try:
-                            if isinstance(value, (list, np.ndarray)):
-                                hashable_value = tuple(value)
-                            elif isinstance(value, dict):
-                                # Convert dict to a frozen set of items
-                                hashable_value = str(value)
-                            elif not isinstance(value, (str, int, float, bool, tuple)) or pd.isna(value):
-                                hashable_value = str(value)
-                            else:
-                                hashable_value = value
-                        except:
-                            # If conversion fails, use string representation
-                            hashable_value = str(value)
+                        if has_list_values:
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Column {criteria_type} contains list values, using special handling")
                             
-                        value_success[hashable_value] = avg_success
+                            # For list columns, we need to convert to string for comparison
+                            # Get unique string representations
+                            unique_str_values = successful_shows[criteria_type].astype(str).unique()
+                            
+                            for str_val in unique_str_values:
+                                if pd.isna(str_val) or str_val == '':
+                                    continue
+                                    
+                                # Find shows with this string representation
+                                shows_with_value = successful_shows[successful_shows[criteria_type].astype(str) == str_val]
+                                if shows_with_value.empty:
+                                    continue
+                                    
+                                # Get the actual value (which might be a list)
+                                value = shows_with_value[criteria_type].iloc[0]
+                                
+                                # Calculate average success
+                                avg_success = shows_with_value['success_score'].mean()
+                                
+                                # Make the value hashable
+                                try:
+                                    if isinstance(value, list):
+                                        hashable_value = tuple(value)
+                                    elif isinstance(value, dict):
+                                        hashable_value = str(value)
+                                    else:
+                                        hashable_value = str(value)
+                                except Exception:
+                                    hashable_value = str(value)
+                                    
+                                value_success[hashable_value] = avg_success
+                        else:
+                            # For non-list columns, use normal unique() method
+                            for value in successful_shows[criteria_type].unique():
+                                if pd.isna(value) or value == '':
+                                    continue
+                                    
+                                # Calculate average success score for shows with this value
+                                shows_with_value = successful_shows[successful_shows[criteria_type] == value]
+                                avg_success = shows_with_value['success_score'].mean()
+                                
+                                # Make the value hashable
+                                try:
+                                    if isinstance(value, (list, np.ndarray)):
+                                        hashable_value = tuple(value)
+                                    elif isinstance(value, dict):
+                                        hashable_value = str(value)
+                                    elif not isinstance(value, (str, int, float, bool, tuple)) or pd.isna(value):
+                                        hashable_value = str(value)
+                                    else:
+                                        hashable_value = value
+                                except Exception:
+                                    # If conversion fails, use string representation
+                                    hashable_value = str(value)
+                                    
+                                value_success[hashable_value] = avg_success
+                    except Exception as e:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Error processing values in pattern analysis: {str(e)}")
+                        continue
                         
                     # Sort values by success score
                     sorted_values = sorted(value_success.items(), key=lambda x: x[1], reverse=True)
