@@ -452,9 +452,8 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
         network_specific = formatted_recommendations.get("network_specific", [])
         all_recs = formatted_recommendations.get("all", [])
         
-        # Add minimal debug output if in debug mode
+        # Keep minimal debug output if in debug mode
         if st.session_state.get('debug_mode', False):
-            st.write(f"DEBUG: Recommendation groups: {[k for k, v in grouped.items() if v]}")
             st.write(f"DEBUG: Total recommendations: {len(all_recs)}")
             st.write(f"DEBUG: Network-specific recommendations: {len(network_specific)}")
         
@@ -470,8 +469,6 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
             
         # If still no recommendations to display after trying to create a default group
         if not grouped or all(len(recs) == 0 for recs in grouped.values()):
-            if OptimizerConfig.DEBUG_MODE:
-                pass
             st.info("No recommendations available.")
             return
                 
@@ -480,8 +477,6 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
         for rec_type, recs in grouped.items():
             if recs:
                 has_recommendations = True
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 break
                 
         if not has_recommendations:
@@ -496,44 +491,10 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
         # Get the grouped recommendations
         grouped = formatted_recommendations.get("grouped", {})
         
-        # Debug the recommendations
+        # Debug the recommendations (simplified)
         if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
-            OptimizerConfig.debug(f"Rendering recommendations: {len(grouped)} groups", category='recommendation')
-            st.write(f"DEBUG: Formatted recommendations structure")
-            st.write(f"Total recommendations: {len(all_recs)}")
-            st.write(f"Non-empty groups: {[k for k, v in grouped.items() if v]}")
-            st.write(f"Network-specific recommendations: {len(network_specific)}")
-            
-            # Special debug for 'remove' recommendations
-            remove_recs = grouped.get('remove', [])
-            if remove_recs:
-                st.write(f"DEBUG: Found {len(remove_recs)} 'remove' recommendations")
-                for rec in remove_recs:
-                    st.write(f"DEBUG: Remove recommendation: {rec.get('title', 'unknown')}")
-            else:
-                st.write(f"DEBUG: No 'remove' recommendations found in grouped dictionary")
-                # Check if there are any 'remove' recommendations in all_recs
-                remove_in_all = [rec for rec in all_recs if rec.get('category') == 'remove']
-                if remove_in_all:
-                    st.write(f"DEBUG: Found {len(remove_in_all)} 'remove' recommendations in all_recs but not in grouped")
-                    for rec in remove_in_all:
-                        st.write(f"DEBUG: Remove in all_recs: {rec.get('title', 'unknown')}")
-                        # Add it to the grouped dictionary
-                        if 'remove' not in grouped:
-                            grouped['remove'] = []
-                        grouped['remove'].append(rec)
-                        
-                        # Also add it to the appropriate criteria_type group when rendering
-                        criteria_type = rec.get('criteria_type', 'unknown')
-                        if criteria_type not in by_criteria_type:
-                            by_criteria_type[criteria_type] = []
-                        by_criteria_type[criteria_type].append(rec)
-            for rec_type, recs in grouped.items():
-                OptimizerConfig.debug(f"Group {rec_type}: {len(recs)} recommendations", category='recommendation')
-                if recs:
-                    st.write(f"DEBUG: Group '{rec_type}' has {len(recs)} recommendations")
-                    if len(recs) > 0:
-                        st.write(f"DEBUG: First item in group '{rec_type}': {recs[0].get('title', 'No title')} - Category: {recs[0].get('category', 'unknown')}")
+            st.write(f"DEBUG: Total recommendations: {len(all_recs)}")
+            st.write(f"DEBUG: Network-specific recommendations: {len(network_specific)}")
         
         # Track if we've rendered any general recommendations
         general_recs_rendered = False
@@ -555,19 +516,12 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                 
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Found {len(general_recommendations)} general recommendations", category='recommendation', force=True)
-            for rec in general_recommendations[:3]:
-                OptimizerConfig.debug(f"General recommendation: {rec.get('title', 'unknown')}", category='recommendation')
-                OptimizerConfig.debug(f"  - Category: {rec.get('category', 'unknown')}", category='recommendation')
-                OptimizerConfig.debug(f"  - Impact: {rec.get('impact', 0)}", category='recommendation')
-                OptimizerConfig.debug(f"  - Criteria Type: {rec.get('criteria_type', 'unknown')}", category='recommendation')
                 
         if general_recommendations:
             # Render general recommendations
             st.subheader("General Recommendations")
             
-            # Debug output for recommendations
-            if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
-                st.write(f"DEBUG: Processing {len(general_recommendations)} general recommendations")
+            # Debug output removed
             
             # Sort all recommendations by impact score regardless of category
             general_recommendations.sort(key=lambda x: abs(x.get('_impact_raw', 0)), reverse=True)
@@ -584,17 +538,14 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                     rec_type_counts[rec_type] += 1
                 # No longer need special debug for remove recommendations
             
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Recommendation counts by type: {rec_type_counts}", category='recommendation')
+            # Debug output removed
                 
             # Process each recommendation for grouping
             for rec in general_recommendations:
                 criteria_type = rec.get('criteria_type', 'unknown')
                 rec_type = rec.get('category', 'unknown')
                 
-                # Debug output for each recommendation being processed (simplified)
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Processing recommendation for grouping: {criteria_type}/{rec.get('title', 'unknown')} - Type: {rec_type}", category='recommendation')
+                # Debug output removed
                 
                 # Group by criteria_type only, not by recommendation type
                 # This ensures 'add', 'change', and 'remove' recommendations for the same criteria
@@ -603,9 +554,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                     by_criteria_type[criteria_type] = []
                 by_criteria_type[criteria_type].append(rec)
             
-            # Debug output for criteria types
-            if OptimizerConfig.DEBUG_MODE or st.session_state.get('debug_mode', False):
-                st.write(f"DEBUG: Found {len(by_criteria_type)} criteria types: {list(by_criteria_type.keys())}")
+            # Debug output removed
             
             # Render recommendations grouped by criteria type
             for criteria_type, criteria_recs in by_criteria_type.items():
@@ -667,8 +616,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                                 suggested_name = rec.get('suggested_name', '')
                                 impact_percent = abs(rec.get('impact', 0) * 100)
                                 description = f"Removing '{suggested_name}' could improve success probability by approximately {impact_percent:.1f}%."
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Fixed description for remove recommendation during rendering: {title}", category='recommendation', force=True)
+                                # Debug output removed
                             
                             if is_negative:
                                 # Use warning style for negative recommendations
