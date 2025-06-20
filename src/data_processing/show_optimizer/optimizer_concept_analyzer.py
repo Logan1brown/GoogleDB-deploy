@@ -613,7 +613,7 @@ class ConceptAnalyzer:
                     # Debug output for top networks
                     st.write(f"DEBUG: Processing network recommendations for top {min(3, len(top_networks))} networks:")
                     for i, net in enumerate(top_networks[:3]):
-                        st.write(f"DEBUG: Top network {i+1}: {net.network_name} (ID: {net.network_id}) - Score: {net.score:.4f}, Count: {net.count}")
+                        st.write(f"DEBUG: Top network {i+1}: {net.network_name} (ID: {net.network_id}) - Compatibility: {net.compatibility_score:.4f if net.compatibility_score else 'N/A'}, Sample: {net.sample_size}")
                     
                     for network in top_networks[:3]:  # Limit to top 3 networks
                         try:
