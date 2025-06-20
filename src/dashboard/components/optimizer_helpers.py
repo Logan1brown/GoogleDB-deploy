@@ -582,9 +582,16 @@ def render_recommendations(formatted_recommendations: Dict[str, Any]):
                 rec_type = rec.get('category', 'unknown')
                 if rec_type in rec_type_counts:
                     rec_type_counts[rec_type] += 1
+                # Debug each remove recommendation
+                if rec_type == 'remove':
+                    st.write(f"DEBUG: Found 'remove' recommendation before grouping: {rec.get('title', 'unknown')}")
             
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Recommendation counts by type: {rec_type_counts}", category='recommendation', force=True)
+                if rec_type_counts['remove'] == 0:
+                    st.write(f"DEBUG: No 'remove' recommendations found in general_recommendations!")
+                else:
+                    st.write(f"DEBUG: Found {rec_type_counts['remove']} 'remove' recommendations in general_recommendations")
                 
             # Process each recommendation for grouping
             for rec in general_recommendations:
