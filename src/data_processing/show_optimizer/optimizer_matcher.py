@@ -568,21 +568,21 @@ class Matcher:
             
             # Skip if the field doesn't exist in the data
             if field_column not in matches.columns:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Field '{field_name}' mapped to '{field_column}' not found in data columns", category='matcher')
                 continue
                 
-            # Check if this is an array field
-            is_array = field_name in array_fields
+            # Check if this is an array field - ONLY use field_manager's determination
+            # This ensures consistency with how fields are processed elsewhere
+            is_array = self.field_manager.get_field_type(field_name) == 'array'
             
-            # Sample the first row to check data format
-            sample = matches[field_column].iloc[0] if not matches.empty else None
-            
-            if is_array or isinstance(sample, list):
+            if is_array:
                 # For array fields, we need to check if any value matches
                 if isinstance(value, list):
                     value_set = set(value)
                     # If the column contains lists, use list intersection
                     mask = matches[field_column].apply(
-                        lambda x: isinstance(x, list) and bool(value_set.intersection(x)))
+                        lambda x: isinstance(x, list) and bool(value_set.intersection(set(x) if isinstance(x, list) else set())))
                 else:
                     # Single value in array field
                     mask = matches[field_column].apply(
@@ -602,8 +602,25 @@ class Matcher:
         # Matching complete
         match_count = len(matches)
         if match_count == 0:
-            OptimizerConfig.debug("_match_shows found 0 matching shows after applying all filters", category='matcher')
-            OptimizerConfig.debug("No matches found. This could be due to:\n\nCriteria that are too restrictive\nMissing or mismatched field names\nData format issues (e.g., array vs scalar fields)", category='matcher')
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("_match_shows found 0 matching shows after applying all filters", category='matcher')
+                OptimizerConfig.debug(f"Original criteria: {criteria}", category='matcher')
+                OptimizerConfig.debug(f"Clean criteria: {clean_criteria}", category='matcher')
+                
+                # Log field mapping details to help diagnose issues
+                field_mapping_details = {}
+                for field_name in clean_criteria.keys():
+                    field_column = self.field_manager.get_field_column_name(field_name, data.columns)
+                    field_type = self.field_manager.get_field_type(field_name)
+                    field_mapping_details[field_name] = {
+                        'mapped_column': field_column,
+                        'field_type': field_type,
+                        'in_data_columns': field_column in data.columns,
+                        'value_type': type(clean_criteria[field_name]).__name__
+                    }
+                OptimizerConfig.debug(f"Field mapping details: {field_mapping_details}", category='matcher')
+                
+                OptimizerConfig.debug("No matches found. This could be due to:\n\nCriteria that are too restrictive\nMissing or mismatched field names\nData format issues (e.g., array vs scalar fields)", category='matcher')
 
         return matches, match_count
     

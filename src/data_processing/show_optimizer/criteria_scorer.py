@@ -395,12 +395,13 @@ class CriteriaScorer:
                                 # Normal option, create criteria
                                 option_criteria = {current_field: option_id}
                                 
-                                # Set the criteria value based on field type
-                                is_array_field = self.field_manager.get_field_type(current_field) == 'array'
-                                if is_array_field:
-                                    option_criteria[current_field] = [option_id]
+                                # Use field_manager to normalize criteria values based on field types
+                                # This ensures array fields have list values and scalar fields have scalar values
+                                option_criteria = self.field_manager.normalize_criteria(option_criteria)
                                 
                                 # Get matching shows for this option
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Testing option {option_name} with criteria: {option_criteria}", category='impact')
                                 option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
                             
                                         # Removed excessive debug output for option matching shows
@@ -572,8 +573,14 @@ class CriteriaScorer:
                                     # Create a new criteria with this option
                                     option_criteria = criteria.copy()
                                     option_criteria[field] = option_id
+                                    
+                                    # Use field_manager to normalize criteria values based on field types
+                                    # This ensures array fields have list values and scalar fields have scalar values
+                                    option_criteria = self.field_manager.normalize_criteria(option_criteria)
                                 
                                     # Get matching shows for this option
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        OptimizerConfig.debug(f"Testing fallback option {option_name} with criteria: {option_criteria}", category='impact')
                                     option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
                                     
                                     # Skip options with no matching shows
@@ -736,10 +743,17 @@ class CriteriaScorer:
         """
         if self.matcher is None:
             return pd.DataFrame(), {'level': 'none', 'score': 0.0}, {'match_level': 0}
+        
+        # Use field_manager to normalize criteria values based on field types
+        # This ensures array fields have list values and scalar fields have scalar values
+        normalized_criteria = self.field_manager.normalize_criteria(criteria)
+        
+        if OptimizerConfig.DEBUG_MODE and normalized_criteria != criteria:
+            OptimizerConfig.debug(f"Using normalized criteria: {normalized_criteria} (original: {criteria})", category='matcher')
             
         # Use find_matches_with_fallback to get matches
         matching_shows, confidence_info = self.matcher.find_matches_with_fallback(
-            criteria, data, min_sample_size=min_sample_size)
+            normalized_criteria, data, min_sample_size=min_sample_size)
             
         # Extract match level from confidence info
         match_level = confidence_info.get('match_level', 0) if confidence_info else 0

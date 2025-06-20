@@ -453,7 +453,8 @@ class FieldManager:
         
         This method ensures that:
         1. List values with single items are converted to scalar values for scalar fields
-        2. Numeric IDs like genre are properly typed as integers
+        2. Scalar values are converted to lists for array fields
+        3. Numeric IDs like genre are properly typed as integers
         
         Args:
             criteria: Dictionary of criteria to normalize
@@ -471,9 +472,15 @@ class FieldManager:
             if value is None:
                 continue
                 
+            # Get field type
+            field_type = self.get_field_type(key)
+            
             # Convert single-item lists to scalar values for scalar fields
-            if isinstance(value, list) and len(value) == 1 and self.get_field_type(key) == 'scalar':
+            if isinstance(value, list) and len(value) == 1 and field_type == 'scalar':
                 normalized_criteria[key] = value[0]
+            # Convert scalar values to lists for array fields
+            elif not isinstance(value, list) and field_type == 'array':
+                normalized_criteria[key] = [value]
             else:
                 normalized_criteria[key] = value
             
@@ -484,7 +491,20 @@ class FieldManager:
                 except (ValueError, TypeError):
                     # If conversion fails, keep the original value
                     pass
+            
+            # Ensure array field values are lists of integers where appropriate
+            if field_type == 'array' and isinstance(normalized_criteria[key], list):
+                try:
+                    # Convert string IDs to integers if needed
+                    normalized_criteria[key] = [int(item) if isinstance(item, str) and item.isdigit() else item 
+                                               for item in normalized_criteria[key]]
+                except (ValueError, TypeError):
+                    # If conversion fails, keep the original values
+                    pass
         
+        if OptimizerConfig.DEBUG_MODE and normalized_criteria != criteria:
+            OptimizerConfig.debug(f"Normalized criteria from {criteria} to {normalized_criteria}", category='field_manager')
+            
         return normalized_criteria
     
     def get_array_field_mapping(self) -> Dict[str, str]:
