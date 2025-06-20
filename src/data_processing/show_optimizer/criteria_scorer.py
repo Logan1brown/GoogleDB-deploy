@@ -409,8 +409,9 @@ class CriteriaScorer:
                                     # For 'add' recommendations, just test the field by itself
                                     option_criteria = {current_field: option_id}
                                     
-                                    # For 'add', we could filter the existing matches further if they exist
-                                    use_matching_shows = matching_shows is not None and not matching_shows.empty
+                                    # For 'add', we also need a fresh match since we're adding a new criteria
+                                    # that wasn't in the original query
+                                    use_matching_shows = False
                                 
                                 # Use field_manager to normalize criteria values based on field types
                                 option_criteria = self.field_manager.normalize_criteria(option_criteria)
