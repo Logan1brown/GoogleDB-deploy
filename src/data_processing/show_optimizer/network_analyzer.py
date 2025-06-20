@@ -244,20 +244,20 @@ class NetworkAnalyzer:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    pass
+                    st.write(f"DEBUG: No matching shows provided for network {network_id}")
                 return {}
                 
             # Filter to this network
             network_shows = matching_shows[matching_shows['network_id'] == network_id] if 'network_id' in matching_shows.columns else pd.DataFrame()
             if network_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    pass
+                    st.write(f"DEBUG: No shows found for network {network_id}")
                 return {}
                 
             # Check if success_score column exists
             if 'success_score' not in network_shows.columns:
                 if OptimizerConfig.DEBUG_MODE:
-                    pass
+                    st.write(f"DEBUG: No success_score column in matching shows for network {network_id}")
                 return {}
             
             # For network-specific success rates, we analyze the columns in the matching_shows DataFrame
@@ -287,16 +287,17 @@ class NetworkAnalyzer:
                         valid_criteria_columns.append(column)
                     else:
                         if OptimizerConfig.DEBUG_MODE:
-                            pass
+                            st.write(f"DEBUG: Field manager does not have field {base_field}")
                 except Exception as e:
                     if OptimizerConfig.DEBUG_MODE:
-                        pass
+                        st.write(f"DEBUG: Error checking field {base_field}: {str(e)}")
                     # Skip this column
                     continue
                     
             if OptimizerConfig.DEBUG_MODE:
-                pass
+                st.write(f"DEBUG: Valid criteria columns: {valid_criteria_columns}")
                 
+            # Process each valid criteria column
             for column in valid_criteria_columns:
                 # Get unique values for this column
                 try:
@@ -328,7 +329,7 @@ class NetworkAnalyzer:
                         if is_array_field:
                             # Skip array fields for now as they need special handling
                             if OptimizerConfig.DEBUG_MODE:
-                                pass
+                                st.write(f"DEBUG: Skipping array field {column} with value {value}")
                             continue
                         else:
                             # For scalar fields, we can do a direct comparison
@@ -359,24 +360,31 @@ class NetworkAnalyzer:
                             
                             # Get value name for display
                             value_name = str(value)
-                            if self.field_manager:
+                            
+                            # Clean up value_name if it contains "Unknown" with a number in parentheses
+                            clean_value_name = value_name
+                            if isinstance(value_name, str) and "Unknown" in value_name and "(" in value_name and ")" in value_name:
                                 try:
-                                    # Use field_manager.get_name directly
-                                    value_name = self.field_manager.get_name(column, int(value) if isinstance(value, (int, float)) else value)
+                                    # Extract the value inside parentheses
+                                    start_idx = value_name.find("(") + 1
+                                    end_idx = value_name.find(")")
+                                    if start_idx > 0 and end_idx > start_idx:
+                                        clean_value = value_name[start_idx:end_idx].strip()
+                                        if OptimizerConfig.DEBUG_MODE:
+                                            st.write(f"DEBUG: Cleaned value from '{value_name}' to '{clean_value}'")
+                                        clean_value_name = clean_value
                                 except Exception as e:
                                     if OptimizerConfig.DEBUG_MODE:
-                                        pass
-                                    # Keep the default string value
+                                        st.write(f"DEBUG: Error cleaning value name: {str(e)}")
+                                    # If extraction fails, keep the original value_name
+                                    pass
                             
-                            # Create a key that combines field and value
-                            key = f"{field_name}:{value_name}"
+                            # Create keys for this field-value combination
+                            key = f"{field_name}:{clean_value_name}"
+                            original_key = f"{field_name}:{value_name}"
                             
-                            # Add debug logging for the created dictionary entry
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Added success rate entry for key '{key}':")
-                                st.write(f"DEBUG: - success_rate: {success_rate:.4f}")
-                                st.write(f"DEBUG: - sample_size: {total_count}")
-                                st.write(f"DEBUG: - has_data: True")
+                            if OptimizerConfig.DEBUG_MODE and clean_value_name != value_name:
+                                st.write(f"DEBUG: Cleaned key from '{original_key}' to '{key}'")
                             
                             # Get matching show titles (up to MAX_RESULTS)
                             matching_titles = []
@@ -386,31 +394,32 @@ class NetworkAnalyzer:
                                 if len(matching_titles) > OptimizerConfig.MAX_RESULTS:
                                     matching_titles = matching_titles[:OptimizerConfig.MAX_RESULTS]
                             
-                            # Calculate confidence using OptimizerConfig
-                            avg_match_level = value_shows['match_level'].mean() if 'match_level' in value_shows.columns else 1
-                            confidence = OptimizerConfig.get_confidence_level(total_count, int(avg_match_level))
-                            
-                            # Store the results
+                            # Add success rate data to the dictionary
                             success_rates[key] = {
                                 'field_name': field_name,
+                                'value_name': clean_value_name,
+                                'original_value_name': value_name,
                                 'value': value,
-                                'value_name': value_name,
                                 'rate': success_rate,
                                 'sample_size': total_count,
                                 'has_data': True,
-                                'confidence': confidence,
-                                'matching_titles': matching_titles,
-                                'matching_shows': value_shows
+                                'matching_shows': matching_titles
                             }
+                            
+                            # If the cleaned key is different from the original, store a reference to the same data
+                            if key != original_key:
+                                success_rates[original_key] = success_rates[key]
+                                if OptimizerConfig.DEBUG_MODE:
+                                    st.write(f"DEBUG: Added duplicate key mapping from '{original_key}' to '{key}'")
                 except Exception as e:
                     if OptimizerConfig.DEBUG_MODE:
-                        pass
+                        st.write(f"DEBUG: Error processing column {column}: {str(e)}")
                     continue
             
             return success_rates
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
-                pass
+                st.write(f"DEBUG: Error in get_network_specific_success_rates: {str(e)}")
             return {}
     
     def get_network_recommendations(self, matching_shows: pd.DataFrame, 

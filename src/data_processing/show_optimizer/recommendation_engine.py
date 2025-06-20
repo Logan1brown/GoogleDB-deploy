@@ -7,6 +7,7 @@ and generate recommendations for show concept optimization.
 import pandas as pd
 import streamlit as st
 import numpy as np
+import traceback
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Tuple, Optional, Set, Union
 
@@ -603,96 +604,68 @@ class RecommendationEngine:
                     else:
                         is_option_selected = criteria[factor.criteria_type] == option_id
                 
-                # Skip non-actionable recommendations based on recommendation type
-                skip_recommendation = False
-                
                 # Debug all recommendations before filtering
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Processing recommendation: {factor.criteria_type}/{factor.criteria_name} - type: {factor.recommendation_type}, impact: {factor.impact_score}, field selected: {is_field_selected}, option selected: {is_option_selected}", category='recommendation')
                 
-                # Case 1: "add" recommendations with negative impact for unselected fields
-                # These just confirm the user's choice to not select them
-                if factor.recommendation_type == 'add' and factor.impact_score < 0:
+                # Determine the correct recommendation type based on selection status and impact
+                rec_type = factor.recommendation_type
+                skip_recommendation = False
+                skip_reason = ""
+                
+                # Handle recommendation type based on selection status and impact score
+                if is_option_selected and factor.impact_score < 0:
+                    # Selected option with negative impact should be a 'remove' recommendation
+                    rec_type = 'remove'
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Setting recommendation type to 'remove' for selected option {factor.criteria_type}/{factor.criteria_name} with negative impact", category='recommendation')
+                elif not is_field_selected and factor.impact_score > 0:
+                    # Unselected field with positive impact should be an 'add' recommendation
+                    rec_type = 'add'
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Setting recommendation type to 'add' for unselected field {factor.criteria_type}/{factor.criteria_name} with positive impact", category='recommendation')
+                elif is_field_selected and not is_option_selected and factor.impact_score > 0:
+                    # Selected field but different option with positive impact should be a 'change' recommendation
+                    rec_type = 'change'
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Setting recommendation type to 'change' for selected field {factor.criteria_type} with unselected option {factor.criteria_name} with positive impact", category='recommendation')
+                elif factor.recommendation_type == 'add' and factor.impact_score < 0:
+                    # Don't recommend adding something with negative impact
                     skip_recommendation = True
                     skip_reason = "unselected field with negative impact"
-                
-                # Case 2: "remove" recommendations for fields that aren't actually selected
-                # These don't make sense since you can't remove what's not selected
-                # Skip generic "Remove [field]" recommendations with small impact
-                elif (factor.recommendation_type == 'remove' and 
-                      (not is_field_selected or factor.criteria_name.startswith('Remove '))):
+                elif factor.recommendation_type == 'remove' and not is_field_selected:
+                    # Can't remove what's not selected
                     skip_recommendation = True
-                    skip_reason = "remove recommendation for unselected field or generic remove option"
-                    
-                # Case 3: Generate proper "remove" recommendations for currently selected options with negative impact
-                # This ensures we have meaningful "remove" recommendations in the UI
-                elif is_field_selected and factor.impact_score < 0:
-                    # Check if this specific option is selected
-                    option_id = getattr(factor, 'criteria_value', None)
-                    is_option_selected = False
-                    
-                    if option_id is not None:
-                        # For array fields (like character_types), check if the option_id is in the array
-                        if isinstance(criteria.get(factor.criteria_type), list):
-                            is_option_selected = option_id in criteria[factor.criteria_type]
-                        # For single value fields (like genre), check if the option_id matches the value
-                        else:
-                            is_option_selected = criteria[factor.criteria_type] == option_id
-                    
-                    # If this specific option is selected and has negative impact, make it a "remove" recommendation
-                    if is_option_selected and not factor.criteria_name.startswith('Remove '):
-                        factor.recommendation_type = 'remove'
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Generated proper 'remove' recommendation for selected option {factor.criteria_type}/{factor.criteria_name}", category='recommendation', force=True)
+                    skip_reason = "remove recommendation for unselected field"
                 
-                if skip_recommendation and OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: {skip_reason}")
-                    OptimizerConfig.debug(f"Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: field selected={is_field_selected}, option selected={is_option_selected}, impact={factor.impact_score}, reason={skip_reason}", category='recommendation')
+                # Skip non-actionable recommendations
+                if skip_recommendation:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: {skip_reason}")
+                        OptimizerConfig.debug(f"Skipping recommendation: {factor.criteria_type}/{factor.criteria_name}, reason={skip_reason}", category='recommendation')
                     continue
                 
-                # Boost impact score slightly to ensure it's displayed
+                # Update the recommendation type in the factor object for consistency
+                factor.recommendation_type = rec_type
+                
+                # Boost impact score for better UI display
                 impact_score = factor.impact_score
-                if abs(impact_score) < 0.05:  # Ensure at least 5% impact for UI display
+                
+                # Ensure minimum impact thresholds based on recommendation type
+                if rec_type == 'remove' and abs(impact_score) < 0.15:
+                    # Higher threshold for remove recommendations
+                    impact_score = -0.15
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Boosted remove recommendation impact from {factor.impact_score} to {impact_score}", category='recommendation')
+                elif abs(impact_score) < 0.05:
+                    # Minimum threshold for all other recommendations
                     impact_score = 0.05 if impact_score > 0 else -0.05
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Boosting impact for {factor.criteria_type}/{factor.criteria_name} from {factor.impact_score} to {impact_score}")
+                        OptimizerConfig.debug(f"Boosted impact for {factor.criteria_type}/{factor.criteria_name} from {factor.impact_score} to {impact_score}", category='recommendation')
                 
-                # Use the original recommendation_type from the success factor
-                # This was properly determined in criteria_scorer.py based on field selection status
-                rec_type = factor.recommendation_type
-                
-                # For selected fields with negative impact, ensure they are marked as 'remove' recommendations
-                # This is critical for proper UI display
-                is_selected = factor.criteria_type in criteria
-                option_id = getattr(factor, 'criteria_value', None)
-                is_option_selected = False
-                
-                # Check if this specific option is selected
-                if is_selected and option_id is not None:
-                    # For array fields (like character_types), check if the option_id is in the array
-                    if isinstance(criteria.get(factor.criteria_type), list):
-                        is_option_selected = option_id in criteria[factor.criteria_type]
-                    # For single value fields (like genre), check if the option_id matches the value
-                    else:
-                        is_option_selected = criteria[factor.criteria_type] == option_id
-                
-                # If this is a selected option with negative impact, it should be a 'remove' recommendation
-                # Only generate 'remove' recommendations for options that are actually selected
-                if is_option_selected and factor.impact_score < 0:
-                    rec_type = 'remove'
-                    # Boost the impact score for remove recommendations to make them more significant
-                    # This ensures they'll appear in the UI alongside other high-impact recommendations
-                    if abs(factor.impact_score) < 0.15:  # Ensure at least 15% impact for remove recommendations
-                        impact_score = -0.15
-                    
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Changed recommendation type to 'remove' for {factor.criteria_type}/{factor.criteria_name} due to negative impact on selected option", category='recommendation', force=True)
-                        OptimizerConfig.debug(f"Boosted remove recommendation impact from {factor.impact_score} to {impact_score}", category='recommendation', force=True)
-                
-                # Debug logging for recommendation type
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Using recommendation type '{rec_type}' for {factor.criteria_type}/{factor.criteria_name} (field selected: {is_selected}, option selected: {is_option_selected})", category='recommendation')
-                
+                    OptimizerConfig.debug(f"Final recommendation type: '{rec_type}' for {factor.criteria_type}/{factor.criteria_name} with impact {impact_score}", category='recommendation')
+                    
                 # Format the explanation based on recommendation type
                 if rec_type == 'change':
                     # This is a change recommendation (modifying existing field)
@@ -1176,26 +1149,26 @@ class RecommendationEngine:
                 if not isinstance(network_rates, dict):
                     return []
                 
-                # Debug output for network rates keys
-                st.write(f"DEBUG: Network rates keys: {list(network_rates.keys())[:5]}")
+                # Calculate overall success rates for each criteria type
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Network rates keys: {list(network_rates.keys())[:5]}")
                 
-                for key in network_rates.keys():
-                    # Get the network rate data for this key
-                    network_rate_data = network_rates[key]
-                    
-                    # Extract field name from the network rate data
-                    field_name = network_rate_data.get('field_name')
-                    
-                    # If field_name is not available, try to parse it from the key
-                    if not field_name and ':' in key:
-                        field_name = key.split(':', 1)[0]
-                    elif not field_name:
-                        field_name = key
-                        
-                    # Skip if this field is not in our criteria
-                    if field_name not in criteria:
+                # Process each key in network rates to calculate overall rates
+                for key, network_rate_data in network_rates.items():
+                    # Extract field name and value from key
+                    field_parts = key.split(':', 1)
+                    if len(field_parts) != 2:
                         continue
                         
+                    field_name = field_parts[0]
+                    field_value = field_parts[1]
+                    
+                    # Skip if this field is not in our criteria
+                    if field_name not in criteria:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Field {field_name} not in criteria, skipping")
+                        continue
+                    
                     # Get the overall success rate for this criteria
                     single_criteria = {field_name: criteria[field_name]}
                     overall_rate, overall_details = self.criteria_scorer.calculate_success_rate(
@@ -1209,7 +1182,8 @@ class RecommendationEngine:
                     overall_rates[field_name] = overall_rate
                     
                     # Debug output
-                    st.write(f"DEBUG: Calculated overall rate for {key}: {overall_rate:.4f}")
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Calculated overall rate for {key}: {overall_rate:.4f}")
             except Exception as e:
                 st.write(f"DEBUG: Error calculating overall rates: {str(e)}")
                 # Continue with empty overall_rates if there was an error
@@ -1230,12 +1204,36 @@ class RecommendationEngine:
                     # Get the field name and value from the network rate data
                     field_name = network_rate_data.get('field_name')
                     value_name = network_rate_data.get('value_name')
+                    value = network_rate_data.get('value')
                     
                     # If field_name is not available, try to parse it from the key
                     if not field_name and ':' in key:
-                        field_name = key.split(':', 1)[0]
+                        field_parts = key.split(':', 1)
+                        field_name = field_parts[0]
+                        # Also extract value_name from key if not available
+                        if not value_name and len(field_parts) > 1:
+                            value_name = field_parts[1]
                     elif not field_name:
                         field_name = key
+                        
+                    # Debug the field name and value extraction
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Extracted field_name={field_name}, value_name={value_name}, value={value} from key {key}")
+                        
+                    # Clean up value_name if it contains "Unknown" with a number in parentheses
+                    if isinstance(value_name, str) and "Unknown" in value_name and "(" in value_name and ")" in value_name:
+                        try:
+                            # Extract the value inside parentheses
+                            start_idx = value_name.find("(") + 1
+                            end_idx = value_name.find(")")
+                            if start_idx > 0 and end_idx > start_idx:
+                                clean_value = value_name[start_idx:end_idx].strip()
+                                if OptimizerConfig.DEBUG_MODE:
+                                    st.write(f"DEBUG: Cleaned value from '{value_name}' to '{clean_value}'")
+                                value_name = clean_value
+                        except:
+                            # If extraction fails, keep the original value_name
+                            pass
                     
                     # Skip if network data is invalid
                     if not isinstance(network_rate_data, dict):
@@ -1243,15 +1241,72 @@ class RecommendationEngine:
                     
                     # Skip if this key is not in overall rates
                     if key not in overall_rates:
-                        st.write(f"DEBUG: Key {key} not found in overall rates")
-                        continue
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Key {key} not found in overall rates, trying alternative lookups")
+                        
+                        # Try to find a matching key in overall_rates
+                        field_parts = key.split(':', 1)
+                        if len(field_parts) == 2:
+                            field_name = field_parts[0]
+                            
+                            # Try the field name directly
+                            if field_name in overall_rates:
+                                if OptimizerConfig.DEBUG_MODE:
+                                    st.write(f"DEBUG: Found alternative key {field_name} for {key}")
+                                overall_rates[key] = overall_rates[field_name]
+                            else:
+                                # Try variations of the field name
+                                for overall_key in overall_rates.keys():
+                                    if field_name in overall_key or field_name.replace('_id', '') in overall_key:
+                                        if OptimizerConfig.DEBUG_MODE:
+                                            st.write(f"DEBUG: Found alternative key {overall_key} for {key}")
+                                        overall_rates[key] = overall_rates[overall_key]
+                                        break
+                        
+                        # If we still don't have a match, skip this key
+                        if key not in overall_rates:
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: No matching key found for {key}, skipping")
+                            continue
                     
                     # Get the network success rate and sample size
                     network_rate = network_rate_data.get('rate', 0)
                     sample_size = network_rate_data.get('sample_size', 0)
                     
-                    # Get the overall success rate for this criteria
-                    overall_rate = overall_rates[key]
+                    # Create a standardized key for comparison
+                    standardized_key = key
+                    if ':' in key:
+                        field_parts = key.split(':', 1)
+                        field = field_parts[0]
+                        value = field_parts[1]
+                        # Remove any "Unknown" text and just keep the ID if present
+                        if isinstance(value, str) and "Unknown" in value and "(" in value and ")" in value:
+                            try:
+                                start_idx = value.find("(") + 1
+                                end_idx = value.find(")")
+                                if start_idx > 0 and end_idx > start_idx:
+                                    value = value[start_idx:end_idx].strip()
+                                    standardized_key = f"{field}:{value}"
+                            except:
+                                pass
+                    
+                    # Try to get the overall success rate using different key formats
+                    if key in overall_rates:
+                        overall_rate = overall_rates[key]
+                    elif standardized_key in overall_rates:
+                        overall_rate = overall_rates[standardized_key]
+                    elif field_name in overall_rates:
+                        overall_rate = overall_rates[field_name]
+                    else:
+                        # Default if no matching key is found
+                        overall_rate = 0
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: No matching overall rate found for {key} or {standardized_key} or {field_name}")
+                            st.write(f"DEBUG: Available keys: {list(overall_rates.keys())[:5]}")
+                            
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Using overall_rate={overall_rate} for key={key}")
+                    
                     
                     # Calculate the difference between network and overall rates
                     difference = network_rate - overall_rate

@@ -405,13 +405,20 @@ class CriteriaScorer:
                                     # For 'change', we need a fresh match since we're replacing a value
                                     # (e.g., changing from one genre to another)
                                     use_matching_shows = False
-                                else:
-                                    # For 'add' recommendations, just test the field by itself
-                                    option_criteria = {current_field: option_id}
                                     
-                                    # For 'add', we also need a fresh match since we're adding a new criteria
-                                    # that wasn't in the original query
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        OptimizerConfig.debug(f"Testing 'change' option for {current_field}={option_name} (ID: {option_id})", category='impact')
+                                else:
+                                    # For 'add' recommendations, we need to combine with existing criteria
+                                    # This ensures we're testing the impact of adding this field to the existing criteria
+                                    option_criteria = criteria.copy()
+                                    option_criteria[current_field] = option_id
+                                    
+                                    # For 'add', we need a fresh match with the combined criteria
                                     use_matching_shows = False
+                                    
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        OptimizerConfig.debug(f"Testing 'add' option for {current_field}={option_name} (ID: {option_id})", category='impact')
                                 
                                 # Use field_manager to normalize criteria values based on field types
                                 option_criteria = self.field_manager.normalize_criteria(option_criteria)
@@ -763,36 +770,54 @@ class CriteriaScorer:
         """
         return self.field_manager.calculate_confidence(criteria)
         
-    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any], Dict[str, Any]]:
-        """Get shows matching the given criteria.
+    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
+        """Get shows matching criteria.
         
         Args:
             criteria: Dictionary of criteria
-            data: Optional DataFrame to use instead of integrated data
-            min_sample_size: Minimum sample size for matching, defaults to None
+            data: DataFrame of shows to match against
             
         Returns:
-            Tuple of (matching_shows, confidence_info, match_info)
+            Tuple of (matching_shows, match_count, confidence_info)
         """
-        if self.matcher is None:
-            return pd.DataFrame(), {'level': 'none', 'score': 0.0}, {'match_level': 0}
+        # First, clean up criteria by removing None or empty values
+        clean_criteria = {}
+        for field_name, value in criteria.items():
+            if value is None or (isinstance(value, list) and not value):
+                # Skip empty criteria
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Skipping empty criterion: {field_name}={value}", category='matcher')
+                continue
+            clean_criteria[field_name] = value
+            
+        if not clean_criteria:
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("No valid criteria after cleaning, returning empty results", category='matcher')
+            # Return empty results if no valid criteria
+            empty_df = pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title'])
+            return empty_df, 0, self.matcher._empty_confidence_info()
         
         # Use field_manager to normalize criteria values based on field types
-        # This ensures array fields have list values and scalar fields have scalar values
-        normalized_criteria = self.field_manager.normalize_criteria(criteria)
+        normalized_criteria = self.field_manager.normalize_criteria(clean_criteria)
         
-        if OptimizerConfig.DEBUG_MODE and normalized_criteria != criteria:
-            OptimizerConfig.debug(f"Using normalized criteria: {normalized_criteria} (original: {criteria})", category='matcher')
-            
-        # Use find_matches_with_fallback to get matches
-        matching_shows, confidence_info = self.matcher.find_matches_with_fallback(
-            normalized_criteria, data, min_sample_size=min_sample_size)
-            
-        # Extract match level from confidence info
-        match_level = confidence_info.get('match_level', 0) if confidence_info else 0
-        match_info = {'match_level': match_level}
+        # Debug output for normalized criteria
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Original criteria: {criteria}", category='matcher')
+            OptimizerConfig.debug(f"Cleaned criteria: {clean_criteria}", category='matcher')
+            OptimizerConfig.debug(f"Normalized criteria for matching: {normalized_criteria}", category='matcher')
         
-        return matching_shows, confidence_info, match_info
+        # Use matcher to find matching shows
+        matching_shows, confidence_info = self.matcher.find_matches_with_fallback(normalized_criteria, data)
+        
+        # Debug output for matching results
+        match_count = len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 0
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Found {match_count} matching shows with confidence: {confidence_info}", category='matcher')
+            if match_count == 0:
+                OptimizerConfig.debug("WARNING: No matching shows found for the given criteria", category='matcher')
+                st.write(f"DEBUG: No matching shows found for criteria: {normalized_criteria}")
+        
+        return matching_shows, match_count, confidence_info
     
     def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
