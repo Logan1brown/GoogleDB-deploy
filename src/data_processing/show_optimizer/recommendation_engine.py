@@ -1227,54 +1227,30 @@ class RecommendationEngine:
                     sample_size = network_rate_data.get('sample_size', 0)
                     has_data = network_rate_data.get('has_data', False)
                     
-                    # Only show detailed network rate information in debug mode
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: NETWORK RATE - {network.network_name} - {criteria_type}={criteria.get(criteria_type, 'N/A')}: network_rate={network_rate:.4f}, sample_size={sample_size}")
+                    # Get network-specific success rate
+                    network_rate = network_rate_data.get('rate', 0)
                     
-
-                    
-                    # Handle the matching_shows key
-                    if 'matching_shows' in network_rate_data:
-                        matching_shows_data = network_rate_data['matching_shows']
-                    else:
-                        # Use the matching_shows parameter as fallback
-                        matching_shows_data = matching_shows
-                        # Store it for future reference
-                        network_rate_data['matching_shows'] = matching_shows_data
-                    
-                    # Check if matching_shows_data is empty
-                    is_empty = matching_shows_data is None or (
-                        isinstance(matching_shows_data, pd.DataFrame) and matching_shows_data.empty
-                    )
-                    
-                    # Skip if no data available
-                    if is_empty and not has_data:
-                        continue
-                        
-                    # Get the network and overall success rates
-                    network_rate = network_rate_data.get('success_rate', 0)
-                    if network_rate is None:
-                        network_rate = network_rate_data.get('rate', 0)
-                        
+                    # Get overall success rate for this criteria
                     overall_rate = overall_rates.get(criteria_type, 0)
+                    
+                    # Calculate the difference between network and overall rates
                     difference = network_rate - overall_rate
                     
-
-                
-                    # Use the configured threshold for network recommendations
-                    network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)
-                    if abs(difference) < network_diff_threshold:
-                        # Show threshold debug output only in debug mode
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Skipping recommendation for {network.network_name} - {criteria_type}: diff={difference:.4f} (threshold: {network_diff_threshold})")
-                        continue
-                    
+                    # Only show detailed network rate information in debug mode
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Found significant network difference for {network.network_name} - {criteria_type}: {difference}", category='recommendation', force=True)
+                        st.write(f"DEBUG: Network {network.network_name} - {criteria_type} comparison:")
+                        st.write(f"DEBUG: - Network rate: {network_rate:.4f}")
+                        st.write(f"DEBUG: - Overall rate: {overall_rate:.4f}")
+                        st.write(f"DEBUG: - Difference: {difference:.4f}")
                     
                     # Check if we have enough data for this network
                     sample_size = network_rate_data.get('sample_size', 0)
                     has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
+                    
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: - Sample size: {sample_size}")
+                        st.write(f"DEBUG: - Min required: {OptimizerConfig.SUCCESS['min_data_points']}")
+                        st.write(f"DEBUG: - Has sufficient data: {has_sufficient_data}")
                     
                     # Check conditions for recommendation generation
                     condition1 = abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']
