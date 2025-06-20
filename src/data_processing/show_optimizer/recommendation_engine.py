@@ -1090,21 +1090,11 @@ class RecommendationEngine:
                 
             # Get network-specific success rates for each criteria using matching_shows
             try:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Getting network-specific success rates for {network.network_name}")
-                    
                 # Use the correct parameter pattern for get_network_specific_success_rates
                 # The method only accepts matching_shows and network_id parameters
                 network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
                     matching_shows, network.network_id)
-                    
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Got network rates with {len(network_rates)} criteria types")
             except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Error getting network-specific success rates: {str(e)}")
-                    import traceback
-                    st.write(traceback.format_exc())
                 return []
                 
             # Ensure all matching_shows in network_rates are DataFrames
@@ -1114,16 +1104,10 @@ class RecommendationEngine:
                         if not isinstance(rate_data['matching_shows'], pd.DataFrame):
                             rate_data['matching_shows'] = pd.DataFrame()
             except Exception as e:
-                st.write(f"DEBUG: Error processing network_rates: {str(e)}")
-                st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
-                st.write(f"DEBUG: network_rates content: {network_rates}")
                 return []
                 
             # Get overall success rates for each criteria
             overall_rates = {}
-            
-            # Debug header for overall success rates
-            st.write(f"DEBUG: ===== CALCULATING OVERALL SUCCESS RATES FOR COMPARISON =====")
             
             try:
                 for criteria_type in network_rates.keys():
@@ -1135,28 +1119,22 @@ class RecommendationEngine:
                     single_criteria, integrated_data=integrated_data
                 )
                 
-                # Debug output for overall success rates
-                sample_size = overall_details.get('sample_size', 0) if isinstance(overall_details, dict) else 0
-                st.write(f"DEBUG: Overall success rate for {criteria_type}={criteria[criteria_type]}: {overall_rate:.4f} (sample size: {sample_size})")
-                
                 overall_rates[criteria_type] = overall_rate
-                
-                # Debug each overall rate as it's calculated
-                st.write(f"DEBUG: Overall rate for {criteria_type}: {overall_rate:.4f}")
             except Exception as e:
-                st.write(f"DEBUG: Error calculating overall rates: {str(e)}")
-                st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
+                pass
             
             recommendations = []
-            
-            # Display summary of all overall rates after calculation
-            st.write(f"DEBUG: SUMMARY OF ALL OVERALL SUCCESS RATES:")
-            for crit_type, rate in overall_rates.items():
-                st.write(f"DEBUG: Overall rate for {crit_type}: {rate:.4f}")
-            
+                     
             # Find criteria where network rate differs significantly from overall rate
             try:
-                for criteria_type, network_rate_data in network_rates.items():
+                for key, network_rate_data in network_rates.items():
+                    # Parse the key which is in format "field_name:value_name"
+                    if ':' in key:
+                        parts = key.split(':', 1)
+                        criteria_type = parts[0]  # Extract just the field name part
+                    else:
+                        criteria_type = key
+                        
                     # Skip if criteria not in overall rates or network data is invalid
                     if criteria_type not in overall_rates or not isinstance(network_rate_data, dict):
                         continue
@@ -1174,7 +1152,7 @@ class RecommendationEngine:
                     st.write(f"DEBUG: NETWORK RATE - {network.network_name} - {criteria_type}={criteria.get(criteria_type, 'N/A')}: network_rate={network_rate:.4f}, sample_size={sample_size}, has_data={has_data}")
                     
                     # Show raw network rate data for full transparency - ALWAYS SHOW THIS
-                    st.write(f"DEBUG: Raw network rate data for {network.network_name} - {criteria_type}: {network_rate_data}")
+                    st.write(f"DEBUG: Raw network rate data for {network.network_name} - {criteria_type} (original key: {key}): {network_rate_data}")
                     
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(f"Network rate for {network.network_name} - {criteria_type}: {network_rate_data}", category='recommendation', force=True)
@@ -1208,10 +1186,6 @@ class RecommendationEngine:
                     # Always log the network-specific impact scores for debugging - ALWAYS SHOW THIS
                     # Direct debug in UI - CRITICAL FOR DEBUGGING
                     st.write(f"DEBUG: COMPARISON - Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}")
-                    
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Network {network.network_name} - {criteria_type}: network_rate={network_rate:.4f}, overall_rate={overall_rate:.4f}, difference={difference:.4f}", 
-                                              category='recommendation', force=True)
                 
                     # Use the configured threshold for network recommendations
                     network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
