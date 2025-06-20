@@ -1106,6 +1106,16 @@ class RecommendationEngine:
                 
             # Get network-specific success rates for each criteria using matching_shows
             try:
+                # Add debug information about the network and matching shows
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Starting network recommendation generation for {network.network_name} (ID: {network.network_id})")
+                    st.write(f"DEBUG: Network compatibility score: {network.compatibility_score:.4f}, Sample size: {network.sample_size}")
+                    if matching_shows is not None and isinstance(matching_shows, pd.DataFrame):
+                        st.write(f"DEBUG: Matching shows count: {len(matching_shows)}")
+                        if 'network_id' in matching_shows.columns:
+                            network_show_count = len(matching_shows[matching_shows['network_id'] == network.network_id])
+                            st.write(f"DEBUG: Shows for this network: {network_show_count}")
+                
                 # Use the correct parameter pattern for get_network_specific_success_rates
                 # The method only accepts matching_shows and network_id parameters
                 network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
@@ -1116,6 +1126,9 @@ class RecommendationEngine:
                 # Debug output to check the structure of network_rates
                 if OptimizerConfig.DEBUG_MODE:
                     st.write(f"DEBUG: Network rates for {network.network_name}: {type(network_rates)}")
+                    st.write(f"DEBUG: Network rates keys count: {len(network_rates) if isinstance(network_rates, dict) else 0}")
+                    if isinstance(network_rates, dict) and len(network_rates) > 0:
+                        st.write(f"DEBUG: Sample network rate keys: {list(network_rates.keys())[:5]}")
                         
                 # Ensure network_rates is a dictionary as expected
                 if not isinstance(network_rates, dict):
@@ -1129,13 +1142,19 @@ class RecommendationEngine:
                     
                 # Handle case where network_rates is not a dictionary
                 if not isinstance(network_rates, dict):
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Aborting - network_rates is not a dictionary")
                     return []
                     
                 # Handle case where network_rates is empty
                 if not network_rates:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Aborting - network_rates dictionary is empty")
                     return []
-                
+                    
             except Exception as e:
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Error getting network-specific success rates: {str(e)}")
                 return []
                 
             # Ensure all matching_shows in network_rates are DataFrames
@@ -1243,7 +1262,7 @@ class RecommendationEngine:
 
                 
                     # Use the configured threshold for network recommendations
-                    network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
+                    network_diff_threshold = OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)
                     if abs(difference) < network_diff_threshold:
                         # Show threshold debug output only in debug mode
                         if OptimizerConfig.DEBUG_MODE:
@@ -1259,13 +1278,17 @@ class RecommendationEngine:
                     
                     # Check conditions for recommendation generation
                     condition1 = abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference']
-                    condition2 = has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)
+                    condition2 = has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)
                     
-
+                    # Add debug output for recommendation conditions
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Network recommendation conditions for {network.network_name} - {criteria_type}:")
+                        st.write(f"DEBUG: Condition 1 (significant_difference): {condition1} (diff={difference:.4f}, threshold={OptimizerConfig.THRESHOLDS['significant_difference']})")
+                        st.write(f"DEBUG: Condition 2 (network_difference): {condition2} (diff={difference:.4f}, threshold={OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)}, has_sufficient_data={has_sufficient_data})")
                     
                     # Generate recommendation if difference is significant
                     if abs(difference) >= OptimizerConfig.THRESHOLDS['significant_difference'] or \
-                       (has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.02)):
+                       (has_sufficient_data and abs(difference) > OptimizerConfig.THRESHOLDS.get('network_difference', 0.01)):
 
                         
                         current_value = criteria[criteria_type]

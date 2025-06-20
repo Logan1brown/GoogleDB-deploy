@@ -302,7 +302,7 @@ class OptimizerConfig:
     # Success calculation settings
     SUCCESS = {
         'threshold': 0.6,              # Default threshold for success rate calculation
-        'min_data_points': 5,          # Minimum data points needed for success calculation
+        'min_data_points': 3,          # Minimum data points needed for success calculation (lowered from 5 to 3)
         'confidence_factor': 0.8       # Confidence factor for success probability
     }
     
@@ -349,7 +349,7 @@ class OptimizerConfig:
         'minimum_compatibility': 0.3,   # Minimum compatibility score for recommendations
         'strong_compatibility': 0.7,    # Strong compatibility threshold
         'success_threshold': 0.6,       # Threshold for considering a show successful (60%)
-        'network_difference': 0.02      # Minimum difference for network-specific recommendations (2%)
+        'network_difference': 0.01      # Minimum difference for network-specific recommendations (lowered from 2% to 1%)
     }
     
     # Network tier thresholds for compatibility scoring

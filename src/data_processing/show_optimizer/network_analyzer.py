@@ -342,6 +342,15 @@ class NetworkAnalyzer:
                         success_count = value_shows[value_shows['success_score'] >= success_threshold].shape[0]
                         total_count = value_shows.shape[0]
                         
+                        # Add detailed debug logging for success rates
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Network {network_id} - {column} - value: {value}")
+                            st.write(f"DEBUG: Success count: {success_count}, Total count: {total_count}")
+                            if total_count > 0:
+                                st.write(f"DEBUG: Success rate: {success_count / total_count:.4f}")
+                            else:
+                                st.write(f"DEBUG: Cannot calculate success rate (no shows).")
+                        
                         if total_count > 0:
                             success_rate = success_count / total_count
                             
@@ -361,6 +370,13 @@ class NetworkAnalyzer:
                             
                             # Create a key that combines field and value
                             key = f"{field_name}:{value_name}"
+                            
+                            # Add debug logging for the created dictionary entry
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Added success rate entry for key '{key}':")
+                                st.write(f"DEBUG: - success_rate: {success_rate:.4f}")
+                                st.write(f"DEBUG: - sample_size: {total_count}")
+                                st.write(f"DEBUG: - has_data: True")
                             
                             # Get matching show titles (up to MAX_RESULTS)
                             matching_titles = []
