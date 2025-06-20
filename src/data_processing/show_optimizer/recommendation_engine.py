@@ -460,15 +460,21 @@ class RecommendationEngine:
                     except Exception as e:
                         if OptimizerConfig.DEBUG_MODE:
                             st.write(f"DEBUG: Error generating recommendations for network {network.network_name}: {str(e)}")
-                            OptimizerConfig.debug(f"Error generating recommendations for network {network.network_name}: {str(e)}", category='recommendation', force=True)
                             import traceback
                             st.write(traceback.format_exc())
                             
                 # Add network-specific recommendations to the main list
-                if network_specific_recs:
+                try:
+                    if network_specific_recs:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG: Adding {len(network_specific_recs)} network-specific recommendations to main list")
+                        recommendations.extend(network_specific_recs)
+                except Exception as e:
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Adding {len(network_specific_recs)} network-specific recommendations to main list")
-                    recommendations.extend(network_specific_recs)
+                        st.write(f"DEBUG: Error adding network recommendations: {str(e)}")
+                        import traceback
+                        st.write("DEBUG: Traceback for network recommendations error:")
+                        st.write(traceback.format_exc())
             
             # Sort by impact score (absolute value, as negative impacts are also important)
             recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
