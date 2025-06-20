@@ -598,7 +598,12 @@ class ConceptAnalyzer:
                 OptimizerConfig.debug(f"Processing network recommendations for top networks")
                 
                 # Debug output for success factors to understand available data
-                st.write(f"DEBUG: Success factors available for network recommendations: {list(success_factors.keys()) if success_factors else 'None'}")
+                st.write(f"DEBUG: Success factors available for network recommendations: {len(success_factors) if success_factors else 0} factors")
+                if success_factors and len(success_factors) > 0:
+                    # Display the first few success factors for debugging
+                    for i, factor in enumerate(success_factors[:3]):
+                        st.write(f"DEBUG: Success factor {i+1}: {getattr(factor, 'criteria_type', 'unknown')} - {getattr(factor, 'value', 'unknown')}")
+                
                 st.write(f"DEBUG: Number of matching shows for network recommendations: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'Not a DataFrame'}")
                 
                 # First check if matching_shows is valid to avoid multiple errors
