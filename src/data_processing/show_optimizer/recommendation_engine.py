@@ -584,15 +584,15 @@ class RecommendationEngine:
                     skip_recommendation = True
                     skip_reason = "unselected field with negative impact"
                 
-                # Case 2: "remove" recommendations for fields that aren't actually selected
+                # Case 2: "remove" recommendations for options that aren't actually selected
                 # These don't make sense since you can't remove what's not selected
-                # Special case: For 'genre', we always allow 'remove' recommendations since it's a required field
-                # Also allow 'remove' recommendations for character_types and thematic_elements
-                elif (factor.recommendation_type == 'remove' and 
-                      not is_field_selected and 
-                      factor.criteria_type not in ['genre', 'character_types', 'thematic_elements']):
-                    skip_recommendation = True
-                    skip_reason = "remove recommendation for unselected field"
+                elif factor.recommendation_type == 'remove' and not is_option_selected:
+                    # Special case: For 'genre', if the option is 'Remove genre', allow it since it's a special case
+                    if factor.criteria_type == 'genre' and factor.criteria_name == 'Remove genre':
+                        skip_recommendation = False
+                    else:
+                        skip_recommendation = True
+                        skip_reason = "remove recommendation for unselected option"
                 
                 if skip_recommendation and OptimizerConfig.DEBUG_MODE:
                     st.write(f"DEBUG: Skipping non-actionable recommendation for {factor.criteria_type}/{factor.criteria_name}: {skip_reason}")
