@@ -11,26 +11,202 @@ Key responsibilities:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple, Any, Union, TypedDict, NotRequired
 import pandas as pd
 import numpy as np
 import streamlit as st
-from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Union
 from .optimizer_config import OptimizerConfig
-import pandas as pd
 
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
-from .optimizer_config import OptimizerConfig
-
 from .optimizer_matcher import Matcher
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
+
+# Define explicit data contracts using TypedDict
+class CriteriaDict(TypedDict):
+    """Explicit contract for criteria dictionary used throughout the optimizer.
+    
+    This defines the expected structure of criteria dictionaries passed between components.
+    All fields are optional since criteria can be partially specified.
+    """
+    genre: NotRequired[List[str]]
+    network_id: NotRequired[Union[int, List[int]]]
+    studio_id: NotRequired[Union[int, List[int]]]
+    source_type_id: NotRequired[Union[int, List[int]]]
+    character_type_ids: NotRequired[List[int]]
+    plot_element_ids: NotRequired[List[int]]
+    theme_element_ids: NotRequired[List[int]]
+    tone_ids: NotRequired[List[int]]
+    time_setting_ids: NotRequired[List[int]]
+    location_setting_ids: NotRequired[List[int]]
+    episode_count: NotRequired[int]
+    order_type_id: NotRequired[int]
+    team_ids: NotRequired[List[int]]
+
+class ConfidenceInfo(TypedDict):
+    """Explicit contract for confidence information dictionary.
+    
+    This defines the expected structure of confidence info dictionaries used to
+    track match quality and confidence levels throughout the analysis pipeline.
+    """
+    level: str  # 'high', 'medium', 'low', 'very_low', or 'none'
+    match_level: NotRequired[float]  # Average match level (1=exact, 2=close, 3=partial)
+    match_count: NotRequired[int]  # Number of matching shows
+    sample_size: NotRequired[int]  # Sample size used for calculations
+    max_match_level: NotRequired[float]  # Maximum match level in the sample
+    min_match_level: NotRequired[float]  # Minimum match level in the sample
+    mean_match_level: NotRequired[float]  # Mean match level in the sample
+    level_counts: NotRequired[Dict[int, int]]  # Counts of each match level
+    error: NotRequired[str]  # Error message if applicable
+
+class IntegratedData(TypedDict):
+    """Explicit contract for integrated data dictionary.
+    
+    This defines the expected structure of the integrated data dictionary
+    that contains all the dataframes used throughout the analysis pipeline.
+    """
+    shows: pd.DataFrame  # Main shows dataframe
+    networks: NotRequired[pd.DataFrame]  # Networks dataframe
+    studios: NotRequired[pd.DataFrame]  # Studios dataframe
+    genres: NotRequired[pd.DataFrame]  # Genres dataframe
+    success_metrics: NotRequired[pd.DataFrame]  # Success metrics dataframe
+    team: NotRequired[pd.DataFrame]  # Team dataframe
 from .score_calculators import ComponentScore, NetworkMatch
 from .network_analyzer import NetworkAnalyzer
 from .recommendation_engine import RecommendationEngine, SuccessFactor, Recommendation
+
+
+def validate_criteria(criteria: Dict[str, Any]) -> CriteriaDict:
+    """Validate and standardize criteria dictionary.
+    
+    Args:
+        criteria: Raw criteria dictionary from user input or other sources
+        
+    Returns:
+        Standardized CriteriaDict with validated fields
+    """
+    # Create a new dictionary that will match our CriteriaDict structure
+    validated: Dict[str, Any] = {}
+    
+    # Validate and standardize each field if present
+    if 'genre' in criteria:
+        # Ensure genre is always a list
+        if isinstance(criteria['genre'], str):
+            validated['genre'] = [criteria['genre']]
+        else:
+            validated['genre'] = criteria['genre']
+    
+    # Handle network_id which can be single value or list
+    if 'network_id' in criteria:
+        if isinstance(criteria['network_id'], list):
+            validated['network_id'] = criteria['network_id']
+        else:
+            validated['network_id'] = criteria['network_id']
+    
+    # Handle studio_id which can be single value or list
+    if 'studio_id' in criteria:
+        if isinstance(criteria['studio_id'], list):
+            validated['studio_id'] = criteria['studio_id']
+        else:
+            validated['studio_id'] = criteria['studio_id']
+    
+    # Handle source_type_id which can be single value or list
+    if 'source_type_id' in criteria:
+        if isinstance(criteria['source_type_id'], list):
+            validated['source_type_id'] = criteria['source_type_id']
+        else:
+            validated['source_type_id'] = criteria['source_type_id']
+    
+    # Ensure all *_ids fields are lists
+    for field in ['character_type_ids', 'plot_element_ids', 'theme_element_ids', 
+                 'tone_ids', 'time_setting_ids', 'location_setting_ids', 'team_ids']:
+        if field in criteria:
+            if not isinstance(criteria[field], list):
+                validated[field] = [criteria[field]]
+            else:
+                validated[field] = criteria[field]
+    
+    # Simple scalar fields
+    for field in ['episode_count', 'order_type_id']:
+        if field in criteria:
+            validated[field] = criteria[field]
+    
+    # Copy any other fields that might be used by extensions
+    for key, value in criteria.items():
+        if key not in validated:
+            validated[key] = value
+    
+    return validated
+
+
+def create_default_confidence_info() -> ConfidenceInfo:
+    """Create a default confidence info dictionary with standard values.
+    
+    Returns:
+        Default ConfidenceInfo dictionary
+    """
+    return {
+        'level': 'none',
+        'match_level': 0.0,
+        'match_count': 0,
+        'sample_size': 0
+    }
+
+
+def update_confidence_info(base_info: Dict[str, Any], updates: Dict[str, Any]) -> ConfidenceInfo:
+    """Update confidence info with new values while maintaining the contract.
+    
+    Args:
+        base_info: Existing confidence info dictionary
+        updates: New values to update
+        
+    Returns:
+        Updated ConfidenceInfo dictionary
+    """
+    # Start with default values if base_info is empty
+    if not base_info:
+        result = create_default_confidence_info()
+    else:
+        # Create a copy to avoid modifying the original
+        result = dict(base_info)
+    
+    # Update with new values
+    for key, value in updates.items():
+        result[key] = value
+    
+    # Ensure the required 'level' field is present
+    if 'level' not in result:
+        result['level'] = 'none'
+    
+    return result
+
+
+def validate_integrated_data(data: Dict[str, pd.DataFrame]) -> IntegratedData:
+    """Validate integrated data dictionary and ensure it has required fields.
+    
+    Args:
+        data: Dictionary of dataframes from various sources
+        
+    Returns:
+        Validated IntegratedData dictionary
+        
+    Raises:
+        ValueError: If required 'shows' dataframe is missing or empty
+    """
+    if 'shows' not in data or data['shows'].empty:
+        raise ValueError("Integrated data must contain a non-empty 'shows' dataframe")
+    
+    # Create a new dictionary that will match our IntegratedData structure
+    validated: Dict[str, pd.DataFrame] = {'shows': data['shows']}
+    
+    # Copy optional dataframes if present
+    for field in ['networks', 'studios', 'genres', 'success_metrics', 'team']:
+        if field in data and not data[field].empty:
+            validated[field] = data[field]
+    
+    return validated
 
 
 @dataclass
@@ -245,16 +421,13 @@ class ConceptAnalyzer:
                 criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
             )
             
-            # Get matching show titles (up to 100) to include in the summary
+            # Get matching show titles (up to MAX_RESULTS) to include in the summary
             matching_titles = []
             if not matching_shows.empty and 'title' in matching_shows.columns:
                 matching_titles = matching_shows['title'].tolist()
-                # Limit to 100 titles
-                if len(matching_titles) > 100:
-                    matching_titles = matching_titles[:100]
-            
-
-
+                # Limit to MAX_RESULTS titles
+                if len(matching_titles) > self.config.MAX_RESULTS:
+                    matching_titles = matching_titles[:self.config.MAX_RESULTS]
             
             # Create and return the optimization summary
             summary = OptimizationSummary(
@@ -289,66 +462,97 @@ class ConceptAnalyzer:
     
 
     
-    def _find_matching_shows(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    def _find_matching_shows(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> Tuple[pd.DataFrame, ConfidenceInfo]:
         """Find shows matching the given criteria with fallback strategies.
         
         Args:
-            criteria: Dictionary of criteria
-            integrated_data: Dictionary of integrated data frames from ShowOptimizer
+            criteria: Dictionary of criteria (will be validated to CriteriaDict)
+            integrated_data: Dictionary of integrated data frames (will be validated to IntegratedData)
             
         Returns:
-            Tuple of (matching_shows DataFrame, confidence_info dictionary)
+            Tuple of (matching_shows DataFrame, confidence_info dictionary conforming to ConfidenceInfo)
         """
-        # Get shows data from integrated data
-        if 'shows' not in integrated_data or integrated_data['shows'].empty:
-            st.error("No shows data available in integrated data")
-            return pd.DataFrame(), {'level': 'none', 'error': 'No shows data available'}
+        try:
+            # Validate inputs using our helper methods
+            validated_criteria = validate_criteria(criteria)
+            validated_data = validate_integrated_data(integrated_data)
             
-        shows_data = integrated_data['shows']
-        
-        # Get minimum sample size from config
-        min_sample_size = self.config.CONFIDENCE['minimum_sample']
-        
-        # Find matches with fallback using the criteria_scorer's matcher
-        if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
-            # Set the criteria data in the matcher
-            self.criteria_scorer.matcher.set_criteria_data(shows_data)
+            shows_data = validated_data['shows']
             
-            # Use the matcher from criteria_scorer
-            matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(
-                criteria, shows_data, min_sample_size
-            )
-        else:
-            st.error("No matcher available in CriteriaScorer. Cannot find matching shows.")
-            return pd.DataFrame(), {'level': 'none', 'error': 'No matcher available'}
+            # Get minimum sample size from config
+            min_sample_size = self.config.CONFIDENCE['minimum_sample']
+            
+            # Find matches with fallback using the criteria_scorer's matcher
+            if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
+                # Set the criteria data in the matcher
+                self.criteria_scorer.matcher.set_criteria_data(shows_data)
+                
+                # Use the matcher from criteria_scorer
+                matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(
+                    validated_criteria, shows_data, min_sample_size
+                )
+                
+                # Ensure confidence_info follows our contract
+                confidence_info = update_confidence_info(confidence_info, {})
+                
+                # Log the match results
+                match_count = len(matching_shows) if not matching_shows.empty else 0
+                
+                # Update match count in confidence info
+                confidence_info = update_confidence_info(confidence_info, {'match_count': match_count})
+                
+                # Log match results through config debug
+                self.config.debug(
+                    f"Found {match_count} matching shows with confidence level: {confidence_info['level']}", 
+                    category='matching'
+                )
+                
+                return matching_shows, confidence_info
+            else:
+                # Create an error confidence info using our helper
+                error_info: ConfidenceInfo = create_default_confidence_info()
+                error_info['error'] = 'No matcher available'
+                error_info['level'] = 'none'  # Explicitly set confidence level
+                
+                st.error("No matcher available in CriteriaScorer. Cannot find matching shows.")
+                return pd.DataFrame(), error_info
+                
+        except ValueError as e:
+            # Handle validation errors
+            error_info: ConfidenceInfo = create_default_confidence_info()
+            error_info['error'] = str(e)
+            error_info['level'] = 'none'  # Explicitly set confidence level
+            
+            st.error(f"Error finding matching shows: {str(e)}")
+            return pd.DataFrame(), error_info
         
-        # Log the match results
-        match_count = len(matching_shows) if not matching_shows.empty else 0
-        
-        # Match results logged above
-        
-        return matching_shows, confidence_info
-    
     def _calculate_success_probability(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> Tuple[Optional[float], str]:
         """Calculate the success probability based on matching shows.
         
         Args:
-            matching_shows: DataFrame of matching shows
+            criteria: Dictionary of criteria (should be validated with validate_criteria)
+            matching_shows: DataFrame of matching shows from _find_matching_shows
             
         Returns:
             Tuple of (success_probability, confidence_level)
+            where confidence_level is one of: 'high', 'medium', 'low', 'very_low', 'none'
         """
         try:
-            # If no matching shows, return None
+            # If no matching shows, return None with appropriate logging
             if matching_shows.empty:
-                OptimizerConfig.debug("No matching shows found for success probability calculation")
+                self.config.debug("No matching shows found for success probability calculation", category='success')
                 return None, 'none'
             
-            # Use CriteriaScorer to calculate success rate
-            success_rate, confidence_info = self.criteria_scorer.calculate_success_rate(
-                matching_shows, 
-                threshold=self.config.PERFORMANCE['success_threshold']
+            # Use CriteriaScorer to calculate all scores including success rate
+            # We use an empty criteria dict since we're just calculating success rate for matching shows
+            all_scores = self.criteria_scorer.calculate_scores(
+                {}, 
+                matching_shows
             )
+            
+            # Extract success rate and info from the comprehensive scores
+            success_rate = all_scores.get('success_rate')
+            confidence_info = all_scores.get('success_info', {})
             
             if success_rate is not None:
                 # Get sample size from confidence info or use the number of matching shows
@@ -373,12 +577,11 @@ class ConceptAnalyzer:
                 # Success probability calculated successfully
                 return success_rate, confidence_level
             
-            OptimizerConfig.debug("Could not calculate success probability: missing success scores")
+            self.config.debug("Could not calculate success probability: missing success scores", category='success')
             return None, 'none'
             
         except Exception as e:
             st.error(f"Error calculating success probability: {str(e)}")
-
             return None, 'none'
     
     def _find_top_networks(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame], matching_shows: pd.DataFrame = None) -> List[NetworkMatch]:
@@ -501,14 +704,14 @@ class ConceptAnalyzer:
                     level_counts = matching_shows['match_level'].value_counts().to_dict()
                     confidence_info['level_counts'] = level_counts
             
-            # Use CriteriaScorer to calculate component scores with the provided matching shows and integrated data
-            component_scores = self.criteria_scorer.calculate_component_scores(
-                criteria, matching_shows, confidence_info, integrated_data=integrated_data
+            # Use CriteriaScorer to calculate all scores with the provided matching shows and integrated data
+            all_scores = self.criteria_scorer.calculate_scores(
+                criteria, matching_shows, integrated_data=integrated_data
             )
             
-            if component_scores:
+            if all_scores and 'component_scores' in all_scores:
                 # Component scores analyzed successfully
-                return component_scores
+                return all_scores['component_scores']
             else:
                 st.warning("No component scores could be calculated")
                 return {}
@@ -597,33 +800,23 @@ class ConceptAnalyzer:
             if top_networks:
                 OptimizerConfig.debug(f"Processing network recommendations for top networks")
                 
-                # Debug output for success factors to understand available data
-                st.write(f"DEBUG: Success factors available for network recommendations: {len(success_factors) if success_factors else 0} factors")
-                if success_factors and len(success_factors) > 0:
-                    # Display the first few success factors for debugging
-                    for i, factor in enumerate(success_factors[:3]):
-                        st.write(f"DEBUG: Success factor {i+1}: {getattr(factor, 'criteria_type', 'unknown')} - {getattr(factor, 'value', 'unknown')}")
-                
-                st.write(f"DEBUG: Number of matching shows for network recommendations: {len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 'Not a DataFrame'}")
-                
                 # First check if matching_shows is valid to avoid multiple errors
                 if matching_shows is None or (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty):
                     st.warning("No matching shows available for network-specific recommendations")
                 else:
-                    # Debug output for top networks
-                    st.write(f"DEBUG: Processing network recommendations for top {min(3, len(top_networks))} networks:")
-                    for i, net in enumerate(top_networks[:3]):
-                        compatibility = f"{net.compatibility_score:.4f}" if net.compatibility_score is not None else "N/A"
-                        st.write(f"DEBUG: Top network {i+1}: {net.network_name} (ID: {net.network_id}) - Compatibility: {compatibility}, Sample: {net.sample_size}")
+                    # Log network recommendation processing through config debug
+                    factor_count = len(success_factors) if success_factors else 0
+                    show_count = len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 0
+                    network_count = min(3, len(top_networks))
+                    
+                    self.config.debug(f"Processing recommendations for top {network_count} networks with {factor_count} success factors and {show_count} matching shows", category='recommendation')
                     
                     for network in top_networks[:3]:  # Limit to top 3 networks
                         try:
-                            st.write(f"DEBUG: ===== STARTING NETWORK ANALYSIS FOR {network.network_name} =====")
-                            
-                            # Debug output for network shows
+                            # Get network-specific shows for analysis
                             network_shows = matching_shows[matching_shows['network_id'] == network.network_id] if isinstance(matching_shows, pd.DataFrame) else None
                             show_count = len(network_shows) if network_shows is not None else 0
-                            st.write(f"DEBUG: Found {show_count} shows on network {network.network_name} in matching shows")
+                            self.config.debug(f"Analyzing network {network.network_name} with {show_count} matching shows", category='network')
                             
                             # Generate network-specific recommendations using the RecommendationEngine directly
                             network_recommendations = self.recommendation_engine.generate_network_specific_recommendations(
@@ -633,21 +826,17 @@ class ConceptAnalyzer:
                                 integrated_data=integrated_data
                             )
                             
-                            # Debug output for recommendations result
-                            st.write(f"DEBUG: Generated {len(network_recommendations)} recommendations for network {network.network_name}")
+                            # Process network recommendations
                             if network_recommendations:
-                                for i, rec in enumerate(network_recommendations):
-                                    st.write(f"DEBUG: Network recommendation {i+1}: {rec.criteria_type} - Type: {rec.recommendation_type} - Impact: {rec.impact_score:.4f}")
+                                self.config.debug(f"Generated {len(network_recommendations)} recommendations for network {network.network_name}", category='recommendation')
                                 recommendations.extend(network_recommendations)
                             else:
-                                st.write(f"DEBUG: No recommendations generated for network {network.network_name} - check threshold values")
-                                
-                            st.write(f"DEBUG: ===== COMPLETED NETWORK ANALYSIS FOR {network.network_name} =====")
+                                self.config.debug(f"No recommendations generated for network {network.network_name}", category='recommendation')
                         except Exception as network_error:
                             # Use a more specific error message that includes the network name
                             st.error(f"Error generating recommendations for network {network.network_name}: {str(network_error)}")
                             import traceback
-                            st.write(f"DEBUG: Network recommendation error traceback: {traceback.format_exc()}")
+                            self.config.debug(f"Network recommendation error: {traceback.format_exc()}", category='recommendation', force=True)
             
             return recommendations
             

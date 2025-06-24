@@ -455,11 +455,17 @@ class ShowOptimizer:
                 integrated_data=integrated_data
             )
             
-            # Return the analysis result directly
+            # Format the analysis result using OptimizerView before returning
             if analysis_result:
                 if OptimizerConfig.DEBUG_MODE:
                     pass  # Debug message removed to reduce spam
-                return analysis_result
+                # Format the results using OptimizerView
+                if self.optimizer_view:
+                    formatted_summary = self.optimizer_view.format_optimization_summary(analysis_result)
+                    return formatted_summary
+                else:
+                    # Fall back to unformatted results if OptimizerView is not available
+                    return analysis_result
             else:
                 st.warning("Analysis produced no results")
                 return self.concept_analyzer._handle_analysis_error("No analysis results")

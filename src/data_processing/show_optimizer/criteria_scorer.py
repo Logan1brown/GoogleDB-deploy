@@ -75,26 +75,26 @@ class CriteriaScorer:
         Returns:
             Tuple of success rate and confidence information
         """
-        # Only log critical errors for success rate calculation
-        
         # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
-        if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data and not integrated_data['shows'].empty:
+        if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data:
             shows = integrated_data['shows']
-            # Using integrated_data['shows'] as fallback
                 
+        # Initialize confidence info if not provided
+        confidence_info = confidence_info or {}
+        
+        # Handle case with no valid shows data
         if shows is None or shows.empty:
-            # Critical error - no valid shows data
-            if confidence_info is None:
-                confidence_info = {'level': 'none', 'score': 0.0}
+            confidence_info['level'] = 'none'
+            confidence_info['score'] = 0.0
+            confidence_info['error'] = 'No valid shows data provided'
             return None, confidence_info
         
-        # Delegate to SuccessScoreCalculator
-        calculator = SuccessScoreCalculator()
-        
-        # Use the calculator's validate_and_prepare_data method with the same filter condition as in calculate
+        # Define success filter function
         def success_filter(df):
             return (df['success_score'].notna()) & (df['success_score'] > OptimizerConfig.SCORE_NORMALIZATION['success_filter_min'])
         
+        # Validate and prepare data
+        calculator = SuccessScoreCalculator()
         is_valid, validated_data, validation_info = calculator.validate_and_prepare_data(
             shows, 
             required_columns=['success_score'],
@@ -103,58 +103,42 @@ class CriteriaScorer:
             filter_condition=success_filter
         )
         
-        # Only log critical validation issues
-        
+        # Handle validation failure
         if not is_valid or validated_data is None or validated_data.empty:
-            
-
-            if confidence_info is None:
-                confidence_info = {'level': 'none', 'score': 0.0, 'error': validation_info.get('error', 'Unknown error')}
-            else:
-                confidence_info['error'] = validation_info.get('error', 'Unknown error')
+            confidence_info['level'] = 'none'
+            confidence_info['score'] = 0.0
+            confidence_info['error'] = validation_info.get('error', 'Data validation failed')
             return None, confidence_info
         
         # Use the provided threshold or default from config
-        if threshold is None:
-            threshold = OptimizerConfig.SUCCESS['threshold']
+        threshold = threshold or OptimizerConfig.SUCCESS['threshold']
         
-        # Let the calculator handle the actual calculation
         try:
-            # Calculate success score with threshold
+            # Calculate success score
             component_score = calculator.calculate(validated_data, threshold=threshold)
             
             if component_score is None:
-                # Critical error - component score is None
-                if confidence_info is None:
-                    confidence_info = {'level': 'none', 'score': 0.0, 'error': 'Failed to calculate success score'}
-                else:
-                    confidence_info['error'] = 'Failed to calculate success score'
+                confidence_info['level'] = 'none'
+                confidence_info['score'] = 0.0
+                confidence_info['error'] = 'Failed to calculate success score'
                 return None, confidence_info
-            else:
-                # Success score calculated successfully
-                pass
+            
+            # Extract success rate and update confidence info with component score details
+            success_rate = component_score.score
+            confidence_info.update(component_score.details)
+            
+            return success_rate, confidence_info
             
         except Exception as e:
-            # Log critical error during success score calculation
-            OptimizerConfig.debug(f"Exception during success score calculation: {str(e)}", category='success_rate')
-            if confidence_info is None:
-                confidence_info = {'level': 'none', 'score': 0.0, 'error': f'Exception during calculation: {str(e)}'}
-            else:
-                confidence_info['error'] = f'Exception during calculation: {str(e)}'
+            if OptimizerConfig.DEBUG_MODE:
+                import traceback
+                OptimizerConfig.debug(f"Exception during success score calculation: {str(e)}", category='success_rate')
+                OptimizerConfig.debug(traceback.format_exc(), category='success_rate')
+            
+            confidence_info['level'] = 'none'
+            confidence_info['score'] = 0.0
+            confidence_info['error'] = f'Exception during calculation: {str(e)}'
             return None, confidence_info
-        
-        # Extract success rate and metadata from component score
-        success_rate = component_score.score
-        
-        # Update confidence information
-        if confidence_info is None:
-            confidence_info = {}
-        
-        # Merge metadata from component score into confidence info
-        for key, value in component_score.details.items():
-            confidence_info[key] = value
-        
-        return success_rate, confidence_info
 
    
     def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: Optional[List[pd.DataFrame]] = None) -> List[Optional[float]]:
@@ -163,46 +147,109 @@ class CriteriaScorer:
 
         Args:
             criteria_list: List of criteria dictionaries
-            matching_shows_list: Optional list of DataFrames containing shows matching each criteria. If not provided, raises an error (explicit matching is required).
+            matching_shows_list: List of DataFrames containing shows matching each criteria
         Returns:
             List of success rates (one for each criteria/matching shows pair)
         """
-        if matching_shows_list is None:
-            return [None] * len(criteria_list)
-        if len(criteria_list) != len(matching_shows_list):
+        # Validate inputs
+        if matching_shows_list is None or len(criteria_list) != len(matching_shows_list):
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Invalid inputs for batch calculation: criteria_list={len(criteria_list)}, matching_shows_list={len(matching_shows_list) if matching_shows_list else None}", category='success_rate')
             return [None] * len(criteria_list)
         
         results = []
-        
-        # Create a single SuccessScoreCalculator instance to reuse
         calculator = SuccessScoreCalculator()
+        threshold = OptimizerConfig.PERFORMANCE.get('success_threshold', None)
         
         for i, (criteria, matching_shows) in enumerate(zip(criteria_list, matching_shows_list)):
             try:
                 if matching_shows is None or matching_shows.empty:
                     results.append(None)
                     continue
-                    
-                # Use the calculator to calculate the success rate with the proper threshold
-                threshold = OptimizerConfig.PERFORMANCE.get('success_threshold', None)
                 
-                try:
-                    # Ensure we pass the correct parameters to calculate
-                    component_score = calculator.calculate(matching_shows, threshold=threshold)
-                    
-                    if component_score is None:
-                        results.append(None)
-                    else:
-                        # Extract just the success rate value
-                        results.append(component_score.score)
-                except Exception as calc_error:
-                    # Handle specific calculation errors
-                    results.append(None)
-                    
+                component_score = calculator.calculate(matching_shows, threshold=threshold)
+                results.append(component_score.score if component_score else None)
+                
             except Exception as e:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Error calculating success rate for criteria {i}: {str(e)}", category='success_rate')
                 results.append(None)
                 
         return results
+    
+    def _is_valid_dataframe(self, df) -> bool:
+        """Check if a DataFrame is valid (not None and not empty).
+        
+        Args:
+            df: DataFrame to check
+            
+        Returns:
+            True if DataFrame is valid, False otherwise
+        """
+        return df is not None and not df.empty
+        
+    def _create_option_criteria(self, base_criteria: Dict[str, Any], field: str, option_id, is_array_field: bool) -> Dict[str, Any]:
+        """Create criteria with a specific option value for a field or remove the field.
+        
+        Args:
+            base_criteria: Base criteria to modify
+            field: Field to set or remove
+            option_id: Option ID to set for the field, or 'remove' to remove the field
+            is_array_field: Whether this is an array field (ignored for 'remove')
+            
+        Returns:
+            New criteria dictionary with the option set or field removed
+        """
+        # Create a shallow copy of the base criteria
+        new_criteria = dict(base_criteria)
+        
+        # Special handling for 'remove' option
+        if option_id == 'remove':
+            if field in new_criteria:
+                del new_criteria[field]
+            return new_criteria
+        
+        # Convert option ID to integer for normal options
+        option_id = int(option_id)
+        
+        # For array fields, use a list; for scalar fields, use the value directly
+        if is_array_field:
+            new_criteria[field] = [option_id]
+        else:
+            new_criteria[field] = option_id
+            
+        return new_criteria
+    
+    def _determine_recommendation_type(self, option_id, impact: float, is_field_selected: bool, is_option_selected: bool) -> str:
+        """Determine recommendation type based on impact and selection status.
+        
+        Args:
+            option_id: ID of the option being evaluated
+            impact: Impact score (difference from base success rate)
+            is_field_selected: Whether the field is selected in base criteria
+            is_option_selected: Whether this specific option is selected
+            
+        Returns:
+            Recommendation type ('add', 'change', 'remove') or None if no recommendation
+        """
+        # Special case for explicit remove option
+        if option_id == 'remove':
+            return 'remove'
+            
+        if impact > 0:  # Positive impact
+            if is_field_selected:
+                # Field is selected - suggest changing it
+                return 'change'
+            else:
+                # Field is not selected - suggest adding it
+                return 'add'
+        else:  # Negative impact
+            # Only recommend removal for selected options with negative impact
+            if is_option_selected:
+                return 'remove'
+            else:
+                # No recommendation for unselected options with negative impact
+                return None
     
     def calculate_criteria_impact(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None) -> Dict[str, Dict[Any, Dict[str, Any]]]:
         """Calculate the impact of each criteria option on success rate.
@@ -215,92 +262,99 @@ class CriteriaScorer:
         Returns:
             Dictionary of impact scores by field and option
         """
+        # Validate inputs - fail fast with clear error messages
+        if not criteria:
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("Cannot calculate criteria impact: empty criteria", category='impact')
+            return {}
+            
+        # Normalize base criteria once at the beginning
+        normalized_base_criteria = self.field_manager.normalize_criteria(criteria)
+            
+        # Check if criteria contains only empty values
+        try:
+            has_valid_criteria = False
+            for field, value in criteria.items():
+                try:
+                    if value is not None and (not isinstance(value, (list, dict)) or len(value) > 0):
+                        has_valid_criteria = True
+                        break
+                except Exception as e:
+                    # If we can't check a value properly, consider it valid to be safe
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Error checking criteria value for {field}: {str(e)}", category='impact')
+                    has_valid_criteria = True  # Assume valid if we can't check properly
+                    break
+                    
+            if not has_valid_criteria:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug("Cannot calculate criteria impact: criteria contains only empty values", category='impact')
+                return {}
+        except Exception as e:
+            # If we can't check criteria at all, log and continue with processing
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Error checking criteria validity: {str(e)}, continuing with processing", category='impact')
+            # We'll continue and let other validation steps catch issues
+            
+        if matching_shows is None or matching_shows.empty:
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("Cannot calculate criteria impact: no matching shows", category='impact')
+            return {}
+            
         # Initialize impact scores dictionary
         impact_scores = {}
-        
-        # Initialize fields_to_process at the top level to avoid scope issues
-        fields_to_process = []
-        
-        # Only log critical information for impact calculation
-        
-        # Validate inputs
-        if not criteria:
-            # Critical error - no criteria provided
-            return {}
-        
-        if matching_shows is None or matching_shows.empty:
-            # Critical error - no matching shows
-            return {}
         
         try:
             # Let the field manager handle array field identification
             array_field_mapping = self.field_manager.get_array_field_mapping()
-            array_fields = list(array_field_mapping.keys())
             
             # Calculate base success rate for all matching shows
             base_rate, base_info = self._calculate_success_rate(matching_shows)
             
+            # Check if we have a valid base success rate
+            if base_rate is None:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug("Cannot calculate impact: invalid base success rate", category='impact')
+                return {}
+                
             # Get all fields to analyze from the FIELD_CONFIGS dictionary
             all_fields = list(self.field_manager.FIELD_CONFIGS.keys())
             
-            # Process both selected and unselected fields
-            # First, add all fields that are in the criteria
-            fields_to_process = [field for field in criteria.keys() if field in all_fields]
+            # First, add all fields that are in the criteria (selected fields)
+            selected_fields = [field for field in criteria.keys() if field in all_fields]
             
-            # Add a selection of unselected fields to consider for true "Add" recommendations
-            # Prioritize fields based on importance defined in OptimizerConfig.CRITERIA_IMPORTANCE
+            # Identify unselected fields for "Add" recommendations
             unselected_fields = [field for field in all_fields if field not in criteria]
-            max_unselected = OptimizerConfig.SUGGESTIONS.get('max_unselected_fields', 7)
             
-            # Track which fields are unselected for proper recommendation type tagging
+            # Store unselected fields for recommendation type determination
             self._unselected_fields = set(unselected_fields)
             
-            # Add debug output for unselected fields tracking
-            if OptimizerConfig.DEBUG_MODE:
-                pass
+            # Prioritize unselected fields based on importance
+            importance_map = {'primary': 1, 'secondary': 2, 'tertiary': 3}
             
-            # Sort unselected fields by importance category
-            importance_order = {'essential': 0, 'core': 1, 'primary': 2, 'secondary': 3}
-            prioritized_fields = []
+            # Sort unselected fields by importance
+            prioritized_unselected = sorted(
+                unselected_fields,
+                key=lambda field: importance_map.get(OptimizerConfig.CRITERIA_IMPORTANCE.get(field, 'secondary'), 3)
+            )
             
-            for field in unselected_fields:
-                # Get importance category, default to 'secondary' if not specified
-                importance = OptimizerConfig.CRITERIA_IMPORTANCE.get(field, 'secondary')
-                # Add to prioritized list with importance order value
-                prioritized_fields.append((field, importance_order.get(importance, 3)))
+            # Limit number of unselected fields to process
+            max_unselected = OptimizerConfig.SUGGESTIONS.get('max_unselected_fields', 7)
+            prioritized_unselected = prioritized_unselected[:max_unselected]
             
-            # Sort by importance (lower value = higher importance)
-            prioritized_fields.sort(key=lambda x: x[1])
+            # Combine selected and prioritized unselected fields
+            fields_to_process = selected_fields + prioritized_unselected
             
-            # Extract just the field names in priority order
-            prioritized_unselected = [field for field, _ in prioritized_fields]
-            
-            # Add debug output for unselected fields
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Found {len(unselected_fields)} unselected fields, will process up to {max_unselected}", category='impact')
-                
-            # Add the prioritized unselected fields to process (limited by max_unselected)
-            fields_to_process.extend(prioritized_unselected[:max_unselected])
-            
-            # Only log critical base rate information
-            
-            # Check if base success rate is None
-            if base_rate is None:
-                # Critical error - invalid base success rate
-                return {}
-            
-            # Process fields from criteria
-                
-            # If no fields to process, return empty impact scores
+            # Check if we have fields to process
             if not fields_to_process:
-                # Critical error - no fields to process
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug("Cannot calculate impact: no fields to process", category='impact')
                 return {}
             
             # Process each field
             for current_field in fields_to_process:
                 # Skip fields that don't have options
                 options = self.field_manager.get_options(current_field)
-                # Removed excessive debug output for field options
                 if not options:
                     continue
                     
@@ -322,7 +376,7 @@ class CriteriaScorer:
                     # Field in base criteria
                     
                     # 1. First, create a "Remove" recommendation by removing this field
-                    remove_criteria = criteria.copy()
+                    remove_criteria = dict(criteria)  # Shallow copy is sufficient
                     del remove_criteria[current_field]
                     batch_criteria.append(remove_criteria)
                     option_data.append(('remove', 'Remove ' + current_field))
@@ -335,21 +389,11 @@ class CriteriaScorer:
                             continue
                         elif not is_array_field and option.id == current_value:
                             continue
-                            
-                        # Create a new criteria with this option
-                        new_criteria = criteria.copy()
                         
-                        # For array fields, we replace the current value with a new array
-                        # For scalar fields, we simply replace the value
-                        if is_array_field and isinstance(current_value, list):
-                            # Replace the array with a new array containing just this option
-                            option_key = int(option.id)
-                            new_criteria[current_field] = [option_key]
-                        else:
-                            # Replace the scalar value
-                            option_key = int(option.id)
-                            new_criteria[current_field] = option_key
-                            
+                        # Create criteria with this option
+                        new_criteria = self._create_option_criteria(criteria, current_field, option.id, is_array_field)
+                        option_key = int(option.id)
+                        
                         batch_criteria.append(new_criteria)
                         option_data.append((option_key, self.field_manager.get_name(current_field, option.id)))
                         recommendation_types.append('change')
@@ -357,18 +401,10 @@ class CriteriaScorer:
                     # For fields not in criteria, create "Add" recommendations for each option
                         
                     for option in options:
-                        # Create a new criteria with this option
-                        new_criteria = criteria.copy()
+                        # Create criteria with this option
+                        new_criteria = self._create_option_criteria(criteria, current_field, option.id, is_array_field)
+                        option_key = int(option.id)
                         
-                        # For array fields, always use list of ints
-                        # For scalar fields, use the int directly
-                        if is_array_field:
-                            option_key = int(option.id)
-                            new_criteria[current_field] = [option_key]
-                        else:
-                            option_key = int(option.id)
-                            new_criteria[current_field] = option_key
-                            
                         batch_criteria.append(new_criteria)
                         option_data.append((option_key, self.field_manager.get_name(current_field, option.id)))
                         recommendation_types.append('add')
@@ -384,63 +420,23 @@ class CriteriaScorer:
                     # For each option in option_data, run the matcher to get matching shows
                     for i, (option_id, option_name) in enumerate(option_data):
                         try:
-                            # Create criteria for this option
-                            option_criteria = {}
+                            # Create criteria for this option using our helper method
+                            option_criteria = self._create_option_criteria(normalized_base_criteria, current_field, option_id, is_array_field)
                             
-                            # Special handling for 'remove' option
-                            if option_id == 'remove':
-                                # For 'remove', we use all shows without this field
-                                option_shows = matching_shows.copy() if matching_shows is not None else None
-                                
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Testing 'remove' option for {current_field} (using existing matches)", category='impact')
-                            else:
-                                # For 'change' recommendations, we need to replace the existing value in the criteria
-                                # For 'add' recommendations, we need to add the new field
-                                if recommendation_types[i] == 'change':
-                                    # Create a modified version of the original criteria with this option
-                                    option_criteria = criteria.copy()
-                                    option_criteria[current_field] = option_id
-                                    
-                                    # For 'change', we need a fresh match since we're replacing a value
-                                    # (e.g., changing from one genre to another)
-                                    use_matching_shows = False
-                                    
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        OptimizerConfig.debug(f"Testing 'change' option for {current_field}={option_name} (ID: {option_id})", category='impact')
-                                else:
-                                    # For 'add' recommendations, we need to combine with existing criteria
-                                    # This ensures we're testing the impact of adding this field to the existing criteria
-                                    option_criteria = criteria.copy()
-                                    option_criteria[current_field] = option_id
-                                    
-                                    # For 'add', we need a fresh match with the combined criteria
-                                    use_matching_shows = False
-                                    
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        OptimizerConfig.debug(f"Testing 'add' option for {current_field}={option_name} (ID: {option_id})", category='impact')
-                                
-                                # Use field_manager to normalize criteria values based on field types
-                                option_criteria = self.field_manager.normalize_criteria(option_criteria)
-                                
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Testing option {option_name} with criteria: {option_criteria} (type: {recommendation_types[i]})", category='impact')
-                                
-                                # For 'change' recommendations, run a fresh match
-                                # For 'add' recommendations, we can filter the existing matches if available
-                                if use_matching_shows:
-                                    option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
-                                else:
-                                    option_shows, _, _ = self._get_matching_shows(option_criteria)
+                            if option_id == 'remove' and OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Testing 'remove' option for {current_field} (with field removed from criteria)", category='impact')
                             
-                                        # Removed excessive debug output for option matching shows
+                            # Get shows matching the modified criteria
+                            option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria)
+                                                        
+                            # Process option matching shows
                             
                             # Check if we got valid shows
-                            if option_shows is not None and not option_shows.empty:
+                            if self._is_valid_dataframe(option_shows):
                                 # Store in field_options_map
                                 field_options_map[option_id] = option_shows
                         except Exception as e:
-                                            # Keep only essential error logging
+                            # Log error and skip this option
                             if OptimizerConfig.DEBUG_MODE:
                                 OptimizerConfig.debug(f"Exception getting matching shows for option {option_name}: {str(e)}", category='impact')
                             # Skip this option
@@ -458,34 +454,28 @@ class CriteriaScorer:
                 impact_scores[current_field] = {}
                 
                 # Process each option in option_data
-                # Removed excessive debug output for option processing
-                    
                 for i, (option_id, option_name) in enumerate(option_data):
                     try:
                         # Get the option shows from field_options_map
                         option_shows = field_options_map.get(option_id)
                         
                         # Skip options with no matching shows
-                        if option_shows is None or option_shows.empty:
+                        if not self._is_valid_dataframe(option_shows):
                             continue
                             
                         # Calculate success rate for this option's matching shows
                         option_rate, option_info = self._calculate_success_rate(option_shows)
                         
                         if option_rate is None:
-                            # Skip this option if we can't calculate a success rate
-                            # Removed excessive debug output for skipped options
                             continue
                             
                         # Calculate impact as the difference from base rate
                         impact = option_rate - base_rate
-                        
-                        # Removed excessive debug output for success rate and impact
-                        
+                    
                         # Get minimum impact threshold
                         min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
                         
-                        # Store the original impact for debugging
+                        # Store the original impact for reference and debugging
                         original_impact = impact
                         
                         # Force a minimum impact for testing - this ensures we get recommendations
@@ -493,7 +483,9 @@ class CriteriaScorer:
                             # Boost the impact slightly to ensure we get recommendations
                             # But preserve the sign (positive/negative)
                             impact = min_impact if impact >= 0 else -min_impact
-                            # Removed excessive debug output for impact boosting
+                            
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Boosted impact for {option_name} from {original_impact:.4f} to {impact:.4f}", category='impact')
                         
                         # Determine recommendation type based on impact and whether this specific option is selected
                         is_field_selected = current_field in criteria
@@ -501,323 +493,375 @@ class CriteriaScorer:
                         
                         # Check if this specific option is selected
                         if is_field_selected:
-                            # For array fields (like character_types), check if the option_id is in the array
-                            if isinstance(criteria.get(current_field), list):
-                                is_option_selected = option_id in criteria[current_field]
-                            # For single value fields (like genre), check if the option_id matches the value
+                            current_value = criteria[current_field]
+                            if isinstance(current_value, list):
+                                is_option_selected = option_id in current_value
                             else:
-                                is_option_selected = criteria[current_field] == option_id
+                                is_option_selected = current_value == option_id
+                                
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Option {option_name} selection status: {is_option_selected}", category='impact')
                         
                         # Determine recommendation type based on impact and selection status
-                        if impact > 0:
-                            # For positive impact
-                            if is_option_selected:
-                                # Option is already selected, but has positive impact (shouldn't happen often)
-                                rec_type = 'change'  # Keep as 'change' for consistency
-                            elif is_field_selected:
-                                # Field is selected but with a different option
-                                rec_type = 'change'  # It's a change if the field is already selected with different value
-                            else:
-                                rec_type = 'add'      # It's an add if the field is not selected at all
-                        else:
-                            # For negative impact
-                            if is_option_selected:
-                                rec_type = 'remove'  # It's a remove if this specific option is selected
-                            else:
-                                # It's a negative impact but the option isn't selected
-                                # This should be 'add' with negative impact (don't add this)
-                                rec_type = 'add'
-                            
-                        # Use the recommendation type from the list if available, otherwise use the determined type
-                        try:
-                            recommendation_type = recommendation_types[i] if i < len(recommendation_types) else rec_type
-                            
-                            # Add detailed debug output for recommendation type and selection status
+                        # Centralized recommendation type assignment rules:
+                        # - 'add': For suggesting new unselected fields with positive impact
+                        # - 'change': For suggesting different values for already selected fields
+                        # - 'remove': For suggesting removal of selected fields with negative impact
+                        
+                        # Determine recommendation type using helper method
+                        recommendation_type = self._determine_recommendation_type(
+                            option_id, impact, is_field_selected, is_option_selected
+                        )
+                        
+                        # Skip options with no recommendation type (e.g., negative impact on unselected fields)
+                        if recommendation_type is None:
                             if OptimizerConfig.DEBUG_MODE:
-                                # Show detailed selection status
-                                if is_option_selected:
-                                    pass
-                                elif is_field_selected:
-                                    pass
-                                else:
-                                    pass
-                        except (IndexError, TypeError):
-                            recommendation_type = rec_type
-                            
+                                OptimizerConfig.debug(f"Skipping {current_field}={option_name}: negative impact {impact:.4f} on unselected field", category='impact')
+                            continue  # Skip to next option
+                        
+                        # Add detailed debug output for recommendation type determination
+                        if OptimizerConfig.DEBUG_MODE:
+                            selection_status = "selected" if is_option_selected else "not selected"
+                            field_status = "field selected" if is_field_selected else "field not selected"
+                            impact_direction = "positive" if impact > 0 else "negative"
+                            OptimizerConfig.debug(f"Recommendation for {current_field}={option_name}: type={recommendation_type}, impact={impact:.4f} ({impact_direction}), {selection_status}, {field_status}", category='impact')
+                        
+                        # Store impact score with all relevant information
                         impact_scores[current_field][option_id] = {
                             'option_id': option_id,
                             'option_name': option_name,
                             'impact': impact,
+                            'original_impact': original_impact,  # Store original impact for reference
                             'success_rate': option_rate,
                             'sample_size': len(option_shows),
                             'recommendation_type': recommendation_type
                         }
-                        
-                        # Removed excessive debug output for impact scores
                     except Exception as e:
                         # Skip this option if there's an error
                         if OptimizerConfig.DEBUG_MODE:
+                            import traceback
                             OptimizerConfig.debug(f"Error processing option {option_name}: {str(e)}", category='impact')
+                            OptimizerConfig.debug(traceback.format_exc(), category='impact')
                         continue
                 
             # Check if we have any impact scores after processing all fields
-            # Keep only summary debug output for impact scores
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Impact scores after processing: {len(impact_scores)} fields with scores", category='impact')
+                field_count = len(impact_scores)
+                option_count = sum(len(options) for options in impact_scores.values())
+                OptimizerConfig.debug(f"Generated impact scores for {field_count} fields with {option_count} total options from selected fields", category='impact')
             
-            if not impact_scores and fields_to_process:
-                # Keep essential debug for no impact scores case
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("No impact scores could be generated for the current criteria.", category='impact')
+            # Process unselected fields to generate 'add' recommendations
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("Processing unselected fields for 'add' recommendations", category='impact')
+            
+            # Process fields we haven't already processed
+            processed_fields = set(fields_to_process)
+            for field in self.field_manager.FIELD_CONFIGS.keys():
+                if field not in criteria and field in self.field_manager.get_all_fields() and field not in processed_fields:
+                    # Skip fields that don't have options
+                    options = self.field_manager.get_options(field)
+                    if not options:
+                        continue
                     
-                # Force generate some recommendations for testing
-                # Removed excessive debug output for fallback impact scores
+                    # Initialize field in impact scores
+                    impact_scores[field] = {}
                     
-                # If we have fields to process but no impact scores were generated,
-                # let's process additional unselected fields that weren't included in the main approach
-                
-                # Skip additional processing if we already have impact scores
-                if any(impact_scores.values()):
-                    if OptimizerConfig.DEBUG_MODE:
-                        pass
-                else:
-                    # Only process fields we haven't already processed
-                    processed_fields = set(fields_to_process)
-                    for field in self.field_manager.FIELD_CONFIGS.keys():
-                        if field not in criteria and field in self.field_manager.get_all_fields() and field not in processed_fields:
-                            # Skip fields that don't have options
-                            options = self.field_manager.get_options(field)
-                            if not options:
+                    # For each option, calculate a default impact score
+                    for option in options:
+                        try:
+                            option_id = option.id
+                            option_name = self.field_manager.get_name(field, option_id)
+                            
+                            # Create a new criteria with this option
+                            option_criteria = criteria.copy()
+                            option_criteria[field] = option_id
+                            
+                            # Use field_manager to normalize criteria values based on field types
+                            option_criteria = self.field_manager.normalize_criteria(option_criteria)
+                            
+                            # Determine if we should use existing matching shows or run a fresh match
+                            # For adding a new field, we could filter existing matches if they exist
+                            use_matching_shows = matching_shows is not None and not matching_shows.empty
+                            
+                            # If the field is already in criteria (but with a different value), we need a fresh match
+                            if field in criteria:
+                                use_matching_shows = False
+                            
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Testing 'add' option {option_name} with criteria: {option_criteria} (using existing matches: {use_matching_shows})", category='impact')
+                            
+                            # Use existing matches if appropriate, otherwise run a fresh match
+                            if use_matching_shows:
+                                # When using existing matches, pass the matching_shows as data
+                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
+                            else:
+                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria)
+                            
+                            # Skip options with no matching shows
+                            if option_shows is None or option_shows.empty:
+                                continue
+                                
+                            # Calculate success rate for this option's matching shows
+                            option_rate, option_info = self._calculate_success_rate(option_shows)
+                            
+                            if option_rate is None:
+                                continue
+                                
+                            # Calculate impact as the difference from base rate
+                            impact = option_rate - base_rate
+                            
+                            # Store the original impact for reference
+                            original_impact = impact
+                            
+                            # Skip if impact is too small
+                            min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
+                            if abs(impact) < min_impact:
+                                # Skip options with minimal impact
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Skipping {field}={option_name} due to small impact: {impact:.4f}", category='impact')
                                 continue
                             
-                            # Initialize field in impact scores
-                            impact_scores[field] = {}
-                            
-                            # For each option, calculate a default impact score
-                            for option in options:
-                                try:
-                                    option_id = option.id
-                                    option_name = self.field_manager.get_name(field, option_id)
-                                    
-                                    # Create a new criteria with this option
-                                    option_criteria = criteria.copy()
-                                    option_criteria[field] = option_id
-                                    
-                                    # Use field_manager to normalize criteria values based on field types
-                                    option_criteria = self.field_manager.normalize_criteria(option_criteria)
-                                    
-                                    # Determine if we should use existing matching shows or run a fresh match
-                                    # For adding a new field, we could filter existing matches if they exist
-                                    use_matching_shows = matching_shows is not None and not matching_shows.empty
-                                    
-                                    # If the field is already in criteria (but with a different value), we need a fresh match
-                                    if field in criteria:
-                                        use_matching_shows = False
+                            # For unselected fields, only store positive impact scores (as 'add' recommendations)
+                            # Skip negative impact scores for unselected fields as they're not actionable
+                            if impact <= 0:
+                                # Skip storing negative impact scores for unselected fields
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Skipping {field}={option_name}: negative impact {impact:.4f} on unselected field", category='impact')
+                                continue
                                 
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        OptimizerConfig.debug(f"Testing 'add' option {option_name} with criteria: {option_criteria} (using existing matches: {use_matching_shows})", category='impact')
-                                    
-                                    # Use existing matches if appropriate, otherwise run a fresh match
-                                    if use_matching_shows:
-                                        option_shows, _, _ = self._get_matching_shows(option_criteria, matching_shows)
-                                    else:
-                                        option_shows, _, _ = self._get_matching_shows(option_criteria)
-                                    
-                                    # Skip options with no matching shows
-                                    if option_shows is None or option_shows.empty:
-                                        continue
-                                        
-                                    # Calculate success rate for this option's matching shows
-                                    option_rate, option_info = self._calculate_success_rate(option_shows)
-                                    
-                                    if option_rate is None:
-                                        continue
-                                        
-                                    # Calculate impact as the difference from base rate
-                                    impact = option_rate - base_rate
-                                    
-                                    # Skip if impact is too small
-                                    min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
-                                    if abs(impact) < min_impact:
-                                        continue
-                                    
-                                    # Store the impact score
-                                    # For unselected fields, these are all true "add" recommendations
-                                    recommendation_type = 'add' if impact > 0 else 'remove'
-                                    
-                                    impact_scores[field][option_id] = {
-                                        'option_id': option_id,
-                                        'option_name': option_name,
-                                        'impact': impact,
-                                        'success_rate': option_rate,
-                                        'sample_size': len(option_shows),
-                                        'recommendation_type': recommendation_type
-                                    }
-                                    
-                                    # Removed excessive debug output for unselected field impact scores
-                                except Exception as e:
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        OptimizerConfig.debug(f"Error processing unselected field option {field}: {str(e)}", category='impact')
-                                    continue
+                            # For unselected fields with positive impact, always use 'add' recommendation type
+                            recommendation_type = 'add'
+                            
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Recommendation for {field}={option_name}: type={recommendation_type}, impact={impact:.4f} (positive)", category='impact')
+                            
+                            # Store impact score with all relevant information
+                            impact_scores[field][option_id] = {
+                                'option_id': option_id,
+                                'option_name': option_name,
+                                'impact': impact,
+                                'original_impact': original_impact,
+                                'success_rate': option_rate,
+                                'sample_size': len(option_shows),
+                                'recommendation_type': recommendation_type
+                            }
+                        except Exception as e:
+                            if OptimizerConfig.DEBUG_MODE:
+                                import traceback
+                                OptimizerConfig.debug(f"Error processing unselected field option {field}: {str(e)}", category='impact')
+                                OptimizerConfig.debug(traceback.format_exc(), category='impact')
+                            continue
                 
-            # If we still have no impact scores, return empty dict
-            if not any(impact_scores.values()):
-                # Keep essential debug for complete failure case
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("No impact scores could be generated from any selected or unselected fields.", category='impact')
-                return {}
+            # Summarize the impact scores we've generated
+            if OptimizerConfig.DEBUG_MODE:
+                # Count fields, options, and recommendation types
+                field_count = len(impact_scores)
+                option_count = 0
+                recommendation_counts = {'add': 0, 'change': 0, 'remove': 0}
+                
+                # Count options and recommendation types
+                for field, options in impact_scores.items():
+                    option_count += len(options)
+                    for option in options.values():
+                        rec_type = option.get('recommendation_type')
+                        if rec_type in recommendation_counts:
+                            recommendation_counts[rec_type] += 1
+                # Add summary statistics to the result for better recommendations
+                result_summary = {
+                    'field_count': field_count,
+                    'option_count': option_count,
+                    'recommendation_counts': recommendation_counts
+                }
+                
+                # Store the summary in the result
+                impact_scores['_summary'] = result_summary
+                
+                # Summary information is now stored in impact_scores['_summary'] for better recommendations
+                
+            # If we still have no impact scores, return structured empty dict with error info
+            if not any(impact_scores.values()) or all(k == '_summary' for k in impact_scores.keys()):
+                return {
+                    '_error': 'No impact scores could be generated from any selected or unselected fields',
+                    '_summary': {
+                        'field_count': 0,
+                        'option_count': 0,
+                        'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
+                    }
+                }
                 
             return impact_scores
 
         except ValueError as ve:
             if OptimizerConfig.DEBUG_MODE:
-                pass
+                import traceback
+                OptimizerConfig.debug(f"ValueError in calculate_criteria_impact: {str(ve)}", category='error')
+                OptimizerConfig.debug(traceback.format_exc(), category='error')
             return {}
         except Exception as e:
             # Log the exception with detailed traceback
             if OptimizerConfig.DEBUG_MODE:
                 import traceback
                 OptimizerConfig.debug(f"Exception in calculate_criteria_impact: {str(e)}", category='error')
-                pass
+                OptimizerConfig.debug(traceback.format_exc(), category='error')
                 # Log the state of key variables to help diagnose the issue
                 OptimizerConfig.debug(f"Criteria: {criteria}", category='error')
-                OptimizerConfig.debug(f"Matching shows shape: {matching_shows.shape if matching_shows is not None else 'None'}", category='error')
+                OptimizerConfig.debug(f"Matching shows count: {len(matching_shows) if matching_shows is not None and not matching_shows.empty else 0}", category='error')
+                OptimizerConfig.debug(f"Fields processed: {fields_to_process if 'fields_to_process' in locals() else 'Not initialized'}", category='error')
             return {}
             
-    def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:
-        """
-        Calculate component scores for the given criteria using provided matched shows.
+    def calculate_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, Any]:
+        """Calculate all scores for a set of criteria and matching shows.
+        
+        This is the main entry point for score calculation as defined in the architecture.
+        It orchestrates the calculation of all component scores and returns a comprehensive
+        result dictionary with standardized structure.
         
         Args:
-            criteria: Dictionary of criteria
-            matching_shows: DataFrame of shows matching the criteria
-            confidence_info: Confidence information from matching
-            integrated_data: Dictionary of integrated data frames from ShowOptimizer
+            criteria: Dictionary of criteria with field names as keys and values as criteria values
+            matching_shows: DataFrame of shows matching the criteria, must contain at minimum 'id' and 'success_score' columns
+            integrated_data: Optional dictionary of integrated data with keys as data source names and values as DataFrames
             
         Returns:
-            Dictionary mapping component names to ComponentScore objects
-        """
-        component_scores: Dict[str, ComponentScore] = {}
-
-        try:
-            # First check if we have any matching shows
-            if matching_shows is None or matching_shows.empty:
-                return {}
-                
-            # Calculate match count
-            match_count = len(matching_shows)
+            Dictionary with the following structure:
+            {
+                'component_scores': Dict[str, ComponentScore],  # Component scores by name
+                'success_rate': Optional[float],                # Overall success rate (0-1)
+                'success_info': Dict[str, Any],                # Success rate calculation details
+                'confidence': Dict[str, Any]                   # Confidence information
+            }
             
-            # Using general minimum_sample from OptimizerConfig
-            if match_count < OptimizerConfig.CONFIDENCE['minimum_sample']:
-                pass  # Continue with calculation despite small sample
-                
+        Raises:
+            ValueError: If matching_shows is None or empty
+        """
+        # Validate inputs
+        if not self._is_valid_dataframe(matching_shows):
+            # Return a structured empty result with error information
+            return {
+                'component_scores': {},
+                'success_rate': None,
+                'success_info': {'error': 'No matching shows available for score calculation'},
+                'confidence': {'confidence': 'none', 'confidence_score': 0.0}
+            }
+            
+        # Calculate confidence information if not already provided
+        confidence_info = self.calculate_confidence(criteria)
+        
+        # Calculate component scores
+        component_scores = self.calculate_component_scores(criteria, matching_shows, confidence_info, integrated_data)
+        
+        # Calculate success rate
+        success_rate, success_info = self._calculate_success_rate(matching_shows)
+        
+        # Combine all scores into a comprehensive result
+        all_scores = {
+            'component_scores': component_scores,
+            'success_rate': success_rate,
+            'success_info': success_info,
+            'confidence': confidence_info
+        }
+        
+        return all_scores
+    
+    def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any] = None, integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:
+        """Calculate component scores for a set of criteria and matching shows.
+        
+        This method orchestrates the calculation of individual component scores using
+        specialized calculator classes. It handles validation, error handling, and
+        aggregation of results.
+        
+        Args:
+            criteria: Dictionary of criteria with field names as keys and values as criteria values
+            matching_shows: DataFrame of shows matching the criteria, must contain required columns for each component
+            confidence_info: Optional dictionary of confidence information from matching process
+            integrated_data: Optional dictionary of integrated data with keys as data source names and values as DataFrames
+            
+        Returns:
+            Dictionary mapping component names to ComponentScore objects with the following structure:
+            {
+                'success': ComponentScore,   # Success component score
+                'audience': ComponentScore,  # Audience component score
+                'critics': ComponentScore,   # Critics component score
+                'longevity': ComponentScore, # Longevity component score
+                'network': ComponentScore    # Network component score (if network_analyzer is available)
+            }
+            
+        Raises:
+            ValueError: If matching_shows is None or empty
+        """
+        if matching_shows is None or matching_shows.empty:
+            # Return an empty dictionary with structured error information
+            return {}
+            
+        try:
+            # Check sample size
+            match_count = len(matching_shows)
+            if match_count < OptimizerConfig.CONFIDENCE['minimum_sample'] and OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Small sample size for component scores: {match_count} shows (min: {OptimizerConfig.CONFIDENCE['minimum_sample']})", category='components')
+            
+            # Initialize calculators
             calculators = [
                 SuccessScoreCalculator(),
                 AudienceScoreCalculator(),
                 CriticsScoreCalculator(),
                 LongevityScoreCalculator()
             ]
+            component_scores = {}
             
-            # Calculate scores for each component using the SAME matching_shows DataFrame
-            # This prevents redundant matching operations
+            # Calculate scores for each component
             for calculator in calculators:
                 try:
-                    # Pass the same matching_shows to all calculators
-                    score_component = calculator.calculate(matching_shows.copy())  # Pass a copy to avoid modification issues
-                    if score_component:  # Ensure a component score object was returned
+                    score_component = calculator.calculate(matching_shows.copy())
+                    if score_component:
                         component_scores[calculator.component_name] = score_component
+                        if OptimizerConfig.DEBUG_MODE:
+                            score_value = score_component.score if score_component.score is not None else 'N/A'
+                            OptimizerConfig.debug(f"Calculated {calculator.component_name} score: {score_value}", category='components')
                 except Exception as e:
-                    # Create a placeholder component score with None value
+                    # Create error component score
                     component_scores[calculator.component_name] = ComponentScore(
-                        component=calculator.component_name,
-                        score=None,  # None will be displayed as N/A
-                        sample_size=0,
-                        confidence='none',
+                        component=calculator.component_name, 
+                        score=None, 
+                        sample_size=0, 
+                        confidence='none', 
                         details={'status': 'calculation_error', 'error': str(e)}
                     )
-
-            if not component_scores:
-                return {}
-
-            # Component scores calculation complete
+                    if OptimizerConfig.DEBUG_MODE:
+                        import traceback
+                        OptimizerConfig.debug(f"Error calculating {calculator.component_name} score: {str(e)}", category='components')
+                        OptimizerConfig.debug(traceback.format_exc(), category='components')
+            
             return component_scores
             
         except Exception as e:
+            if OptimizerConfig.DEBUG_MODE:
+                import traceback
+                OptimizerConfig.debug(f"Exception in calculate_component_scores: {str(e)}", category='error')
+                OptimizerConfig.debug(traceback.format_exc(), category='error')
             return {}
 
-
-
-
-    def get_criteria_confidence(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate confidence levels for criteria.
+    def calculate_confidence(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate and analyze confidence levels for criteria.
+        
+        Delegates to field_manager.calculate_confidence to determine confidence
+        levels for the provided criteria. The confidence information includes
+        scores and levels for different components based on the criteria values.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria field names and values where keys are field names
+                      and values are the criteria values to evaluate confidence for
             
         Returns:
-            Dictionary with confidence information
+            Dictionary with the following structure:
+            {
+                'confidence': str,                # Overall confidence level ('none', 'very_low', 'low', 'medium', 'high')
+                'confidence_score': float,         # Overall confidence score (0-1)
+                'field_confidence': Dict[str, Any] # Per-field confidence information
+            }
         """
         return self.field_manager.calculate_confidence(criteria)
-
-    def analyze_criteria_confidence(self, criteria: Dict[str, Any]) -> Dict[str, str]:
-        """Analyze confidence levels for criteria.
-        
-        Args:
-            criteria: Dictionary of criteria
             
-        Returns:
-            Dictionary of confidence levels by component
-        """
-        return self.field_manager.calculate_confidence(criteria)
-        
-    def _get_matching_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int, Dict[str, Any]]:
-        """Get shows matching criteria.
-        
-        Args:
-            criteria: Dictionary of criteria
-            data: DataFrame of shows to match against
-            
-        Returns:
-            Tuple of (matching_shows, match_count, confidence_info)
-        """
-        # First, clean up criteria by removing None or empty values
-        clean_criteria = {}
-        for field_name, value in criteria.items():
-            if value is None or (isinstance(value, list) and not value):
-                # Skip empty criteria
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Skipping empty criterion: {field_name}={value}", category='matcher')
-                continue
-            clean_criteria[field_name] = value
-            
-        if not clean_criteria:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("No valid criteria after cleaning, returning empty results", category='matcher')
-            # Return empty results if no valid criteria
-            empty_df = pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title'])
-            return empty_df, 0, self.matcher._empty_confidence_info()
-        
-        # Use field_manager to normalize criteria values based on field types
-        normalized_criteria = self.field_manager.normalize_criteria(clean_criteria)
-        
-        # Debug output for normalized criteria
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Original criteria: {criteria}", category='matcher')
-            OptimizerConfig.debug(f"Cleaned criteria: {clean_criteria}", category='matcher')
-            OptimizerConfig.debug(f"Normalized criteria for matching: {normalized_criteria}", category='matcher')
-        
-        # Use matcher to find matching shows
-        matching_shows, confidence_info = self.matcher.find_matches_with_fallback(normalized_criteria, data)
-        
-        # Debug output for matching results
-        match_count = len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 0
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Found {match_count} matching shows with confidence: {confidence_info}", category='matcher')
-            if match_count == 0:
-                OptimizerConfig.debug("WARNING: No matching shows found for the given criteria", category='matcher')
-                st.write(f"DEBUG: No matching shows found for criteria: {normalized_criteria}")
-        
-        return matching_shows, match_count, confidence_info
+    # _get_matching_shows method has been removed as part of the architecture refactoring
+    # All matching functionality is now handled directly by the Matcher class
     
     def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
@@ -829,13 +873,23 @@ class CriteriaScorer:
         Returns:
             List of NetworkMatch objects with compatibility and success scores
         """
-        criteria_str = str(criteria) if isinstance(criteria, dict) else criteria
+        # Convert criteria to string format for the network calculator
+        criteria_str = str(criteria)
         
+        # Initialize network calculator if not already done
         if not hasattr(self, '_network_calculator'):
             self._network_calculator = NetworkScoreCalculator()
-            
-        # Pass the field_manager to the network calculator if needed
-        if hasattr(self, 'field_manager') and not hasattr(self._network_calculator, 'field_manager'):
             self._network_calculator.field_manager = self.field_manager
             
-        return self._network_calculator.calculate_network_scores(criteria_str, matching_shows)
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("Initialized NetworkScoreCalculator", category='networks')
+        
+        # Calculate network scores
+        network_matches = self._network_calculator.calculate_network_scores(criteria_str, matching_shows)
+        
+        if OptimizerConfig.DEBUG_MODE:
+            network_count = len(network_matches) if network_matches else 0
+            OptimizerConfig.debug(f"Found {network_count} network matches", category='networks')
+            OptimizerConfig.debug(f"Calculated scores for {network_count} networks", category='networks')
+            
+        return network_matches

@@ -7,9 +7,8 @@ from abc import ABC, abstractmethod
 
 from .optimizer_config import OptimizerConfig
 
-# Helper function to only show warnings in debug mode
+# Empty placeholder function for compatibility with existing code
 def debug_warning(message):
-    # Debug output removed - function kept as no-op to maintain compatibility
     pass
 
 __all__ = [
@@ -62,8 +61,18 @@ class ScoreCalculationError(Exception):
 class ScoreCalculator:
     """Base class for all score calculators.
     
-    This class provides common functionality for score calculation, including
-    data validation and preparation.
+    This class provides common functionality for all score calculators, including:
+    - Input validation
+    - Data preparation
+    - Confidence level calculation
+    - Error handling
+    
+    All score calculators should inherit from this class and implement at minimum:
+    - calculate_scores: Main entry point that returns a structured dictionary with scores and confidence
+    
+    Data Contracts:
+    - Input: All calculators should accept criteria (Dict) and matching_shows (DataFrame)
+    - Output: All calculators should return a Dict with structured results and confidence info
     """
     component_name = "base"  # Override in subclasses
     required_columns = []   # Override in subclasses
@@ -83,17 +92,18 @@ class ScoreCalculator:
         """Validate and prepare data for calculation.
         
         Args:
-            shows: DataFrame of shows
-            required_columns: List of required columns
-            optional_columns: List of optional columns
+            shows: DataFrame of shows to validate and filter
+            required_columns: List of required columns that must be present
+            optional_columns: List of optional columns that enhance calculation
             data_column: Column to check for data presence
             filter_condition: Optional function to filter shows
             
         Returns:
-            Tuple of (is_success, filtered_shows, result_info)
-            - result_info: Dictionary with validation results and metadata for error reporting
+            Tuple of (is_success, filtered_shows, result_info) where:
+            - is_success: Boolean indicating if validation passed
+            - filtered_shows: DataFrame of valid shows or None if validation failed
+            - result_info: Dictionary with validation results and metadata
         """
-        # Initialize result info
         result_info = {
             'component': self.component_name,
             'error': None,
@@ -108,9 +118,9 @@ class ScoreCalculator:
             return False, None, result_info
             
         # Use provided parameters or class attributes
-        required_cols = required_columns if required_columns is not None else self.required_columns
-        optional_cols = optional_columns if optional_columns is not None else self.optional_columns
-        data_col = data_column if data_column is not None else self.data_column
+        required_cols = required_columns or self.required_columns
+        optional_cols = optional_columns or self.optional_columns
+        data_col = data_column or self.data_column
         
         # Check for required columns
         missing_columns = [col for col in required_cols if col not in shows.columns]
@@ -118,7 +128,7 @@ class ScoreCalculator:
             result_info['error'] = f"Missing required columns for {self.component_name}: {missing_columns}"
             return False, None, result_info
         
-        # Check for optional columns and note which ones are missing
+        # Check for optional columns
         missing_optional = [col for col in optional_cols if col not in shows.columns]
         if missing_optional and len(missing_optional) == len(optional_cols):
             result_info['warning'] = f"All optional columns missing for {self.component_name}: {missing_optional}"
@@ -128,11 +138,7 @@ class ScoreCalculator:
             result_info['warning'] = f"Data column '{data_col}' not present for {self.component_name} score calculation"
             return False, None, result_info
         
-        # Apply filter condition if provided, otherwise filter for non-null values in data_column
-        if shows.empty:
-            result_info['warning'] = f"No shows provided for {self.component_name} score calculation"
-            return False, None, result_info
-        
+        # Filter shows based on condition or data column presence
         if filter_condition:
             valid_shows = shows[filter_condition(shows)]
         elif data_col and data_col in shows.columns:
@@ -142,8 +148,6 @@ class ScoreCalculator:
             
         # Calculate sample size and coverage
         sample_size = len(valid_shows)
-        if sample_size is None:
-            sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
         result_info['sample_size'] = sample_size
         result_info['data_coverage'] = sample_size / len(shows) if len(shows) > 0 else 0
         
@@ -180,14 +184,74 @@ class ScoreCalculator:
             ComponentScore object with score and confidence information
         """
         pass
+        
+    def calculate_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate scores for the given criteria and matching shows.
+        
+        This is the main entry point for score calculation, providing a unified interface
+        across all score calculators. Subclasses can override this method for custom behavior,
+        but the default implementation should work for most calculators.
+        
+        Args:
+            criteria: Dictionary of criteria to match against. Must contain valid criteria fields.
+            matching_shows: DataFrame of shows matching the criteria.
+                
+        Returns:
+            A dictionary containing:
+            - component_score: ComponentScore object with score information
+            - confidence: Dictionary with overall confidence information
+            - error: Error message if calculation failed (only present if there was an error)
+        """
+        result = {
+            'confidence': {
+                'level': OptimizerConfig.CONFIDENCE_LEVELS['none'],
+                'score': 0.0
+            }
+        }
+        
+        try:
+            # Calculate component score using the specific calculator's implementation
+            component_score = self.calculate(matching_shows)
+            result['component_score'] = component_score
+            
+            # Update confidence information based on component score
+            if component_score and component_score.confidence:
+                result['confidence'] = {
+                    'level': component_score.confidence,
+                    'score': component_score.details.get('confidence_score', 0.0) or 0.0
+                }
+        except Exception as e:
+            result['error'] = f'Error calculating {self.component_name} scores: {str(e)}'
+            
+        return result
 
 class SuccessScoreCalculator(ScoreCalculator):
-    """Calculate score based on success metrics."""
+    """Calculate score based on success metrics.
+    
+    This calculator produces a ComponentScore object containing:
+    - component: The name of the component ('success')
+    - score: A float between 0-1 representing the success score
+    - sample_size: The number of shows used to calculate the score
+    - confidence: A string indicating the confidence level ('high', 'medium', 'low', 'none')
+    - details: A dictionary containing additional information about the score calculation
+    """
     
     def __init__(self):
         super().__init__(component_name='success')
+        
+    # Using the base class calculate_scores method
 
     def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
+        """Calculate success score based on success metrics in the shows DataFrame.
+        
+        Args:
+            shows: DataFrame of shows with success metrics. Must contain 'success_score' column.
+            threshold: Optional threshold value (not currently used).
+            
+        Returns:
+            ComponentScore object with success score information and confidence level.
+            If validation fails, returns ComponentScore with score=None and error details.
+        """
         # Get required and optional columns from config
         required_columns = OptimizerConfig.REQUIRED_COLUMNS['base'] + OptimizerConfig.REQUIRED_COLUMNS['success']
         optional_columns = OptimizerConfig.OPTIONAL_COLUMNS['success']
@@ -202,48 +266,39 @@ class SuccessScoreCalculator(ScoreCalculator):
             data_column='success_score', filter_condition=success_filter
         )
         
-        # Handle validation failures and warnings
+        # Handle validation failures
         if not is_success:
-            if result_info['error']:
-                # Debug output removed - error handling maintained without UI output
-                pass
-            if result_info['warning']:
-                # Debug output removed - warning handling maintained without UI output
-                pass
-            # Create a ComponentScore with all required fields and default values
+            # Return error ComponentScore
             details = {'error': result_info['error'] or result_info['warning']}
             return ComponentScore(
                 component=self.component_name,
                 score=None,
                 sample_size=result_info.get('sample_size', 0),
-                confidence='none',
+                confidence=OptimizerConfig.CONFIDENCE_LEVELS['none'],
                 details=details
             )
         
         # Calculate average success score from valid shows
         avg_score = valid_shows['success_score'].mean()
-        # Normalize to 0-1 if on a 0-100 scale (assume >1 means 0-100 scale)
+        
+        # Normalize to 0-1 if on a 0-100 scale
         if avg_score > 1.0:
             avg_score = avg_score / 100.0
-        # Determine confidence level based on sample size
-        sample_size = result_info.get('sample_size', None)
-        if sample_size is None:
-            sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
-        
-        # Set confidence level based on sample size
+            
+        # Get sample size and determine confidence level
+        sample_size = result_info['sample_size']
         confidence = self.get_confidence_level(sample_size)
 
         # Create detailed breakdown
         details = {
             'success_score': avg_score,
             'data_coverage': result_info['data_coverage'],
-            'valid_shows': result_info['sample_size'],
+            'valid_shows': sample_size,
             'total_shows': len(shows),
-            'min_score': valid_shows['success_score'].min() if result_info['sample_size'] > 0 else None,
-            'max_score': valid_shows['success_score'].max() if result_info['sample_size'] > 0 else None
+            'min_score': valid_shows['success_score'].min() if sample_size > 0 else None,
+            'max_score': valid_shows['success_score'].max() if sample_size > 0 else None
         }
         
-        # Ensure all fields have proper values
         return ComponentScore(
             component=self.component_name,
             score=avg_score,
@@ -270,12 +325,6 @@ class AudienceScoreCalculator(ScoreCalculator):
         
         # Handle validation failures and warnings
         if not is_success:
-            if result_info['error']:
-                # Debug output removed - error handling maintained without UI output
-                pass
-            if result_info['warning']:
-                # Debug output removed - warning handling maintained without UI output
-                pass
             return ComponentScore(
                 component=self.component_name,
                 score=None,
@@ -312,6 +361,9 @@ class AudienceScoreCalculator(ScoreCalculator):
             confidence=confidence,
             details=details
         )
+        
+    # Using the base class calculate_scores method
+
 
 class CriticsScoreCalculator(ScoreCalculator):
     """Calculate critics score using tomatometer."""
@@ -331,13 +383,6 @@ class CriticsScoreCalculator(ScoreCalculator):
         
         # Handle validation failures and warnings
         if not is_success:
-            # Display appropriate messages
-            if result_info['error']:
-                # Debug output removed - error handling maintained without UI output
-                pass
-            if result_info['warning']:
-                # Debug output removed - warning handling maintained without UI output
-                pass
                 
             # Return null score with no confidence, consistent with other calculators
             warning_message = result_info['error'] or result_info['warning'] or 'Unknown validation issue'
@@ -372,6 +417,9 @@ class CriticsScoreCalculator(ScoreCalculator):
             confidence=confidence,
             details=details
         )
+        
+    # Using the base class calculate_scores method
+
 
 class LongevityScoreCalculator(ScoreCalculator):
     """Calculate longevity score using TMDB metrics."""
@@ -422,6 +470,16 @@ class LongevityScoreCalculator(ScoreCalculator):
         return episodes * config['base_score_per_episode']
 
     def calculate(self, shows: pd.DataFrame, threshold: float = None) -> ComponentScore:
+        """Calculate longevity score for a set of shows.
+        
+        Args:
+            shows: DataFrame of shows to calculate longevity score for. Must contain
+                'tmdb_seasons', 'tmdb_total_episodes', and 'tmdb_status' columns.
+            threshold: Optional threshold (unused in this calculator).
+            
+        Returns:
+            ComponentScore object with longevity score and details.
+        """
         # Get required and optional columns from config
         required_columns = OptimizerConfig.REQUIRED_COLUMNS['base'] + OptimizerConfig.REQUIRED_COLUMNS['longevity']
         optional_columns = OptimizerConfig.OPTIONAL_COLUMNS['longevity']
@@ -429,29 +487,22 @@ class LongevityScoreCalculator(ScoreCalculator):
         # Validate and prepare data using the helper method
         is_success, valid_shows, result_info = self.validate_and_prepare_data(
             shows, required_columns, optional_columns, 
-            # Need all three columns to be present for calculation
             filter_condition=lambda df: df['tmdb_seasons'].notna() & 
                                       df['tmdb_total_episodes'].notna() & 
                                       df['tmdb_status'].notna()
         )
         
-        # Handle validation failures and warnings
+        # Handle validation failures
         if not is_success:
-            if result_info['error']:
-                # Debug output removed - error handling maintained without UI output
-                pass
-            if result_info['warning']:
-                # Debug output removed - warning handling maintained without UI output
-                pass
             return ComponentScore(
                 component=self.component_name,
                 score=None,
                 sample_size=0,
-                confidence='none',
+                confidence=OptimizerConfig.CONFIDENCE_LEVELS['none'],
                 details={'error': result_info['error'] or result_info['warning']}
             )
         
-        # Get status scores and component weights from config
+        # Get scoring configuration
         status_scores = OptimizerConfig.LONGEVITY_SCORING['status_scores']
         component_weights = OptimizerConfig.LONGEVITY_SCORING['component_weights']
         
@@ -467,151 +518,174 @@ class LongevityScoreCalculator(ScoreCalculator):
             valid_shows['status_score_val'] * component_weights['status']
         ) / 100  # Convert to 0-1 scale
         
+        # Calculate final score and confidence
         avg_score = valid_shows['longevity_score_calc'].mean()
-        # Ensure sample_size is always defined
-        sample_size = result_info.get('sample_size', None)
-        if sample_size is None:
-            sample_size = OptimizerConfig.DEFAULT_VALUES['fallback_sample_size']
+        sample_size = result_info['sample_size']
         confidence = self.get_confidence_level(sample_size)
         
+        # Prepare detailed results
         details = {
             'avg_seasons': valid_shows['tmdb_seasons'].mean(),
             'avg_episodes': valid_shows['tmdb_total_episodes'].mean(),
             'status_distribution': valid_shows['tmdb_status'].value_counts(normalize=True).mul(100).round(1).to_dict(),
             'data_coverage': result_info['data_coverage'],
-            'sample_size': result_info['sample_size'],
+            'sample_size': sample_size,
             'total_shows': len(shows)
         }
         
         return ComponentScore(
             component=self.component_name,
             score=avg_score,
-            sample_size=result_info['sample_size'],
+            sample_size=sample_size,
             confidence=confidence,
             details=details
         )
+        
+    # Using the base class calculate_scores method
 
 
-class NetworkScoreCalculator:
+class NetworkScoreCalculator(ScoreCalculator):
     """Calculates network compatibility and success scores for a set of criteria.
     
     Uses the matching_shows DataFrame as the single source of truth for network compatibility analysis.
+    
+    This calculator produces a list of NetworkMatch objects, each containing:
+    - network_id: The ID of the network
+    - network_name: The name of the network
+    - compatibility_score: A score from 0-1 indicating how well the criteria match the network
+    - success_probability: A score from 0-1 indicating the likelihood of success on this network
+    - sample_size: The number of shows used to calculate the scores
+    - confidence: A string indicating the confidence level ('high', 'medium', 'low', 'none')
+    - details: A dictionary containing additional information about the match
     """
+    
+
+        
+    def calculate_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate all network scores for the given criteria and matching shows.
+        
+        This is the main entry point for network score calculation, providing a unified interface
+        that aligns with the CriteriaScorer.calculate_scores method.
+        
+        Args:
+            criteria: Dictionary of criteria to match against. Must contain valid criteria fields.
+            matching_shows: DataFrame of shows matching the criteria. Must contain at minimum
+                'network_id' and 'match_level' columns.
+                
+        Returns:
+            A dictionary containing:
+            - network_matches: List of NetworkMatch objects with compatibility and success scores
+            - confidence: Dictionary with overall confidence information
+            - error: Error message if calculation failed (only present if there was an error)
+        """
+        result = {
+            'network_matches': [],
+            'confidence': {
+                'level': OptimizerConfig.CONFIDENCE_LEVELS['none'],
+                'score': 0.0
+            }
+        }
+        
+        try:
+            # Calculate network scores
+            network_matches = self.calculate_network_scores(criteria, matching_shows)
+            result['network_matches'] = network_matches
+            
+            # Calculate overall confidence based on network matches
+            if network_matches:
+                confidence_levels = [match.confidence for match in network_matches]
+                confidence_scores = [match.details.get('confidence_score', 0.0) for match in network_matches if match.details]
+                
+                confidence_level = self._get_highest_confidence_level(confidence_levels)
+                confidence_score = max(confidence_scores) if confidence_scores else 0.0
+                
+                result['confidence'] = {
+                    'level': confidence_level,
+                    'score': confidence_score
+                }
+        except Exception as e:
+            result['error'] = f'Error calculating network scores: {str(e)}'
+            
+        return result
     
     def __init__(self):
         """Initialize the calculator.
         
         Note: This class uses only the matching_shows DataFrame as the data source to prevent redundant matching operations.
         """
+        super().__init__()
+        self.component_name = 'network'
+        self.required_columns = ['network_id', 'match_level']
         self.field_manager = None  # Will be set by CriteriaScorer if available
         
     def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         
         Args:
-            criteria: Dictionary of criteria to match against
-            matching_shows: DataFrame of shows matching the criteria
+            criteria: Dictionary of criteria to match against. Must contain valid criteria fields.
+            matching_shows: DataFrame of shows matching the criteria. Must contain at minimum
+                'network_id' and 'match_level' columns.
             
         Returns:
-            List of NetworkMatch objects with compatibility and success scores
+            List of NetworkMatch objects with compatibility and success scores.
         """
-        # Check if we have any matching shows
-        if matching_shows is None or matching_shows.empty:
-            return []
-                
-        # Check if we have network_id in the matching shows
-        if 'network_id' not in matching_shows.columns:
-            # Try to find an alternative network ID column
-            network_id_alternatives = ['network', 'network_name']
-            found_alternative = False
-            
-            for alt_col in network_id_alternatives:
-                if alt_col in matching_shows.columns:
-                    # Create a temporary network_id column
-                    matching_shows['network_id'] = matching_shows[alt_col]
-                    found_alternative = True
-                    break
-            
-            if not found_alternative:
-                return []
-            
-        # Get unique network IDs from matching shows
-        network_ids = matching_shows['network_id'].dropna().unique()
+        # Validate and prepare data using the base class method
+        is_success, valid_shows, result_info = self.validate_and_prepare_data(
+            shows=matching_shows,
+            required_columns=['network_id', 'match_level'],
+            optional_columns=[],
+            data_column='network_id'
+        )
         
-        # Check if we found any network IDs
+        if not is_success or valid_shows is None or valid_shows.empty:
+            return []
+            
+        # Get unique network IDs
+        network_ids = valid_shows['network_id'].dropna().unique()
         if len(network_ids) == 0:
             return []
             
-        # Initialize results list and network matches list
-        results = []
+        # Initialize network matches list
         network_matches = []
         
-        # Get unique networks from the matching shows
-        if 'network_id' in matching_shows.columns:
-            network_ids = matching_shows['network_id'].dropna().unique()
-            
         # Process each network ID
         for network_id in network_ids:
-            # Ensure network_id is an integer for proper lookup
-            if isinstance(network_id, str) and network_id.isdigit():
-                network_id = int(network_id)
-            elif isinstance(network_id, float):
-                network_id = int(network_id)
+            # Normalize network_id to integer if possible
+            if isinstance(network_id, (str, float)) and str(network_id).replace('.', '', 1).isdigit():
+                network_id = int(float(network_id))
                 
-            # Get network name directly from field manager - no fallbacks
-            if hasattr(self, 'field_manager') and self.field_manager:
-                network_name = self.field_manager.get_name('network', network_id)
-            else:
-                # If field manager is not available, use a default name
-                network_name = f"Network {network_id}"
+            # Get network name
+            network_name = self.field_manager.get_name('network', network_id) if hasattr(self, 'field_manager') and self.field_manager else f"Network {network_id}"
                 
             # Get shows for this network
-            network_shows = matching_shows[matching_shows['network_id'] == network_id]
-            
-            # Skip networks with no data
+            network_shows = valid_shows[valid_shows['network_id'] == network_id]
             if network_shows.empty:
                 continue
                 
-            # Calculate match quality and confidence info
+            # Calculate match quality metrics
             sample_size = len(network_shows)
-            
-            # Get the best match level from shows on this network (lowest value = best match)
-            if 'match_level' in network_shows.columns:
-                match_level = network_shows['match_level'].min()  # Best match level (lowest number)
-            else:
-                continue
-            
-            # Get total number of criteria from the criteria dictionary
+            match_level = network_shows['match_level'].min()  # Best match level
             total_criteria = len(criteria) if isinstance(criteria, dict) else 3
             
-            # Calculate weighted match quality for each show
+            # Calculate weighted match quality
             total_weight = 0
             weighted_match_quality = 0
             
             for _, show in network_shows.iterrows():
-                # Get match level from the show data
                 level = show['match_level'] if 'match_level' in show else 1
-                
-                # Calculate match quality based on criteria matched
                 criteria_matched = max(0, total_criteria - (level - 1))
                 show_match_quality = criteria_matched / total_criteria if total_criteria > 0 else 0
-                
-                # Weight by success score if available
                 show_weight = show['success_score'] if 'success_score' in show else 1.0
                 
-                # Add to weighted average
                 weighted_match_quality += show_match_quality * show_weight
                 total_weight += show_weight
             
-            # Calculate final match quality
-            if total_weight > 0:
-                match_quality = weighted_match_quality / total_weight
-            else:
-                # Skip networks with no weight (shouldn't happen since we already check for empty network_shows)
+            if total_weight <= 0:
                 continue
+                
+            match_quality = weighted_match_quality / total_weight
             
-            # Create confidence info
-            # Calculate confidence score (0-1) based on sample size and other factors
+            # Calculate confidence score
             confidence_score = OptimizerConfig.calculate_confidence_score(
                 sample_size=sample_size,
                 match_level=match_level,
@@ -619,105 +693,71 @@ class NetworkScoreCalculator:
                 total_criteria=len(OptimizerConfig.CRITERIA_IMPORTANCE)
             )
             
-            # Map the confidence score to a confidence level string
             confidence_level = OptimizerConfig.map_confidence_score_to_level(confidence_score)
             
-            # Create a proper NetworkMatch object instead of a dictionary
-            # Initialize with empty details dictionary to ensure it's properly created
-            network_match_obj = NetworkMatch(
+            # Create NetworkMatch object
+            network_match = NetworkMatch(
                 network_id=network_id,
                 network_name=network_name,
-                compatibility_score=match_quality,  # Use match_quality as compatibility score
-                success_probability=None,  # Will be calculated later
+                compatibility_score=match_quality,
+                success_probability=None,
                 sample_size=sample_size,
-                confidence=confidence_level
+                confidence=confidence_level,
+                details={
+                    'criteria': criteria,
+                    'match_level': match_level,
+                    'match_quality': match_quality,
+                    'confidence_score': confidence_score,
+                    'matching_shows': network_shows
+                }
             )
             
-            # Add details separately to ensure the dictionary is properly initialized
-            network_match_obj.details = {
-                'criteria': criteria,
-                'match_level': match_level,
-                'match_quality': match_quality,
-                'confidence_score': confidence_score,
-                'matching_shows': network_shows
+            network_matches.append(network_match)
+        
+        # Calculate success probability for each network match
+        for network_match in network_matches:
+            matching_shows = network_match.details.get('matching_shows', pd.DataFrame())
+            count = network_match.sample_size
+            
+            # Create confidence_info dictionary
+            confidence_info = {
+                'score': network_match.details.get('confidence_score', 0.0),
+                'level': network_match.confidence,
+                'sample_size': network_match.sample_size,
+                'match_level': network_match.details.get('match_level', 1),
+                'match_quality': network_match.details.get('match_quality', 0.0)
             }
             
-            network_matches.append(network_match_obj)
+            # Calculate weighted compatibility score
+            match_quality = network_match.details.get('match_quality', 0.0)
+            compatibility_score = self._calculate_weighted_compatibility_score(
+                match_quality=match_quality,
+                success_history=None
+            )
             
-            # Process each network match to calculate success probability
-            for i, network_match in enumerate(network_matches):
-                # Access attributes directly from NetworkMatch object
-                network_id = network_match.network_id
-                network_name = network_match.network_name
-                matching_shows = network_match.details.get('matching_shows', pd.DataFrame())
-                count = network_match.sample_size
+            # Calculate success rate if enough samples
+            success_rate = None
+            if not matching_shows.empty and count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
+                success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
+            
+            # Update the network match
+            if success_rate is not None:
+                network_match.success_probability = success_rate
+            
+            if compatibility_score is not None:
+                network_match.compatibility_score = compatibility_score
                 
-                # Create confidence_info dictionary from details
-                confidence_info = {
-                    'score': network_match.details.get('confidence_score'),
-                    'level': network_match.confidence,
-                    'sample_size': network_match.sample_size,
-                    'match_level': network_match.details.get('match_level', 1),  # Direct match
-                    'match_quality': network_match.details.get('match_quality')
-                }
-                
-                # Calculate weighted compatibility score using config weights
-                # Access match_quality directly from the details dictionary
-                match_quality = network_match.details.get('match_quality') if isinstance(network_match.details, dict) else None
-                
-                compatibility_score = self._calculate_weighted_compatibility_score(
-                    match_quality=match_quality,
-                    success_history=None  # NetworkMatch objects don't have success_history
-                )
-                
-                # Always try to calculate success probability with available data
-                # Instead of relying on potentially hardcoded values
-                success_rate = None
-                
-                # First check if we have enough shows for this network
-                if not matching_shows.empty:
-                    # Check if we have enough shows for a reliable calculation
-                    if count >= OptimizerConfig.CONFIDENCE['minimum_sample']:
-                        # Calculate success rate using our method
-                        success_rate, confidence_info = self.calculate_success_rate(matching_shows, confidence_info=confidence_info)
-                    else:
-                        # Not enough shows for reliable calculation
-                        pass
-                else:
-                    # No matching shows for this network
-                    pass
-        
-                # Update the network match with success probability if available
-                if success_rate is not None:
-                    network_match.success_probability = success_rate
-                
-                # Update the network match with compatibility score if calculated
-                if compatibility_score is not None:
-                    network_match.compatibility_score = compatibility_score
-                    
-                # Get confidence level from config based on sample size and match level
-                match_level = confidence_info.get('match_level', 1)
-                confidence = OptimizerConfig.get_confidence_level(count, match_level) if count > 0 else 'none'
-                
-                # Create a details dictionary with all required fields
-                details_dict = {
-                    'criteria': criteria,
-                    'match_level': confidence_info.get('match_level', 1),
-                    'match_quality': confidence_info.get('match_quality', None)
-                }
-                
-                # Only add confidence_info if it's not None to avoid potential issues
-                if confidence_info is not None:
-                    details_dict['confidence_info'] = confidence_info
-                
-                # Update the existing NetworkMatch object with success probability and confidence
-                network_match.success_probability = success_rate if success_rate is not None else None
-                network_match.confidence = confidence
-                
-                # Update details dictionary with additional information
-                network_match.details.update(details_dict)
-                if confidence_info is not None:
-                    network_match.details['confidence_info'] = confidence_info
+            # Get confidence level
+            match_level = confidence_info.get('match_level', 1)
+            confidence = OptimizerConfig.get_confidence_level(count, match_level) if count > 0 else OptimizerConfig.CONFIDENCE_LEVELS['none']
+            network_match.confidence = confidence
+            
+            # Update details
+            network_match.details.update({
+                'match_level': confidence_info.get('match_level', 1),
+                'match_quality': confidence_info.get('match_quality', 0.0),
+                'confidence_info': confidence_info
+            })
         
         # Sort network matches by compatibility score (descending)
         network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
@@ -729,110 +769,161 @@ class NetworkScoreCalculator:
         """Calculate success rate for a set of shows with confidence information.
         
         Args:
-            shows: DataFrame of shows to calculate success rate for
-            confidence_info: Optional dictionary of confidence information to update
-            threshold: Optional success threshold (0-1)
+            shows: DataFrame of shows to calculate success rate for. Must contain 'success_score' column.
+            confidence_info: Optional dictionary of confidence information to update.
+            threshold: Optional success threshold (0-1). Defaults to OptimizerConfig.SUCCESS_THRESHOLD.
             
         Returns:
-            Tuple of (success_rate, confidence_info)
+            Tuple of (success_rate, confidence_info) where:
+                - success_rate: Float between 0-1 representing the success rate, or None if calculation failed
+                - confidence_info: Dictionary with calculation details and confidence information
         """
-        # Initialize confidence_info if not provided
-        if confidence_info is None:
-            confidence_info = {}
+        # Initialize or use provided confidence_info
+        confidence_info = confidence_info or {}
             
         # Check if success_score is present
-        if 'success_score' not in shows.columns:
-            # Success score column missing from shows
-            
-            if 'id' not in shows.columns:
-                # Don't raise an error, just return None to indicate we can't calculate success rate
-                confidence_info['success_rate'] = None
-                confidence_info['success_count'] = 0
-                confidence_info['total_count'] = 0
-                return None, confidence_info
-            
-            # We can't calculate success rate without success_score column
-            # Don't try to fetch criteria data here as that would trigger redundant matching
-            confidence_info['error'] = "Missing success_score column"
+        if 'success_score' not in shows.columns or shows.empty:
+            confidence_info.update({
+                'success_rate': None,
+                'success_count': 0,
+                'total_count': 0,
+                'error': "Missing success_score column" if 'success_score' not in shows.columns else "No shows available",
+                'level': OptimizerConfig.CONFIDENCE_LEVELS['none']
+            })
             return None, confidence_info
             
-    def _calculate_weighted_compatibility_score(self, match_quality=None, success_history=None):
+        # Use provided threshold or default
+        success_threshold = threshold if threshold is not None else OptimizerConfig.SUCCESS_THRESHOLD
+            
+        # Calculate success metrics
+        total_count = len(shows)
+        success_count = len(shows[shows['success_score'] >= success_threshold])
+        success_rate = success_count / total_count
+        
+        # Update confidence info with success metrics
+        confidence_info.update({
+            'success_rate': success_rate,
+            'success_count': success_count,
+            'total_count': total_count
+        })
+        
+        # Calculate confidence score based on sample size
+        match_level = confidence_info.get('match_level', OptimizerConfig.DEFAULT_MATCH_LEVEL)
+        confidence_score = OptimizerConfig.calculate_confidence_score(
+            sample_size=total_count,
+            match_level=match_level,
+            criteria_count=confidence_info.get('criteria_count', 0),
+            total_criteria=len(OptimizerConfig.CRITERIA_IMPORTANCE)
+        )
+        
+        # Update confidence info with confidence score and level
+        confidence_info.update({
+            'score': confidence_score,
+            'level': OptimizerConfig.map_confidence_score_to_level(confidence_score)
+        })
+        
+        return success_rate, confidence_info
+            
+    def _calculate_weighted_compatibility_score(self, match_quality: Optional[float] = None, success_history: Optional[float] = None) -> float:
         """Calculate weighted compatibility score using config weights.
         
+        Combines match quality and success history scores using weights from OptimizerConfig
+        to produce a single compatibility score.
+        
         Args:
-            match_quality: Match quality score (0-1)
-            success_history: Success history score (0-1)
+            match_quality: Match quality score (0-1) indicating criteria match quality
+            success_history: Success history score (0-1) indicating past success
             
         Returns:
-            Weighted compatibility score (0-1)
+            Weighted compatibility score (0-1) representing overall compatibility
         """
         # Get weights from config
-        content_match_weight = OptimizerConfig.NETWORK_COMPATIBILITY_WEIGHTS['content_match']
-        success_history_weight = OptimizerConfig.NETWORK_COMPATIBILITY_WEIGHTS['success_history']
+        weights = OptimizerConfig.NETWORK_COMPATIBILITY_WEIGHTS
         
-        # Default values if not provided
-        if match_quality is None:
-            match_quality = 0.0
-        if success_history is None:
-            success_history = 0.0
+        # Use provided values or defaults
+        match_quality = match_quality or 0.0
+        success_history = success_history or 0.0
             
-        # Calculate weighted score
-        weighted_score = (match_quality * content_match_weight) + (success_history * success_history_weight)
+        # Calculate weighted score and ensure it's in 0-1 range
+        weighted_score = (match_quality * weights['content_match']) + \
+                         (success_history * weights['success_history'])
                 
-        # Ensure score is in 0-1 range
         return max(0.0, min(1.0, weighted_score))
     
-    def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: List[pd.DataFrame] = None) -> List[Tuple[Optional[float], Dict[str, Any]]]:
+    def _get_highest_confidence_level(self, confidence_levels: List[str]) -> str:
+        """Get the highest confidence level from a list of confidence levels.
+        
+        Args:
+            confidence_levels: List of confidence level strings ('high', 'medium', 'low', 'none')
+            
+        Returns:
+            The highest confidence level as a string from OptimizerConfig.CONFIDENCE_LEVELS
         """
-        Batch calculate success rates for multiple criteria with confidence information.
+        if not confidence_levels:
+            return OptimizerConfig.CONFIDENCE_LEVELS['none']
+        
+        # Map valid confidence levels to their numeric values
+        level_values = []
+        for level in confidence_levels:
+            level_key = level.lower() if isinstance(level, str) else 'none'
+            if level_key in OptimizerConfig.CONFIDENCE_LEVEL_VALUES:
+                level_values.append((level_key, OptimizerConfig.CONFIDENCE_LEVEL_VALUES[level_key]))
+            
+        # Return highest confidence level or default to 'none'
+        if not level_values:
+            return OptimizerConfig.CONFIDENCE_LEVELS['none']
+            
+        # Find the key with the maximum value
+        max_level_key = max(level_values, key=lambda x: x[1])[0]
+        return OptimizerConfig.CONFIDENCE_LEVELS[max_level_key]
+    
+    def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: List[pd.DataFrame] = None) -> List[Tuple[Optional[float], Dict[str, Any]]]:
+        """Batch calculate success rates for multiple criteria with confidence information.
 
         Args:
-            criteria_list: List of criteria dictionaries
-            matching_shows_list: Required list of DataFrames, each containing shows matching the corresponding criteria.
+            criteria_list: List of criteria dictionaries, each containing valid criteria fields.
+            matching_shows_list: List of DataFrames with shows matching the corresponding criteria.
+                Each DataFrame must contain 'success_score' column for success rate calculation.
 
         Returns:
-            List of tuples (success_rate, confidence_info) in the same order as criteria_list
+            List of tuples (success_rate, confidence_info) in the same order as criteria_list.
         """
-        results = []
-        # We now require matching_shows_list to be provided
+        # Return empty list for invalid input
+        if not criteria_list:
+            return []
+            
+        # Create standard error response helper function
+        def create_error_response(error_message: str) -> Tuple[None, Dict[str, Any]]:
+            return (None, {
+                'error': error_message,
+                'level': OptimizerConfig.CONFIDENCE_LEVELS['none'],
+                'score': 0.0,
+                'sample_size': 0,
+                'success_rate': None,
+                'success_count': 0,
+                'total_count': 0
+            })
+            
+        # Validate inputs
         if matching_shows_list is None:
-
-            # Return empty results for all criteria
-            return [(None, {'error': 'No matching shows provided'})] * len(criteria_list)
+            error_response = create_error_response('No matching shows provided')
+            return [error_response] * len(criteria_list)
             
         if len(criteria_list) != len(matching_shows_list):
-
-            return [(None, {'error': 'criteria/matching_shows_list length mismatch'})] * len(criteria_list)
+            error_response = create_error_response('Length mismatch between criteria_list and matching_shows_list')
+            return [error_response] * len(criteria_list)
             
+        # Process each criteria and matching shows pair
+        results = []
         for criteria, matching_shows in zip(criteria_list, matching_shows_list):
             try:
                 if matching_shows is None or matching_shows.empty:
-                    confidence_info = {
-                        'sample_size': 0,
-                        'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
-                        'match_quality': OptimizerConfig.ensure_match_level_exists(OptimizerConfig.DEFAULT_MATCH_LEVEL)['min_quality'],
-                        'level': 'none',  # Use string directly instead of accessing CONFIDENCE_LEVELS
-                        'success_rate': None
-                    }
-                    results.append((None, confidence_info))
+                    results.append(create_error_response('No matching shows available'))
                     continue
                     
                 success_rate, confidence_info = self.calculate_success_rate(matching_shows)
                 results.append((success_rate, confidence_info))
             except Exception as e:
-
-                    
-                error_confidence = {
-                    'level': 'none',  # Use string directly
-                    'score': 0.0,  # No fallback value, use 0.0 to indicate no data
-                    'match_quality': 0.0,  # No fallback value, use 0.0 to indicate no data
-                    'sample_size': 0,
-                    'match_level': OptimizerConfig.DEFAULT_MATCH_LEVEL,
-                    'success_rate': None,
-                    'success_count': 0,
-                    'total_count': 0,
-                    'error': str(e)
-                }
-                results.append((None, error_confidence))
+                results.append(create_error_response(f'Error calculating success rate: {str(e)}'))
                 
         return results

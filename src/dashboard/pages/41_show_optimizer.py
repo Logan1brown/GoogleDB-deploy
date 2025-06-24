@@ -80,14 +80,34 @@ def show():
     
     # Debug mode is controlled from the sidebar only
     
-    # Initialize the optimizer
-    optimizer_view = OptimizerView()
+    # Import and initialize ShowOptimizer directly
+    from src.data_processing.show_optimizer.show_optimizer import ShowOptimizer
     
-    # Initialize optimizer components if needed
-    if not optimizer_view.initialized:
-        if not optimizer_view.initialize(state):
+    # Initialize or get ShowOptimizer from session state
+    if 'show_optimizer' not in st.session_state:
+        show_optimizer = ShowOptimizer()
+        if not show_optimizer.initialize():
             st.error("Failed to initialize Show Optimizer. Please refresh the page and try again.")
             return
+        st.session_state.show_optimizer = show_optimizer
+    else:
+        show_optimizer = st.session_state.show_optimizer
+        
+    # Get OptimizerView from ShowOptimizer
+    optimizer_view = show_optimizer.optimizer_view
+    
+    # Cache field options in state
+    if 'field_options' not in state or not state['field_options']:
+        field_options = {}
+        display_options = {}
+        
+        for field_name in show_optimizer.field_manager.FIELD_CONFIGS.keys():
+            field_options[field_name] = show_optimizer.field_manager.get_options(field_name)
+            display_options[field_name] = show_optimizer.field_manager.get_display_options(field_name)
+        
+        # Store in state
+        state['field_options'] = field_options
+        state['display_options'] = display_options
     
     # Create columns for criteria and results
     col1, col2 = st.columns([1, 2])
@@ -131,10 +151,34 @@ def show():
             # Keep the session_state.optimizer_criteria in sync with state['criteria']
             st.session_state.optimizer_criteria = state['criteria'].copy()
             
-            # Run the analysis with the updated criteria
+            # Run the analysis with the updated criteria directly through ShowOptimizer
             # Always run the analysis, even if criteria is empty
             # This ensures the UI updates when criteria are deselected
-            optimizer_view.run_analysis(state)
+            if not state['criteria']:
+                # Clear any previous results when criteria are empty
+                state['matching_shows'] = pd.DataFrame()
+                state['network_matches'] = []
+                state['component_scores'] = {}
+                state['success_probability'] = None
+                state['recommendations'] = []
+                state['summary'] = None
+                st.session_state['matching_shows'] = pd.DataFrame()
+                st.session_state['optimizer_summary'] = None
+                st.info("Select criteria to analyze your concept.")
+            else:
+                # Run analysis through ShowOptimizer
+                with st.spinner("Analyzing concept..."):
+                    # Normalize criteria
+                    normalized_criteria = show_optimizer.field_manager.normalize_criteria(state['criteria'])
+                    
+                    # Run analysis and get formatted results
+                    summary = show_optimizer.analyze_concept(normalized_criteria)
+                    
+                    # Store results in state
+                    if summary:
+                        state['summary'] = summary
+                        # Also store in session state for persistence
+                        st.session_state["optimizer_summary"] = summary
         
         # Render criteria sections using helper functions
         render_content_criteria(state, update_criteria_and_analyze)
@@ -163,8 +207,11 @@ def show():
                 
                 # Tab 1: Success Metrics
                 with tab1:
-                    # Use our improved helper function to render success metrics
-                    render_success_metrics(summary)
+                    # Use our improved helper function to render success metrics with formatted data
+                    if hasattr(summary, 'formatted_data'):
+                        render_success_metrics(summary)
+                    else:
+                        st.warning("No formatted data available for metrics display.")
                     
                     # Display network recommendations if available
                     
@@ -486,22 +533,24 @@ def show():
                         # Display success factors using our helper function with pre-formatted data
                         render_success_factors(summary.formatted_data['success_factors'])
                     elif hasattr(summary, 'success_factors') and summary.success_factors:
+                        # Log warning about missing formatted data
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug("Using raw success_factors instead of formatted_data['success_factors']", category='recommendation', force=True)
                         # Fallback to old method if formatted data is not available
                         st.subheader("Success Factors")
                         render_success_factors(summary.success_factors)
                     
                     # Display recommendations if available
-                    if hasattr(summary, 'recommendations') and summary.recommendations:
-                        # Use the OptimizerView to format the recommendations properly
-                        formatted_recommendations = optimizer_view._format_recommendations(summary.recommendations)
+                    if hasattr(summary, 'formatted_data') and 'recommendations' in summary.formatted_data:
+                        # Use the pre-formatted recommendations from the summary
+                        formatted_recommendations = summary.formatted_data['recommendations']
                         
                         # Add minimal debug output if in debug mode
-                        if st.session_state.get('debug_mode', False):
-                            st.write("DEBUG: Formatted recommendations structure")
-                            st.write(f"- Total recommendations: {len(formatted_recommendations['all'])}")
-                            st.write(f"- Non-empty groups: {[k for k, v in formatted_recommendations['grouped'].items() if v]}")
-                            st.write(f"- Network-specific recommendations: {len(formatted_recommendations['network_specific'])}")
-                        
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug("Formatted recommendations structure", category='recommendation')
+                            OptimizerConfig.debug(f"Total recommendations: {len(formatted_recommendations.get('all', []))}", category='recommendation')
+                            OptimizerConfig.debug(f"Non-empty groups: {[k for k, v in formatted_recommendations.get('grouped', {}).items() if v]}", category='recommendation')
+                            OptimizerConfig.debug(f"Network-specific recommendations: {len(formatted_recommendations.get('network_specific', []))}", category='recommendation')
                         
                         # Pass the formatted recommendations directly to render_recommendations
                         render_recommendations(formatted_recommendations)
@@ -509,10 +558,10 @@ def show():
                         # No recommendations available
                         st.info("No recommendations available for the selected criteria.")
                         # Add minimal debug output if in debug mode
-                        if st.session_state.get('debug_mode', False) and hasattr(summary, 'recommendations'):
-                            st.write(f"DEBUG: Raw recommendations count: {len(summary.recommendations)}")
+                        if OptimizerConfig.DEBUG_MODE and hasattr(summary, 'recommendations'):
+                            OptimizerConfig.debug(f"Raw recommendations count: {len(summary.recommendations)}", category='recommendation')
                             if summary.recommendations:
-                                st.write(f"DEBUG: First recommendation type: {type(summary.recommendations[0]).__name__}")
+                                OptimizerConfig.debug(f"First recommendation type: {type(summary.recommendations[0]).__name__}", category='recommendation')
                         
     # Save state back to session
     update_page_state("show_optimizer", state)

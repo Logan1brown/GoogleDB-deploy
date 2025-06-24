@@ -294,6 +294,66 @@ class FieldManager:
             st.error(f"Error getting name for {field_name} ID {id}: {str(e)}")
             return f'Error ({id})'
     
+    def get_id_for_name(self, field_name: str, name: str) -> Optional[int]:
+        """Get ID for a display name.
+        
+        Args:
+            field_name: Name of the field to get ID for
+            name: Display name to look up
+            
+        Returns:
+            ID if found, None otherwise
+        """
+        if not name:
+            return None
+            
+        try:
+            for opt in self.get_options(field_name):
+                if opt.name == name:
+                    return opt.id
+            return None
+        except Exception as e:
+            st.error(f"Error getting ID for {field_name} name '{name}': {str(e)}")
+            return None
+    
+    def get_ids_for_names(self, field_name: str, names: List[str]) -> List[int]:
+        """Get IDs for display names.
+        
+        Args:
+            field_name: Name of the field to get IDs for
+            names: List of display names to look up
+            
+        Returns:
+            List of IDs for the given names
+        """
+        if not names:
+            return []
+            
+        try:
+            # For team members, get all IDs for each name
+            if field_name == 'team_members':
+                all_ids = []
+                for name in names:
+                    # Find the option with this name
+                    opt = next((opt for opt in self.get_options('team_members') 
+                              if opt.name == name), None)
+                    if opt and hasattr(opt, 'all_ids'):
+                        all_ids.extend(opt.all_ids)
+                    elif opt:
+                        all_ids.append(opt.id)
+                return all_ids
+            
+            # For other fields, just take the ID for each name
+            result = []
+            for name in names:
+                id = self.get_id_for_name(field_name, name)
+                if id is not None:
+                    result.append(id)
+            return result
+        except Exception as e:
+            st.error(f"Error getting IDs for {field_name} names: {str(e)}")
+            return []
+    
     def get_validations(self) -> Dict[str, FieldValidation]:
         """Get validation rules for all fields.
         
