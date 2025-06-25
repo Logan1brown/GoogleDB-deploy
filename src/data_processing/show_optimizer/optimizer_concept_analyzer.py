@@ -313,7 +313,19 @@ class ConceptAnalyzer:
             )
             if OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: Generated {len(recommendations)} recommendations")
-                st.write("DEBUG: Recommendation types: " + ", ".join([rec['recommendation_type'] for rec in recommendations]) if recommendations else "None")
+                # Safely get recommendation types, handling both dict and object access
+                if recommendations:
+                    rec_types = []
+                    for rec in recommendations:
+                        if isinstance(rec, dict):
+                            rec_types.append(rec.get('recommendation_type', 'unknown'))
+                        elif hasattr(rec, 'recommendation_type'):
+                            rec_types.append(rec.recommendation_type)
+                        else:
+                            rec_types.append('unknown')
+                    st.write("DEBUG: Recommendation types: " + ", ".join(rec_types))
+                else:
+                    st.write("DEBUG: Recommendation types: None")
             
             # Get matching show titles (up to MAX_RESULTS) to include in the summary
             matching_titles = []
