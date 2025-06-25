@@ -86,8 +86,6 @@ class NetworkAnalyzer:
                 else:
                     # Default if no match_level column
                     compatibility_score = 0.5
-                    if OptimizerConfig.DEBUG_MODE:
-                        pass
                 
                 # Calculate success probability if success_score column exists
                 success_probability = None
@@ -125,8 +123,6 @@ class NetworkAnalyzer:
             # Return top networks
             return network_matches[:limit]
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
             return []
             
     def group_networks_into_tiers(self, network_matches: List[NetworkMatch]) -> Dict[str, List[NetworkMatch]]:
@@ -175,8 +171,6 @@ class NetworkAnalyzer:
             return tiers
             
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
             return {}
     
     def get_network_tiers(self, matching_shows: pd.DataFrame, min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:
@@ -192,8 +186,6 @@ class NetworkAnalyzer:
         try:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 return {}
             
             # Get network matches using the simplified approach
@@ -220,8 +212,6 @@ class NetworkAnalyzer:
             # Use the simplified group_networks_into_tiers method
             return self.group_networks_into_tiers(filtered_matches)
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
             return {}
     
     def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: int) -> Dict[str, FieldValueSuccessRate]:
@@ -267,29 +257,25 @@ class NetworkAnalyzer:
             # Calculate success rate for each criteria column
             success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
             
-            # Filter columns to only include those that the field_manager can handle
+            # Filter columns to only include those in our known criteria fields list
+            # This skips all the field_manager.has_field() checks that generate debug noise
             valid_criteria_columns = []
             for column in network_shows.columns:
                 # Skip standard columns
                 if column in standard_columns:
                     continue
                     
-                # Check if this is a field the field_manager knows about
+                # Extract base field name without suffixes
                 base_field = column
                 if column.endswith('_id') or column.endswith('_ids'):
                     base_field = column[:-3] if column.endswith('_id') else column[:-4]
                 elif column.endswith('_name') or column.endswith('_names'):
                     base_field = column[:-5] if column.endswith('_name') else column[:-6]
                 
-                # Only process columns related to known criteria fields
+                # Only include columns related to our known criteria fields
+                # Skip the field_manager.has_field() check entirely
                 if base_field in known_criteria_fields:
-                    try:
-                        if self.field_manager and self.field_manager.has_field(base_field):
-                            valid_criteria_columns.append(column)
-                    except Exception:
-                        # Skip this column due to error
-                        continue
-                    
+                    valid_criteria_columns.append(column)
             # Process each valid criteria column
             for column in valid_criteria_columns:
                 # Get unique values for this column
@@ -395,8 +381,6 @@ class NetworkAnalyzer:
                                 
                                 # Add success rate data to the dictionary
                                 success_rates[key] = success_rate_data
-                                
-                                # Success rate data added to dictionary
                             except Exception as e:
                                 # Error adding success rate data
                                 pass
@@ -432,8 +416,6 @@ class NetworkAnalyzer:
                 
             # Validate matching_shows
             if matching_shows is None or not isinstance(matching_shows, pd.DataFrame) or matching_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 return []
             
             # Filter matching_shows to this network if needed
@@ -442,8 +424,6 @@ class NetworkAnalyzer:
                 network_shows = matching_shows[matching_shows['network_id'] == network.network_id]
                 
                 if network_shows.empty:
-                    if OptimizerConfig.DEBUG_MODE:
-                        pass
                     return []
             
             # Extract criteria from matching_shows if possible
@@ -465,8 +445,7 @@ class NetworkAnalyzer:
             
             return recommendation_dicts
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
+            # Error in get_network_recommendations
             return []
     
     def _get_criteria_name(self, criteria_type: str, criteria_value: Any) -> str:
@@ -491,8 +470,7 @@ class NetworkAnalyzer:
             # If not found, return the raw value
             return str(criteria_value)
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
+            # Error in _get_criteria_name
             return str(criteria_value)
     
     def _calculate_success_rate_with_confidence(self, matching_shows: pd.DataFrame, 
