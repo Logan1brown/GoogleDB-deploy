@@ -763,6 +763,15 @@ class RecommendationEngine:
         
         # Get network-specific success rates
         try:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Getting network-specific success rates for network {network.network_name}")
+                st.write(f"DEBUG: Network object type: {type(network).__name__}")
+                st.write(f"DEBUG: Network ID: {network.network_id}")
+            
+            # Check if network_analyzer has the method we're trying to call
+            if OptimizerConfig.DEBUG_MODE and not hasattr(self.network_analyzer, 'get_network_specific_success_rates'):
+                st.write("DEBUG: ERROR - network_analyzer does not have get_network_specific_success_rates method")
+            
             network_rates = self.network_analyzer.get_network_specific_success_rates(
                 matching_shows=matching_shows,
                 network_id=network.network_id
