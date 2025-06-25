@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Tuple, Any, Union
 import pandas as pd
 import numpy as np
 import streamlit as st
+import traceback
 from datetime import datetime
 from .optimizer_config import OptimizerConfig
 
@@ -217,16 +218,27 @@ class ConceptAnalyzer:
             # Extract match information
             match_count = len(matching_shows) if not matching_shows.empty else 0
             
-            # Safely extract match_level - it could be a float or an object with match_level attribute
-            if isinstance(confidence_info.get('match_level'), (int, float)) or confidence_info.get('match_level') is None:
-                match_level = confidence_info.get('match_level', 0)
-            else:
-                # If it's an object with a match_level attribute, try to access it
-                try:
-                    match_level = confidence_info.get('match_level').match_level
-                except AttributeError:
-                    # If that fails, default to 0
+            # Safely extract match_level with detailed error tracing
+            try:
+                match_level_value = confidence_info.get('match_level')
+                OptimizerConfig.debug(f"match_level_value type: {type(match_level_value)}, value: {match_level_value}", category='analyzer', force=True)
+                
+                if match_level_value is None:
                     match_level = 0
+                    OptimizerConfig.debug(f"match_level is None, defaulting to 0", category='analyzer', force=True)
+                elif isinstance(match_level_value, (int, float)):
+                    match_level = match_level_value
+                    OptimizerConfig.debug(f"match_level is numeric: {match_level}", category='analyzer', force=True)
+                elif hasattr(match_level_value, 'match_level'):
+                    match_level = match_level_value.match_level
+                    OptimizerConfig.debug(f"match_level extracted from object: {match_level}", category='analyzer', force=True)
+                else:
+                    # If we get here, we have an object without match_level attribute
+                    OptimizerConfig.debug(f"match_level_value has unexpected type: {type(match_level_value)}", category='analyzer', force=True)
+                    match_level = 0
+            except Exception as e:
+                OptimizerConfig.debug(f"Error extracting match_level: {str(e)}\nTraceback: {traceback.format_exc()}", category='analyzer', force=True)
+                match_level = 0
                     
             match_quality = confidence_info.get('match_quality', 0.0)
             confidence_score = confidence_info.get('confidence_score', 0.0)
@@ -291,9 +303,12 @@ class ConceptAnalyzer:
             return summary
             
         except Exception as e:
-            st.error(f"Error during concept analysis: {str(e)}")
+            error_msg = f"Error in analyze_concept: {str(e)}"
+            trace = traceback.format_exc()
+            OptimizerConfig.debug(f"{error_msg}\n{trace}", category='analyzer', force=True)
+            st.error(error_msg)
 
-            return self._handle_analysis_error(f"Unexpected error: {str(e)}")
+            return self._handle_analysis_error(f"Analysis error: {str(e)}")
     
 
     
