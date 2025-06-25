@@ -227,18 +227,17 @@ class NetworkAnalyzer:
         try:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
-                # No matching shows provided
                 return {}
                 
             # Filter to this network
             network_shows = matching_shows[matching_shows['network_id'] == network_id] if 'network_id' in matching_shows.columns else pd.DataFrame()
             if network_shows.empty:
-                # No shows found for this network
                 return {}
                 
             # Check if success_score column exists
             if 'success_score' not in network_shows.columns:
-                # No success_score column in matching shows
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"No success_score column in matching shows for network {network_id}", category='network')
                 return {}
             
             # For network-specific success rates, we analyze the columns in the matching_shows DataFrame
@@ -390,7 +389,6 @@ class NetworkAnalyzer:
             
             return success_rates
         except Exception as e:
-            # Error in get_network_specific_success_rates
             return {}
     
     def get_network_recommendations(self, matching_shows: pd.DataFrame, 
@@ -472,9 +470,9 @@ class NetworkAnalyzer:
         except Exception as e:
             # Error in _get_criteria_name
             return str(criteria_value)
-    
+
     def _calculate_success_rate_with_confidence(self, matching_shows: pd.DataFrame, 
-                                               min_sample_size: int = 10) -> Tuple[float, str]:
+                                                min_sample_size: int = 10) -> Tuple[float, str]:
         """Calculate success rate with confidence level.
         
         Args:
@@ -488,7 +486,7 @@ class NetworkAnalyzer:
             # Validate input
             if matching_shows is None or not isinstance(matching_shows, pd.DataFrame) or matching_shows.empty:
                 return None, 'none'
-                
+            
             # Get sample size
             count = len(matching_shows)
             if count < min_sample_size:
@@ -507,7 +505,16 @@ class NetworkAnalyzer:
             # Calculate average match level for confidence
             avg_match_level = 1
             if 'match_level' in matching_shows.columns:
-                avg_match_level = matching_shows['match_level'].mean()
+                # Ensure we're only calculating mean for rows where match_level is a number
+                valid_match_levels = []
+                for ml in matching_shows['match_level']:
+                    if isinstance(ml, (int, float)) and not pd.isna(ml):
+                        valid_match_levels.append(ml)
+                
+                if valid_match_levels:
+                    avg_match_level = sum(valid_match_levels) / len(valid_match_levels)
+                else:
+                    avg_match_level = 1
             
             # Determine confidence level using OptimizerConfig
             confidence = OptimizerConfig.get_confidence_level(count, int(avg_match_level))
