@@ -5,7 +5,7 @@ based on integrated data provided by orchestrator components.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Callable
+from typing import Dict, List, Optional, Tuple, Any, Callable, Union
 import pandas as pd
 import numpy as np
 import ast

@@ -8,7 +8,7 @@ import streamlit as st
 import pandas as pd
 import sys
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 # Add src to path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))

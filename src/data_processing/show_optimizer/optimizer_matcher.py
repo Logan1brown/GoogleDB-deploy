@@ -10,7 +10,7 @@ Key responsibilities:
 - Return a prioritized list of matches for scoring and analysis
 """
 
-from typing import Dict, List, Optional, Tuple, Any, Set
+from typing import Dict, List, Optional, Tuple, Any, Set, Union
 import pandas as pd
 import numpy as np
 import streamlit as st
