@@ -30,19 +30,21 @@ from typing import Dict, Any
 class OptimizerConfig:
     """Configuration for Show Optimizer scoring and analysis."""
     
-    # Debug mode flag - set to True to enable all debug output
-    DEBUG_MODE = True
-    
     # Debug message counter to limit output volume
     _debug_message_count = 0
+    
+    # Maximum number of debug messages to show
     MAX_DEBUG_MESSAGES = 100
+    
+    # Debug mode flag - set to True to enable all debug output
+    DEBUG_MODE = True
     
     # Debug categories to filter messages
     DEBUG_CATEGORIES = {
         'matcher': True,
         'analyzer': True,
         'scorer': True,
-        'network': True,
+        'network': False,  # Disable network debug messages - too verbose
         'recommendation': True,
         'general': True
     }
