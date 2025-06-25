@@ -831,8 +831,14 @@ class RecommendationEngine:
                 network_rate_value = network_rate
                 overall_rate_value = overall_rate
                 
-                # Create network-specific reference name
-                suggested_name = f"{network.network_name}: {current_name}"
+                # Create network-specific reference name with safety check
+                try:
+                    network_name = network.network_name if hasattr(network, 'network_name') else 'Unknown Network'
+                    suggested_name = f"{network_name}: {current_name}"
+                except Exception as e:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"ERROR accessing network_name: {str(e)}")
+                    suggested_name = f"Network: {current_name}"
                 
                 # Calculate impact score with minimum threshold to ensure visibility
                 impact_score = max(abs(difference), 0.05) * (1 if difference > 0 else -1)
