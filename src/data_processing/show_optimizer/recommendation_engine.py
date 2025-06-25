@@ -742,9 +742,12 @@ class RecommendationEngine:
         return str(value)       
 
     def generate_network_specific_recommendations(self, criteria: CriteriaDict, 
-                                                 network: NetworkMatch,
-                                                 matching_shows: pd.DataFrame,
-                                                 integrated_data: IntegratedData) -> List[RecommendationItem]:
+                                             network: NetworkMatch,
+                                             matching_shows: pd.DataFrame,
+                                             integrated_data: IntegratedData) -> List[RecommendationItem]:
+        # OBVIOUS CHANGE: Add a debug statement to confirm code is updated
+        if OptimizerConfig.DEBUG_MODE:
+            st.write("DEBUG: UPDATED RECOMMENDATION ENGINE CODE RUNNING - FIXING NETWORKMATCH ISSUE")
         """
         Generate network-specific recommendations.        
         Args:
