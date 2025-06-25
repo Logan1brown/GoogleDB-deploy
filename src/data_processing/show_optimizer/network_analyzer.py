@@ -436,11 +436,17 @@ class NetworkAnalyzer:
             if hasattr(matching_shows, 'criteria') and isinstance(matching_shows.criteria, dict):
                 criteria = matching_shows.criteria
             
-            # Call with all required parameters
+            # Get integrated data from concept_analyzer if available
+            integrated_data = None
+            if hasattr(concept_analyzer, 'integrated_data'):
+                integrated_data = concept_analyzer.integrated_data
+            
+            # Call with all required parameters in the correct order
             recommendations = recommendation_engine.generate_network_specific_recommendations(
+                criteria=criteria,
                 network=network,
                 matching_shows=network_shows,
-                criteria=criteria
+                integrated_data=integrated_data
             )
             
             # The recommendation_engine now returns RecommendationItem TypedDicts directly
