@@ -743,13 +743,8 @@ class RecommendationEngine:
         if OptimizerConfig.DEBUG_MODE:
             st.write(f"DEBUG: Network object type: {type(network).__name__}")
             st.write(f"DEBUG: Network object attributes: {dir(network)}")
-            st.write(f"DEBUG: Network ID: {network.network_id if hasattr(network, 'network_id') else 'Not found'}")
-            st.write(f"DEBUG: Network Name: {network.network_name if hasattr(network, 'network_name') else 'Not found'}")
-        
-        # Ensure network is a proper NetworkMatch object with required attributes
-        if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
-            st.error(f"Invalid NetworkMatch object: missing required attributes")
-            return []
+            st.write(f"DEBUG: Network ID: {network.network_id}")
+            st.write(f"DEBUG: Network Name: {network.network_name}")
         
         # Get network-specific success rates for each criteria using matching_shows
         try:
@@ -831,44 +826,21 @@ class RecommendationEngine:
                 network_rate_value = network_rate
                 overall_rate_value = overall_rate
                 
-                # Create network-specific reference name with safety check
-                try:
-                    network_name = network.network_name if hasattr(network, 'network_name') else 'Unknown Network'
-                    suggested_name = f"{network_name}: {current_name}"
-                except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"ERROR accessing network_name: {str(e)}")
-                    suggested_name = f"Network: {current_name}"
+                # Create network-specific reference name with direct attribute access
+                network_name = network.network_name
+                suggested_name = f"{network_name}: {current_name}"
                 
                 # Calculate impact score with minimum threshold to ensure visibility
                 impact_score = max(abs(difference), 0.05) * (1 if difference > 0 else -1)
                 
                 # Store network data for OptimizerView to use when formatting
-                try:
-                    # Safely access network attributes using attribute access only
-                    network_data = {
-                        "network_id": network.network_id if hasattr(network, 'network_id') else None,
-                        "network_name": network.network_name if hasattr(network, 'network_name') else 'Unknown Network',
-                        "network_rate": network_rate,
-                        "overall_rate": overall_rate,
-                        "difference": difference
-                    }
-                    
-                    # Verify network data is valid
-                    if network_data["network_id"] is None:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"WARNING: Missing network_id in NetworkMatch object")
-                except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"ERROR accessing NetworkMatch attributes: {str(e)}")
-                    # Provide fallback network data
-                    network_data = {
-                        "network_id": None,
-                        "network_name": "Unknown Network",
-                        "network_rate": network_rate,
-                        "overall_rate": overall_rate,
-                        "difference": difference
-                    }
+                network_data = {
+                    "network_id": network.network_id,
+                    "network_name": network.network_name,
+                    "network_rate": network_rate,
+                    "overall_rate": overall_rate,
+                    "difference": difference
+                }
                 
                 # Use standardized network recommendation type constants
                 network_rec_type = self.REC_TYPE_NETWORK_KEEP if difference > 0 else self.REC_TYPE_NETWORK_CHANGE

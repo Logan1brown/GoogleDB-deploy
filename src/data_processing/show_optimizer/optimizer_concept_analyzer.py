@@ -85,53 +85,39 @@ class OptimizationSummary:
             }
         }
         
-        # Format networks data with robust error handling
+        # Format networks data using direct attribute access
         if self.top_networks:
             for network in self.top_networks:
-                try:
-                    # Verify network is a proper NetworkMatch object
-                    if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
-                        OptimizerConfig.debug(f"Invalid NetworkMatch object detected in formatted_data", category='error')
-                        continue
-                        
-                    # Use attribute access with fallbacks for safety
-                    network_data = {
-                        'network_id': getattr(network, 'network_id', 0),
-                        'network_name': getattr(network, 'network_name', 'Unknown Network'),
-                        'compatibility_score': getattr(network, 'compatibility_score', None),
-                        'success_probability': getattr(network, 'success_probability', None),
-                        'sample_size': getattr(network, 'sample_size', 0),
-                        'confidence': getattr(network, 'confidence', 'none')
-                    }
-                    formatted['networks'].append(network_data)
-                except Exception as e:
-                    OptimizerConfig.debug(f"Error formatting network data: {str(e)}", category='error')
+                network_data = {
+                    'network_id': network.network_id,
+                    'network_name': network.network_name,
+                    'compatibility_score': network.compatibility_score,
+                    'success_probability': network.success_probability,
+                    'sample_size': network.sample_size,
+                    'confidence': network.confidence
+                }
+                formatted['networks'].append(network_data)
         
-        # Format recommendations data with robust error handling
+        # Format recommendations data using direct attribute access
         if self.recommendations:
             for rec in self.recommendations:
-                try:
-                    # Create recommendation dictionary with safe attribute access
-                    rec_dict = {
-                        'recommendation_type': getattr(rec, 'recommendation_type', 'general'),
-                        'criteria_type': getattr(rec, 'criteria_type', ''),
-                        'current_value': getattr(rec, 'current_value', None),
-                        'current_name': getattr(rec, 'current_name', ''),
-                        'suggested_value': getattr(rec, 'suggested_value', None),
-                        'suggested_name': getattr(rec, 'suggested_name', ''),
-                        'impact_score': getattr(rec, 'impact_score', 0.0),
-                        'confidence': getattr(rec, 'confidence', 'low'),
-                        'description': getattr(rec, 'explanation', 'No explanation available')
-                    }
-                    
-                    # Categorize recommendations
-                    rec_type = getattr(rec, 'recommendation_type', 'general')
-                    if rec_type.startswith('network_'):
-                        formatted['recommendations']['network_specific'].append(rec_dict)
-                    else:
-                        formatted['recommendations']['general'].append(rec_dict)
-                except Exception as e:
-                    OptimizerConfig.debug(f"Error formatting recommendation data: {str(e)}", category='error')
+                rec_dict = {
+                    'recommendation_type': rec.recommendation_type,
+                    'criteria_type': rec.field,
+                    'current_value': rec.current_value,
+                    'current_name': rec.current_name,
+                    'suggested_value': rec.suggested_value,
+                    'suggested_name': rec.suggested_name,
+                    'impact_score': rec.impact,
+                    'confidence': rec.confidence,
+                    'description': rec.explanation if rec.explanation else 'No explanation available'
+                }
+                
+                # Categorize recommendations
+                if rec.recommendation_type.startswith('network_'):
+                    formatted['recommendations']['network_specific'].append(rec_dict)
+                else:
+                    formatted['recommendations']['general'].append(rec_dict)
         
         # Store the formatted data for future access
         self._formatted_data_dict = formatted
@@ -678,27 +664,19 @@ class ConceptAnalyzer:
             
             # Limit to top 3 networks to avoid overwhelming the user
             for network in top_networks[:3]:
-                try:
-                    if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
-                        self.config.debug("Invalid NetworkMatch object detected", category='error')
-                        st.error("Invalid network object detected. Missing required attributes.")
-                        continue
-                    network_id = network.network_id
-                    network_name = network.network_name
-                    network_shows = matching_shows[matching_shows['network_id'] == network_id]
-                    show_count = len(network_shows)
-                    self.config.debug(f"Analyzing network {network_name} with {show_count} matching shows", category='network')
-                    network_recommendations.extend(
-                        self.recommendation_engine.generate_network_specific_recommendations(
-                            criteria=criteria,
-                            network=network,
-                            matching_shows=matching_shows,
-                            integrated_data=integrated_data
-                        )
+                network_id = network.network_id
+                network_name = network.network_name
+                network_shows = matching_shows[matching_shows['network_id'] == network_id]
+                show_count = len(network_shows)
+                self.config.debug(f"Analyzing network {network_name} with {show_count} matching shows", category='network')
+                network_recommendations.extend(
+                    self.recommendation_engine.generate_network_specific_recommendations(
+                        criteria=criteria,
+                        network=network,
+                        matching_shows=matching_shows,
+                        integrated_data=integrated_data
                     )
-                except Exception as e:
-                    self.config.debug(f"Error generating network recommendations: {str(e)}", category='error')
-                    st.error(f"Error generating recommendations for network {getattr(network, 'network_name', 'Unknown')}: {str(e)}")
+                )
             
             # Combine and return all recommendations
             return general_recommendations + network_recommendations

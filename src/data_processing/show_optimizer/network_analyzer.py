@@ -433,35 +433,11 @@ class NetworkAnalyzer:
                 st.write(f"DEBUG [network_analyzer.py:get_network_recommendations]: Network object type: {type(network).__name__}")
                 st.write(f"DEBUG [network_analyzer.py:get_network_recommendations]: Network object attributes: {dir(network)}")
             
-            # Validate network object
-            if not isinstance(network, NetworkMatch):
-                st.error(f"Invalid network object type: {type(network).__name__}. Expected NetworkMatch.")
-                return []
-                
-            # Ensure network has required attributes
-            if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
-                st.error("NetworkMatch object missing required attributes (network_id or network_name)")
-                return []
-                
-            # Validate concept_analyzer
-            if concept_analyzer is None or not hasattr(concept_analyzer, 'recommendation_engine'):
-                st.warning("RecommendationEngine not available. Cannot generate network recommendations.")
-                return []
-                
             # Get the RecommendationEngine from the ConceptAnalyzer
             recommendation_engine = concept_analyzer.recommendation_engine
                 
-            # Validate matching_shows
-            if matching_shows is None or not isinstance(matching_shows, pd.DataFrame) or matching_shows.empty:
-                st.warning("No matching shows available for network recommendations.")
-                return []
-            
-            # Safely access network_id using attribute access
-            try:
-                network_id = network.network_id
-            except Exception as e:
-                st.error(f"Error accessing network_id attribute: {str(e)}")
-                return []
+            # Get network ID using direct attribute access
+            network_id = network.network_id
                 
             # Filter matching_shows to this network if needed
             network_shows = matching_shows
@@ -486,34 +462,17 @@ class NetworkAnalyzer:
             
             # Call the RecommendationEngine with the network-specific shows
             # This will generate recommendations specific to this network
-            try:
-                # Ensure we're passing a valid NetworkMatch object with proper attributes
-                if not isinstance(network, NetworkMatch):
-                    st.error(f"Invalid network object type before calling recommendation engine: {type(network).__name__}")
-                    return []
-                    
-                # Double-check network attributes before passing to recommendation engine
-                if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
-                    st.error("NetworkMatch object missing required attributes before calling recommendation engine")
-                    return []
-                    
-                # Log the call to recommendation engine
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Calling generate_network_specific_recommendations for network {network.network_name}")
-                    
-                # Make the call with proper error handling
-                return recommendation_engine.generate_network_specific_recommendations(
-                    criteria=criteria,
-                    network=network,
-                    matching_shows=network_shows,
-                    integrated_data=integrated_data
-                )
-            except Exception as rec_error:
-                st.error(f"Error in recommendation engine: {str(rec_error)}")
-                import traceback
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Recommendation engine error traceback: {traceback.format_exc()}")
-                return []
+            # Log the call to recommendation engine
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Calling recommendation engine for network {network.network_name} (ID: {network.network_id})")
+            
+            # Call the recommendation engine with the network object
+            return recommendation_engine.generate_network_specific_recommendations(
+                criteria=criteria,
+                network=network,
+                matching_shows=network_shows,
+                integrated_data=integrated_data
+            )
         except Exception as e:
             st.error(f"Error generating network recommendations: {str(e)}")
             return []
