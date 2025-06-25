@@ -228,22 +228,7 @@ class FieldValueSuccessRate(TypedDict):
     matching_shows: NotRequired[List[str]]  # List of matching show titles
 
 
-class NetworkMatch(TypedDict):
-    """Explicit contract for network match data.
-    
-    This defines the expected structure of network match information used
-    for ranking and displaying network compatibility.
-    """
-    network_id: int  # Network ID
-    name: str  # Network name
-    compatibility_score: float  # Overall compatibility score (0.0 to 1.0)
-    success_probability: float  # Probability of success (0.0 to 1.0)
-    confidence: str  # Confidence level (e.g., 'high', 'medium', 'low')
-    sample_size: int  # Number of shows used in calculation
-    tier: NotRequired[int]  # Tier assignment (1=best, 2=good, 3=average, etc.)
-    tier_name: NotRequired[str]  # Display name for the tier
-    explanation: NotRequired[str]  # Explanation of the compatibility score
-    matching_shows: NotRequired[List[str]]  # List of matching show titles
+from .score_calculators import NetworkMatch
 
 
 class RecommendationItem(TypedDict):

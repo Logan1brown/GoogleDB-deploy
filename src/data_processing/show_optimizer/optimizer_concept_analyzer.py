@@ -215,6 +215,9 @@ class ConceptAnalyzer:
             # Step 1: Find matching shows using integrated data
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data)
             
+            # Store matching_shows for later use in get_network_specific_recommendations
+            self._last_matching_shows = matching_shows
+            
             # Extract match information
             match_count = len(matching_shows) if not matching_shows.empty else 0
             
@@ -503,15 +506,24 @@ class ConceptAnalyzer:
             List of recommendation dictionaries
         """
         try:
-            # Access the network_analyzer from criteria_scorer
             network_analyzer = self.criteria_scorer.network_analyzer
             if network_analyzer is None:
                 st.warning("NetworkAnalyzer not available. Cannot generate network recommendations.")
                 return []
+            
+            # Get matching shows for the criteria from the most recent analysis
+            # This is stored during analyze_concept method execution
+            matching_shows = None
+            if hasattr(self, '_last_matching_shows') and self._last_matching_shows is not None:
+                matching_shows = self._last_matching_shows
+            else:
+                # If we don't have matching shows cached, we can't generate recommendations
+                st.warning("No matching shows available for network recommendations.")
+                return []
                 
-            # Use the NetworkAnalyzer to generate recommendations, passing this ConceptAnalyzer
-            # so it can access the RecommendationEngine
-            return network_analyzer.get_network_recommendations(criteria, network, self)
+            # Use the NetworkAnalyzer to generate recommendations with the correct parameter order:
+            # matching_shows, network, concept_analyzer
+            return network_analyzer.get_network_recommendations(matching_shows, network, self)
             
         except Exception as e:
             st.error(f"Error generating network-specific recommendations: {str(e)}")

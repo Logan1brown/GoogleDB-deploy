@@ -22,9 +22,10 @@ from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
 from .optimizer_data_contracts import (
     CriteriaDict, ConfidenceInfo, IntegratedData, 
-    FieldValueSuccessRate, NetworkMatch, RecommendationItem,
+    FieldValueSuccessRate, RecommendationItem,
     create_field_value_key, create_success_rate
 )
+from .score_calculators import NetworkMatch
 
 
 class NetworkAnalyzer:
