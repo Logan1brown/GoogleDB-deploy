@@ -25,7 +25,11 @@ import numpy as np
 import streamlit as st
 
 from .optimizer_config import OptimizerConfig
-from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
+from .optimizer_data_contracts import (
+    CriteriaDict, ConfidenceInfo, IntegratedData, 
+    FieldValueData, FieldValueSuccessRate,
+    create_field_value_data, create_field_value_key
+)
 
 
 @dataclass
@@ -362,6 +366,101 @@ class FieldManager:
             Dictionary mapping field names to FieldValidation objects
         """
         return self.FIELD_VALIDATIONS
+    
+    def create_field_value_data(self, field_name: str, value: Any, is_selected: bool = False) -> FieldValueData:
+        """Create a standardized FieldValueData dictionary for a field value.
+        
+        This ensures consistent handling of field values throughout the system,
+        especially for list-type fields that need special handling.
+        
+        Args:
+            field_name: Name of the field (e.g., 'genre', 'subgenres')
+            value: The field value, which could be a string, int, list, etc.
+            is_selected: Whether this value is selected in the current criteria
+            
+        Returns:
+            A FieldValueData dictionary with standardized structure
+        """
+        # Check if this is an array field
+        is_array = False
+        if field_name in self.FIELD_CONFIGS:
+            is_array = self.FIELD_CONFIGS[field_name].is_array
+        
+        # For array fields, ensure value is a list
+        if is_array and not isinstance(value, (list, tuple)):
+            value = [value] if value is not None else []
+        
+        # Create a standardized display value
+        if is_array and isinstance(value, (list, tuple)):
+            # For list fields, join the display names
+            display_names = []
+            for item in value:
+                name = self.get_name_for_id(field_name, item) if isinstance(item, int) else str(item)
+                if name:
+                    display_names.append(name)
+            display_value = ', '.join(display_names) if display_names else ''
+        else:
+            # For scalar fields, use the name for the ID or the string value
+            display_value = self.get_name_for_id(field_name, value) if isinstance(value, int) else str(value)
+        
+        # Return a standardized FieldValueData dictionary
+        return {
+            'field_name': field_name,
+            'value': value,
+            'display_value': display_value,
+            'is_array': is_array,
+            'selected': is_selected
+        }
+    
+    def create_success_rate_data(self, field_name: str, value: Any, rate: float, 
+                               sample_size: int, matching_shows: List[str] = None) -> FieldValueSuccessRate:
+        """Create a standardized FieldValueSuccessRate dictionary for a field value.
+        
+        This ensures consistent handling of success rates throughout the system,
+        especially for list-type fields that need special handling.
+        
+        Args:
+            field_name: Name of the field (e.g., 'genre', 'subgenres')
+            value: The field value, which could be a string, int, list, etc.
+            rate: Success rate (0.0 to 1.0)
+            sample_size: Number of shows used to calculate rate
+            matching_shows: Optional list of matching show titles
+            
+        Returns:
+            A FieldValueSuccessRate dictionary with standardized structure
+        """
+        # Check if this is an array field
+        is_array = False
+        if field_name in self.FIELD_CONFIGS:
+            is_array = self.FIELD_CONFIGS[field_name].is_array
+        
+        # Create a standardized value name
+        if is_array and isinstance(value, (list, tuple)):
+            # For list fields, join the display names
+            display_names = []
+            for item in value:
+                name = self.get_name_for_id(field_name, item) if isinstance(item, int) else str(item)
+                if name:
+                    display_names.append(name)
+            value_name = ', '.join(sorted(display_names)) if display_names else ''
+        else:
+            # For scalar fields, use the name for the ID or the string value
+            value_name = self.get_name_for_id(field_name, value) if isinstance(value, int) else str(value)
+        
+        # Create the success rate dictionary
+        result: FieldValueSuccessRate = {
+            'field_name': field_name,
+            'value_name': value_name,
+            'value': value,
+            'rate': rate,
+            'sample_size': sample_size,
+            'has_data': sample_size > 0
+        }
+        
+        if matching_shows:
+            result['matching_shows'] = matching_shows
+        
+        return result
     
     def validate_criteria(self, criteria: CriteriaDict) -> List[str]:
         """Validate criteria against field options and return validation errors.

@@ -29,11 +29,13 @@ import streamlit as st
 
 from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
 from src.data_processing.show_optimizer.criteria_scorer import ComponentScore
-from src.data_processing.show_optimizer.network_analyzer import NetworkMatch
 from src.data_processing.show_optimizer.recommendation_engine import SuccessFactor, Recommendation
 from src.data_processing.show_optimizer.field_manager import FieldManager
 from src.data_processing.show_optimizer.optimizer_concept_analyzer import OptimizationSummary
-from src.data_processing.show_optimizer.optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
+from src.data_processing.show_optimizer.optimizer_data_contracts import (
+    CriteriaDict, ConfidenceInfo, IntegratedData, 
+    NetworkMatch, RecommendationItem, FieldValueData, FieldValueSuccessRate
+)
 
 
 class OptimizerView:
@@ -507,7 +509,7 @@ class OptimizerView:
         """Format network matches for display.
         
         Args:
-            network_matches: List of NetworkMatch objects
+            network_matches: List of NetworkMatch dictionaries using TypedDict contract
             
         Returns:
             List of formatted network match dictionaries with fields like network_name, match_score, etc.
@@ -520,27 +522,27 @@ class OptimizerView:
         
         for match in network_matches:
             # Get network name from field manager
-            network_id = match.network_id
+            network_id = match['network_id']
             
             # Convert network_id to integer if needed
             if isinstance(network_id, (str, float)):
                 network_id = int(float(network_id))
                 
-            # Get name from field manager
-            network_name = self.field_manager.get_name('network', network_id)
+            # Get name from field manager - use the name from the match if available
+            network_name = match['name'] if 'name' in match else self.field_manager.get_name('network', network_id)
             
             # Format compatibility score as percentage
-            compatibility_value = float(match.compatibility_score)
+            compatibility_value = float(match['compatibility_score'])
             compatibility_display = f"{compatibility_value*100:.1f}%"
             compatibility_raw = compatibility_value
             
             # Format success probability as percentage
-            success_value = float(match.success_probability)
+            success_value = float(match['success_probability']) if match['success_probability'] is not None else 0.0
             success_display = f"{success_value:.1f}%"
             success_raw = success_value
                 
             # Get confidence display text from config
-            confidence = match.confidence or "unknown"
+            confidence = match['confidence'] or "unknown"
             confidence_display = self.config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
             
             # Format the network match with all data needed for UI display
@@ -549,7 +551,7 @@ class OptimizerView:
                 'Network': network_name,
                 'Compatibility': compatibility_display,
                 'Success Probability': success_display,
-                'Sample Size': match.sample_size,
+                'Sample Size': match['sample_size'],
                 'Confidence': confidence_display,
                 
                 # Raw values for sorting (not displayed)

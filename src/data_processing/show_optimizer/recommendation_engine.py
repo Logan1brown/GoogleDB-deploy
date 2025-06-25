@@ -12,8 +12,10 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Any, Tuple, Optional, Set, Union
 
 from .optimizer_config import OptimizerConfig
-from .score_calculators import NetworkMatch
-from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
+from .optimizer_data_contracts import (
+    CriteriaDict, ConfidenceInfo, IntegratedData,
+    NetworkMatch, RecommendationItem, FieldValueData, FieldValueSuccessRate
+)
 
 
 @dataclass
@@ -29,14 +31,19 @@ class SuccessFactor:
     matching_titles: List[str] = field(default_factory=list)  # List of show titles matching this criteria
 
 @dataclass
+# DEPRECATED: This class is deprecated in favor of the RecommendationItem TypedDict
+# defined in optimizer_data_contracts.py
 class Recommendation:
-    """A recommendation for optimizing a show concept."""
+    """A recommendation for optimizing a show concept.
+    
+    DEPRECATED: Use RecommendationItem TypedDict from optimizer_data_contracts.py instead.
+    """
     recommendation_type: str  # add, remove, replace, consider, relax, change
-    criteria_type: str        # e.g., "genre", "character_types"
+    criteria_type: str        # e.g., "genre", "character_types" (renamed to 'field' in TypedDict)
     current_value: Any        # Current value (if any)
     suggested_value: Any      # Suggested value
     suggested_name: str       # Reference name for suggested value
-    impact_score: float       # Expected impact on success (-1 to 1)
+    impact_score: float       # Expected impact on success (-1 to 1) (renamed to 'impact' in TypedDict)
     confidence: str           # none, low, medium, high
     explanation: str          # Raw data for OptimizerView to format
     current_name: str = ""    # Reference name for current value
@@ -290,19 +297,19 @@ class RecommendationEngine:
                                 top_networks: List[NetworkMatch],
                                 matching_shows: pd.DataFrame,
                                 confidence_info: ConfidenceInfo,
-                                integrated_data: IntegratedData) -> List[Recommendation]:
+                                integrated_data: IntegratedData) -> List[RecommendationItem]:
         """Generate recommendations based on criteria analysis.
         
         Args:
             criteria: Dictionary of criteria conforming to CriteriaDict
             success_factors: List of identified success factors
-            top_networks: List of top network matches
+            top_networks: List of NetworkMatch dictionaries
             matching_shows: DataFrame of matching shows
             confidence_info: Dictionary with confidence metrics conforming to ConfidenceInfo
             integrated_data: Dictionary of integrated data frames conforming to IntegratedData
             
         Returns:
-            List of Recommendation objects
+            List of RecommendationItem dictionaries with standardized structure
         """
         try:
             # Initialize empty list for recommendations
@@ -348,8 +355,8 @@ class RecommendationEngine:
                 recommendations.extend(network_specific_recs)
             
             # Filter valid recommendations and sort by impact score
-            valid_recommendations = [rec for rec in recommendations if hasattr(rec, 'impact_score')]
-            valid_recommendations.sort(key=lambda x: abs(x.impact_score), reverse=True)
+            valid_recommendations = [rec for rec in recommendations if 'impact' in rec]
+            valid_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
             
             # Limit to max suggestions
             max_suggestions = self.config.SUGGESTIONS.get('max_suggestions', 5)
@@ -364,7 +371,7 @@ class RecommendationEngine:
     
     def _recommend_missing_criteria(self, criteria: CriteriaDict, 
                                    success_factors: List[SuccessFactor],
-                                   matching_shows: pd.DataFrame) -> List[Recommendation]:
+                                   matching_shows: pd.DataFrame) -> List[RecommendationItem]:
         """Generate recommendations for high-impact criteria that are missing from the concept.
         
         This method processes success factors to create actionable recommendations of types:
@@ -467,16 +474,17 @@ class RecommendationEngine:
                     
                 # Raw data is provided to OptimizerView for formatting
                 
-                recommendation = Recommendation(
-                    recommendation_type=rec_type,
-                    criteria_type=factor.criteria_type,
-                    current_value=None,
-                    suggested_value=factor.criteria_value,
-                    suggested_name=factor.criteria_name,
-                    impact_score=impact_score,
-                    confidence=factor.confidence,
-                    explanation=None
-                )
+                # Create a RecommendationItem dictionary using the TypedDict contract
+                recommendation: RecommendationItem = {
+                    'recommendation_type': rec_type,
+                    'field': factor.criteria_type,  # Renamed from criteria_type to field per TypedDict contract
+                    'current_value': None,
+                    'suggested_value': factor.criteria_value,
+                    'suggested_name': factor.criteria_name,
+                    'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
+                    'confidence': factor.confidence,
+                    'explanation': None
+                }
                 
                 # Add to recommendations list
                 recommendations.append(recommendation)
@@ -542,17 +550,18 @@ class RecommendationEngine:
                     # Impact based on increase in sample size
                     impact_score = min(0.5, (test_count - len(matching_shows)) / len(matching_shows))
                 
-                recommendation = Recommendation(
-                    recommendation_type=self.REC_TYPE_REMOVE,
-                    criteria_type=criteria_type,
-                    current_value=criteria_value,
-                    current_name=criteria_name,
-                    suggested_value=None,
-                    suggested_name=None,
-                    impact_score=impact_score,
-                    confidence="medium",
-                    explanation=None
-                )
+                # Create a RecommendationItem dictionary using the TypedDict contract
+                recommendation: RecommendationItem = {
+                    'recommendation_type': self.REC_TYPE_REMOVE,
+                    'field': criteria_type,  # Renamed from criteria_type to field per TypedDict contract
+                    'current_value': criteria_value,
+                    'current_name': criteria_name,
+                    'suggested_value': None,
+                    'suggested_name': None,
+                    'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
+                    'confidence': "medium",
+                    'explanation': None
+                }
                 recommendations.append(recommendation)
         
         return recommendations
@@ -673,18 +682,18 @@ class RecommendationEngine:
                         sample_size = len(shows_with_value)
                         confidence = self.config.get_confidence_level(sample_size)
                         
-                        # Create recommendation with raw data for OptimizerView to format
-                        recommendation = Recommendation(
-                            recommendation_type=self.REC_TYPE_CHANGE,
-                            criteria_type=criteria_type,
-                            current_value=current_value,
-                            current_name=current_name,
-                            suggested_value=top_value,
-                            suggested_name=suggested_name,
-                            impact_score=impact_score,
-                            confidence=confidence,
-                            explanation=None
-                        )
+                        # Create a RecommendationItem dictionary using the TypedDict contract
+                        recommendation: RecommendationItem = {
+                            'recommendation_type': self.REC_TYPE_CHANGE,
+                            'field': criteria_type,  # Renamed from criteria_type to field per TypedDict contract
+                            'current_value': current_value,
+                            'current_name': current_name,
+                            'suggested_value': top_value,
+                            'suggested_name': suggested_name,
+                            'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
+                            'confidence': confidence,
+                            'explanation': None
+                        }
                         recommendations.append(recommendation)
             
             return recommendations
@@ -823,17 +832,20 @@ class RecommendationEngine:
                 
                 # Use standardized network recommendation type constants
                 network_rec_type = self.REC_TYPE_NETWORK_KEEP if difference > 0 else self.REC_TYPE_NETWORK_CHANGE
-                recommendations.append(Recommendation(
-                    recommendation_type=network_rec_type,
-                    criteria_type=field_name,
-                    current_value=current_value,
-                    current_name=current_name,
-                    suggested_value=current_value,
-                    suggested_name=suggested_name,
-                    impact_score=impact_score,
-                    confidence=network_rate_data.get('confidence', 'medium'),
-                    explanation=None,
-                    metadata=network_data
-                ))
+                
+                # Create a RecommendationItem dictionary using the TypedDict contract
+                recommendation: RecommendationItem = {
+                    'recommendation_type': network_rec_type,
+                    'field': field_name,  # Renamed from criteria_type to field per TypedDict contract
+                    'current_value': current_value,
+                    'current_name': current_name,
+                    'suggested_value': current_value,
+                    'suggested_name': suggested_name,
+                    'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
+                    'confidence': network_rate_data.get('confidence', 'medium'),
+                    'explanation': None,
+                    'metadata': network_data
+                }
+                recommendations.append(recommendation)
         
         return recommendations

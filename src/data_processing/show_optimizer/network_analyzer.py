@@ -20,18 +20,11 @@ import streamlit as st
 from .optimizer_config import OptimizerConfig
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
-from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
-
-
-@dataclass
-class NetworkMatch:
-    """Network match data structure with compatibility and success metrics."""
-    network_id: int
-    network_name: str
-    compatibility_score: float
-    success_probability: Optional[float] = None
-    sample_size: int = 0
-    confidence: str = "none"
+from .optimizer_data_contracts import (
+    CriteriaDict, ConfidenceInfo, IntegratedData, 
+    FieldValueSuccessRate, NetworkMatch, RecommendationItem,
+    create_field_value_key, create_success_rate
+)
 
 
 class NetworkAnalyzer:
@@ -109,21 +102,21 @@ class NetworkAnalyzer:
                     avg_match_level = network_shows['match_level'].mean() if 'match_level' in network_shows.columns else 1
                     confidence = OptimizerConfig.get_confidence_level(sample_size, int(avg_match_level))
                 
-                # Create NetworkMatch object
-                network_match = NetworkMatch(
-                    network_id=network_id,
-                    network_name=network_name,
-                    compatibility_score=compatibility_score,
-                    success_probability=success_probability,
-                    sample_size=sample_size,
-                    confidence=confidence
-                )
+                # Create NetworkMatch dictionary using TypedDict contract
+                network_match: NetworkMatch = {
+                    'network_id': network_id,
+                    'name': network_name,  # Field renamed from network_name to name per TypedDict contract
+                    'compatibility_score': compatibility_score,
+                    'success_probability': success_probability,
+                    'sample_size': sample_size,
+                    'confidence': confidence
+                }
                 
                 network_scores[network_id] = network_match
             
             # Convert to list and sort by compatibility score (descending)
             network_matches = list(network_scores.values())
-            network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
+            network_matches.sort(key=lambda x: x['compatibility_score'] if x['compatibility_score'] is not None else -1, reverse=True)
             
             # Use config for default limit if not specified
             if limit is None:
@@ -231,7 +224,7 @@ class NetworkAnalyzer:
                 pass
             return {}
     
-    def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: int) -> Dict[str, Dict[str, Union[float, int, str]]]:
+    def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: int) -> Dict[str, FieldValueSuccessRate]:
         """Get success rates for specific criteria for a given network using matching shows.
         
         Args:
@@ -239,7 +232,7 @@ class NetworkAnalyzer:
             network_id: ID of the network to analyze
             
         Returns:
-            Dictionary mapping criteria names to success rate information with metrics like success_rate, sample_size, and confidence
+            Dictionary mapping field-value keys to FieldValueSuccessRate dictionaries
         """
         try:
             # Validate inputs
@@ -321,19 +314,20 @@ class NetworkAnalyzer:
                             
                         # Handle array fields differently
                         is_array_field = False
-                        if isinstance(value, (list, tuple)) or (
-                            isinstance(value, str) and column.endswith('_names') and '[' in value
-                        ):
+                        if isinstance(value, (list, tuple)):
                             is_array_field = True
-                            
-                        # For array fields, we need to check if the value is in the array
-                        if is_array_field:
-                            # Skip array fields for now as they need special handling
+                            # For list-type fields, find shows where the column contains this value
+                            value_shows = network_shows[network_shows[column].apply(
+                                lambda x: isinstance(x, list) and all(item in x for item in value) if isinstance(x, list) else False
+                            )]
+                        elif isinstance(value, str) and column.endswith('_names') and '[' in value:
+                            is_array_field = True
+                            # Skip string representations of arrays as they need special parsing
                             if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Skipping array field {column} with value {value}")
+                                st.write(f"DEBUG: Skipping string array field {column} with value {value}")
                             continue
                         else:
-                            # For scalar fields, we can do a direct comparison
+                            # For scalar fields, use direct comparison
                             value_shows = network_shows[network_shows[column] == value]
                         
                         # Skip if no shows
@@ -380,38 +374,40 @@ class NetworkAnalyzer:
                                     # If extraction fails, keep the original value_name
                                     pass
                             
-                            # Create keys for this field-value combination
-                            key = f"{field_name}:{clean_value_name}"
-                            original_key = f"{field_name}:{value_name}"
-                            
-                            if OptimizerConfig.DEBUG_MODE and clean_value_name != value_name:
-                                st.write(f"DEBUG: Cleaned key from '{original_key}' to '{key}'")
-                            
+                            # Clean value name will be used in the success rate data
                             # Get matching show titles (up to MAX_RESULTS)
                             matching_titles = []
                             if 'title' in value_shows.columns:
                                 matching_titles = value_shows['title'].tolist()
-                                # Limit to MAX_RESULTS titles
                                 if len(matching_titles) > OptimizerConfig.MAX_RESULTS:
                                     matching_titles = matching_titles[:OptimizerConfig.MAX_RESULTS]
                             
-                            # Add success rate data to the dictionary
-                            success_rates[key] = {
-                                'field_name': field_name,
-                                'value_name': clean_value_name,
-                                'original_value_name': value_name,
-                                'value': value,
-                                'rate': success_rate,
-                                'sample_size': total_count,
-                                'has_data': True,
-                                'matching_shows': matching_titles
-                            }
+                            # Use the field manager to create standardized success rate data
+                            # This ensures consistent handling of field values, especially list-type fields
+                            success_rate_data = self.field_manager.create_success_rate_data(
+                                field_name=field_name,
+                                value=value,
+                                rate=success_rate,
+                                sample_size=total_count,
+                                matching_shows=matching_titles
+                            )
                             
-                            # If the cleaned key is different from the original, store a reference to the same data
-                            if key != original_key:
-                                success_rates[original_key] = success_rates[key]
-                                if OptimizerConfig.DEBUG_MODE:
-                                    st.write(f"DEBUG: Added duplicate key mapping from '{original_key}' to '{key}'")
+                            # Add cleaned value name if different from the generated one
+                            if clean_value_name != success_rate_data['value_name']:
+                                success_rate_data['original_value_name'] = success_rate_data['value_name']
+                                success_rate_data['value_name'] = clean_value_name
+                            
+                            # Create a standardized key using our helper function
+                            key = create_field_value_key(field_name, value)
+                            
+                            # Add success rate data to the dictionary
+                            success_rates[key] = success_rate_data
+                            
+                            if OptimizerConfig.DEBUG_MODE:
+                                st.write(f"DEBUG: Added success rate for {key} with rate {success_rate:.4f}")
+                                st.write(f"DEBUG: Sample size: {total_count}")
+                                if is_array_field:
+                                    st.write(f"DEBUG: Handled array field {field_name} successfully")
                 except Exception as e:
                     if OptimizerConfig.DEBUG_MODE:
                         st.write(f"DEBUG: Error processing column {column}: {str(e)}")
@@ -425,16 +421,16 @@ class NetworkAnalyzer:
     
     def get_network_recommendations(self, matching_shows: pd.DataFrame, 
                                     network: NetworkMatch, 
-                                    concept_analyzer=None) -> List[Dict[str, Union[str, float, int, bool]]]:
+                                    concept_analyzer=None) -> List[RecommendationItem]:
         """Generate network-specific recommendations using the RecommendationEngine from ConceptAnalyzer.
         
         Args:
             matching_shows: DataFrame of shows matching the criteria with match_level column
-            network: Target network
+            network: Target network with compatibility score and other metrics
             concept_analyzer: ConceptAnalyzer instance that contains the RecommendationEngine
             
         Returns:
-            List of recommendation dictionaries with fields like field, option, impact, explanation, etc.
+            List of RecommendationItem dictionaries with standardized structure
         """
         try:
             if concept_analyzer is None or not hasattr(concept_analyzer, 'recommendation_engine'):
