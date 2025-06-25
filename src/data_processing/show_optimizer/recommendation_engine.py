@@ -788,10 +788,13 @@ class RecommendationEngine:
             st.write(f"DEBUG: Criteria keys: {list(criteria.keys())}")
         
         # Process each key in network rates to calculate corresponding overall rates
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Network rates type: {type(network_rates).__name__}")
+            
         for key, network_rate_data in network_rates.items():
             if OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: Processing key: {key}")
-                st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
+                st.write(f"DEBUG: Network rate data type: {type(network_rate_data).__name__}")
                 if isinstance(network_rate_data, dict):
                     st.write(f"DEBUG: Network rate data keys: {list(network_rate_data.keys())}")
                     if 'success_rate' in network_rate_data:
@@ -799,8 +802,9 @@ class RecommendationEngine:
                     if 'sample_size' in network_rate_data:
                         st.write(f"DEBUG: Network rate sample_size: {network_rate_data['sample_size']}")
                 else:
-                    st.write(f"DEBUG: Network rate data is not a dict: {type(network_rate_data)}")
-                    st.write(f"DEBUG: Network rate data: {network_rate_data}")
+                    st.write(f"DEBUG: Network rate data is not a dict: {type(network_rate_data).__name__}")
+                    if hasattr(network_rate_data, 'network_id'):
+                        st.write(f"DEBUG: Found NetworkMatch with ID: {network_rate_data.network_id}")
                     # This is likely the source of the error
             
             # Extract field name from key using standard format
@@ -917,9 +921,19 @@ class RecommendationEngine:
                 import streamlit as st
                 st.write(f"DEBUG: Network rate data keys: {list(network_rate_data.keys()) if isinstance(network_rate_data, dict) else 'Not a dict'}")
                 
-            # Get network success rate and sample size
-            network_rate = network_rate_data['success_rate']
-            sample_size = network_rate_data['sample_size']
+            # Get network-specific success rate and sample size
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: network_rate_data type: {type(network_rate_data).__name__}")
+                
+            # Ensure we're accessing dictionary attributes, not NetworkMatch attributes
+            if isinstance(network_rate_data, dict):
+                network_rate = network_rate_data['success_rate']
+                sample_size = network_rate_data['sample_size']
+            else:
+                # Skip if not a dictionary to prevent subscripting error
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Skipping non-dictionary network_rate_data to prevent 'NetworkMatch' object is not subscriptable error")
+                continue
             
             # Calculate the difference between network and overall rates
             difference = network_rate - overall_rate
@@ -970,6 +984,13 @@ class RecommendationEngine:
                     explanation_text = f"Consider changing {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% worse on {network_name} than average."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
+                # Get confidence value safely, ensuring we use attribute access for NetworkMatch objects
+                confidence_value = 'medium'  # Default value
+                if isinstance(network_rate_data, dict):
+                    confidence_value = network_rate_data.get('confidence', 'medium')
+                elif hasattr(network_rate_data, 'confidence'):
+                    confidence_value = network_rate_data.confidence
+                    
                 recommendation: RecommendationItem = {
                     'recommendation_type': network_rec_type,
                     'field': field_name,  # Renamed from criteria_type to field per TypedDict contract
@@ -978,7 +999,7 @@ class RecommendationEngine:
                     'suggested_value': current_value,
                     'suggested_name': suggested_name,
                     'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
-                    'confidence': network_rate_data.get('confidence', 'medium'),
+                    'confidence': confidence_value,
                     'explanation': explanation_text,
                     'metadata': network_data
                 }
