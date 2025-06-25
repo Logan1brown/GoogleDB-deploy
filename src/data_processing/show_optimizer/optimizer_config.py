@@ -42,7 +42,7 @@ class OptimizerConfig:
         'matcher': True,
         'analyzer': True,
         'scorer': True,
-        'network': True,
+        'network': False,  # Disable network debug messages
         'recommendation': True,
         'general': True
     }
