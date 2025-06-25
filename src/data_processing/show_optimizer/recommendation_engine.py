@@ -758,7 +758,6 @@ class RecommendationEngine:
         """
         # Debug logging for network information
         if OptimizerConfig.DEBUG_MODE:
-            import streamlit as st
             st.write(f"DEBUG: Processing network {network.network_name} (ID: {network.network_id})")
 
         
@@ -775,15 +774,45 @@ class RecommendationEngine:
         # Calculate overall success rates for comparison with network-specific rates
         overall_rates = {}
         
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Network rates keys: {list(network_rates.keys())}")
+            st.write(f"DEBUG: Criteria keys: {list(criteria.keys())}")
+        
         # Process each key in network rates to calculate corresponding overall rates
         for key, network_rate_data in network_rates.items():
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Processing key: {key}")
+                st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
+                if isinstance(network_rate_data, dict):
+                    st.write(f"DEBUG: Network rate data keys: {list(network_rate_data.keys())}")
+                    if 'success_rate' in network_rate_data:
+                        st.write(f"DEBUG: Network rate success_rate: {network_rate_data['success_rate']}")
+                    if 'sample_size' in network_rate_data:
+                        st.write(f"DEBUG: Network rate sample_size: {network_rate_data['sample_size']}")
+                else:
+                    st.write(f"DEBUG: Network rate data is not a dict: {type(network_rate_data)}")
+                    st.write(f"DEBUG: Network rate data: {network_rate_data}")
+                    # This is likely the source of the error
+            
             # Extract field name from key using standard format
             field_name = key.split(':', 1)[0] if ':' in key else key
             
+            if OptimizerConfig.DEBUG_MODE:
+                import streamlit as st
+                st.write(f"DEBUG: Extracted field_name: {field_name}")
+            
             # Skip if this field is not in our criteria
             if field_name not in criteria:
+                if OptimizerConfig.DEBUG_MODE:
+                    import streamlit as st
+                    st.write(f"DEBUG: Field {field_name} not in criteria, skipping")
                 continue
                 
+            if OptimizerConfig.DEBUG_MODE:
+                import streamlit as st
+                st.write(f"DEBUG: Creating single_criteria for {field_name}")
+                st.write(f"DEBUG: criteria[{field_name}] = {criteria[field_name]}")
+            
             # Calculate the overall success rate for this criteria
             single_criteria = {field_name: criteria[field_name]}
             
@@ -807,12 +836,30 @@ class RecommendationEngine:
         valid_fields = set(criteria.keys())
         valid_network_rates = {}
         
+        if OptimizerConfig.DEBUG_MODE:
+            import streamlit as st
+            st.write(f"DEBUG: Valid criteria fields: {valid_fields}")
+        
         for key, network_rate_data in network_rates.items():
+            if OptimizerConfig.DEBUG_MODE:
+                import streamlit as st
+                st.write(f"DEBUG: Processing network rate key: {key}")
+                st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
+            
             # Extract field name from the key using standard format
             field_name = key.split(':', 1)[0] if ':' in key else key
             
+            if OptimizerConfig.DEBUG_MODE:
+                import streamlit as st
+                st.write(f"DEBUG: Extracted field_name: {field_name}")
+            
             # Only process keys that correspond to fields in our criteria
             if field_name in valid_fields:
+                if OptimizerConfig.DEBUG_MODE:
+                    import streamlit as st
+                    st.write(f"DEBUG: Field {field_name} is valid, creating entry in valid_network_rates")
+                    st.write(f"DEBUG: criteria[{field_name}] = {criteria[field_name]}")
+                
                 valid_network_rates[key] = {
                     'field_name': field_name,
                     'network_rate_data': network_rate_data,
@@ -821,17 +868,45 @@ class RecommendationEngine:
                 }
         
         # Now process only the valid network rates
+        if OptimizerConfig.DEBUG_MODE:
+            import streamlit as st
+            st.write(f"DEBUG: Processing {len(valid_network_rates)} valid network rates")
+            st.write(f"DEBUG: Valid network rates keys: {list(valid_network_rates.keys())}")
+        
         for key, data in valid_network_rates.items():
+            if OptimizerConfig.DEBUG_MODE:
+                import streamlit as st
+                st.write(f"DEBUG: Processing valid network rate key: {key}")
+                st.write(f"DEBUG: Data: {data}")
+            
             field_name = data['field_name']
             network_rate_data = data['network_rate_data']
             current_value = data['current_value']
             current_name = data['current_name']
             
+            if OptimizerConfig.DEBUG_MODE:
+                import streamlit as st
+                st.write(f"DEBUG: Extracted field_name: {field_name}")
+                st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
+                st.write(f"DEBUG: Current value: {current_value}")
+                st.write(f"DEBUG: Current name: {current_name}")
+            
             # Get the overall success rate using flexible key lookup
             overall_rate = overall_rates.get(key, overall_rates.get(field_name))
+            if OptimizerConfig.DEBUG_MODE:
+                import streamlit as st
+                st.write(f"DEBUG: Overall rate for {key}/{field_name}: {overall_rate}")
+            
             if overall_rate is None:
+                if OptimizerConfig.DEBUG_MODE:
+                    import streamlit as st
+                    st.write(f"DEBUG: No overall rate for {key}/{field_name}, skipping")
                 # Skip criteria without overall rates
                 continue
+            
+            if OptimizerConfig.DEBUG_MODE:
+                import streamlit as st
+                st.write(f"DEBUG: Network rate data keys: {list(network_rate_data.keys()) if isinstance(network_rate_data, dict) else 'Not a dict'}")
                 
             # Get network success rate and sample size
             network_rate = network_rate_data['success_rate']
