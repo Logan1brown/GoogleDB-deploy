@@ -16,6 +16,7 @@ import numpy as np
 import streamlit as st
 
 from .optimizer_config import OptimizerConfig
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo
 
 
 class Matcher:
@@ -47,11 +48,11 @@ class Matcher:
             return pd.DataFrame()
         return data
         
-    def _empty_confidence_info(self) -> Dict[str, Any]:
-        """Create an empty confidence info dictionary.
+    def _empty_confidence_info(self) -> ConfidenceInfo:
+        """Create an empty confidence info dictionary conforming to ConfidenceInfo.
         
         Returns:
-            Empty confidence info dictionary with default values
+            Empty confidence info dictionary with default values conforming to ConfidenceInfo
         """
         return {
             'level': 'none',  # Use string directly instead of non-existent CONFIDENCE_LEVELS
@@ -62,8 +63,8 @@ class Matcher:
             'match_level': 0  # Maintain backward compatibility
         }
         
-    def get_criteria_for_match_level(self, criteria: Dict[str, Any], match_level: int) -> Dict[str, Any]:
-        """Get criteria adjusted for a specific match level.
+    def get_criteria_for_match_level(self, criteria: CriteriaDict, match_level: int) -> CriteriaDict:
+        """Get a subset of criteria based on match level.
         
         Match levels now directly correspond to the number of criteria differences:
         - Level 1: All criteria match (0 differences)
@@ -76,11 +77,11 @@ class Matcher:
         the exact number of criteria differences specified by the match level.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             match_level: Match level (corresponds to criteria differences + 1)
             
         Returns:
-            Criteria dictionary adjusted for the match level
+            Criteria dictionary adjusted for the match level conforming to CriteriaDict
         """
         # Special case for only 1 criterion - always include it
         if len(criteria) == 1:
@@ -184,11 +185,11 @@ class Matcher:
             
         return result
         
-    def _calculate_criteria_coverage(self, criteria: Dict[str, Any], shows: pd.DataFrame) -> Tuple[float, int]:
-        """Calculate criteria coverage and missing criteria count.
+    def _calculate_criteria_coverage(self, criteria: CriteriaDict, shows: pd.DataFrame) -> Tuple[float, int]:
+        """Calculate how well the shows match the original criteria.
         
         Args:
-            criteria: Dictionary of criteria to check coverage for
+            criteria: Dictionary of criteria to check coverage for conforming to CriteriaDict
             shows: DataFrame of shows to check against
             
         Returns:
@@ -271,7 +272,7 @@ class Matcher:
         """
         self._criteria_data = criteria_data.copy() if criteria_data is not None else None
         
-    def find_matches_with_fallback(self, criteria: Dict[str, Any], data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    def find_matches_with_fallback(self, criteria: CriteriaDict, data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, ConfidenceInfo]:
         """Find shows matching criteria, with fallback to more permissive criteria if needed.
         
         This method will progressively relax the matching criteria until either:
@@ -279,12 +280,13 @@ class Matcher:
             - Have tried all possible match levels (down to 1 remaining criterion)
         
         Args:
-            criteria: Dictionary of criteria to match against
+            criteria: Dictionary of criteria to match against conforming to CriteriaDict
             data: DataFrame of shows to match against (uses cached data if None)
             min_sample_size: Minimum number of matches required
             
         Returns:
-            Tuple of (matching_shows, match_info) with combined matches from all levels needed
+            Tuple of (matching_shows, match_info) with combined matches from all levels needed,
+            where match_info conforms to ConfidenceInfo
         """
         # Use config values for sample sizes if not specified
         if min_sample_size is None:
@@ -512,11 +514,11 @@ class Matcher:
             
         return all_matches, confidence_info
 
-    def _match_shows(self, criteria: Dict[str, Any], data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int]:
+    def _match_shows(self, criteria: CriteriaDict, data: pd.DataFrame = None) -> Tuple[pd.DataFrame, int]:
         """Match shows based on criteria.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             data: DataFrame of shows to match against
             
         Returns:
@@ -625,16 +627,16 @@ class Matcher:
         return matches, match_count
     
     def calculate_match_confidence(self, shows: pd.DataFrame, match_level: int, 
-                                  criteria: Dict[str, Any]) -> Dict[str, Any]:
+                                  criteria: CriteriaDict) -> ConfidenceInfo:
         """Calculate confidence metrics for a set of matched shows.
         
         Args:
             shows: DataFrame of matched shows
             match_level: Match level used (1-4)
-            criteria: Original criteria dictionary
+            criteria: Original criteria dictionary conforming to CriteriaDict
             
         Returns:
-            Dictionary with confidence metrics:
+            Dictionary with confidence metrics conforming to ConfidenceInfo:
             - level: Confidence level string ('none', 'very_low', 'low', 'medium', 'high')
             - score: Confidence score (0-1)
             - match_quality: Quality of the match based on match level (0-1)
@@ -734,15 +736,15 @@ class Matcher:
             'match_level_name': self._get_match_level_description(actual_match_level)
         }
         
-    def _get_relaxed_criteria(self, criteria: Dict[str, Any], relaxation_tier: str) -> List[Dict[str, Any]]:
+    def _get_relaxed_criteria(self, criteria: CriteriaDict, relaxation_tier: str) -> List[CriteriaDict]:
         """Generate sets of relaxed criteria by removing criteria of the specified importance tier.
         
         Args:
-            criteria: Dictionary of criteria to relax
+            criteria: Dictionary of criteria to relax conforming to CriteriaDict
             relaxation_tier: Importance tier to relax ('secondary', 'primary', 'core')
                 
         Returns:
-            List of dictionaries with relaxed criteria sets
+            List of dictionaries with relaxed criteria sets conforming to CriteriaDict
         """
         # Find criteria that belong to the specified relaxation tier
         relaxable_criteria = []
@@ -797,11 +799,11 @@ class Matcher:
         
         return relaxed_criteria_sets
         
-    def _calculate_relevance_score(self, original_criteria: Dict[str, Any], matched_show: pd.Series) -> float:
+    def _calculate_relevance_score(self, original_criteria: CriteriaDict, matched_show: pd.Series) -> float:
         """Calculate a weighted relevance score for a show based on how well it matches the original criteria.
         
         Args:
-            original_criteria: Dictionary of original criteria
+            original_criteria: Dictionary of original criteria conforming to CriteriaDict
             matched_show: Series representing a show from the database
                 
         Returns:

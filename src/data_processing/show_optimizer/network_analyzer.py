@@ -20,6 +20,7 @@ import streamlit as st
 from .optimizer_config import OptimizerConfig
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
 
 
 @dataclass
@@ -230,7 +231,7 @@ class NetworkAnalyzer:
                 pass
             return {}
     
-    def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: int) -> Dict[str, Dict[str, Any]]:
+    def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: int) -> Dict[str, Dict[str, Union[float, int, str]]]:
         """Get success rates for specific criteria for a given network using matching shows.
         
         Args:
@@ -238,7 +239,7 @@ class NetworkAnalyzer:
             network_id: ID of the network to analyze
             
         Returns:
-            Dictionary mapping criteria names to success rate information
+            Dictionary mapping criteria names to success rate information with metrics like success_rate, sample_size, and confidence
         """
         try:
             # Validate inputs
@@ -424,7 +425,7 @@ class NetworkAnalyzer:
     
     def get_network_recommendations(self, matching_shows: pd.DataFrame, 
                                     network: NetworkMatch, 
-                                    concept_analyzer=None) -> List[Dict[str, Any]]:
+                                    concept_analyzer=None) -> List[Dict[str, Union[str, float, int, bool]]]:
         """Generate network-specific recommendations using the RecommendationEngine from ConceptAnalyzer.
         
         Args:
@@ -433,7 +434,7 @@ class NetworkAnalyzer:
             concept_analyzer: ConceptAnalyzer instance that contains the RecommendationEngine
             
         Returns:
-            List of recommendation dictionaries
+            List of recommendation dictionaries with fields like field, option, impact, explanation, etc.
         """
         try:
             if concept_analyzer is None or not hasattr(concept_analyzer, 'recommendation_engine'):
@@ -461,7 +462,7 @@ class NetworkAnalyzer:
             
             # Extract criteria from matching_shows if possible
             # This is more reliable than passing potentially stale criteria
-            criteria = {}
+            criteria: CriteriaDict = {}
             if hasattr(matching_shows, 'criteria') and isinstance(matching_shows.criteria, dict):
                 criteria = matching_shows.criteria
             

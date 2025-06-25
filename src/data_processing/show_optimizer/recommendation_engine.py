@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Tuple, Optional, Set, Union
 
 from .optimizer_config import OptimizerConfig
 from .score_calculators import NetworkMatch
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
 
 
 @dataclass
@@ -135,14 +136,14 @@ class RecommendationEngine:
         if self.criteria_scorer is None:
             st.error("Some recommendation features may be limited due to missing components.")
     
-    def calculate_overall_success_rate(self, criteria: Dict[str, Any]) -> Tuple[float, str]:
+    def calculate_overall_success_rate(self, criteria: CriteriaDict) -> Tuple[float, str]:
         """Calculate the overall success rate for the given criteria.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             
         Returns:
-            Tuple of (success_rate, confidence)
+            Tuple of (success_rate, confidence_level)
         """
         # Handle missing criteria
         if criteria is None:
@@ -176,13 +177,13 @@ class RecommendationEngine:
 
             return None, 'none'
     
-    def identify_success_factors(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame = None, integrated_data: Dict[str, pd.DataFrame] = None, limit: int = 5) -> List[SuccessFactor]:
+    def identify_success_factors(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, integrated_data: IntegratedData = None, limit: int = 5) -> List[SuccessFactor]:
         """Identify success factors from the given criteria and matching shows.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             matching_shows: DataFrame of shows matching the criteria (optional)
-            integrated_data: Dictionary of integrated data frames (optional)
+            integrated_data: Dictionary of integrated data frames conforming to IntegratedData (optional)
             limit: Maximum number of success factors to identify per criteria type
             
         Returns:
@@ -284,21 +285,21 @@ class RecommendationEngine:
             st.error(f"Error identifying success factors: {str(e)}")
             return []
     
-    def generate_recommendations(self, criteria: Dict[str, Any],
+    def generate_recommendations(self, criteria: CriteriaDict,
                                 success_factors: List[SuccessFactor],
                                 top_networks: List[NetworkMatch],
                                 matching_shows: pd.DataFrame,
-                                confidence_info: Dict[str, Any],
-                                integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
+                                confidence_info: ConfidenceInfo,
+                                integrated_data: IntegratedData) -> List[Recommendation]:
         """Generate recommendations based on criteria analysis.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             success_factors: List of identified success factors
             top_networks: List of top network matches
             matching_shows: DataFrame of matching shows
-            confidence_info: Dictionary with confidence metrics
-            integrated_data: Dictionary of integrated data frames from ShowOptimizer
+            confidence_info: Dictionary with confidence metrics conforming to ConfidenceInfo
+            integrated_data: Dictionary of integrated data frames conforming to IntegratedData
             
         Returns:
             List of Recommendation objects
@@ -361,7 +362,7 @@ class RecommendationEngine:
             st.error(f"Unable to generate recommendations based on your criteria: {str(e)}")
             return []
     
-    def _recommend_missing_criteria(self, criteria: Dict[str, Any], 
+    def _recommend_missing_criteria(self, criteria: CriteriaDict, 
                                    success_factors: List[SuccessFactor],
                                    matching_shows: pd.DataFrame) -> List[Recommendation]:
         """Generate recommendations for high-impact criteria that are missing from the concept.
@@ -372,7 +373,7 @@ class RecommendationEngine:
         - 'remove': For selected criteria with negative impact
         
         Args:
-            criteria: Dictionary of criteria key-value pairs from the UI
+            criteria: Dictionary of criteria key-value pairs from the UI conforming to CriteriaDict
             success_factors: List of SuccessFactor objects with impact scores and recommendation types
             matching_shows: DataFrame of shows matching the current criteria
             
@@ -490,14 +491,14 @@ class RecommendationEngine:
             # Return empty list to ensure the UI can still function
             return []
     
-    def _identify_limiting_criteria(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, 
-                                confidence_info: Dict[str, Any]) -> List[Recommendation]:
+    def _identify_limiting_criteria(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, 
+                                confidence_info: ConfidenceInfo) -> List[Recommendation]:
         """Identify criteria that are limiting match quality and suggest alternatives.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             matching_shows: DataFrame of matching shows
-            confidence_info: Dictionary with confidence metrics
+            confidence_info: Dictionary with confidence metrics conforming to ConfidenceInfo
             
         Returns:
             List of Recommendation objects with suggestions to improve match quality
@@ -556,11 +557,11 @@ class RecommendationEngine:
         
         return recommendations
     
-    def _analyze_successful_patterns(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[Recommendation]:
+    def _analyze_successful_patterns(self, criteria: CriteriaDict, matching_shows: pd.DataFrame) -> List[Recommendation]:
         """Analyze patterns in successful shows and suggest criteria changes.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             matching_shows: DataFrame of matching shows
             
         Returns:
@@ -714,17 +715,17 @@ class RecommendationEngine:
                 return option.name
         return str(value)       
 
-    def generate_network_specific_recommendations(self, criteria: Dict[str, Any], 
+    def generate_network_specific_recommendations(self, criteria: CriteriaDict, 
                                                 network: NetworkMatch,
                                                 matching_shows: pd.DataFrame,
-                                                integrated_data: Dict[str, pd.DataFrame]) -> List[Recommendation]:
+                                                integrated_data: IntegratedData) -> List[Recommendation]:
         """
         Generate network-specific recommendations.        
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             network: Target network
             matching_shows: DataFrame of shows matching the criteria
-            integrated_data: Dictionary of integrated data frames from ShowOptimizer
+            integrated_data: Dictionary of integrated data frames conforming to IntegratedData
             
         Returns:
             List of Recommendation objects specific to the network

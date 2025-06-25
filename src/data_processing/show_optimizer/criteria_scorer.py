@@ -17,6 +17,7 @@ from .field_manager import FieldManager
 from .optimizer_config import OptimizerConfig
 from .score_calculators import ComponentScore, ScoreCalculationError, NetworkMatch, NetworkScoreCalculator
 from .score_calculators import SuccessScoreCalculator, AudienceScoreCalculator, CriticsScoreCalculator, LongevityScoreCalculator
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
 
 SCORE_CALCULATORS_CLASSES = {
     'success': SuccessScoreCalculator,
@@ -48,7 +49,7 @@ class CriteriaScorer:
         self.matcher = matcher  # Matcher instance for finding matches
         self.network_analyzer = None  # Will be set by ShowOptimizer after initialization
         
-    def calculate_success_rate(self, shows: pd.DataFrame = None, threshold: Optional[float] = None, integrated_data: Optional[Dict[str, pd.DataFrame]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
+    def calculate_success_rate(self, shows: pd.DataFrame = None, threshold: Optional[float] = None, integrated_data: Optional[IntegratedData] = None) -> Tuple[Optional[float], ConfidenceInfo]:
         """Public method to calculate the success rate for a set of shows.
         
         Delegates to the private _calculate_success_rate method.
@@ -56,13 +57,13 @@ class CriteriaScorer:
         Args:
             shows: DataFrame of shows (if None or empty, will use integrated_data['shows'] if provided)
             threshold: Optional success threshold
-            integrated_data: Optional dict of integrated DataFrames (e.g., {'shows': DataFrame})
+            integrated_data: Optional dict of integrated DataFrames conforming to IntegratedData
         Returns:
-            Tuple of success rate and confidence information
+            Tuple of success rate and confidence information conforming to ConfidenceInfo
         """
         return self._calculate_success_rate(shows, threshold, integrated_data=integrated_data)
 
-    def _calculate_success_rate(self, shows: pd.DataFrame = None, threshold: Optional[float] = None, confidence_info: Optional[Dict[str, Any]] = None, integrated_data: Optional[Dict[str, pd.DataFrame]] = None) -> Tuple[Optional[float], Dict[str, Any]]:
+    def _calculate_success_rate(self, shows: pd.DataFrame = None, threshold: Optional[float] = None, confidence_info: Optional[ConfidenceInfo] = None, integrated_data: Optional[IntegratedData] = None) -> Tuple[Optional[float], ConfidenceInfo]:
         """Calculate the success rate for a set of shows with confidence information.
         
         Delegates success rate calculation to the SuccessScoreCalculator.
@@ -70,10 +71,10 @@ class CriteriaScorer:
         Args:
             shows: DataFrame of shows (if None or empty, will use integrated_data['shows'] if provided)
             threshold: Optional success threshold
-            confidence_info: Optional confidence information
-            integrated_data: Optional dict of integrated DataFrames (e.g., {'shows': DataFrame})
+            confidence_info: Optional confidence information conforming to ConfidenceInfo
+            integrated_data: Optional dict of integrated DataFrames conforming to IntegratedData
         Returns:
-            Tuple of success rate and confidence information
+            Tuple of success rate and confidence information conforming to ConfidenceInfo
         """
         # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
         if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data:
@@ -141,12 +142,12 @@ class CriteriaScorer:
             return None, confidence_info
 
    
-    def _batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: Optional[List[pd.DataFrame]] = None) -> List[Optional[float]]:
+    def _batch_calculate_success_rates(self, criteria_list: List[CriteriaDict], matching_shows_list: Optional[List[pd.DataFrame]] = None) -> List[Optional[float]]:
         """
         Calculate success rates for a batch of criteria using provided matching shows.
 
         Args:
-            criteria_list: List of criteria dictionaries
+            criteria_list: List of criteria dictionaries conforming to CriteriaDict
             matching_shows_list: List of DataFrames containing shows matching each criteria
         Returns:
             List of success rates (one for each criteria/matching shows pair)
@@ -188,17 +189,17 @@ class CriteriaScorer:
         """
         return df is not None and not df.empty
         
-    def _create_option_criteria(self, base_criteria: Dict[str, Any], field: str, option_id, is_array_field: bool) -> Dict[str, Any]:
+    def _create_option_criteria(self, base_criteria: CriteriaDict, field: str, option_id, is_array_field: bool) -> CriteriaDict:
         """Create criteria with a specific option value for a field or remove the field.
         
         Args:
-            base_criteria: Base criteria to modify
+            base_criteria: Base criteria to modify conforming to CriteriaDict
             field: Field to set or remove
             option_id: Option ID to set for the field, or 'remove' to remove the field
             is_array_field: Whether this is an array field (ignored for 'remove')
             
         Returns:
-            New criteria dictionary with the option set or field removed
+            New criteria dictionary with the option set or field removed conforming to CriteriaDict
         """
         # Create a shallow copy of the base criteria
         new_criteria = dict(base_criteria)
@@ -251,16 +252,16 @@ class CriteriaScorer:
                 # No recommendation for unselected options with negative impact
                 return None
     
-    def calculate_criteria_impact(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None) -> Dict[str, Dict[Any, Dict[str, Any]]]:
+    def calculate_criteria_impact(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None) -> Dict[str, Dict[Any, Dict[str, Union[float, int, str, bool]]]]:
         """Calculate the impact of each criteria option on success rate.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             matching_shows: DataFrame of shows matching the criteria
             option_matching_shows_map: Optional pre-computed map of option matching shows
             
         Returns:
-            Dictionary of impact scores by field and option
+            Dictionary of impact scores by field and option with metrics like impact, sample_size, confidence, etc.
         """
         # Validate inputs - fail fast with clear error messages
         if not criteria:
@@ -709,7 +710,7 @@ class CriteriaScorer:
                 OptimizerConfig.debug(f"Fields processed: {fields_to_process if 'fields_to_process' in locals() else 'Not initialized'}", category='error')
             return {}
             
-    def calculate_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, Any]:
+    def calculate_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, integrated_data: IntegratedData = None) -> Dict[str, Any]:
         """Calculate all scores for a set of criteria and matching shows.
         
         This is the main entry point for score calculation as defined in the architecture.
@@ -717,17 +718,17 @@ class CriteriaScorer:
         result dictionary with standardized structure.
         
         Args:
-            criteria: Dictionary of criteria with field names as keys and values as criteria values
+            criteria: Dictionary of criteria conforming to CriteriaDict
             matching_shows: DataFrame of shows matching the criteria, must contain at minimum 'id' and 'success_score' columns
-            integrated_data: Optional dictionary of integrated data with keys as data source names and values as DataFrames
+            integrated_data: Optional dictionary of integrated data conforming to IntegratedData
             
         Returns:
             Dictionary with the following structure:
             {
                 'component_scores': Dict[str, ComponentScore],  # Component scores by name
                 'success_rate': Optional[float],                # Overall success rate (0-1)
-                'success_info': Dict[str, Any],                # Success rate calculation details
-                'confidence': Dict[str, Any]                   # Confidence information
+                'success_info': Dict[str, Union[float, int, str]],  # Success rate calculation details
+                'confidence': ConfidenceInfo                   # Confidence information
             }
             
         Raises:
@@ -762,7 +763,7 @@ class CriteriaScorer:
         
         return all_scores
     
-    def calculate_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, confidence_info: Dict[str, Any] = None, integrated_data: Dict[str, pd.DataFrame] = None) -> Dict[str, ComponentScore]:
+    def calculate_component_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, confidence_info: ConfidenceInfo = None, integrated_data: IntegratedData = None) -> Dict[str, ComponentScore]:
         """Calculate component scores for a set of criteria and matching shows.
         
         This method orchestrates the calculation of individual component scores using
@@ -770,10 +771,10 @@ class CriteriaScorer:
         aggregation of results.
         
         Args:
-            criteria: Dictionary of criteria with field names as keys and values as criteria values
+            criteria: Dictionary of criteria conforming to CriteriaDict
             matching_shows: DataFrame of shows matching the criteria, must contain required columns for each component
-            confidence_info: Optional dictionary of confidence information from matching process
-            integrated_data: Optional dictionary of integrated data with keys as data source names and values as DataFrames
+            confidence_info: Optional dictionary of confidence information conforming to ConfidenceInfo
+            integrated_data: Optional dictionary of integrated data conforming to IntegratedData
             
         Returns:
             Dictionary mapping component names to ComponentScore objects with the following structure:
@@ -839,7 +840,7 @@ class CriteriaScorer:
                 OptimizerConfig.debug(traceback.format_exc(), category='error')
             return {}
 
-    def calculate_confidence(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
+    def calculate_confidence(self, criteria: CriteriaDict) -> ConfidenceInfo:
         """Calculate and analyze confidence levels for criteria.
         
         Delegates to field_manager.calculate_confidence to determine confidence
@@ -847,11 +848,10 @@ class CriteriaScorer:
         scores and levels for different components based on the criteria values.
         
         Args:
-            criteria: Dictionary of criteria field names and values where keys are field names
-                      and values are the criteria values to evaluate confidence for
+            criteria: Dictionary of criteria field names and values conforming to CriteriaDict
             
         Returns:
-            Dictionary with the following structure:
+            Dictionary with the following structure conforming to ConfidenceInfo:
             {
                 'confidence': str,                # Overall confidence level ('none', 'very_low', 'low', 'medium', 'high')
                 'confidence_score': float,         # Overall confidence score (0-1)
@@ -863,11 +863,11 @@ class CriteriaScorer:
     # _get_matching_shows method has been removed as part of the architecture refactoring
     # All matching functionality is now handled directly by the Matcher class
     
-    def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[NetworkMatch]:
+    def calculate_network_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             matching_shows: Pre-matched shows DataFrame
             
         Returns:

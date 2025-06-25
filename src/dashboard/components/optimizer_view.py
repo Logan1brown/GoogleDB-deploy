@@ -33,6 +33,7 @@ from src.data_processing.show_optimizer.network_analyzer import NetworkMatch
 from src.data_processing.show_optimizer.recommendation_engine import SuccessFactor, Recommendation
 from src.data_processing.show_optimizer.field_manager import FieldManager
 from src.data_processing.show_optimizer.optimizer_concept_analyzer import OptimizationSummary
+from src.data_processing.show_optimizer.optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
 
 
 class OptimizerView:
@@ -195,7 +196,7 @@ class OptimizerView:
         
         return summary
     
-    def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, Any]:
+    def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, Union[float, str, bool]]:
         """
         Format success probability for display.
         
@@ -204,7 +205,7 @@ class OptimizerView:
             confidence: Confidence level (none, low, medium, high)
             
         Returns:
-            Dictionary with formatted success probability data
+            Dictionary with formatted success probability data including value, display_value, confidence, etc.
         """
         # Get confidence display text from config
         confidence_display = self.config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
@@ -221,7 +222,7 @@ class OptimizerView:
             "confidence_level": confidence
         }
         
-    def _format_recommendations(self, recommendations: List[Recommendation]) -> Dict[str, Any]:
+    def _format_recommendations(self, recommendations: List[Recommendation]) -> Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]:
         """
         Format recommendations for display in the UI.
         
@@ -245,6 +246,8 @@ class OptimizerView:
             - 'grouped': Dict mapping recommendation types to lists of formatted recommendations
             - 'network_specific': List of network-specific recommendations
             - 'all': List of all formatted recommendations
+            
+            Each recommendation contains fields like field, option, impact, explanation, etc.
         """
         # Initialize with standard recommendation types and their display headers
         config = OptimizerConfig()
@@ -500,14 +503,15 @@ class OptimizerView:
             "all": [rec for group_data in grouped.values() for rec in group_data.get('items', [])]
         }
     
-    def _format_network_matches(self, network_matches: List[NetworkMatch]) -> List[Dict[str, Any]]:
+    def _format_network_matches(self, network_matches: List[NetworkMatch]) -> List[Dict[str, Union[str, float, int, bool]]]:
         """Format network matches for display.
         
         Args:
             network_matches: List of NetworkMatch objects
             
         Returns:
-            List of formatted network match dictionaries ready for direct display in UI
+            List of formatted network match dictionaries with fields like network_name, match_score, etc.
+            ready for direct display in UI
         """
         formatted = []
         
@@ -558,14 +562,14 @@ class OptimizerView:
         
         return formatted
     
-    def _format_component_scores(self, component_scores: Dict[str, ComponentScore]) -> Dict[str, Dict[str, Any]]:
+    def _format_component_scores(self, component_scores: Dict[str, ComponentScore]) -> Dict[str, Dict[str, Union[str, float, int, bool]]]:
         """Format component scores for display.
         
         Args:
             component_scores: Dictionary mapping component names to ComponentScore objects
             
         Returns:
-            Dictionary with formatted component score data
+            Dictionary with formatted component score data including value, display_value, description, etc.
         """
         formatted = {}
         
@@ -676,14 +680,14 @@ class OptimizerView:
         }
         return confidence_levels.get(confidence.lower(), 0)
         
-    def _format_success_factors(self, success_factors: List[SuccessFactor]) -> List[Dict[str, Any]]:
+    def _format_success_factors(self, success_factors: List[SuccessFactor]) -> List[Dict[str, Union[str, float, int]]]:
         """Format success factors for display.
         
         Args:
             success_factors: List of success factors
             
         Returns:
-            List of formatted success factors
+            List of formatted success factors with fields like name, impact, description, etc.
         """
         if not success_factors:
             return []
@@ -716,14 +720,14 @@ class OptimizerView:
         
         return formatted
     
-    def _format_match_quality(self, match_quality: Any) -> Dict[str, Any]:
+    def _format_match_quality(self, match_quality: Any) -> Dict[str, Union[str, int, float, Dict[str, int]]]:
         """Format match quality information for display.
         
         Args:
             match_quality: Match quality object with match level, count, and confidence information
             
         Returns:
-            Dictionary with formatted match quality data
+            Dictionary with formatted match quality data including level, count, description, etc.
         """
         # Extract fields from match_quality object
         match_level = match_quality.match_level
@@ -778,11 +782,11 @@ class OptimizerView:
         
         return formatted_shows
         
-    def format_criteria_display(self, criteria: Dict[str, Any]) -> Dict[str, str]:
+    def format_criteria_display(self, criteria: CriteriaDict) -> Dict[str, str]:
         """Format criteria for display.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             
         Returns:
             Dictionary mapping criteria types to display names

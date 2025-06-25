@@ -14,6 +14,7 @@ from typing import List, Dict, Tuple, Any, Callable, Optional, Union
 from src.dashboard.utils.style_config import render_metric_card, render_info_card, COLORS
 from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
 from src.data_processing.show_optimizer.show_optimizer import ShowOptimizer
+from src.data_processing.show_optimizer.optimizer_data_contracts import CriteriaDict, ConfidenceInfo
 
 # Access the ShowOptimizer instance from session state
 def get_optimizer():
@@ -278,11 +279,11 @@ def render_success_metrics(summary: Any):
             render_metric_card("Longevity", "N/A", "Error in data")
 
 
-def render_success_factors(formatted_factors: List[Dict[str, Any]]):
+def render_success_factors(formatted_factors: List[Dict[str, Union[str, float, int]]]):
     """Render success factors chart using pre-formatted data from OptimizerView.
     
     Args:
-        formatted_factors: List of pre-formatted success factor dictionaries
+        formatted_factors: List of pre-formatted success factor dictionaries with fields like name, impact, etc.
     """
     if not formatted_factors:
         st.info("No significant success factors identified.")
@@ -333,13 +334,13 @@ def render_success_factors(formatted_factors: List[Dict[str, Any]]):
 # All recommendation grouping is now handled by OptimizerView._format_recommendations
 
 
-def render_recommendations(formatted_recommendations: Dict[str, Any]):
+def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]):
     """Render recommendations using pre-formatted data from OptimizerView.
     
     Args:
         formatted_recommendations: Dictionary with formatted recommendation data structure:
         {
-            'all': List of all recommendations,
+            'all': List of all recommendations with fields like field, option, impact, explanation, etc.,
             'grouped': Dict of recommendation types to lists of recommendations,
             'network_specific': List of network-specific recommendations
         }

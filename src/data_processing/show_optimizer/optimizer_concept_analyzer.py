@@ -11,7 +11,7 @@ Key responsibilities:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Union, TypedDict, NotRequired
+from typing import Dict, List, Optional, Tuple, Any, Union
 import pandas as pd
 import numpy as np
 import streamlit as st
@@ -23,190 +23,15 @@ from ..success_analysis import SuccessAnalyzer
 from .optimizer_matcher import Matcher
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData, validate_criteria, validate_integrated_data, create_default_confidence_info, update_confidence_info
 
-# Define explicit data contracts using TypedDict
-class CriteriaDict(TypedDict):
-    """Explicit contract for criteria dictionary used throughout the optimizer.
-    
-    This defines the expected structure of criteria dictionaries passed between components.
-    All fields are optional since criteria can be partially specified.
-    """
-    genre: NotRequired[List[str]]
-    network_id: NotRequired[Union[int, List[int]]]
-    studio_id: NotRequired[Union[int, List[int]]]
-    source_type_id: NotRequired[Union[int, List[int]]]
-    character_type_ids: NotRequired[List[int]]
-    plot_element_ids: NotRequired[List[int]]
-    theme_element_ids: NotRequired[List[int]]
-    tone_ids: NotRequired[List[int]]
-    time_setting_ids: NotRequired[List[int]]
-    location_setting_ids: NotRequired[List[int]]
-    episode_count: NotRequired[int]
-    order_type_id: NotRequired[int]
-    team_ids: NotRequired[List[int]]
-
-class ConfidenceInfo(TypedDict):
-    """Explicit contract for confidence information dictionary.
-    
-    This defines the expected structure of confidence info dictionaries used to
-    track match quality and confidence levels throughout the analysis pipeline.
-    """
-    level: str  # 'high', 'medium', 'low', 'very_low', or 'none'
-    match_level: NotRequired[float]  # Average match level (1=exact, 2=close, 3=partial)
-    match_count: NotRequired[int]  # Number of matching shows
-    sample_size: NotRequired[int]  # Sample size used for calculations
-    max_match_level: NotRequired[float]  # Maximum match level in the sample
-    min_match_level: NotRequired[float]  # Minimum match level in the sample
-    mean_match_level: NotRequired[float]  # Mean match level in the sample
-    level_counts: NotRequired[Dict[int, int]]  # Counts of each match level
-    error: NotRequired[str]  # Error message if applicable
-
-class IntegratedData(TypedDict):
-    """Explicit contract for integrated data dictionary.
-    
-    This defines the expected structure of the integrated data dictionary
-    that contains all the dataframes used throughout the analysis pipeline.
-    """
-    shows: pd.DataFrame  # Main shows dataframe
-    networks: NotRequired[pd.DataFrame]  # Networks dataframe
-    studios: NotRequired[pd.DataFrame]  # Studios dataframe
-    genres: NotRequired[pd.DataFrame]  # Genres dataframe
-    success_metrics: NotRequired[pd.DataFrame]  # Success metrics dataframe
-    team: NotRequired[pd.DataFrame]  # Team dataframe
+# Data contracts are now imported from optimizer_data_contracts.py
 from .score_calculators import ComponentScore, NetworkMatch
 from .network_analyzer import NetworkAnalyzer
 from .recommendation_engine import RecommendationEngine, SuccessFactor, Recommendation
 
 
-def validate_criteria(criteria: Dict[str, Any]) -> CriteriaDict:
-    """Validate and standardize criteria dictionary.
-    
-    Args:
-        criteria: Raw criteria dictionary from user input or other sources
-        
-    Returns:
-        Standardized CriteriaDict with validated fields
-    """
-    # Create a new dictionary that will match our CriteriaDict structure
-    validated: Dict[str, Any] = {}
-    
-    # Validate and standardize each field if present
-    if 'genre' in criteria:
-        # Ensure genre is always a list
-        if isinstance(criteria['genre'], str):
-            validated['genre'] = [criteria['genre']]
-        else:
-            validated['genre'] = criteria['genre']
-    
-    # Handle network_id which can be single value or list
-    if 'network_id' in criteria:
-        if isinstance(criteria['network_id'], list):
-            validated['network_id'] = criteria['network_id']
-        else:
-            validated['network_id'] = criteria['network_id']
-    
-    # Handle studio_id which can be single value or list
-    if 'studio_id' in criteria:
-        if isinstance(criteria['studio_id'], list):
-            validated['studio_id'] = criteria['studio_id']
-        else:
-            validated['studio_id'] = criteria['studio_id']
-    
-    # Handle source_type_id which can be single value or list
-    if 'source_type_id' in criteria:
-        if isinstance(criteria['source_type_id'], list):
-            validated['source_type_id'] = criteria['source_type_id']
-        else:
-            validated['source_type_id'] = criteria['source_type_id']
-    
-    # Ensure all *_ids fields are lists
-    for field in ['character_type_ids', 'plot_element_ids', 'theme_element_ids', 
-                 'tone_ids', 'time_setting_ids', 'location_setting_ids', 'team_ids']:
-        if field in criteria:
-            if not isinstance(criteria[field], list):
-                validated[field] = [criteria[field]]
-            else:
-                validated[field] = criteria[field]
-    
-    # Simple scalar fields
-    for field in ['episode_count', 'order_type_id']:
-        if field in criteria:
-            validated[field] = criteria[field]
-    
-    # Copy any other fields that might be used by extensions
-    for key, value in criteria.items():
-        if key not in validated:
-            validated[key] = value
-    
-    return validated
-
-
-def create_default_confidence_info() -> ConfidenceInfo:
-    """Create a default confidence info dictionary with standard values.
-    
-    Returns:
-        Default ConfidenceInfo dictionary
-    """
-    return {
-        'level': 'none',
-        'match_level': 0.0,
-        'match_count': 0,
-        'sample_size': 0
-    }
-
-
-def update_confidence_info(base_info: Dict[str, Any], updates: Dict[str, Any]) -> ConfidenceInfo:
-    """Update confidence info with new values while maintaining the contract.
-    
-    Args:
-        base_info: Existing confidence info dictionary
-        updates: New values to update
-        
-    Returns:
-        Updated ConfidenceInfo dictionary
-    """
-    # Start with default values if base_info is empty
-    if not base_info:
-        result = create_default_confidence_info()
-    else:
-        # Create a copy to avoid modifying the original
-        result = dict(base_info)
-    
-    # Update with new values
-    for key, value in updates.items():
-        result[key] = value
-    
-    # Ensure the required 'level' field is present
-    if 'level' not in result:
-        result['level'] = 'none'
-    
-    return result
-
-
-def validate_integrated_data(data: Dict[str, pd.DataFrame]) -> IntegratedData:
-    """Validate integrated data dictionary and ensure it has required fields.
-    
-    Args:
-        data: Dictionary of dataframes from various sources
-        
-    Returns:
-        Validated IntegratedData dictionary
-        
-    Raises:
-        ValueError: If required 'shows' dataframe is missing or empty
-    """
-    if 'shows' not in data or data['shows'].empty:
-        raise ValueError("Integrated data must contain a non-empty 'shows' dataframe")
-    
-    # Create a new dictionary that will match our IntegratedData structure
-    validated: Dict[str, pd.DataFrame] = {'shows': data['shows']}
-    
-    # Copy optional dataframes if present
-    for field in ['networks', 'studios', 'genres', 'success_metrics', 'team']:
-        if field in data and not data[field].empty:
-            validated[field] = data[field]
-    
-    return validated
+# Helper functions are now imported from optimizer_data_contracts.py
 
 
 @dataclass
@@ -225,7 +50,7 @@ class OptimizationSummary:
     matching_shows: Any = None  # DataFrame of matching shows (pandas DataFrame)
     match_count: int = 0  # Number of matching shows
     match_counts_by_level: Dict[int, int] = field(default_factory=dict)  # Count of shows by match level
-    confidence_info: Dict[str, Any] = field(default_factory=dict)  # Detailed confidence information
+    confidence_info: ConfidenceInfo = field(default_factory=dict)  # Detailed confidence information
     
     @property
     def network_compatibility(self) -> List[NetworkMatch]:
@@ -237,10 +62,10 @@ class OptimizationSummary:
         return self.top_networks
         
     # Private attribute to store formatted data
-    _formatted_data_dict: Dict[str, Any] = field(default_factory=dict)
+    _formatted_data_dict: Dict[str, Union[float, str, List[Dict[str, Any]]]] = field(default_factory=dict)
     
     @property
-    def formatted_data(self) -> Dict[str, Any]:
+    def formatted_data(self) -> Dict[str, Union[float, str, List[Dict[str, Any]]]]:
         """Format data for UI display.
         
         Returns a dictionary with formatted networks and recommendations data
@@ -297,7 +122,7 @@ class OptimizationSummary:
         return formatted
         
     @formatted_data.setter
-    def formatted_data(self, value: Dict[str, Any]):
+    def formatted_data(self, value: Dict[str, Union[float, str, List[Dict[str, Any]]]]):
         """Set formatted data.
         
         Args:
@@ -371,16 +196,15 @@ class ConceptAnalyzer:
             confidence_info={'error': error_message, 'level': 'none'}
         )
     
-    def analyze_concept(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> OptimizationSummary:
+    def analyze_concept(self, criteria: CriteriaDict, integrated_data: IntegratedData) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
         
         This is the main entry point for concept analysis, coordinating the entire
         analysis pipeline from matching to recommendations.
         
         Args:
-            criteria: Dictionary of criteria defining the show concept
-            integrated_data: Dictionary of integrated data frames from ShowOptimizer
-
+            criteria: Dictionary of criteria defining the show concept conforming to CriteriaDict
+            integrated_data: Dictionary of integrated data frames from ShowOptimizer conforming to IntegratedData
             
         Returns:
             OptimizationSummary with success probability, recommendations, etc.
@@ -462,7 +286,7 @@ class ConceptAnalyzer:
     
 
     
-    def _find_matching_shows(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame]) -> Tuple[pd.DataFrame, ConfidenceInfo]:
+    def _find_matching_shows(self, criteria: CriteriaDict, integrated_data: IntegratedData) -> Tuple[pd.DataFrame, ConfidenceInfo]:
         """Find shows matching the given criteria with fallback strategies.
         
         Args:
@@ -526,7 +350,7 @@ class ConceptAnalyzer:
             st.error(f"Error finding matching shows: {str(e)}")
             return pd.DataFrame(), error_info
         
-    def _calculate_success_probability(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> Tuple[Optional[float], str]:
+    def _calculate_success_probability(self, criteria: CriteriaDict, matching_shows: pd.DataFrame) -> Tuple[Optional[float], str]:
         """Calculate the success probability based on matching shows.
         
         Args:
@@ -584,7 +408,7 @@ class ConceptAnalyzer:
             st.error(f"Error calculating success probability: {str(e)}")
             return None, 'none'
     
-    def _find_top_networks(self, criteria: Dict[str, Any], integrated_data: Dict[str, pd.DataFrame], matching_shows: pd.DataFrame = None) -> List[NetworkMatch]:
+    def _find_top_networks(self, criteria: CriteriaDict, integrated_data: IntegratedData, matching_shows: pd.DataFrame = None) -> List[NetworkMatch]:
         """Find top networks compatible with the given criteria.
         
         Args:
@@ -639,7 +463,7 @@ class ConceptAnalyzer:
             st.error(f"Error finding top networks: {str(e)}")
             return []
             
-    def get_network_specific_recommendations(self, criteria: Dict[str, Any], network: NetworkMatch) -> List[Dict[str, Any]]:
+    def get_network_specific_recommendations(self, criteria: CriteriaDict, network: NetworkMatch) -> List[Dict[str, Any]]:
         """Get network-specific recommendations for a given network.
         
         This method coordinates between the NetworkAnalyzer and RecommendationEngine
@@ -667,7 +491,7 @@ class ConceptAnalyzer:
             st.error(f"Error generating network-specific recommendations: {str(e)}")
             return []
     
-    def _get_component_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, integrated_data: Dict[str, pd.DataFrame]) -> Dict[str, ComponentScore]:
+    def _get_component_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, integrated_data: IntegratedData) -> Dict[str, ComponentScore]:
         """Calculate component scores for the given criteria.
         
         Args:
@@ -734,7 +558,7 @@ class ConceptAnalyzer:
         # Use the OptimizerConfig method for consistent confidence levels
         return self.config.get_confidence_level(sample_size, match_level)
     
-    def _identify_success_factors(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame, integrated_data: Dict[str, pd.DataFrame]) -> List[SuccessFactor]:
+    def _identify_success_factors(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, integrated_data: IntegratedData) -> List[SuccessFactor]:
         """Identify success factors for the given criteria.
         
         Args:
@@ -765,22 +589,22 @@ class ConceptAnalyzer:
 
     def _generate_recommendations(
         self, 
-        criteria: Dict[str, Any],
+        criteria: CriteriaDict,
         matching_shows: pd.DataFrame,
         success_factors: List[SuccessFactor],
         top_networks: List[NetworkMatch],
-        confidence_info: Dict[str, Any],
-        integrated_data: Dict[str, pd.DataFrame]
+        confidence_info: ConfidenceInfo,
+        integrated_data: IntegratedData
     ) -> List[Recommendation]:
         """Generate recommendations for optimizing the show concept.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             matching_shows: DataFrame of matching shows
             success_factors: List of success factors
             top_networks: List of top networks
-            confidence_info: Dictionary of confidence information
-            integrated_data: Dictionary of integrated data frames from ShowOptimizer
+            confidence_info: Dictionary of confidence information conforming to ConfidenceInfo
+            integrated_data: Dictionary of integrated data frames conforming to IntegratedData
             
         Returns:
             List of Recommendation objects

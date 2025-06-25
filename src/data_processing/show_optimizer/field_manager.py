@@ -25,6 +25,7 @@ import numpy as np
 import streamlit as st
 
 from .optimizer_config import OptimizerConfig
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
 
 
 @dataclass
@@ -362,11 +363,11 @@ class FieldManager:
         """
         return self.FIELD_VALIDATIONS
     
-    def validate_criteria(self, criteria: Dict[str, Any]) -> List[str]:
-        """Validate criteria against field validation rules.
+    def validate_criteria(self, criteria: CriteriaDict) -> List[str]:
+        """Validate criteria against field options and return validation errors.
         
         Args:
-            criteria: Dictionary of criteria to validate
+            criteria: Dictionary of criteria to validate conforming to CriteriaDict
             
         Returns:
             List of validation error messages (empty if valid)
@@ -448,15 +449,15 @@ class FieldManager:
             st.error(f"Error getting sample size for {field_name}: {str(e)}")
             return 0
 
-    def calculate_confidence(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
+    def calculate_confidence(self, criteria: CriteriaDict) -> ConfidenceInfo:
         """Calculate confidence levels for criteria.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             
         Returns:
-            Dictionary with confidence information:
-            - overall: Overall confidence level ('none', 'low', 'medium', 'high')
+            Dictionary with confidence information conforming to ConfidenceInfo:
+            - level: Overall confidence level ('none', 'low', 'medium', 'high')
             - score: Confidence score between 0 and 1
             - sample_size: Estimated sample size for the criteria
             - fields: Dictionary mapping fields to their individual confidence levels
@@ -508,7 +509,7 @@ class FieldManager:
                 'fields': {}
             }
     
-    def normalize_criteria(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
+    def normalize_criteria(self, criteria: CriteriaDict) -> CriteriaDict:
         """Normalize criteria for consistent processing.
         
         This method ensures that:
@@ -517,10 +518,10 @@ class FieldManager:
         3. Numeric IDs like genre are properly typed as integers
         
         Args:
-            criteria: Dictionary of criteria to normalize
+            criteria: Dictionary of criteria to normalize conforming to CriteriaDict
             
         Returns:
-            Normalized criteria dictionary
+            Normalized criteria dictionary conforming to CriteriaDict
         """
         if not criteria:
             return {}
@@ -634,15 +635,15 @@ class FieldManager:
             # Default to secondary importance as fallback
             return 'secondary'
     
-    def classify_criteria_by_importance(self, criteria: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def classify_criteria_by_importance(self, criteria: CriteriaDict) -> Dict[str, CriteriaDict]:
         """Classify criteria by their importance levels.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             
         Returns:
             Dictionary with keys 'essential', 'core', 'primary', 'secondary',
-            each containing a dictionary of criteria at that importance level
+            each containing a dictionary of criteria at that importance level conforming to CriteriaDict
         """
         try:
             classified = {

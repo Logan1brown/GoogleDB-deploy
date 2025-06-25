@@ -6,6 +6,7 @@ import streamlit as st
 from abc import ABC, abstractmethod
 
 from .optimizer_config import OptimizerConfig
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
 
 # Empty placeholder function for compatibility with existing code
 def debug_warning(message):
@@ -185,7 +186,7 @@ class ScoreCalculator:
         """
         pass
         
-    def calculate_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> Dict[str, Any]:
+    def calculate_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame) -> Dict[str, Any]:
         """Calculate scores for the given criteria and matching shows.
         
         This is the main entry point for score calculation, providing a unified interface
@@ -193,7 +194,7 @@ class ScoreCalculator:
         but the default implementation should work for most calculators.
         
         Args:
-            criteria: Dictionary of criteria to match against. Must contain valid criteria fields.
+            criteria: Dictionary of criteria to match against conforming to CriteriaDict.
             matching_shows: DataFrame of shows matching the criteria.
                 
         Returns:
@@ -618,11 +619,11 @@ class NetworkScoreCalculator(ScoreCalculator):
         self.required_columns = ['network_id', 'match_level']
         self.field_manager = None  # Will be set by CriteriaScorer if available
         
-    def calculate_network_scores(self, criteria: Dict[str, Any], matching_shows: pd.DataFrame) -> List[NetworkMatch]:
+    def calculate_network_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame) -> List[NetworkMatch]:
         """Calculate network compatibility and success scores for a set of criteria.
         
         Args:
-            criteria: Dictionary of criteria to match against. Must contain valid criteria fields.
+            criteria: Dictionary of criteria to match against conforming to CriteriaDict.
             matching_shows: DataFrame of shows matching the criteria. Must contain at minimum
                 'network_id' and 'match_level' columns.
             
@@ -765,18 +766,18 @@ class NetworkScoreCalculator(ScoreCalculator):
         # Return the list of network matches
         return network_matches
             
-    def calculate_success_rate(self, shows: pd.DataFrame, confidence_info: Dict[str, Any] = None, threshold: Optional[float] = None) -> Tuple[Optional[float], Dict[str, Any]]:
+    def calculate_success_rate(self, shows: pd.DataFrame, confidence_info: Optional[ConfidenceInfo] = None, threshold: Optional[float] = None) -> Tuple[Optional[float], ConfidenceInfo]:
         """Calculate success rate for a set of shows with confidence information.
         
         Args:
             shows: DataFrame of shows to calculate success rate for. Must contain 'success_score' column.
-            confidence_info: Optional dictionary of confidence information to update.
+            confidence_info: Optional dictionary of confidence information to update conforming to ConfidenceInfo.
             threshold: Optional success threshold (0-1). Defaults to OptimizerConfig.SUCCESS_THRESHOLD.
             
         Returns:
             Tuple of (success_rate, confidence_info) where:
                 - success_rate: Float between 0-1 representing the success rate, or None if calculation failed
-                - confidence_info: Dictionary with calculation details and confidence information
+                - confidence_info: Dictionary with calculation details conforming to ConfidenceInfo
         """
         # Initialize or use provided confidence_info
         confidence_info = confidence_info or {}
@@ -877,23 +878,24 @@ class NetworkScoreCalculator(ScoreCalculator):
         max_level_key = max(level_values, key=lambda x: x[1])[0]
         return OptimizerConfig.CONFIDENCE_LEVELS[max_level_key]
     
-    def batch_calculate_success_rates(self, criteria_list: List[Dict[str, Any]], matching_shows_list: List[pd.DataFrame] = None) -> List[Tuple[Optional[float], Dict[str, Any]]]:
+    def batch_calculate_success_rates(self, criteria_list: List[CriteriaDict], matching_shows_list: List[pd.DataFrame] = None) -> List[Tuple[Optional[float], ConfidenceInfo]]:
         """Batch calculate success rates for multiple criteria with confidence information.
 
         Args:
-            criteria_list: List of criteria dictionaries, each containing valid criteria fields.
+            criteria_list: List of criteria dictionaries conforming to CriteriaDict.
             matching_shows_list: List of DataFrames with shows matching the corresponding criteria.
                 Each DataFrame must contain 'success_score' column for success rate calculation.
 
         Returns:
-            List of tuples (success_rate, confidence_info) in the same order as criteria_list.
+            List of tuples (success_rate, confidence_info) in the same order as criteria_list,
+            where confidence_info conforms to ConfidenceInfo.
         """
         # Return empty list for invalid input
         if not criteria_list:
             return []
             
         # Create standard error response helper function
-        def create_error_response(error_message: str) -> Tuple[None, Dict[str, Any]]:
+        def create_error_response(error_message: str) -> Tuple[None, ConfidenceInfo]:
             return (None, {
                 'error': error_message,
                 'level': OptimizerConfig.CONFIDENCE_LEVELS['none'],

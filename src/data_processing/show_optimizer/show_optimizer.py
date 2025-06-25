@@ -31,6 +31,7 @@ from datetime import datetime, timedelta
 import streamlit as st
 
 from .optimizer_concept_analyzer import ConceptAnalyzer, OptimizationSummary
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
 
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
@@ -74,7 +75,7 @@ class ShowOptimizer:
         self.optimizer_view = None
         self.recommendation_engine = None
         
-    def fetch_and_integrate_data(self) -> Dict[str, Any]:
+    def fetch_and_integrate_data(self) -> IntegratedData:
         """Fetch and integrate data from different sources.
         
         This method centralizes data fetching and integration to ensure all components
@@ -82,7 +83,7 @@ class ShowOptimizer:
         metrics from success_analyzer, then integrates them into a unified dataset.
         
         Returns:
-            Dictionary containing integrated data sets needed for optimization
+            Dictionary containing integrated data sets conforming to IntegratedData
         """
         try:
             if OptimizerConfig.DEBUG_MODE:
@@ -294,14 +295,14 @@ class ShowOptimizer:
             st.error(f"Error getting options for {field_name}: {e}")
             return []
     
-    def validate_criteria(self, criteria: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str]]:
+    def validate_criteria(self, criteria: CriteriaDict) -> Tuple[CriteriaDict, Dict[str, str]]:
         """Validate and normalize criteria.
         
         Args:
-            criteria: Dictionary of criteria
+            criteria: Dictionary of criteria conforming to CriteriaDict
             
         Returns:
-            Tuple of (normalized_criteria, validation_errors)
+            Tuple of (normalized_criteria, validation_errors) where normalized_criteria conforms to CriteriaDict
         """
         # Ensure initialization and check components
         initialized, error = self._ensure_initialized()
@@ -326,11 +327,11 @@ class ShowOptimizer:
             st.error(f"Error validating criteria: {e}")
             return {}, {"error": f"Error validating criteria: {str(e)}"}        
     
-    def match_shows(self, criteria: Dict[str, Any]) -> Tuple[pd.DataFrame, int]:
+    def match_shows(self, criteria: CriteriaDict) -> Tuple[pd.DataFrame, int]:
         """Match shows based on criteria.
         
         Args:
-            criteria: Dictionary of criteria for matching shows
+            criteria: Dictionary of criteria for matching shows conforming to CriteriaDict
             
         Returns:
             Tuple of (matching_shows_dataframe, total_matches_count)
@@ -406,14 +407,15 @@ class ShowOptimizer:
         """
         st.error(f"Analysis error: {error_message}")
     
-    def _prepare_analysis_context(self, criteria: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any], bool]:
+    def _prepare_analysis_context(self, criteria: CriteriaDict) -> Tuple[CriteriaDict, IntegratedData, bool]:
         """Prepare the context for analysis operations.
         
         Args:
-            criteria: The criteria to prepare context for
+            criteria: The criteria to prepare context for conforming to CriteriaDict
             
         Returns:
-            Tuple of (normalized_criteria, integrated_data, success)
+            Tuple of (normalized_criteria, integrated_data, success) where
+            normalized_criteria conforms to CriteriaDict and integrated_data conforms to IntegratedData
         """
         # Normalize criteria
         normalized_criteria = criteria.copy()
@@ -426,11 +428,11 @@ class ShowOptimizer:
         
         return normalized_criteria, integrated_data, True
     
-    def analyze_concept(self, criteria: Dict[str, Any]) -> OptimizationSummary:
+    def analyze_concept(self, criteria: CriteriaDict) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
         
         Args:
-            criteria: Dictionary of criteria for the show concept
+            criteria: Dictionary of criteria for the show concept conforming to CriteriaDict
             
         Returns:
             OptimizationSummary containing analysis results or error information
@@ -474,12 +476,12 @@ class ShowOptimizer:
             st.error(f"Error in analyze_concept: {str(e)}")
             return self.concept_analyzer._handle_analysis_error(f"Analysis error: {str(e)}")
     
-    def get_network_tiers(self, criteria: Dict[str, Any], 
+    def get_network_tiers(self, criteria: CriteriaDict, 
                         min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:
         """Get network tiers for the given criteria.
         
         Args:
-            criteria: Dictionary of criteria for network matching
+            criteria: Dictionary of criteria for network matching conforming to CriteriaDict
             min_confidence: Minimum confidence level for network matches ('low', 'medium', 'high')
             
         Returns:
@@ -519,12 +521,12 @@ class ShowOptimizer:
             st.error(f"Error analyzing network tiers: {str(e)}")
             return {}
     
-    def get_success_factors(self, criteria: Dict[str, Any], 
+    def get_success_factors(self, criteria: CriteriaDict, 
                           limit: int = 5) -> List[SuccessFactor]:
         """Get success factors for the given criteria.
         
         Args:
-            criteria: Dictionary of criteria for success factor analysis
+            criteria: Dictionary of criteria for success factor analysis conforming to CriteriaDict
             limit: Maximum number of factors to return
             
         Returns:
@@ -564,11 +566,11 @@ class ShowOptimizer:
             st.error(f"Error analyzing success factors: {str(e)}")
             return []
     
-    def get_recommendations(self, criteria: Dict[str, Any]) -> List[Recommendation]:
+    def get_recommendations(self, criteria: CriteriaDict) -> List[Recommendation]:
         """Get recommendations for the given criteria.
         
         Args:
-            criteria: Dictionary of criteria for recommendation generation
+            criteria: Dictionary of criteria for recommendation generation conforming to CriteriaDict
             
         Returns:
             List of Recommendation objects sorted by importance
@@ -616,11 +618,11 @@ class ShowOptimizer:
             st.error(f"Error generating recommendations: {str(e)}")
             return []
     
-    def get_component_scores(self, criteria: Dict[str, Any]) -> Dict[str, ComponentScore]:
+    def get_component_scores(self, criteria: CriteriaDict) -> Dict[str, ComponentScore]:
         """Get component scores for the given criteria.
         
         Args:
-            criteria: Dictionary of criteria for component scoring
+            criteria: Dictionary of criteria for component scoring conforming to CriteriaDict
             
         Returns:
             Dictionary mapping component names to ComponentScore objects
@@ -658,11 +660,11 @@ class ShowOptimizer:
             st.error(f"Error calculating component scores: {str(e)}")
             return {}
     
-    def get_overall_success_rate(self, criteria: Dict[str, Any]) -> Tuple[float, str]:
+    def get_overall_success_rate(self, criteria: CriteriaDict) -> Tuple[float, str]:
         """Get overall success rate for the given criteria.
         
         Args:
-            criteria: Dictionary of criteria for success rate calculation
+            criteria: Dictionary of criteria for success rate calculation conforming to CriteriaDict
             
         Returns:
             Tuple of (success_rate_float, confidence_level_string)
