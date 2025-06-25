@@ -288,14 +288,23 @@ def create_field_value_key(field_name: str, value: Any) -> str:
     """Create a standardized dictionary key for field value success rates.
     
     Handles different value types, including lists, to ensure keys are always strings.
+    Normalizes field names by removing common suffixes to ensure consistent keys.
     
     Args:
-        field_name: Name of the field (e.g., 'genre', 'subgenres')
+        field_name: Name of the field (e.g., 'genre', 'subgenres', 'genre_id', 'genre_name')
         value: The field value, which could be a string, int, list, etc.
         
     Returns:
-        A string key in the format "field_name:value_string"
+        A string key in the format "normalized_field_name:value_string"
     """
+    # Normalize field name by removing common suffixes
+    normalized_field = field_name
+    if field_name.endswith('_id') or field_name.endswith('_ids'):
+        normalized_field = field_name[:-3] if field_name.endswith('_id') else field_name[:-4]
+    elif field_name.endswith('_name') or field_name.endswith('_names'):
+        normalized_field = field_name[:-5] if field_name.endswith('_name') else field_name[:-6]
+        
+    # Use normalized field name for key generation
     try:
         # Convert value to a string representation suitable for a dictionary key
         if value is None:
@@ -321,11 +330,11 @@ def create_field_value_key(field_name: str, value: Any) -> str:
             # Handle all other types
             value_str = str(value)
             
-        return f"{field_name}:{value_str}"
+        return f"{normalized_field}:{value_str}"
     except Exception as e:
         # Fallback for any unexpected errors
-        OptimizerConfig.debug(f"Error creating field value key for {field_name}: {str(e)}", category='data')
-        return f"{field_name}:error_{hash(str(field_name) + str(type(value)))}"
+        OptimizerConfig.debug(f"Error creating field value key for {field_name} (normalized: {normalized_field}): {str(e)}", category='data')
+        return f"{normalized_field}:error_{hash(str(normalized_field) + str(type(value)))}"
 
 
 def create_field_value_data(field_name: str, value: Any, is_selected: bool = False) -> FieldValueData:
