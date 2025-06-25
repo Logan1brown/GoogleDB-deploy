@@ -4,8 +4,8 @@ This component is responsible for analyzing show data to identify success factor
 and generate recommendations for show concept optimization.
 """
 
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import numpy as np
 import traceback
 from dataclasses import dataclass, field
@@ -871,20 +871,17 @@ class RecommendationEngine:
             
             field_name = data['field_name']
             network_rate_data = data['network_rate_data']
-            current_value = data['current_value']
-            current_name = data['current_name']
+            current_value = data.get('current_value')
+            current_name = data.get('current_name')
+            
+            # Get the overall success rate using flexible key lookup
+            overall_rate = overall_rates.get(key, overall_rates.get(field_name))
             
             if OptimizerConfig.DEBUG_MODE:
-                import streamlit as st
                 st.write(f"DEBUG: Extracted field_name: {field_name}")
                 st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
                 st.write(f"DEBUG: Current value: {current_value}")
                 st.write(f"DEBUG: Current name: {current_name}")
-            
-            # Get the overall success rate using flexible key lookup
-            overall_rate = overall_rates.get(key, overall_rates.get(field_name))
-            if OptimizerConfig.DEBUG_MODE:
-                import streamlit as st
                 st.write(f"DEBUG: Overall rate for {key}/{field_name}: {overall_rate}")
             
             if overall_rate is None:
@@ -950,11 +947,8 @@ class RecommendationEngine:
                     explanation_text = f"Consider changing {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% worse on {network_name} than average."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
-                # Get confidence value based on the type of network_rate_data
-                if hasattr(network_rate_data, 'confidence'):
-                    confidence_value = network_rate_data.confidence
-                else:
-                    confidence_value = network_rate_data.get('confidence', 'medium')
+                # Use direct attribute access for NetworkMatch objects
+                confidence_value = getattr(network_rate_data, 'confidence', 'medium')
                     
                 recommendation: RecommendationItem = {
                     'recommendation_type': network_rec_type,
