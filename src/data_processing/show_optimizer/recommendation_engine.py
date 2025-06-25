@@ -474,6 +474,17 @@ class RecommendationEngine:
                     
                 # Raw data is provided to OptimizerView for formatting
                 
+                # Create explanation text based on the recommendation type
+                explanation_text = ""
+                if rec_type == self.REC_TYPE_ADD:
+                    explanation_text = f"Adding {factor.criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
+                elif rec_type == self.REC_TYPE_REMOVE:
+                    explanation_text = f"Removing {factor.criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
+                elif rec_type == self.REC_TYPE_CHANGE:
+                    explanation_text = f"Changing to {factor.criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
+                else:
+                    explanation_text = f"Consider {factor.criteria_name} for potential impact of {abs(impact_score)*100:.1f}%."
+                
                 # Create a RecommendationItem dictionary using the TypedDict contract
                 recommendation: RecommendationItem = {
                     'recommendation_type': rec_type,
@@ -483,7 +494,7 @@ class RecommendationEngine:
                     'suggested_name': factor.criteria_name,
                     'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
                     'confidence': factor.confidence,
-                    'explanation': None
+                    'explanation': explanation_text
                 }
                 
                 # Add to recommendations list
@@ -550,6 +561,9 @@ class RecommendationEngine:
                     # Impact based on increase in sample size
                     impact_score = min(0.5, (test_count - len(matching_shows)) / len(matching_shows))
                 
+                # Create explanation text for the recommendation
+                explanation_text = f"Removing {criteria_name} would increase the number of matching shows from {len(matching_shows)} to {test_count}, potentially improving match quality."
+                
                 # Create a RecommendationItem dictionary using the TypedDict contract
                 recommendation: RecommendationItem = {
                     'recommendation_type': self.REC_TYPE_REMOVE,
@@ -557,10 +571,10 @@ class RecommendationEngine:
                     'current_value': criteria_value,
                     'current_name': criteria_name,
                     'suggested_value': None,
-                    'suggested_name': None,
+                    'suggested_name': '',  # Empty string instead of None for suggested_name
                     'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
                     'confidence': "medium",
-                    'explanation': None
+                    'explanation': explanation_text
                 }
                 recommendations.append(recommendation)
         
@@ -682,6 +696,9 @@ class RecommendationEngine:
                         sample_size = len(shows_with_value)
                         confidence = self.config.get_confidence_level(sample_size)
                         
+                        # Create explanation text for the recommendation
+                        explanation_text = f"Changing from {current_name} to {suggested_name} could improve success probability by {impact_score*100:.1f}%. Based on analysis of {sample_size} successful shows."
+                        
                         # Create a RecommendationItem dictionary using the TypedDict contract
                         recommendation: RecommendationItem = {
                             'recommendation_type': self.REC_TYPE_CHANGE,
@@ -692,7 +709,7 @@ class RecommendationEngine:
                             'suggested_name': suggested_name,
                             'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
                             'confidence': confidence,
-                            'explanation': None
+                            'explanation': explanation_text
                         }
                         recommendations.append(recommendation)
             
@@ -845,6 +862,13 @@ class RecommendationEngine:
                 # Use standardized network recommendation type constants
                 network_rec_type = self.REC_TYPE_NETWORK_KEEP if difference > 0 else self.REC_TYPE_NETWORK_CHANGE
                 
+                # Create explanation text based on the recommendation type
+                explanation_text = ""
+                if network_rec_type == self.REC_TYPE_NETWORK_KEEP:
+                    explanation_text = f"Keep {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% better on {network_name} than average."
+                else:
+                    explanation_text = f"Consider changing {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% worse on {network_name} than average."
+                
                 # Create a RecommendationItem dictionary using the TypedDict contract
                 recommendation: RecommendationItem = {
                     'recommendation_type': network_rec_type,
@@ -855,7 +879,7 @@ class RecommendationEngine:
                     'suggested_name': suggested_name,
                     'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
                     'confidence': network_rate_data.get('confidence', 'medium'),
-                    'explanation': None,
+                    'explanation': explanation_text,
                     'metadata': network_data
                 }
                 recommendations.append(recommendation)
