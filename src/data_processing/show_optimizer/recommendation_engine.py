@@ -756,23 +756,17 @@ class RecommendationEngine:
         Returns:
             List of network-specific recommendations
         """
-        # Add detailed debugging for NetworkMatch objects
+        # Debug logging for network information
         if OptimizerConfig.DEBUG_MODE:
             import streamlit as st
-            st.write(f"DEBUG: In generate_network_specific_recommendations for {network.network_name}")
-            st.write(f"DEBUG: Network object type: {type(network).__name__}")
-            st.write(f"DEBUG: Network attributes: {[attr for attr in dir(network) if not attr.startswith('__')]}")
-            st.write(f"DEBUG: Network ID: {network.network_id}")
-            st.write(f"DEBUG: Network Name: {network.network_name}")
-            st.write(f"DEBUG: Network compatibility score: {network.compatibility_score}")
-            st.write(f"DEBUG: Network success probability: {network.success_probability}")
+            st.write(f"DEBUG: Processing network {network.network_name} (ID: {network.network_id})")
+
         
         # Get network-specific success rates
         try:
             network_rates = self.network_analyzer.get_network_specific_success_rates(
-                criteria=criteria,
-                network_id=network.network_id,
-                matching_shows=matching_shows
+                matching_shows=matching_shows,
+                network_id=network.network_id
             )
         except Exception as e:
             st.error(f"Error getting network-specific success rates: {str(e)}")

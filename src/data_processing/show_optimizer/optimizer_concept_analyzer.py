@@ -394,17 +394,6 @@ class ConceptAnalyzer:
             trace = traceback.format_exc()
             OptimizerConfig.debug(f"{error_msg}\n{trace}", category='analyzer', force=True)
             st.error(error_msg)
-            
-            # Display traceback in UI when debug mode is enabled
-            if OptimizerConfig.DEBUG_MODE:
-                st.write("### Detailed Error Traceback:")
-                st.code(trace)
-                
-                # Add more detailed debugging for NetworkMatch objects
-                if "'NetworkMatch' object is not subscriptable" in str(e):
-                    st.write("### NetworkMatch Access Error")
-                    st.write("This error occurs when trying to use dictionary-style access on a NetworkMatch object.")
-                    st.write("Check for any code using network['property'] instead of network.property")
 
             return self._handle_analysis_error(f"Analysis error: {str(e)}")
     
