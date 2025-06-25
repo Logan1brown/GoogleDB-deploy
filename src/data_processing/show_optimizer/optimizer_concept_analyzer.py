@@ -649,10 +649,12 @@ class ConceptAnalyzer:
                 return []
                 
             # Generate general recommendations
-            general_recommendations = self.recommendation_engine.generate_general_recommendations(
+            general_recommendations = self.recommendation_engine.generate_recommendations(
                 criteria=criteria,
                 matching_shows=matching_shows,
                 success_factors=success_factors,
+                top_networks=[],  # Empty list for general recommendations
+                confidence_info=confidence_info,
                 integrated_data=integrated_data
             )
             
