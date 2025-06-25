@@ -336,23 +336,24 @@ class ConceptAnalyzer:
             # Step 6: Generate recommendations
             if OptimizerConfig.DEBUG_MODE:
                 st.write("DEBUG: Generating recommendations")
-            try:
-                recommendations = self._generate_recommendations(
-                    criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
-                )
-            except Exception as rec_error:
-                import traceback
-                error_traceback = traceback.format_exc()
-                st.write("### Detailed Error in Recommendation Generation")
-                st.error(f"Error: {str(rec_error)}")
-                st.code(error_traceback)
-                
-                # Log the error for debugging
-                OptimizerConfig.debug(f"RECOMMENDATION ERROR: {str(rec_error)}", category='error', force=True)
-                OptimizerConfig.debug(f"TRACEBACK: {error_traceback}", category='error', force=True)
-                
-                # Continue with empty recommendations
-                recommendations = []
+            recommendations = self._generate_recommendations(
+                criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
+            )
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Generated {len(recommendations)} recommendations")
+                # Safely get recommendation types, handling both dict and object access
+                if recommendations:
+                    rec_types = []
+                    for rec in recommendations:
+                        if isinstance(rec, dict):
+                            rec_types.append(rec.get('recommendation_type', 'unknown'))
+                        elif hasattr(rec, 'recommendation_type'):
+                            rec_types.append(rec.recommendation_type)
+                        else:
+                            rec_types.append('unknown')
+                    st.write("DEBUG: Recommendation types: " + ", ".join(rec_types))
+                else:
+                    st.write("DEBUG: Recommendation types: None")
             
             # Get matching show titles (up to MAX_RESULTS) to include in the summary
             matching_titles = []
@@ -393,6 +394,17 @@ class ConceptAnalyzer:
             trace = traceback.format_exc()
             OptimizerConfig.debug(f"{error_msg}\n{trace}", category='analyzer', force=True)
             st.error(error_msg)
+            
+            # Display traceback in UI when debug mode is enabled
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("### Detailed Error Traceback:")
+                st.code(trace)
+                
+                # Add more detailed debugging for NetworkMatch objects
+                if "'NetworkMatch' object is not subscriptable" in str(e):
+                    st.write("### NetworkMatch Access Error")
+                    st.write("This error occurs when trying to use dictionary-style access on a NetworkMatch object.")
+                    st.write("Check for any code using network['property'] instead of network.property")
 
             return self._handle_analysis_error(f"Analysis error: {str(e)}")
     
@@ -745,20 +757,36 @@ class ConceptAnalyzer:
             network_recommendations = []
             
             # Limit to top 3 networks to avoid overwhelming the user
-            for network in top_networks[:3]:
+            for i, network in enumerate(top_networks[:3]):
+                # Add detailed debugging for NetworkMatch objects
+                if self.config.DEBUG_MODE:
+                    st.write(f"DEBUG: Network object type: {type(network).__name__}")
+                    st.write(f"DEBUG: Network object attributes: {dir(network)}")
+                    st.write(f"DEBUG: Network ID: {network.network_id}")
+                    st.write(f"DEBUG: Network Name: {network.network_name}")
+                
                 network_id = network.network_id
                 network_name = network.network_name
                 network_shows = matching_shows[matching_shows['network_id'] == network_id]
                 show_count = len(network_shows)
                 self.config.debug(f"Analyzing network {network_name} with {show_count} matching shows", category='network')
-                network_recommendations.extend(
-                    self.recommendation_engine.generate_network_specific_recommendations(
+                
+                try:
+                    # Wrap the call in a try-except to catch any errors specific to this network
+                    network_specific_recs = self.recommendation_engine.generate_network_specific_recommendations(
                         criteria=criteria,
                         network=network,
                         matching_shows=matching_shows,
                         integrated_data=integrated_data
                     )
-                )
+                    network_recommendations.extend(network_specific_recs)
+                    
+                except Exception as net_error:
+                    # Log the error but continue processing other networks
+                    if self.config.DEBUG_MODE:
+                        st.write(f"DEBUG: Error generating recommendations for {network_name}: {str(net_error)}")
+                    self.config.debug(f"Error generating recommendations for {network_name}: {str(net_error)}", 
+                                     category='error', force=True)
             
             # Combine and return all recommendations
             return general_recommendations + network_recommendations

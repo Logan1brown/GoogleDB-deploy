@@ -748,26 +748,31 @@ class RecommendationEngine:
         """
         Generate network-specific recommendations.        
         Args:
-            criteria: Dictionary of criteria conforming to CriteriaDict
-            network: Target network
+            criteria: Dictionary of criteria values
+            network: NetworkMatch object with network information
             matching_shows: DataFrame of shows matching the criteria
-            integrated_data: Dictionary of integrated data frames conforming to IntegratedData
+            integrated_data: Integrated data for additional context
             
         Returns:
-            List of RecommendationItem dictionaries with standardized structure
+            List of network-specific recommendations
         """
-        # Debug logging to verify network object type and attributes
+        # Add detailed debugging for NetworkMatch objects
         if OptimizerConfig.DEBUG_MODE:
+            import streamlit as st
+            st.write(f"DEBUG: In generate_network_specific_recommendations for {network.network_name}")
             st.write(f"DEBUG: Network object type: {type(network).__name__}")
-            st.write(f"DEBUG: Network object attributes: {dir(network)}")
+            st.write(f"DEBUG: Network attributes: {[attr for attr in dir(network) if not attr.startswith('__')]}")
             st.write(f"DEBUG: Network ID: {network.network_id}")
             st.write(f"DEBUG: Network Name: {network.network_name}")
+            st.write(f"DEBUG: Network compatibility score: {network.compatibility_score}")
+            st.write(f"DEBUG: Network success probability: {network.success_probability}")
         
-        # Get network-specific success rates for each criteria using matching_shows
+        # Get network-specific success rates
         try:
-            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
-                matching_shows=matching_shows,
-                network_id=network.network_id
+            network_rates = self.network_analyzer.get_network_specific_success_rates(
+                criteria=criteria,
+                network_id=network.network_id,
+                matching_shows=matching_shows
             )
         except Exception as e:
             st.error(f"Error getting network-specific success rates: {str(e)}")
@@ -790,16 +795,16 @@ class RecommendationEngine:
             
             # Get matching shows for this single criterion
             if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
-                matching_shows, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
                 
                 # Calculate all scores including success rate
-                all_scores = self.criteria_scorer.calculate_scores(single_criteria, matching_shows)
+                all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
                 overall_rate = all_scores.get('success_rate')
                 overall_details = all_scores.get('success_info', {})
             
-            # Store the overall rate using both key formats for flexible lookup
-            overall_rates[key] = overall_rate
-            overall_rates[field_name] = overall_rate
+                # Store the overall rate using both key formats for flexible lookup
+                overall_rates[key] = overall_rate
+                overall_rates[field_name] = overall_rate
         
         recommendations = []
                  
