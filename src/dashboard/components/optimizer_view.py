@@ -505,14 +505,14 @@ class OptimizerView:
             "all": [rec for group_data in grouped.values() for rec in group_data.get('items', [])]
         }
     
-    def _format_network_matches(self, network_matches: List[Union[Dict[str, Any], NetworkMatch]]) -> List[Dict[str, Any]]:
+    def _format_network_matches(self, network_matches: List[NetworkMatch]) -> List[Dict[str, Any]]:
         """Format network matches for display.
         
         Args:
-            network_matches: List of network match objects (either NetworkMatch dataclass or dictionaries)
+            network_matches: List of NetworkMatch dataclass objects
             
         Returns:
-            List of formatted network match dictionaries
+            List of formatted network match dictionaries for UI display
         """
         formatted = []
         
@@ -520,58 +520,31 @@ class OptimizerView:
             return []
         
         for match in network_matches:
-            # Check if match is a dictionary or a NetworkMatch object
-            if isinstance(match, dict):
-                # Dictionary-style access
-                network_id = match['network_id']
+            # Use attribute-style access for NetworkMatch objects
+            network_id = match.network_id
+            
+            # Convert network_id to integer if needed
+            if isinstance(network_id, (str, float)):
+                network_id = int(float(network_id))
                 
-                # Convert network_id to integer if needed
-                if isinstance(network_id, (str, float)):
-                    network_id = int(float(network_id))
-                    
-                # Get name from field manager - use the name from the match if available
-                network_name = match['name'] if 'name' in match else self.field_manager.get_name('network', network_id)
+            # Get name from field manager - use the network_name attribute if available
+            network_name = match.network_name if hasattr(match, 'network_name') and match.network_name else self.field_manager.get_name('network', network_id)
+            if not network_name:
+                network_name = "Unknown Network"
+            
+            # Format compatibility score as percentage
+            compatibility_value = float(match.compatibility_score)
+            compatibility_display = f"{compatibility_value*100:.1f}%"
+            compatibility_raw = compatibility_value
+            
+            # Format success probability as percentage
+            success_value = float(match.success_probability) if match.success_probability is not None else 0.0
+            success_display = f"{success_value*100:.1f}%"
+            success_raw = success_value
                 
-                # Format compatibility score as percentage
-                compatibility_value = float(match['compatibility_score'])
-                compatibility_display = f"{compatibility_value*100:.1f}%"
-                compatibility_raw = compatibility_value
-                
-                # Format success probability as percentage
-                success_value = float(match['success_probability']) if match['success_probability'] is not None else 0.0
-                success_display = f"{success_value*100:.1f}%"
-                success_raw = success_value
-                    
-                # Get confidence display text from config
-                confidence = match['confidence'] or "unknown"
-                sample_size = match.get('sample_size', 0)
-            else:
-                # Attribute-style access for NetworkMatch objects
-                network_id = match.network_id
-                
-                # Convert network_id to integer if needed
-                if isinstance(network_id, (str, float)):
-                    network_id = int(float(network_id))
-                    
-                # Get name from field manager - use the network_name attribute if available
-                network_name = getattr(match, 'network_name', self.field_manager.get_name('network', network_id))
-                if not network_name:
-                    network_name = "Unknown Network"
-                
-                # Format compatibility score as percentage
-                compatibility_value = float(match.compatibility_score)
-                compatibility_display = f"{compatibility_value*100:.1f}%"
-                compatibility_raw = compatibility_value
-                
-                # Format success probability as percentage
-                success_value = float(match.success_probability) if hasattr(match, 'success_probability') and match.success_probability is not None else 0.0
-                success_display = f"{success_value*100:.1f}%"
-                success_raw = success_value
-                    
-                # Get confidence display text from config
-                confidence = match.confidence if hasattr(match, 'confidence') else "unknown"
-                sample_size = getattr(match, 'sample_size', 0)
-                
+            # Get confidence display text from config
+            confidence = match.confidence or "unknown"
+            sample_size = match.sample_size if hasattr(match, 'sample_size') else 0
             confidence_display = self.config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
             
             # Format the network match with all data needed for UI display
