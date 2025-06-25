@@ -98,23 +98,23 @@ class OptimizationSummary:
                 }
                 formatted['networks'].append(network_data)
         
-        # Format recommendations data using direct attribute access
+        # Format recommendations data using dictionary-style access for TypedDict
         if self.recommendations:
             for rec in self.recommendations:
                 rec_dict = {
-                    'recommendation_type': rec.recommendation_type,
-                    'criteria_type': rec.field,
-                    'current_value': rec.current_value,
-                    'current_name': rec.current_name,
-                    'suggested_value': rec.suggested_value,
-                    'suggested_name': rec.suggested_name,
-                    'impact_score': rec.impact,
-                    'confidence': rec.confidence,
-                    'description': rec.explanation if rec.explanation else 'No explanation available'
+                    'recommendation_type': rec['recommendation_type'],
+                    'criteria_type': rec['field'],
+                    'current_value': rec.get('current_value', None),
+                    'current_name': rec.get('current_name', ''),
+                    'suggested_value': rec['suggested_value'],
+                    'suggested_name': rec['suggested_name'],
+                    'impact_score': rec['impact'],
+                    'confidence': rec['confidence'],
+                    'description': rec['explanation'] if rec['explanation'] else 'No explanation available'
                 }
                 
                 # Categorize recommendations
-                if rec.recommendation_type.startswith('network_'):
+                if rec['recommendation_type'].startswith('network_'):
                     formatted['recommendations']['network_specific'].append(rec_dict)
                 else:
                     formatted['recommendations']['general'].append(rec_dict)
@@ -212,8 +212,12 @@ class ConceptAnalyzer:
             OptimizationSummary with success probability, recommendations, etc.
         """
         try:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Starting analyze_concept method")
             
             # Step 1: Find matching shows using integrated data
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Finding matching shows")
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data)
             
             # Store matching_shows for later use in get_network_specific_recommendations
@@ -221,6 +225,11 @@ class ConceptAnalyzer:
             
             # Extract match information
             match_count = len(matching_shows) if not matching_shows.empty else 0
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Found {match_count} matching shows")
+                st.write(f"DEBUG: Confidence info: {confidence_info}")
+                st.write(f"DEBUG: Matching shows columns: {matching_shows.columns.tolist() if not matching_shows.empty else []}")
+
             
             # Safely extract match_level with detailed error tracing
             try:
@@ -256,21 +265,45 @@ class ConceptAnalyzer:
                         match_counts_by_level[level] = count
             
             # Step 2: Calculate success probability
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Calculating success probability")
             success_probability, confidence = self._calculate_success_probability(criteria, matching_shows)
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Success probability: {success_probability}, confidence: {confidence}")
             
             # Step 3: Find top networks - pass the existing matching_shows to avoid redundant matching
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Finding top networks")
             top_networks = self._find_top_networks(criteria, integrated_data=integrated_data, matching_shows=matching_shows)
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Found {len(top_networks)} top networks")
+                for i, network in enumerate(top_networks):
+                    st.write(f"DEBUG: Network {i+1}: {network.network_name} (ID: {network.network_id})")
+                    st.write(f"DEBUG: Network {i+1} type: {type(network).__name__}")
             
             # Step 4: Calculate component scores
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Calculating component scores")
             component_scores = self._get_component_scores(criteria, matching_shows, integrated_data)
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Component scores: {component_scores}")
             
             # Step 5: Identify success factors
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Identifying success factors")
             success_factors = self._identify_success_factors(criteria, matching_shows, integrated_data)
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Found {len(success_factors)} success factors")
             
             # Step 6: Generate recommendations
+            if OptimizerConfig.DEBUG_MODE:
+                st.write("DEBUG: Generating recommendations")
             recommendations = self._generate_recommendations(
                 criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
             )
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: Generated {len(recommendations)} recommendations")
+                st.write("DEBUG: Recommendation types: " + ", ".join([rec['recommendation_type'] for rec in recommendations]) if recommendations else "None")
             
             # Get matching show titles (up to MAX_RESULTS) to include in the summary
             matching_titles = []

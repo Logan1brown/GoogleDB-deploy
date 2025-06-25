@@ -264,15 +264,22 @@ class RecommendationItem(TypedDict):
     the recommendation engine and displayed to the user.
     """
     field: str  # Field name (e.g., 'genre', 'subgenres')
-    option: Any  # Option value (could be string, int, list, etc.)
-    option_name: str  # Display name for the option
     impact: float  # Impact score (-1.0 to 1.0)
     confidence: str  # Confidence level (e.g., 'high', 'medium', 'low')
     recommendation_type: str  # Type of recommendation ('add', 'change', 'remove')
     explanation: str  # Explanation text
+    # Fields for suggested values
+    suggested_value: Any  # Suggested value for the field
+    suggested_name: str  # Display name for the suggested value
+    # Optional fields
     sample_size: NotRequired[int]  # Number of shows used in calculation
     current_value: NotRequired[Any]  # Current value if recommendation_type is 'change'
+    current_name: NotRequired[str]  # Display name for the current value
     is_network_specific: NotRequired[bool]  # Whether this is network-specific
+    metadata: NotRequired[Dict[str, Any]]  # Additional metadata for the recommendation
+    # Legacy fields - kept for backward compatibility
+    option: NotRequired[Any]  # Legacy field for option value
+    option_name: NotRequired[str]  # Legacy field for option display name
 
 
 # Helper functions for working with field values
