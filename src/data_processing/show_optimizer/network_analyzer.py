@@ -101,15 +101,16 @@ class NetworkAnalyzer:
                     avg_match_level = network_shows['match_level'].mean() if 'match_level' in network_shows.columns else 1
                     confidence = OptimizerConfig.get_confidence_level(sample_size, int(avg_match_level))
                 
-                # Create NetworkMatch dictionary using TypedDict contract
-                network_match: NetworkMatch = {
-                    'network_id': network_id,
-                    'name': network_name,  # Field renamed from network_name to name per TypedDict contract
-                    'compatibility_score': compatibility_score,
-                    'success_probability': success_probability,
-                    'sample_size': sample_size,
-                    'confidence': confidence
-                }
+                # Create NetworkMatch using dataclass constructor
+                network_match = NetworkMatch(
+                    network_id=network_id,
+                    network_name=network_name,  # Using network_name field from dataclass
+                    compatibility_score=compatibility_score,
+                    success_probability=success_probability,
+                    sample_size=sample_size,
+                    confidence=confidence,
+                    details={}  # Empty details dictionary
+                )
                 
                 network_scores[network_id] = network_match
             
