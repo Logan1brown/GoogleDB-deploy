@@ -756,26 +756,22 @@ class RecommendationEngine:
         Returns:
             List of network-specific recommendations
         """
-        # Debug logging for network information
-        if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Processing network {network.network_name} (ID: {network.network_id})")
-
+        # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
         
         # Get network-specific success rates
         try:
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Getting network-specific success rates for network {network.network_name}")
-                st.write(f"DEBUG: Network object type: {type(network).__name__}")
-                st.write(f"DEBUG: Network ID: {network.network_id}")
-            
-            # Check if network_analyzer has the method we're trying to call
-            if OptimizerConfig.DEBUG_MODE and not hasattr(self.network_analyzer, 'get_network_specific_success_rates'):
-                st.write("DEBUG: ERROR - network_analyzer does not have get_network_specific_success_rates method")
-            
             network_rates = self.network_analyzer.get_network_specific_success_rates(
                 matching_shows=matching_shows,
                 network_id=network.network_id
             )
+            
+            # DEBUG 1: Check what network_rates actually contains
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
+                st.write(f"DEBUG: network_rates keys: {list(network_rates.keys()) if isinstance(network_rates, dict) else 'Not a dict'}")
+                if isinstance(network_rates, dict) and len(network_rates) > 0:
+                    first_key = next(iter(network_rates))
+                    st.write(f"DEBUG: First item type: {type(network_rates[first_key]).__name__}")
         except Exception as e:
             st.error(f"Error getting network-specific success rates: {str(e)}")
             return []
@@ -867,6 +863,13 @@ class RecommendationEngine:
             import streamlit as st
             st.write(f"DEBUG: Processing {len(valid_network_rates)} valid network rates")
             st.write(f"DEBUG: Valid network rates keys: {list(valid_network_rates.keys())}")
+            
+            # DEBUG 2: Check what valid_network_rates contains
+            if len(valid_network_rates) > 0:
+                first_key = next(iter(valid_network_rates))
+                first_item = valid_network_rates[first_key]
+                st.write(f"DEBUG: First valid network rate item: {first_item}")
+                st.write(f"DEBUG: network_rate_data type: {type(first_item['network_rate_data']).__name__}")
         
         for key, data in valid_network_rates.items():
             if OptimizerConfig.DEBUG_MODE:
@@ -896,7 +899,13 @@ class RecommendationEngine:
                 # Skip criteria without overall rates
                 continue
                 
-            # Access network_rate_data as a dictionary (it should always be a dictionary from get_network_specific_success_rates)
+            # DEBUG 3: Check what happens right before the error
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG 3: network_rate_data type before access: {type(network_rate_data).__name__}")
+                if not isinstance(network_rate_data, dict):
+                    st.write(f"DEBUG 3: Non-dict network_rate_data attributes: {dir(network_rate_data)}")
+            
+            # Access network_rate_data as a dictionary
             network_rate = network_rate_data['success_rate']
             sample_size = network_rate_data['sample_size']
             
