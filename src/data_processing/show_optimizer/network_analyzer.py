@@ -237,21 +237,18 @@ class NetworkAnalyzer:
         try:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: No matching shows provided for network {network_id}")
+                # No matching shows provided
                 return {}
                 
             # Filter to this network
             network_shows = matching_shows[matching_shows['network_id'] == network_id] if 'network_id' in matching_shows.columns else pd.DataFrame()
             if network_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: No shows found for network {network_id}")
+                # No shows found for this network
                 return {}
                 
             # Check if success_score column exists
             if 'success_score' not in network_shows.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: No success_score column in matching shows for network {network_id}")
+                # No success_score column in matching shows
                 return {}
             
             # For network-specific success rates, we analyze the columns in the matching_shows DataFrame
@@ -280,17 +277,13 @@ class NetworkAnalyzer:
                     if self.field_manager and self.field_manager.has_field(base_field):
                         valid_criteria_columns.append(column)
                     else:
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Field manager does not have field {base_field}")
+                        # Field manager does not have this field
+                        pass
                 except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Error checking field {base_field}: {str(e)}")
+                    # Skip this column due to error
                     # Skip this column
                     continue
                     
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Valid criteria columns: {valid_criteria_columns}")
-                
             # Process each valid criteria column
             for column in valid_criteria_columns:
                 # Get unique values for this column
@@ -314,38 +307,32 @@ class NetworkAnalyzer:
                             
                         # Handle array fields differently
                         is_array_field = False
-                        if isinstance(value, (list, tuple)):
-                            is_array_field = True
-                            # For list-type fields, find shows where the column contains this value
-                            value_shows = network_shows[network_shows[column].apply(
-                                lambda x: isinstance(x, list) and all(item in x for item in value) if isinstance(x, list) else False
-                            )]
-                        elif isinstance(value, str) and column.endswith('_names') and '[' in value:
-                            is_array_field = True
-                            # Skip string representations of arrays as they need special parsing
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Skipping string array field {column} with value {value}")
+                        try:
+                            if isinstance(value, (list, tuple)):
+                                is_array_field = True
+                                # For list-type fields, find shows where the column contains this value
+                                value_shows = network_shows[network_shows[column].apply(
+                                    lambda x: isinstance(x, list) and all(item in x for item in value) if isinstance(x, list) else False
+                                )]
+                            elif isinstance(value, str) and column.endswith('_names') and '[' in value:
+                                is_array_field = True
+                                # Skip string representations of arrays as they need special parsing
+                                # Skip string representations of arrays
+                                continue
+                            else:
+                                # For scalar fields, use direct comparison
+                                value_shows = network_shows[network_shows[column] == value]
+                        except Exception as e:
+                            # Skip this value due to error
                             continue
-                        else:
-                            # For scalar fields, use direct comparison
-                            value_shows = network_shows[network_shows[column] == value]
                         
                         # Skip if no shows
                         if value_shows.empty:
                             continue
                             
-                        # Calculate success rate
+                        # Calculate success rate if we have data
                         success_count = value_shows[value_shows['success_score'] >= success_threshold].shape[0]
                         total_count = value_shows.shape[0]
-                        
-                        # Add detailed debug logging for success rates
-                        if OptimizerConfig.DEBUG_MODE:
-                            st.write(f"DEBUG: Network {network_id} - {column} - value: {value}")
-                            st.write(f"DEBUG: Success count: {success_count}, Total count: {total_count}")
-                            if total_count > 0:
-                                st.write(f"DEBUG: Success rate: {success_count / total_count:.4f}")
-                            else:
-                                st.write(f"DEBUG: Cannot calculate success rate (no shows).")
                         
                         if total_count > 0:
                             success_rate = success_count / total_count
@@ -365,12 +352,10 @@ class NetworkAnalyzer:
                                     end_idx = value_name.find(")")
                                     if start_idx > 0 and end_idx > start_idx:
                                         clean_value = value_name[start_idx:end_idx].strip()
-                                        if OptimizerConfig.DEBUG_MODE:
-                                            st.write(f"DEBUG: Cleaned value from '{value_name}' to '{clean_value}'")
+                                        # Value name cleaned
                                         clean_value_name = clean_value
                                 except Exception as e:
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        st.write(f"DEBUG: Error cleaning value name: {str(e)}")
+                                    # Keep original value_name
                                     # If extraction fails, keep the original value_name
                                     pass
                             
@@ -398,25 +383,24 @@ class NetworkAnalyzer:
                                 success_rate_data['value_name'] = clean_value_name
                             
                             # Create a standardized key using our helper function
-                            key = create_field_value_key(field_name, value)
-                            
-                            # Add success rate data to the dictionary
-                            success_rates[key] = success_rate_data
-                            
-                            if OptimizerConfig.DEBUG_MODE:
-                                st.write(f"DEBUG: Added success rate for {key} with rate {success_rate:.4f}")
-                                st.write(f"DEBUG: Sample size: {total_count}")
-                                if is_array_field:
-                                    st.write(f"DEBUG: Handled array field {field_name} successfully")
+                            try:
+                                # Create a standardized key using our helper function
+                                key = create_field_value_key(field_name, value)
+                                
+                                # Add success rate data to the dictionary
+                                success_rates[key] = success_rate_data
+                                
+                                # Success rate data added to dictionary
+                            except Exception as e:
+                                # Error adding success rate data
+                                pass
                 except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Error processing column {column}: {str(e)}")
+                    # Error processing column
                     continue
             
             return success_rates
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Error in get_network_specific_success_rates: {str(e)}")
+            # Error in get_network_specific_success_rates
             return {}
     
     def get_network_recommendations(self, matching_shows: pd.DataFrame, 
@@ -544,9 +528,6 @@ class NetworkAnalyzer:
                 success_count = matching_shows[matching_shows['success_score'] >= success_threshold].shape[0]
                 success_rate = success_count / count if count > 0 else None
             else:
-                # No success_score column
-                if OptimizerConfig.DEBUG_MODE:
-                    pass
                 success_rate = None
             
             # Calculate average match level for confidence
@@ -559,6 +540,5 @@ class NetworkAnalyzer:
             
             return success_rate, confidence
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                pass
+            # Error calculating success rate
             return None, 'none'
