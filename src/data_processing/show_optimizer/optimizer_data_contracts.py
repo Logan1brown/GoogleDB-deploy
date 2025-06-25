@@ -10,8 +10,11 @@ Key contracts defined:
 - IntegratedData: Structure of integrated data dictionary with dataframes
 """
 
-from typing import Dict, List, Optional, Tuple, Any, Union, TypedDict, NotRequired
+from typing import Dict, List, TypedDict, Optional, Any, Union, Tuple, Callable, NotRequired
+from dataclasses import dataclass, field
 import pandas as pd
+
+from .optimizer_config import OptimizerConfig
 
 
 class CriteriaDict(TypedDict):
@@ -228,7 +231,26 @@ class FieldValueSuccessRate(TypedDict):
     matching_shows: NotRequired[List[str]]  # List of matching show titles
 
 
-from .score_calculators import NetworkMatch
+@dataclass
+class NetworkMatch:
+    """Network match information with success metrics.
+    
+    A data container for network matching results with compatibility and success scores.
+    Uses OptimizerConfig for default confidence values.
+    """
+    network_id: int = 0
+    network_name: str = ''
+    compatibility_score: Optional[float] = None  # 0-1 score of how well the network matches criteria, None if N/A
+    success_probability: Optional[float] = None  # 0-1 probability of success on this network, None if N/A
+    sample_size: int = 0  # Number of shows in the sample
+    confidence: str = 'none'  # Confidence level (none, very_low, low, medium, high)
+    details: Dict[str, Any] = field(default_factory=dict)  # Detailed breakdown of score
+    
+    def __post_init__(self):
+        """Validate and set default values from OptimizerConfig."""
+        # Set minimum compatibility threshold if not provided
+        if self.compatibility_score is not None and self.compatibility_score < OptimizerConfig.THRESHOLDS['minimum_compatibility']:
+            self.compatibility_score = OptimizerConfig.THRESHOLDS['minimum_compatibility']
 
 
 class RecommendationItem(TypedDict):

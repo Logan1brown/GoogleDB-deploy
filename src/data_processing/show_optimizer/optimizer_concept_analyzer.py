@@ -24,10 +24,10 @@ from ..success_analysis import SuccessAnalyzer
 from .optimizer_matcher import Matcher
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
-from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData, validate_criteria, validate_integrated_data, create_default_confidence_info, update_confidence_info
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData, NetworkMatch, validate_criteria, validate_integrated_data, create_default_confidence_info, update_confidence_info
 
 # Data contracts are now imported from optimizer_data_contracts.py
-from .score_calculators import ComponentScore, NetworkMatch
+from .score_calculators import ComponentScore
 from .network_analyzer import NetworkAnalyzer
 from .recommendation_engine import RecommendationEngine, SuccessFactor, Recommendation
 

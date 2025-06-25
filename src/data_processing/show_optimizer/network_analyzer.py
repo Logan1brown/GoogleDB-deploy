@@ -25,7 +25,9 @@ from .optimizer_data_contracts import (
     FieldValueSuccessRate, RecommendationItem,
     create_field_value_key, create_success_rate
 )
-from .score_calculators import NetworkMatch
+# Import NetworkMatch from optimizer_data_contracts instead of score_calculators
+# to avoid circular imports
+from .optimizer_data_contracts import NetworkMatch
 
 
 class NetworkAnalyzer:
@@ -41,7 +43,9 @@ class NetworkAnalyzer:
         self.criteria_scorer = criteria_scorer
         self.field_manager = field_manager or criteria_scorer.field_manager
         
-    def rank_networks_by_compatibility(self, matching_shows: pd.DataFrame, limit: int = None) -> List[NetworkMatch]:
+    def rank_networks_by_compatibility(self, matching_shows: pd.DataFrame, limit: Optional[int] = None) -> List['NetworkMatch']:
+        # Import NetworkMatch locally to avoid circular imports
+        from .score_calculators import NetworkMatch
         """Rank networks by compatibility using only the matching shows DataFrame.
         
         Args:
@@ -116,7 +120,7 @@ class NetworkAnalyzer:
             
             # Convert to list and sort by compatibility score (descending)
             network_matches = list(network_scores.values())
-            network_matches.sort(key=lambda x: x['compatibility_score'] if x['compatibility_score'] is not None else -1, reverse=True)
+            network_matches.sort(key=lambda x: x.compatibility_score if x.compatibility_score is not None else -1, reverse=True)
             
             # Use config for default limit if not specified
             if limit is None:
