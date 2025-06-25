@@ -570,8 +570,7 @@ class Matcher:
             
             # Skip if the field doesn't exist in the data
             if field_column not in matches.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Field '{field_name}' mapped to '{field_column}' not found in data columns", category='matcher')
+                # Skip debug output to reduce noise
                 continue
                 
             # Check if this is an array field - ONLY use field_manager's determination

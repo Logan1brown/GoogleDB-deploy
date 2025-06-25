@@ -278,14 +278,34 @@ def create_field_value_key(field_name: str, value: Any) -> str:
     Returns:
         A string key in the format "field_name:value_string"
     """
-    # Convert value to a string representation suitable for a dictionary key
-    if isinstance(value, list):
-        # Sort the list to ensure consistent key generation
-        value_str = str(sorted(value))
-    else:
-        value_str = str(value)
-        
-    return f"{field_name}:{value_str}"
+    try:
+        # Convert value to a string representation suitable for a dictionary key
+        if value is None:
+            value_str = "None"
+        elif isinstance(value, list):
+            # Handle empty lists
+            if not value:
+                value_str = "empty_list"
+            else:
+                # Handle lists with potentially unhashable elements
+                try:
+                    # Try to sort the list (works for simple types)
+                    value_str = str(sorted([str(v) if isinstance(v, (list, dict)) else v for v in value]))
+                except TypeError:
+                    # If sorting fails, just convert each element to string
+                    value_str = str([str(v) for v in value])
+        elif isinstance(value, dict):
+            # Handle dictionaries by converting to sorted items string
+            value_str = str(sorted([(str(k), str(v)) for k, v in value.items()]))
+        else:
+            # Handle all other types
+            value_str = str(value)
+            
+        return f"{field_name}:{value_str}"
+    except Exception as e:
+        # Fallback for any unexpected errors
+        OptimizerConfig.debug(f"Error creating field value key for {field_name}: {str(e)}", category='data')
+        return f"{field_name}:error_{hash(str(field_name) + str(type(value)))}"
 
 
 def create_field_value_data(field_name: str, value: Any, is_selected: bool = False) -> FieldValueData:
