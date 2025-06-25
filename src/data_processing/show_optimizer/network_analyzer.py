@@ -257,32 +257,38 @@ class NetworkAnalyzer:
             
             # Get unique columns that might represent criteria (exclude standard columns)
             standard_columns = {'network_id', 'match_level', 'success_score', 'title', 'show_id'}
-            criteria_columns = [col for col in network_shows.columns if col not in standard_columns]
+            
+            # Define known criteria fields that the field_manager should handle
+            known_criteria_fields = {
+                'genre', 'subgenres', 'source_type', 'order_type', 'time_setting', 
+                'location_setting', 'tone', 'studios', 'format', 'target_demo'
+            }
             
             # Calculate success rate for each criteria column
             success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
             
             # Filter columns to only include those that the field_manager can handle
             valid_criteria_columns = []
-            for column in criteria_columns:
+            for column in network_shows.columns:
+                # Skip standard columns
+                if column in standard_columns:
+                    continue
+                    
                 # Check if this is a field the field_manager knows about
                 base_field = column
                 if column.endswith('_id') or column.endswith('_ids'):
                     base_field = column[:-3] if column.endswith('_id') else column[:-4]
                 elif column.endswith('_name') or column.endswith('_names'):
                     base_field = column[:-5] if column.endswith('_name') else column[:-6]
-                    
-                try:
-                    # Check if field_manager has this field
-                    if self.field_manager and self.field_manager.has_field(base_field):
-                        valid_criteria_columns.append(column)
-                    else:
-                        # Field manager does not have this field
-                        pass
-                except Exception as e:
-                    # Skip this column due to error
-                    # Skip this column
-                    continue
+                
+                # Only process columns related to known criteria fields
+                if base_field in known_criteria_fields:
+                    try:
+                        if self.field_manager and self.field_manager.has_field(base_field):
+                            valid_criteria_columns.append(column)
+                    except Exception:
+                        # Skip this column due to error
+                        continue
                     
             # Process each valid criteria column
             for column in valid_criteria_columns:
@@ -453,19 +459,9 @@ class NetworkAnalyzer:
                 criteria=criteria
             )
             
-            # Convert Recommendation objects to dictionaries for compatibility
-            recommendation_dicts = []
-            for rec in recommendations:
-                recommendation_dicts.append({
-                    'recommendation_type': rec.recommendation_type,
-                    'criteria_type': rec.criteria_type,
-                    'current_value': rec.current_value,
-                    'suggested_value': rec.suggested_value,
-                    'suggested_name': rec.suggested_name,
-                    'impact_score': rec.impact_score,
-                    'confidence': rec.confidence,
-                    'explanation': rec.explanation
-                })
+            # The recommendation_engine now returns RecommendationItem TypedDicts directly
+            # No need for manual conversion
+            recommendation_dicts = recommendations
             
             return recommendation_dicts
         except Exception as e:
