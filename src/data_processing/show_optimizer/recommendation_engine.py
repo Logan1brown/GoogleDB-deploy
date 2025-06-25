@@ -745,20 +745,22 @@ class RecommendationEngine:
                                              network: NetworkMatch,
                                              matching_shows: pd.DataFrame,
                                              integrated_data: IntegratedData) -> List[RecommendationItem]:
-        # OBVIOUS CHANGE: Add a debug statement to confirm code is updated
-        if OptimizerConfig.DEBUG_MODE:
-            st.write("DEBUG: UPDATED RECOMMENDATION ENGINE CODE RUNNING - FIXING NETWORKMATCH ISSUE")
         """
-        Generate network-specific recommendations.        
+        Generate network-specific recommendations.
+
         Args:
             criteria: Dictionary of criteria values
             network: NetworkMatch object with network information
             matching_shows: DataFrame of shows matching the criteria
             integrated_data: Integrated data for additional context
-            
+
         Returns:
             List of network-specific recommendations
         """
+        # Display version indicator for deployment verification
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"Show Optimizer v{OptimizerConfig.VERSION} - Last updated: 2025-06-25")
+        
         # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
         
         # Get network-specific success rates
@@ -786,18 +788,18 @@ class RecommendationEngine:
             field_name = key.split(':', 1)[0] if ':' in key else key
             
             if OptimizerConfig.DEBUG_MODE:
-                import streamlit as st
+                # Using global st import
                 st.write(f"DEBUG: Extracted field_name: {field_name}")
             
             # Skip if this field is not in our criteria
             if field_name not in criteria:
                 if OptimizerConfig.DEBUG_MODE:
-                    import streamlit as st
+                    # Using global st import
                     st.write(f"DEBUG: Field {field_name} not in criteria, skipping")
                 continue
                 
             if OptimizerConfig.DEBUG_MODE:
-                import streamlit as st
+                # Using global st import
                 st.write(f"DEBUG: Creating single_criteria for {field_name}")
                 st.write(f"DEBUG: criteria[{field_name}] = {criteria[field_name]}")
             
@@ -825,12 +827,12 @@ class RecommendationEngine:
         valid_network_rates = {}
         
         if OptimizerConfig.DEBUG_MODE:
-            import streamlit as st
+            # Using global st import
             st.write(f"DEBUG: Valid criteria fields: {valid_fields}")
         
         for key, network_rate_data in network_rates.items():
             if OptimizerConfig.DEBUG_MODE:
-                import streamlit as st
+                # Using global st import
                 st.write(f"DEBUG: Processing network rate key: {key}")
                 st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
             
@@ -838,13 +840,13 @@ class RecommendationEngine:
             field_name = key.split(':', 1)[0] if ':' in key else key
             
             if OptimizerConfig.DEBUG_MODE:
-                import streamlit as st
+                # Using global st import
                 st.write(f"DEBUG: Extracted field_name: {field_name}")
             
             # Only process keys that correspond to fields in our criteria
             if field_name in valid_fields:
                 if OptimizerConfig.DEBUG_MODE:
-                    import streamlit as st
+                    # Using global st import
                     st.write(f"DEBUG: Field {field_name} is valid, creating entry in valid_network_rates")
                     st.write(f"DEBUG: criteria[{field_name}] = {criteria[field_name]}")
                 
@@ -857,7 +859,7 @@ class RecommendationEngine:
         
         # Now process only the valid network rates
         if OptimizerConfig.DEBUG_MODE:
-            import streamlit as st
+            # Using global st import
             st.write(f"DEBUG: Processing {len(valid_network_rates)} valid network rates")
             st.write(f"DEBUG: Valid network rates keys: {list(valid_network_rates.keys())}")
             
@@ -865,7 +867,7 @@ class RecommendationEngine:
         
         for key, data in valid_network_rates.items():
             if OptimizerConfig.DEBUG_MODE:
-                import streamlit as st
+                # Using global st import
                 st.write(f"DEBUG: Processing valid network rate key: {key}")
                 st.write(f"DEBUG: Data: {data}")
             
