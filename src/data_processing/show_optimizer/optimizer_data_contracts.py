@@ -287,13 +287,15 @@ def create_field_value_key(field_name: str, value: Any) -> str:
             if not value:
                 value_str = "empty_list"
             else:
-                # Handle lists with potentially unhashable elements
+                # Always convert list elements to strings to avoid unhashable type errors
+                # This ensures we can handle any type of list content
                 try:
-                    # Try to sort the list (works for simple types)
-                    value_str = str(sorted([str(v) if isinstance(v, (list, dict)) else v for v in value]))
-                except TypeError:
-                    # If sorting fails, just convert each element to string
-                    value_str = str([str(v) for v in value])
+                    # Convert each element to string first, then sort
+                    string_elements = [str(v) for v in value]
+                    value_str = str(sorted(string_elements))
+                except Exception:
+                    # If any error occurs, fall back to a simple string representation
+                    value_str = f"list_{hash(str(value))}"
         elif isinstance(value, dict):
             # Handle dictionaries by converting to sorted items string
             value_str = str(sorted([(str(k), str(v)) for k, v in value.items()]))

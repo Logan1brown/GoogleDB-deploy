@@ -216,7 +216,18 @@ class ConceptAnalyzer:
             
             # Extract match information
             match_count = len(matching_shows) if not matching_shows.empty else 0
-            match_level = confidence_info.get('match_level', 0)
+            
+            # Safely extract match_level - it could be a float or an object with match_level attribute
+            if isinstance(confidence_info.get('match_level'), (int, float)) or confidence_info.get('match_level') is None:
+                match_level = confidence_info.get('match_level', 0)
+            else:
+                # If it's an object with a match_level attribute, try to access it
+                try:
+                    match_level = confidence_info.get('match_level').match_level
+                except AttributeError:
+                    # If that fails, default to 0
+                    match_level = 0
+                    
             match_quality = confidence_info.get('match_quality', 0.0)
             confidence_score = confidence_info.get('confidence_score', 0.0)
             
