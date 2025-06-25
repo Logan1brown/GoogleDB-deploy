@@ -765,13 +765,7 @@ class RecommendationEngine:
                 network_id=network.network_id
             )
             
-            # DEBUG 1: Check what network_rates actually contains
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: network_rates type: {type(network_rates).__name__}")
-                st.write(f"DEBUG: network_rates keys: {list(network_rates.keys()) if isinstance(network_rates, dict) else 'Not a dict'}")
-                if isinstance(network_rates, dict) and len(network_rates) > 0:
-                    first_key = next(iter(network_rates))
-                    st.write(f"DEBUG: First item type: {type(network_rates[first_key]).__name__}")
+
         except Exception as e:
             st.error(f"Error getting network-specific success rates: {str(e)}")
             return []
@@ -864,12 +858,7 @@ class RecommendationEngine:
             st.write(f"DEBUG: Processing {len(valid_network_rates)} valid network rates")
             st.write(f"DEBUG: Valid network rates keys: {list(valid_network_rates.keys())}")
             
-            # DEBUG 2: Check what valid_network_rates contains
-            if len(valid_network_rates) > 0:
-                first_key = next(iter(valid_network_rates))
-                first_item = valid_network_rates[first_key]
-                st.write(f"DEBUG: First valid network rate item: {first_item}")
-                st.write(f"DEBUG: network_rate_data type: {type(first_item['network_rate_data']).__name__}")
+
         
         for key, data in valid_network_rates.items():
             if OptimizerConfig.DEBUG_MODE:
@@ -899,15 +888,15 @@ class RecommendationEngine:
                 # Skip criteria without overall rates
                 continue
                 
-            # DEBUG 3: Check what happens right before the error
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG 3: network_rate_data type before access: {type(network_rate_data).__name__}")
-                if not isinstance(network_rate_data, dict):
-                    st.write(f"DEBUG 3: Non-dict network_rate_data attributes: {dir(network_rate_data)}")
-            
-            # Access network_rate_data as a dictionary
-            network_rate = network_rate_data['success_rate']
-            sample_size = network_rate_data['sample_size']
+            # Check if network_rate_data is a NetworkMatch object or a dictionary
+            if hasattr(network_rate_data, 'network_id') and hasattr(network_rate_data, 'success_probability'):
+                # It's a NetworkMatch object, use attribute access
+                network_rate = network_rate_data.success_probability
+                sample_size = getattr(network_rate_data, 'sample_size', 0)
+            else:
+                # It's a dictionary, use dictionary access
+                network_rate = network_rate_data['success_rate']
+                sample_size = network_rate_data['sample_size']
             
             # Calculate the difference between network and overall rates
             difference = network_rate - overall_rate
@@ -958,8 +947,11 @@ class RecommendationEngine:
                     explanation_text = f"Consider changing {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% worse on {network_name} than average."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
-                # Get confidence value from the network_rate_data dictionary
-                confidence_value = network_rate_data.get('confidence', 'medium')
+                # Get confidence value based on the type of network_rate_data
+                if hasattr(network_rate_data, 'confidence'):
+                    confidence_value = network_rate_data.confidence
+                else:
+                    confidence_value = network_rate_data.get('confidence', 'medium')
                     
                 recommendation: RecommendationItem = {
                     'recommendation_type': network_rec_type,
