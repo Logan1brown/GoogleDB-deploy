@@ -803,10 +803,30 @@ class RecommendationEngine:
         
         recommendations = []
                  
-        # Analyze each criteria to find significant differences between network and overall rates
+        # First, explicitly determine which fields from network_rates are valid in our criteria
+        # This avoids checking field_name in criteria for each iteration
+        valid_fields = set(criteria.keys())
+        valid_network_rates = {}
+        
         for key, network_rate_data in network_rates.items():
             # Extract field name from the key using standard format
             field_name = key.split(':', 1)[0] if ':' in key else key
+            
+            # Only process keys that correspond to fields in our criteria
+            if field_name in valid_fields:
+                valid_network_rates[key] = {
+                    'field_name': field_name,
+                    'network_rate_data': network_rate_data,
+                    'current_value': criteria[field_name],
+                    'current_name': self._get_criteria_name(field_name, criteria[field_name])
+                }
+        
+        # Now process only the valid network rates
+        for key, data in valid_network_rates.items():
+            field_name = data['field_name']
+            network_rate_data = data['network_rate_data']
+            current_value = data['current_value']
+            current_name = data['current_name']
             
             # Get the overall success rate using flexible key lookup
             overall_rate = overall_rates.get(key, overall_rates.get(field_name))
@@ -835,9 +855,6 @@ class RecommendationEngine:
             
             # Create recommendation if the difference is significant
             if should_generate:
-                # Get current criteria value and display name
-                current_value = criteria[field_name]
-                current_name = self._get_criteria_name(field_name, current_value)
                 
                 # Store raw data for OptimizerView to format
                 network_rate_value = network_rate
