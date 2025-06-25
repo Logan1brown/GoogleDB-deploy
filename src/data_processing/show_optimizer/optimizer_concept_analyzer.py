@@ -336,24 +336,23 @@ class ConceptAnalyzer:
             # Step 6: Generate recommendations
             if OptimizerConfig.DEBUG_MODE:
                 st.write("DEBUG: Generating recommendations")
-            recommendations = self._generate_recommendations(
-                criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
-            )
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Generated {len(recommendations)} recommendations")
-                # Safely get recommendation types, handling both dict and object access
-                if recommendations:
-                    rec_types = []
-                    for rec in recommendations:
-                        if isinstance(rec, dict):
-                            rec_types.append(rec.get('recommendation_type', 'unknown'))
-                        elif hasattr(rec, 'recommendation_type'):
-                            rec_types.append(rec.recommendation_type)
-                        else:
-                            rec_types.append('unknown')
-                    st.write("DEBUG: Recommendation types: " + ", ".join(rec_types))
-                else:
-                    st.write("DEBUG: Recommendation types: None")
+            try:
+                recommendations = self._generate_recommendations(
+                    criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
+                )
+            except Exception as rec_error:
+                import traceback
+                error_traceback = traceback.format_exc()
+                st.write("### Detailed Error in Recommendation Generation")
+                st.error(f"Error: {str(rec_error)}")
+                st.code(error_traceback)
+                
+                # Log the error for debugging
+                OptimizerConfig.debug(f"RECOMMENDATION ERROR: {str(rec_error)}", category='error', force=True)
+                OptimizerConfig.debug(f"TRACEBACK: {error_traceback}", category='error', force=True)
+                
+                # Continue with empty recommendations
+                recommendations = []
             
             # Get matching show titles (up to MAX_RESULTS) to include in the summary
             matching_titles = []
