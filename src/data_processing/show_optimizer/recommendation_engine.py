@@ -725,9 +725,9 @@ class RecommendationEngine:
         return str(value)       
 
     def generate_network_specific_recommendations(self, criteria: CriteriaDict, 
-                                                network: NetworkMatch,
-                                                matching_shows: pd.DataFrame,
-                                                integrated_data: IntegratedData) -> List[Recommendation]:
+                                                 network: NetworkMatch,
+                                                 matching_shows: pd.DataFrame,
+                                                 integrated_data: IntegratedData) -> List[RecommendationItem]:
         """
         Generate network-specific recommendations.        
         Args:
@@ -737,13 +737,29 @@ class RecommendationEngine:
             integrated_data: Dictionary of integrated data frames conforming to IntegratedData
             
         Returns:
-            List of Recommendation objects specific to the network
+            List of RecommendationItem dictionaries with standardized structure
         """
+        # Debug logging to verify network object type and attributes
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Network object type: {type(network).__name__}")
+            st.write(f"DEBUG: Network object attributes: {dir(network)}")
+            st.write(f"DEBUG: Network ID: {network.network_id if hasattr(network, 'network_id') else 'Not found'}")
+            st.write(f"DEBUG: Network Name: {network.network_name if hasattr(network, 'network_name') else 'Not found'}")
+        
+        # Ensure network is a proper NetworkMatch object with required attributes
+        if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
+            st.error(f"Invalid NetworkMatch object: missing required attributes")
+            return []
+        
         # Get network-specific success rates for each criteria using matching_shows
-        network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
-            matching_shows=matching_shows,
-            network_id=network.network_id
-        )
+        try:
+            network_rates = self.criteria_scorer.network_analyzer.get_network_specific_success_rates(
+                matching_shows=matching_shows,
+                network_id=network.network_id
+            )
+        except Exception as e:
+            st.error(f"Error getting network-specific success rates: {str(e)}")
+            return []
         
         # Calculate overall success rates for comparison with network-specific rates
         overall_rates = {}
@@ -822,13 +838,31 @@ class RecommendationEngine:
                 impact_score = max(abs(difference), 0.05) * (1 if difference > 0 else -1)
                 
                 # Store network data for OptimizerView to use when formatting
-                network_data = {
-                    "network_id": network.network_id,
-                    "network_name": network.network_name,
-                    "network_rate": network_rate,
-                    "overall_rate": overall_rate,
-                    "difference": difference
-                }
+                try:
+                    # Safely access network attributes using attribute access only
+                    network_data = {
+                        "network_id": network.network_id if hasattr(network, 'network_id') else None,
+                        "network_name": network.network_name if hasattr(network, 'network_name') else 'Unknown Network',
+                        "network_rate": network_rate,
+                        "overall_rate": overall_rate,
+                        "difference": difference
+                    }
+                    
+                    # Verify network data is valid
+                    if network_data["network_id"] is None:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"WARNING: Missing network_id in NetworkMatch object")
+                except Exception as e:
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"ERROR accessing NetworkMatch attributes: {str(e)}")
+                    # Provide fallback network data
+                    network_data = {
+                        "network_id": None,
+                        "network_name": "Unknown Network",
+                        "network_rate": network_rate,
+                        "overall_rate": overall_rate,
+                        "difference": difference
+                    }
                 
                 # Use standardized network recommendation type constants
                 network_rec_type = self.REC_TYPE_NETWORK_KEEP if difference > 0 else self.REC_TYPE_NETWORK_CHANGE

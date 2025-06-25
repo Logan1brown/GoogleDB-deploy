@@ -43,9 +43,7 @@ class NetworkAnalyzer:
         self.criteria_scorer = criteria_scorer
         self.field_manager = field_manager or criteria_scorer.field_manager
         
-    def rank_networks_by_compatibility(self, matching_shows: pd.DataFrame, limit: Optional[int] = None) -> List['NetworkMatch']:
-        # Import NetworkMatch locally to avoid circular imports
-        from .optimizer_data_contracts import NetworkMatch
+    def rank_networks_by_compatibility(self, matching_shows: pd.DataFrame, limit: Optional[int] = None) -> List[NetworkMatch]:
         """Rank networks by compatibility using only the matching shows DataFrame.
         
         Args:
@@ -179,18 +177,36 @@ class NetworkAnalyzer:
         except Exception as e:
             return {}
     
-    def get_network_tiers(self, matching_shows: pd.DataFrame, min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:
+    def get_network_tiers(self, matching_shows: pd.DataFrame = None, min_confidence: str = 'low', criteria: CriteriaDict = None, integrated_data: IntegratedData = None) -> Dict[str, List[NetworkMatch]]:
         """Group networks into tiers based on compatibility using matching shows.
         
+        This method supports two calling patterns:
+        1. With matching_shows directly (legacy pattern)
+        2. With criteria and integrated_data to find matching shows first (new pattern)
+        
         Args:
-            matching_shows: DataFrame of shows matching the criteria with match_level column
+            matching_shows: Optional DataFrame of shows matching the criteria with match_level column
             min_confidence: Minimum confidence level to include (none, low, medium, high)
+            criteria: Optional criteria dictionary to find matching shows if not provided
+            integrated_data: Optional integrated data needed to find matching shows
             
         Returns:
             Dictionary mapping tier names to lists of NetworkMatch objects
         """
         try:
-            # Validate inputs
+            # Handle the case where criteria and integrated_data are provided instead of matching_shows
+            if matching_shows is None and criteria is not None and integrated_data is not None:
+                # Use criteria_scorer to find matching shows
+                if self.criteria_scorer and hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher:
+                    matching_shows, _ = self.criteria_scorer.matcher.find_matches_with_fallback(criteria, integrated_data)
+                    
+                    if matching_shows is None or matching_shows.empty:
+                        return {}
+                else:
+                    # No matcher available
+                    return {}
+            
+            # Validate inputs for both calling patterns
             if matching_shows is None or matching_shows.empty:
                 return {}
             
@@ -218,6 +234,7 @@ class NetworkAnalyzer:
             # Use the simplified group_networks_into_tiers method
             return self.group_networks_into_tiers(filtered_matches)
         except Exception as e:
+            st.error(f"Error getting network tiers: {str(e)}")
             return {}
     
     def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: int) -> Dict[str, FieldValueSuccessRate]:

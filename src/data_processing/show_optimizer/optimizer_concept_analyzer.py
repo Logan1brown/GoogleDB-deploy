@@ -675,10 +675,24 @@ class ConceptAnalyzer:
                     
                     for network in top_networks[:3]:  # Limit to top 3 networks
                         try:
-                            # Get network-specific shows for analysis
-                            network_shows = matching_shows[matching_shows['network_id'] == network.network_id] if isinstance(matching_shows, pd.DataFrame) else None
-                            show_count = len(network_shows) if network_shows is not None else 0
-                            self.config.debug(f"Analyzing network {network.network_name} with {show_count} matching shows", category='network')
+                            # Verify network is a proper NetworkMatch object with required attributes
+                            if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
+                                self.config.debug(f"Invalid NetworkMatch object detected: {type(network).__name__}", category='error')
+                                st.error(f"Invalid network object detected. Missing required attributes.")
+                                continue
+                                
+                            # Get network-specific shows for analysis using attribute access
+                            try:
+                                network_id = network.network_id  # Use attribute access, not dictionary access
+                                network_name = network.network_name  # Use attribute access, not dictionary access
+                                
+                                network_shows = matching_shows[matching_shows['network_id'] == network_id] if isinstance(matching_shows, pd.DataFrame) else None
+                                show_count = len(network_shows) if network_shows is not None else 0
+                                self.config.debug(f"Analyzing network {network_name} with {show_count} matching shows", category='network')
+                            except Exception as attr_error:
+                                self.config.debug(f"Error accessing NetworkMatch attributes: {str(attr_error)}", category='error')
+                                st.error(f"Error accessing network attributes: {str(attr_error)}")
+                                continue
                             
                             # Generate network-specific recommendations using the RecommendationEngine directly
                             network_recommendations = self.recommendation_engine.generate_network_specific_recommendations(
