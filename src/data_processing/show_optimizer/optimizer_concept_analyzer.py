@@ -625,97 +625,68 @@ class ConceptAnalyzer:
             st.error(f"Error identifying success factors: {str(e)}")
             return []
 
-    def _generate_recommendations(
-        self, 
-        criteria: CriteriaDict,
-        matching_shows: pd.DataFrame,
-        success_factors: List[SuccessFactor],
-        top_networks: List[NetworkMatch],
-        confidence_info: ConfidenceInfo,
-        integrated_data: IntegratedData
-    ) -> List[Recommendation]:
-        """Generate recommendations for optimizing the show concept.
+    def _generate_recommendations(self, criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data):
+        """Generate recommendations based on criteria, matching shows, and analysis results.
         
         Args:
-            criteria: Dictionary of criteria conforming to CriteriaDict
-            matching_shows: DataFrame of matching shows
-            success_factors: List of success factors
-            top_networks: List of top networks
-            confidence_info: Dictionary of confidence information conforming to ConfidenceInfo
-            integrated_data: Dictionary of integrated data frames conforming to IntegratedData
+            criteria: Dictionary of criteria for the show concept
+            matching_shows: DataFrame of shows matching the criteria
+            success_factors: List of identified success factors
+            top_networks: List of top compatible networks as NetworkMatch objects
+            confidence_info: Dictionary with confidence metrics
+            integrated_data: Dictionary of integrated data frames
             
         Returns:
             List of Recommendation objects
         """
         try:
+            # Store matching_shows for later use in get_network_specific_recommendations
+            self._last_matching_shows = matching_shows
             
-            # Delegate to RecommendationEngine for general recommendation generation
-            recommendations = self.recommendation_engine.generate_recommendations(                criteria=criteria,
-                success_factors=success_factors,
-                top_networks=top_networks,
+            # If no matching shows, return empty list
+            if matching_shows is None or matching_shows.empty:
+                st.warning("No matching shows found for recommendation generation")
+                return []
+                
+            # Generate general recommendations
+            general_recommendations = self.recommendation_engine.generate_general_recommendations(
+                criteria=criteria,
                 matching_shows=matching_shows,
-                confidence_info=confidence_info,
+                success_factors=success_factors,
                 integrated_data=integrated_data
             )
             
-            # Generate network-specific recommendations for each top network
-            if top_networks:
-                OptimizerConfig.debug(f"Processing network recommendations for top networks")
-                
-                # First check if matching_shows is valid to avoid multiple errors
-                if matching_shows is None or (isinstance(matching_shows, pd.DataFrame) and matching_shows.empty):
-                    st.warning("No matching shows available for network-specific recommendations")
-                else:
-                    # Log network recommendation processing through config debug
-                    factor_count = len(success_factors) if success_factors else 0
-                    show_count = len(matching_shows) if isinstance(matching_shows, pd.DataFrame) else 0
-                    network_count = min(3, len(top_networks))
-                    
-                    self.config.debug(f"Processing recommendations for top {network_count} networks with {factor_count} success factors and {show_count} matching shows", category='recommendation')
-                    
-                    for network in top_networks[:3]:  # Limit to top 3 networks
-                        try:
-                            # Verify network is a proper NetworkMatch object with required attributes
-                            if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
-                                self.config.debug(f"Invalid NetworkMatch object detected: {type(network).__name__}", category='error')
-                                st.error(f"Invalid network object detected. Missing required attributes.")
-                                continue
-                                
-                            # Get network-specific shows for analysis using attribute access
-                            try:
-                                network_id = network.network_id  # Use attribute access, not dictionary access
-                                network_name = network.network_name  # Use attribute access, not dictionary access
-                                
-                                network_shows = matching_shows[matching_shows['network_id'] == network_id] if isinstance(matching_shows, pd.DataFrame) else None
-                                show_count = len(network_shows) if network_shows is not None else 0
-                                self.config.debug(f"Analyzing network {network_name} with {show_count} matching shows", category='network')
-                            except Exception as attr_error:
-                                self.config.debug(f"Error accessing NetworkMatch attributes: {str(attr_error)}", category='error')
-                                st.error(f"Error accessing network attributes: {str(attr_error)}")
-                                continue
-                            
-                            # Generate network-specific recommendations using the RecommendationEngine directly
-                            network_recommendations = self.recommendation_engine.generate_network_specific_recommendations(
-                                criteria=criteria,
-                                network=network,
-                                matching_shows=matching_shows,
-                                integrated_data=integrated_data
-                            )
-                            
-                            # Process network recommendations
-                            if network_recommendations:
-                                self.config.debug(f"Generated {len(network_recommendations)} recommendations for network {network.network_name}", category='recommendation')
-                                recommendations.extend(network_recommendations)
-                            else:
-                                self.config.debug(f"No recommendations generated for network {network.network_name}", category='recommendation')
-                        except Exception as network_error:
-                            # Use a more specific error message that includes the network name
-                            st.error(f"Error generating recommendations for network {network.network_name}: {str(network_error)}")
-                            import traceback
-                            self.config.debug(f"Network recommendation error: {traceback.format_exc()}", category='recommendation', force=True)
+            # Generate network-specific recommendations for top networks
+            network_recommendations = []
             
-            return recommendations
+            # Limit to top 3 networks to avoid overwhelming the user
+            for network in top_networks[:3]:
+                try:
+                    if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
+                        self.config.debug("Invalid NetworkMatch object detected", category='error')
+                        st.error("Invalid network object detected. Missing required attributes.")
+                        continue
+                    network_id = network.network_id
+                    network_name = network.network_name
+                    network_shows = matching_shows[matching_shows['network_id'] == network_id]
+                    show_count = len(network_shows)
+                    self.config.debug(f"Analyzing network {network_name} with {show_count} matching shows", category='network')
+                    network_recommendations.extend(
+                        self.recommendation_engine.generate_network_specific_recommendations(
+                            criteria=criteria,
+                            network=network,
+                            matching_shows=matching_shows,
+                            integrated_data=integrated_data
+                        )
+                    )
+                except Exception as e:
+                    self.config.debug(f"Error generating network recommendations: {str(e)}", category='error')
+                    st.error(f"Error generating recommendations for network {getattr(network, 'network_name', 'Unknown')}: {str(e)}")
+            
+            # Combine and return all recommendations
+            return general_recommendations + network_recommendations
             
         except Exception as e:
-            st.warning(f"Could not generate recommendations: {str(e)}")
+            st.error(f"Error generating recommendations: {str(e)}")
             return []
+

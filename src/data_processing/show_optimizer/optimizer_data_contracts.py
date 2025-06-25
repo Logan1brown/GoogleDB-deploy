@@ -10,7 +10,11 @@ Key contracts defined:
 - IntegratedData: Structure of integrated data dictionary with dataframes
 """
 
-from typing import Dict, List, TypedDict, Optional, Any, Union, Tuple, Callable, NotRequired
+from typing import Dict, List, TypedDict, Optional, Any, Union, Tuple, Callable
+try:
+    from typing import NotRequired
+except ImportError:
+    from typing_extensions import NotRequired
 from dataclasses import dataclass, field
 import pandas as pd
 
