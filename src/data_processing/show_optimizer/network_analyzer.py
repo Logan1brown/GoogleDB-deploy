@@ -45,7 +45,7 @@ class NetworkAnalyzer:
         
     def rank_networks_by_compatibility(self, matching_shows: pd.DataFrame, limit: Optional[int] = None) -> List['NetworkMatch']:
         # Import NetworkMatch locally to avoid circular imports
-        from .score_calculators import NetworkMatch
+        from .optimizer_data_contracts import NetworkMatch
         """Rank networks by compatibility using only the matching shows DataFrame.
         
         Args:

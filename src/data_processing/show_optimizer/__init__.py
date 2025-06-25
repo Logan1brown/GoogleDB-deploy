@@ -1,7 +1,8 @@
 """Show Optimizer package for TV series success analysis and optimization."""
 
 # First export the dataclasses to avoid circular imports
-from .score_calculators import ComponentScore, NetworkMatch
+from .score_calculators import ComponentScore
+from .optimizer_data_contracts import NetworkMatch
 
 # Then export the main classes
 from .optimizer_concept_analyzer import ConceptAnalyzer

@@ -33,7 +33,7 @@ def apply_profiling():
     CriteriaScorer.calculate_component_scores = profile()(CriteriaScorer.calculate_component_scores)
     CriteriaScorer.calculate_criteria_impact = profile()(CriteriaScorer.calculate_criteria_impact)
     CriteriaScorer._calculate_success_rate = profile()(CriteriaScorer._calculate_success_rate)
-    CriteriaScorer._get_matching_shows = profile()(CriteriaScorer._get_matching_shows)
+    # _get_matching_shows method has been removed as part of architecture refactoring
     
     # Profile Matcher methods
     Matcher.find_matches_with_fallback = profile()(Matcher.find_matches_with_fallback)

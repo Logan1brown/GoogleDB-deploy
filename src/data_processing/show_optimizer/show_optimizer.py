@@ -36,7 +36,8 @@ from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedDa
 from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
-from .criteria_scorer import CriteriaScorer, NetworkMatch, ComponentScore
+from .criteria_scorer import CriteriaScorer, ComponentScore
+from .optimizer_data_contracts import NetworkMatch
 from .recommendation_engine import SuccessFactor, RecommendationEngine, Recommendation
 from src.dashboard.components.optimizer_view import OptimizerView
 from .optimizer_config import OptimizerConfig

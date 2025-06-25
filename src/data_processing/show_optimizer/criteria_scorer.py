@@ -15,7 +15,8 @@ from datetime import datetime, timedelta
 
 from .field_manager import FieldManager
 from .optimizer_config import OptimizerConfig
-from .score_calculators import ComponentScore, ScoreCalculationError, NetworkMatch, NetworkScoreCalculator
+from .score_calculators import ComponentScore, ScoreCalculationError, NetworkScoreCalculator
+from .optimizer_data_contracts import NetworkMatch
 from .score_calculators import SuccessScoreCalculator, AudienceScoreCalculator, CriticsScoreCalculator, LongevityScoreCalculator
 from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
 
