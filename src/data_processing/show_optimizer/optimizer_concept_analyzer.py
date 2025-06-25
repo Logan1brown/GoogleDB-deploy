@@ -85,38 +85,53 @@ class OptimizationSummary:
             }
         }
         
-        # Format networks data
+        # Format networks data with robust error handling
         if self.top_networks:
             for network in self.top_networks:
-                formatted['networks'].append({
-                    'network_id': network.network_id,
-                    'network_name': network.network_name,
-                    'compatibility_score': network.compatibility_score,
-                    'success_probability': network.success_probability,
-                    'sample_size': network.sample_size,
-                    'confidence': network.confidence
-                })
+                try:
+                    # Verify network is a proper NetworkMatch object
+                    if not hasattr(network, 'network_id') or not hasattr(network, 'network_name'):
+                        OptimizerConfig.debug(f"Invalid NetworkMatch object detected in formatted_data", category='error')
+                        continue
+                        
+                    # Use attribute access with fallbacks for safety
+                    network_data = {
+                        'network_id': getattr(network, 'network_id', 0),
+                        'network_name': getattr(network, 'network_name', 'Unknown Network'),
+                        'compatibility_score': getattr(network, 'compatibility_score', None),
+                        'success_probability': getattr(network, 'success_probability', None),
+                        'sample_size': getattr(network, 'sample_size', 0),
+                        'confidence': getattr(network, 'confidence', 'none')
+                    }
+                    formatted['networks'].append(network_data)
+                except Exception as e:
+                    OptimizerConfig.debug(f"Error formatting network data: {str(e)}", category='error')
         
-        # Format recommendations data
+        # Format recommendations data with robust error handling
         if self.recommendations:
             for rec in self.recommendations:
-                rec_dict = {
-                    'recommendation_type': rec.recommendation_type,
-                    'criteria_type': rec.criteria_type,
-                    'current_value': rec.current_value,
-                    'current_name': rec.current_name,
-                    'suggested_value': rec.suggested_value,
-                    'suggested_name': rec.suggested_name,
-                    'impact_score': rec.impact_score,
-                    'confidence': rec.confidence,
-                    'description': rec.explanation
-                }
-                
-                # Categorize recommendations
-                if rec.recommendation_type.startswith('network_'):
-                    formatted['recommendations']['network_specific'].append(rec_dict)
-                else:
-                    formatted['recommendations']['general'].append(rec_dict)
+                try:
+                    # Create recommendation dictionary with safe attribute access
+                    rec_dict = {
+                        'recommendation_type': getattr(rec, 'recommendation_type', 'general'),
+                        'criteria_type': getattr(rec, 'criteria_type', ''),
+                        'current_value': getattr(rec, 'current_value', None),
+                        'current_name': getattr(rec, 'current_name', ''),
+                        'suggested_value': getattr(rec, 'suggested_value', None),
+                        'suggested_name': getattr(rec, 'suggested_name', ''),
+                        'impact_score': getattr(rec, 'impact_score', 0.0),
+                        'confidence': getattr(rec, 'confidence', 'low'),
+                        'description': getattr(rec, 'explanation', 'No explanation available')
+                    }
+                    
+                    # Categorize recommendations
+                    rec_type = getattr(rec, 'recommendation_type', 'general')
+                    if rec_type.startswith('network_'):
+                        formatted['recommendations']['network_specific'].append(rec_dict)
+                    else:
+                        formatted['recommendations']['general'].append(rec_dict)
+                except Exception as e:
+                    OptimizerConfig.debug(f"Error formatting recommendation data: {str(e)}", category='error')
         
         # Store the formatted data for future access
         self._formatted_data_dict = formatted
