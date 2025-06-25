@@ -136,6 +136,11 @@ class RecommendationEngine:
         self.criteria_scorer = criteria_scorer
         self.config = OptimizerConfig
         
+        # Initialize network_analyzer from success_analyzer if available
+        self.network_analyzer = None
+        if hasattr(success_analyzer, 'network_analyzer'):
+            self.network_analyzer = success_analyzer.network_analyzer
+        
         # Try to get criteria_scorer from success_analyzer if not provided
         if self.criteria_scorer is None and hasattr(success_analyzer, 'criteria_scorer'):
             self.criteria_scorer = success_analyzer.criteria_scorer
@@ -757,12 +762,18 @@ class RecommendationEngine:
         Returns:
             List of network-specific recommendations
         """
-        # Display version indicator for deployment verification
+        # Debug mode check for network-specific recommendations
         if OptimizerConfig.DEBUG_MODE:
-            st.write(f"Show Optimizer v{OptimizerConfig.VERSION} - Last updated: 2025-06-25")
+            st.write("DEBUG: Starting network-specific recommendations generation")
         
         # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
         
+        # Check if network_analyzer is available
+        if self.network_analyzer is None:
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG: No network_analyzer available for network-specific recommendations")
+            return []
+            
         # Get network-specific success rates
         try:
             network_rates = self.network_analyzer.get_network_specific_success_rates(

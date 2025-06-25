@@ -277,36 +277,32 @@ class ConceptAnalyzer:
                 # First check if confidence_info is a dictionary
                 if not isinstance(confidence_info, dict):
                     OptimizerConfig.debug(f"confidence_info is not a dictionary: {type(confidence_info)}", category='analyzer', force=True)
-                 # Extract match_level directly with explicit type handling
-                match_level_value = confidence_info.get('match_level', 0)
-                OptimizerConfig.debug(f"match_level_value type: {type(match_level_value)}, value: {match_level_value}", category='analyzer', force=True)
-                
-                # Convert to int to ensure we have a proper match level value
-                if isinstance(match_level_value, (int, float)):
-                    match_level = int(match_level_value)
-                    OptimizerConfig.debug(f"match_level is numeric: {match_level}", category='analyzer', force=True)
-                else:
+                    # Default values for non-dict confidence_info
                     match_level = 0
-                    OptimizerConfig.debug(f"match_level has unexpected type, defaulting to 0", category='analyzer', force=True)
+                    match_quality = 0.0
+                    confidence_score = 0.0
+                else:
+                    # Extract match_level directly with explicit type handling
+                    match_level_value = confidence_info.get('match_level', 0)
+                    OptimizerConfig.debug(f"match_level_value type: {type(match_level_value)}, value: {match_level_value}", category='analyzer', force=True)
                     
-                # Safely extract match_quality and confidence_score
-                match_quality = 0.0
-                confidence_score = 0.0
-                if isinstance(confidence_info, dict):
+                    # Convert to int to ensure we have a proper match level value
+                    if isinstance(match_level_value, (int, float)):
+                        match_level = int(match_level_value)
+                        OptimizerConfig.debug(f"match_level is numeric: {match_level}", category='analyzer', force=True)
+                    else:
+                        match_level = 0
+                        OptimizerConfig.debug(f"match_level has unexpected type, defaulting to 0", category='analyzer', force=True)
+                    
+                    # Safely extract match_quality and confidence_score
                     match_quality = confidence_info.get('match_quality', 0.0)
                     confidence_score = confidence_info.get('confidence_score', 0.0)
-                else:
-                    OptimizerConfig.debug(f"Cannot extract match_quality and confidence_score from non-dict confidence_info: {type(confidence_info)}", category='analyzer', force=True)
             
             except Exception as e:
                 OptimizerConfig.debug(f"Error extracting match_level: {str(e)}\nTraceback: {traceback.format_exc()}", category='analyzer', force=True)
                 match_level = 0
                 match_quality = 0.0
                 confidence_score = 0.0
-                match_quality = confidence_info.get('match_quality', 0.0)
-                confidence_score = confidence_info.get('confidence_score', 0.0)
-            else:
-                OptimizerConfig.debug(f"Cannot extract match_quality and confidence_score from non-dict confidence_info: {type(confidence_info)}", category='analyzer', force=True)
             
             # Calculate match counts by level
             match_counts_by_level = {}
