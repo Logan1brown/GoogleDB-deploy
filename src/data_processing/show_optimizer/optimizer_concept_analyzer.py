@@ -250,6 +250,9 @@ class ConceptAnalyzer:
             OptimizationSummary with success probability, recommendations, etc.
         """
         try:
+            # VERY OBVIOUS UI CHANGE TO CONFIRM CODE UPDATES ARE WORKING
+            st.error("CODE UPDATE CONFIRMED - NEW VERSION RUNNING")
+            
             if OptimizerConfig.DEBUG_MODE:
                 st.write("DEBUG: Starting analyze_concept method")
             
