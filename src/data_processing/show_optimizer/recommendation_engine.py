@@ -788,25 +788,7 @@ class RecommendationEngine:
             st.write(f"DEBUG: Criteria keys: {list(criteria.keys())}")
         
         # Process each key in network rates to calculate corresponding overall rates
-        if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Network rates type: {type(network_rates).__name__}")
-            
         for key, network_rate_data in network_rates.items():
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Processing key: {key}")
-                st.write(f"DEBUG: Network rate data type: {type(network_rate_data).__name__}")
-                if isinstance(network_rate_data, dict):
-                    st.write(f"DEBUG: Network rate data keys: {list(network_rate_data.keys())}")
-                    if 'success_rate' in network_rate_data:
-                        st.write(f"DEBUG: Network rate success_rate: {network_rate_data['success_rate']}")
-                    if 'sample_size' in network_rate_data:
-                        st.write(f"DEBUG: Network rate sample_size: {network_rate_data['sample_size']}")
-                else:
-                    st.write(f"DEBUG: Network rate data is not a dict: {type(network_rate_data).__name__}")
-                    if hasattr(network_rate_data, 'network_id'):
-                        st.write(f"DEBUG: Found NetworkMatch with ID: {network_rate_data.network_id}")
-                    # This is likely the source of the error
-            
             # Extract field name from key using standard format
             field_name = key.split(':', 1)[0] if ':' in key else key
             
@@ -911,29 +893,12 @@ class RecommendationEngine:
                 st.write(f"DEBUG: Overall rate for {key}/{field_name}: {overall_rate}")
             
             if overall_rate is None:
-                if OptimizerConfig.DEBUG_MODE:
-                    import streamlit as st
-                    st.write(f"DEBUG: No overall rate for {key}/{field_name}, skipping")
                 # Skip criteria without overall rates
                 continue
-            
-            if OptimizerConfig.DEBUG_MODE:
-                import streamlit as st
-                st.write(f"DEBUG: Network rate data keys: {list(network_rate_data.keys()) if isinstance(network_rate_data, dict) else 'Not a dict'}")
                 
-            # Get network-specific success rate and sample size
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: network_rate_data type: {type(network_rate_data).__name__}")
-                
-            # Ensure we're accessing dictionary attributes, not NetworkMatch attributes
-            if isinstance(network_rate_data, dict):
-                network_rate = network_rate_data['success_rate']
-                sample_size = network_rate_data['sample_size']
-            else:
-                # Skip if not a dictionary to prevent subscripting error
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Skipping non-dictionary network_rate_data to prevent 'NetworkMatch' object is not subscriptable error")
-                continue
+            # Access network_rate_data as a dictionary (it should always be a dictionary from get_network_specific_success_rates)
+            network_rate = network_rate_data['success_rate']
+            sample_size = network_rate_data['sample_size']
             
             # Calculate the difference between network and overall rates
             difference = network_rate - overall_rate
@@ -984,12 +949,8 @@ class RecommendationEngine:
                     explanation_text = f"Consider changing {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% worse on {network_name} than average."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
-                # Get confidence value safely, ensuring we use attribute access for NetworkMatch objects
-                confidence_value = 'medium'  # Default value
-                if isinstance(network_rate_data, dict):
-                    confidence_value = network_rate_data.get('confidence', 'medium')
-                elif hasattr(network_rate_data, 'confidence'):
-                    confidence_value = network_rate_data.confidence
+                # Get confidence value from the network_rate_data dictionary
+                confidence_value = network_rate_data.get('confidence', 'medium')
                     
                 recommendation: RecommendationItem = {
                     'recommendation_type': network_rec_type,
