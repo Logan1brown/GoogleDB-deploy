@@ -251,7 +251,7 @@ class ConceptAnalyzer:
         """
         try:
             # VERY OBVIOUS UI CHANGE TO CONFIRM CODE UPDATES ARE WORKING
-            st.error("CODE UPDATE CONFIRMED - NEW VERSION RUNNING")
+            # Version indicator is now in the sidebar
             
             if OptimizerConfig.DEBUG_MODE:
                 st.write("DEBUG: Starting analyze_concept method")

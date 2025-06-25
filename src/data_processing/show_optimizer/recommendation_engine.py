@@ -136,10 +136,14 @@ class RecommendationEngine:
         self.criteria_scorer = criteria_scorer
         self.config = OptimizerConfig
         
-        # Initialize network_analyzer from success_analyzer if available
+        # Initialize network_analyzer directly if not available from success_analyzer
         self.network_analyzer = None
         if hasattr(success_analyzer, 'network_analyzer'):
             self.network_analyzer = success_analyzer.network_analyzer
+        elif self.criteria_scorer is not None:
+            # Import here to avoid circular imports
+            from .network_analyzer import NetworkAnalyzer
+            self.network_analyzer = NetworkAnalyzer(self.criteria_scorer, self.field_manager)
         
         # Try to get criteria_scorer from success_analyzer if not provided
         if self.criteria_scorer is None and hasattr(success_analyzer, 'criteria_scorer'):
@@ -783,7 +787,8 @@ class RecommendationEngine:
             
 
         except Exception as e:
-            st.error(f"Error getting network-specific success rates: {str(e)}")
+            if OptimizerConfig.DEBUG_MODE:
+                st.error(f"Error getting network-specific success rates: {str(e)}")
             return []
         
         # Calculate overall success rates for comparison with network-specific rates
