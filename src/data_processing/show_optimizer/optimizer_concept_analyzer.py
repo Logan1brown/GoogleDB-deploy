@@ -99,26 +99,54 @@ class OptimizationSummary:
                 }
                 formatted['networks'].append(network_data)
         
-        # Format recommendations data using dictionary-style access for TypedDict
+        # Format recommendations data - handle both dictionary and object access
         if self.recommendations:
             for rec in self.recommendations:
-                rec_dict = {
-                    'recommendation_type': rec['recommendation_type'],
-                    'criteria_type': rec['field'],
-                    'current_value': rec.get('current_value', None),
-                    'current_name': rec.get('current_name', ''),
-                    'suggested_value': rec['suggested_value'],
-                    'suggested_name': rec['suggested_name'],
-                    'impact_score': rec['impact'],
-                    'confidence': rec['confidence'],
-                    'description': rec['explanation'] if rec['explanation'] else 'No explanation available'
-                }
-                
-                # Categorize recommendations
-                if rec['recommendation_type'].startswith('network_'):
-                    formatted['recommendations']['network_specific'].append(rec_dict)
+                # Check if rec is a dictionary or an object
+                if isinstance(rec, dict):
+                    # Dictionary-style access for TypedDict
+                    rec_type = rec.get('recommendation_type', '')
+                    rec_dict = {
+                        'recommendation_type': rec_type,
+                        'criteria_type': rec.get('field', ''),
+                        'current_value': rec.get('current_value', None),
+                        'current_name': rec.get('current_name', ''),
+                        'suggested_value': rec.get('suggested_value', None),
+                        'suggested_name': rec.get('suggested_name', ''),
+                        'impact_score': rec.get('impact', 0.0),
+                        'confidence': rec.get('confidence', 'none'),
+                        'description': rec.get('explanation', 'No explanation available')
+                    }
+                    
+                    # Categorize recommendations
+                    if rec_type.startswith('network_'):
+                        formatted['recommendations']['network_specific'].append(rec_dict)
+                    else:
+                        formatted['recommendations']['general'].append(rec_dict)
                 else:
-                    formatted['recommendations']['general'].append(rec_dict)
+                    # For object-style access (e.g., NetworkMatch)
+                    # Skip objects that don't have the necessary attributes
+                    if not hasattr(rec, 'recommendation_type'):
+                        continue
+                        
+                    rec_type = rec.recommendation_type
+                    rec_dict = {
+                        'recommendation_type': rec_type,
+                        'criteria_type': getattr(rec, 'field', ''),
+                        'current_value': getattr(rec, 'current_value', None),
+                        'current_name': getattr(rec, 'current_name', ''),
+                        'suggested_value': getattr(rec, 'suggested_value', None),
+                        'suggested_name': getattr(rec, 'suggested_name', ''),
+                        'impact_score': getattr(rec, 'impact', 0.0),
+                        'confidence': getattr(rec, 'confidence', 'none'),
+                        'description': getattr(rec, 'explanation', 'No explanation available')
+                    }
+                    
+                    # Categorize recommendations
+                    if rec_type.startswith('network_'):
+                        formatted['recommendations']['network_specific'].append(rec_dict)
+                    else:
+                        formatted['recommendations']['general'].append(rec_dict)
         
         # Store the formatted data for future access
         self._formatted_data_dict = formatted
