@@ -82,7 +82,8 @@ class OptimizationSummary:
             'recommendations': {
                 'general': [],
                 'network_specific': []
-            }
+            },
+            'component_scores': self.component_scores if self.component_scores else {}
         }
         
         # Format networks data using direct attribute access
@@ -180,12 +181,21 @@ class ConceptAnalyzer:
         """
         st.error(f"Analysis failed: {error_message}")
         
+        # Create default component scores to prevent UI errors
+        default_component_scores = {
+            'audience': {'score': 0.0, 'confidence': 'none', 'sample_size': 0},
+            'concept': {'score': 0.0, 'confidence': 'none', 'sample_size': 0},
+            'execution': {'score': 0.0, 'confidence': 'none', 'sample_size': 0},
+            'marketability': {'score': 0.0, 'confidence': 'none', 'sample_size': 0},
+            'overall': {'score': 0.0, 'confidence': 'none', 'sample_size': 0}
+        }
+        
         # Create a minimal summary with error information
         return OptimizationSummary(
             overall_success_probability=None,
             confidence='none',
             top_networks=[],
-            component_scores={},
+            component_scores=default_component_scores,
             recommendations=[],
             success_factors=[],
             matching_titles=[],
