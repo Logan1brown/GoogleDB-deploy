@@ -57,6 +57,8 @@ class OptimizerConfig:
             force: If True, print regardless of DEBUG_MODE setting
         """
         import streamlit as st
+        import inspect
+        import os
         
         # Check if we should show this message based on mode and category
         should_show = force or (OptimizerConfig.DEBUG_MODE and 
@@ -66,10 +68,22 @@ class OptimizerConfig:
         # Check if we've exceeded the maximum number of messages
         if should_show:
             if OptimizerConfig._debug_message_count < OptimizerConfig.MAX_DEBUG_MESSAGES:
-                st.write(f"Debug: {message}")
+                # Get caller information
+                frame = inspect.currentframe().f_back
+                filename = frame.f_code.co_filename
+                lineno = frame.f_lineno
+                function = frame.f_code.co_name
+                
+                # Get just the filename without the path
+                short_filename = os.path.basename(filename)
+                
+                # Format the debug message with source information
+                debug_msg = f"DEBUG [{short_filename}:{lineno} in {function}] {category}: {message}"
+                
+                st.write(debug_msg)
                 OptimizerConfig._debug_message_count += 1
             elif OptimizerConfig._debug_message_count == OptimizerConfig.MAX_DEBUG_MESSAGES:
-                st.write(f"Debug: Maximum debug messages ({OptimizerConfig.MAX_DEBUG_MESSAGES}) reached. Suppressing further output.")
+                st.write(f"DEBUG: Maximum debug messages ({OptimizerConfig.MAX_DEBUG_MESSAGES}) reached. Suppressing further output.")
                 OptimizerConfig._debug_message_count += 1
             
     @staticmethod
