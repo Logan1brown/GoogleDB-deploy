@@ -290,6 +290,10 @@ class ConceptAnalyzer:
                     if isinstance(match_level_value, (int, float)):
                         match_level = int(match_level_value)
                         OptimizerConfig.debug(f"match_level is numeric: {match_level}", category='analyzer', force=True)
+                    elif hasattr(match_level_value, 'match_level'):
+                        # Handle case where match_level_value is an object with match_level attribute
+                        match_level = int(getattr(match_level_value, 'match_level', 0))
+                        OptimizerConfig.debug(f"match_level from object attribute: {match_level}", category='analyzer', force=True)
                     else:
                         match_level = 0
                         OptimizerConfig.debug(f"match_level has unexpected type, defaulting to 0", category='analyzer', force=True)
@@ -636,21 +640,23 @@ class ConceptAnalyzer:
         """
         try:
             
-            # Get confidence info from the matching shows
-            confidence_info = {'match_level': 1}  # Default to exact match level
+            # Initialize confidence_info without hardcoded defaults
+            confidence_info = {}
             
             # Extract match level statistics from matching_shows if available
             if not matching_shows.empty:
                 if 'match_level' in matching_shows.columns:
-                    # Store the distribution of match levels but don't override the original match_level
-                    # that was set by the matcher
+                    # Store the distribution of match levels
                     confidence_info['max_match_level'] = matching_shows['match_level'].max()
                     confidence_info['min_match_level'] = matching_shows['match_level'].min()
                     confidence_info['mean_match_level'] = matching_shows['match_level'].mean()
                     
+                    # Set match_level based on max_match_level (best match)
+                    confidence_info['match_level'] = int(confidence_info['max_match_level'])
+                    
                     # Only set the confidence level if it's not already set
                     if 'level' not in confidence_info:
-                        match_level = confidence_info.get('match_level', confidence_info['max_match_level'])
+                        match_level = confidence_info['match_level']
                         confidence_info['level'] = 'high' if match_level <= 1 else 'medium' if match_level <= 2 else 'low'
                 # Also include match count for better confidence calculation
                 confidence_info['match_count'] = len(matching_shows)
