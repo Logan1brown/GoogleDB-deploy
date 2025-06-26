@@ -913,18 +913,21 @@ class RecommendationEngine:
             current_name = data.get('current_name')
             
             # Get the overall success rate using flexible key lookup
-            overall_rate = overall_rates.get(key, overall_rates.get(field_name))
+            overall_rate_data = overall_rates.get(key, overall_rates.get(field_name))
             
             if OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: Extracted field_name: {field_name}")
                 st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
                 st.write(f"DEBUG: Current value: {current_value}")
                 st.write(f"DEBUG: Current name: {current_name}")
-                st.write(f"DEBUG: Overall rate for {key}/{field_name}: {overall_rate}")
+                st.write(f"DEBUG: Overall rate for {key}/{field_name}: {overall_rate_data}")
             
-            if overall_rate is None:
+            if overall_rate_data is None:
                 # Skip criteria without overall rates
                 continue
+                
+            # Extract the actual success rate value from the overall_rate_data dictionary
+            overall_rate = overall_rate_data.get('success_rate', 0.0)
                 
             # Check if network_rate_data is a NetworkMatch object or a dictionary
             if hasattr(network_rate_data, 'network_id') and hasattr(network_rate_data, 'success_probability'):
@@ -962,7 +965,7 @@ class RecommendationEngine:
                 
                 # Store raw data for OptimizerView to format
                 network_rate_value = network_rate
-                overall_rate_value = overall_rate
+                overall_rate_value = overall_rate  # This is now correctly extracted from overall_rate_data
                 
                 # Create network-specific reference name with direct attribute access
                 network_name = network.network_name
@@ -976,7 +979,7 @@ class RecommendationEngine:
                     "network_id": network.network_id,
                     "network_name": network.network_name,
                     "network_rate": network_rate,
-                    "overall_rate": overall_rate,
+                    "overall_rate": overall_rate,  # This is now correctly extracted from overall_rate_data
                     "difference": difference
                 }
                 
