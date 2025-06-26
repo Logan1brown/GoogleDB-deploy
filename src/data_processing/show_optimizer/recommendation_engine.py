@@ -804,9 +804,17 @@ class RecommendationEngine:
         # Process each key in network rates to calculate corresponding overall rates
         for key, network_rate_data in network_rates.items():
             # Extract field name from key using standard format
-            field_name = key.split(':', 1)[0] if ':' in key else key
+            raw_field_name = key.split(':', 1)[0] if ':' in key else key
             
-            # Skip if this field is not directly in our criteria (no normalization needed)
+            # Standardize field name using field manager
+            field_name = self.field_manager.standardize_field_name(raw_field_name)
+            
+            if OptimizerConfig.DEBUG_MODE:
+                # Using global st import
+                st.write(f"DEBUG: Extracted raw field_name: {raw_field_name}")
+                st.write(f"DEBUG: Standardized field_name: {field_name}")
+            
+            # Skip if this field is not in our criteria
             if field_name not in criteria:
                 if OptimizerConfig.DEBUG_MODE:
                     # Using global st import
@@ -852,11 +860,15 @@ class RecommendationEngine:
                 st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
             
             # Extract field name from the key using standard format
-            field_name = key.split(':', 1)[0] if ':' in key else key
+            raw_field_name = key.split(':', 1)[0] if ':' in key else key
+            
+            # Standardize field name using field manager
+            field_name = self.field_manager.standardize_field_name(raw_field_name)
             
             if OptimizerConfig.DEBUG_MODE:
                 # Using global st import
-                st.write(f"DEBUG: Using field_name: {field_name}")
+                st.write(f"DEBUG: Extracted raw field_name: {raw_field_name}")
+                st.write(f"DEBUG: Standardized field_name: {field_name}")
             
             # Only process keys that correspond to fields in our criteria
             if field_name in valid_fields:

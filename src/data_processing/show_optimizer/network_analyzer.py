@@ -398,8 +398,11 @@ class NetworkAnalyzer:
                             
                             # Create a standardized key using our helper function
                             try:
-                                # Create a standardized key using our helper function
-                                key = create_field_value_key(field_name, value)
+                                # Use the field manager to standardize the field name
+                                standardized_field_name = self.field_manager.standardize_field_name(field_name)
+                                
+                                # Create a standardized key using our helper function with the standardized field name
+                                key = create_field_value_key(standardized_field_name, value)
                                 
                                 # Add success rate data to the dictionary
                                 success_rates[key] = success_rate_data
