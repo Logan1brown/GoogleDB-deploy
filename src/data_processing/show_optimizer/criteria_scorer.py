@@ -581,7 +581,7 @@ class CriteriaScorer:
             # Process fields we haven't already processed
             processed_fields = set(fields_to_process)
             for field in self.field_manager.FIELD_CONFIGS.keys():
-                if field not in criteria and field in self.field_manager.get_all_fields() and field not in processed_fields:
+                if field not in criteria and field not in processed_fields:
                     # Skip fields that don't have options
                     options = self.field_manager.get_options(field)
                     if not options:
