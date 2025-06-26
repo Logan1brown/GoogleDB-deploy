@@ -226,7 +226,8 @@ class RecommendationEngine:
         
         try:
             # Calculate impact data using the criteria scorer
-            impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows)
+            # Pass integrated_data to ensure matcher has access to full dataset
+            impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
             
             # Return empty list if no impact data was found
             if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):

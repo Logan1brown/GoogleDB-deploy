@@ -259,13 +259,14 @@ class CriteriaScorer:
                 # No recommendation for unselected options with negative impact
                 return None
     
-    def calculate_criteria_impact(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None) -> Dict[str, Dict[Any, Dict[str, Union[float, int, str, bool]]]]:
+    def calculate_criteria_impact(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None, integrated_data: IntegratedData = None) -> Dict[str, Dict[Any, Dict[str, Union[float, int, str, bool]]]]:
         """Calculate the impact of each criteria option on success rate.
         
         Args:
             criteria: Dictionary of criteria conforming to CriteriaDict
             matching_shows: DataFrame of shows matching the criteria
             option_matching_shows_map: Optional pre-computed map of option matching shows
+            integrated_data: Dictionary containing integrated data sets (REQUIRED for proper matching)
             
         Returns:
             Dictionary of impact scores by field and option with metrics like impact, sample_size, confidence, etc.
@@ -451,8 +452,17 @@ class CriteriaScorer:
                                     OptimizerConfig.debug(f"Using existing matches for 'remove' option for {current_field}", category='impact')
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
                             else:
-                                # For 'change' recommendations, use the matcher's own data source
-                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria)
+                                # For 'change' recommendations, use the integrated data
+                                if integrated_data and 'shows' in integrated_data and not integrated_data['shows'].empty:
+                                    option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        OptimizerConfig.debug(f"Using integrated data with {len(integrated_data['shows'])} rows for option {option_name}", category='impact')
+                                else:
+                                    # No fallback - we need integrated data
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        OptimizerConfig.debug(f"Missing integrated data for option {option_name}", category='error')
+                                    option_shows = pd.DataFrame()
+                                    confidence_info = self._empty_confidence_info()
                                                         
                             # Process option matching shows
                             

@@ -45,6 +45,11 @@ class Matcher:
             DataFrame of shows, or empty DataFrame if no data available
         """
         if data is None or data.empty:
+            # Use stored criteria data if available
+            if self._criteria_data is not None and not self._criteria_data.empty:
+                if OptimizerConfig.DEBUG_MODE and not getattr(self, '_in_batch_operation', False):
+                    OptimizerConfig.debug(f"Using stored criteria data with {len(self._criteria_data)} rows", category='matcher')
+                return self._criteria_data
             return pd.DataFrame()
         return data
         
