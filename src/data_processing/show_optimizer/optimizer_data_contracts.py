@@ -375,7 +375,7 @@ def create_success_rate(field_name: str, value: Any, rate: float,
         'field_name': field_name,
         'value_name': value_name,
         'value': value,
-        'rate': rate,
+        'success_rate': rate,  # Use 'success_rate' key consistently throughout the codebase
         'sample_size': sample_size,
         'has_data': sample_size > 0
     }

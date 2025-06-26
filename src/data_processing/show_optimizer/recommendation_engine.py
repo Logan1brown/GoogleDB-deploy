@@ -948,19 +948,15 @@ class RecommendationEngine:
                 sample_size = getattr(network_rate_data, 'sample_size', 0)
             elif isinstance(network_rate_data, dict):
                 if 'success_rate' in network_rate_data:
-                    # Standard format
+                    # Use the standardized key consistently
                     network_rate = network_rate_data['success_rate']
                     sample_size = network_rate_data.get('sample_size', 0)
-                elif 'rate' in network_rate_data:
-                    # Format seen in the debug logs
-                    network_rate = network_rate_data['rate']
-                    sample_size = network_rate_data.get('sample_size', 0)
                 else:
-                    # Log unexpected structure and use defaults
+                    # Log unexpected structure - this should never happen with standardized keys
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Unexpected network_rate_data structure: {network_rate_data}")
-                    network_rate = 0.0
-                    sample_size = 0
+                        st.write(f"DEBUG: Missing success_rate key in network_rate_data: {network_rate_data}")
+                    # Skip this criteria instead of using defaults
+                    continue
             else:
                 # Log unexpected type and use defaults
                 if OptimizerConfig.DEBUG_MODE:
@@ -968,6 +964,20 @@ class RecommendationEngine:
                 network_rate = 0.0
                 sample_size = 0
             
+            # Add debug logging to identify when values are None
+            if OptimizerConfig.DEBUG_MODE:
+                if network_rate is None:
+                    st.write(f"DEBUG: network_rate is None for {field_name}")
+                if overall_rate is None:
+                    st.write(f"DEBUG: overall_rate is None for {field_name}")
+                    
+            # Check for None values before performing arithmetic
+            if network_rate is None or overall_rate is None:
+                # Log the issue and skip this criteria
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Skipping {field_name} due to None values in rates")
+                continue
+                
             # Calculate the difference between network and overall rates
             difference = network_rate - overall_rate
             
