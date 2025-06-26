@@ -323,10 +323,10 @@ class ConceptAnalyzer:
             if OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: Success probability: {success_probability}, confidence: {confidence}")
             
-            # Step 3: Find top networks - pass the existing matching_shows to avoid redundant matching
+            # Step 3: Find top networks - pass the existing matching_shows and confidence_info to avoid redundant matching
             if OptimizerConfig.DEBUG_MODE:
                 st.write("DEBUG: Finding top networks")
-            top_networks = self._find_top_networks(criteria, integrated_data=integrated_data, matching_shows=matching_shows)
+            top_networks = self._find_top_networks(criteria, integrated_data=integrated_data, matching_shows=matching_shows, confidence_info=confidence_info)
             if OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG: Found {len(top_networks)} top networks")
                 for i, network in enumerate(top_networks):
@@ -535,13 +535,14 @@ class ConceptAnalyzer:
             st.error(f"Error calculating success probability: {str(e)}")
             return None, 'none'
     
-    def _find_top_networks(self, criteria: CriteriaDict, integrated_data: IntegratedData, matching_shows: pd.DataFrame = None) -> List[NetworkMatch]:
+    def _find_top_networks(self, criteria: CriteriaDict, integrated_data: IntegratedData, matching_shows: pd.DataFrame = None, confidence_info: Optional[Dict[str, Any]] = None) -> List[NetworkMatch]:
         """Find top networks compatible with the given criteria.
         
         Args:
             criteria: Dictionary of criteria
             integrated_data: Dictionary of integrated data frames from ShowOptimizer
             matching_shows: Optional DataFrame of shows already matched to criteria
+            confidence_info: Optional dictionary with match confidence information
             
         Returns:
             List of NetworkMatch objects sorted by compatibility score
@@ -557,11 +558,14 @@ class ConceptAnalyzer:
             # Use the matching shows that were passed in, or get them if not provided
             if matching_shows is None or matching_shows.empty:
                 # Only call _find_matching_shows if we don't already have matching shows
-                matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data=integrated_data)
+                matching_shows, new_confidence_info = self._find_matching_shows(criteria, integrated_data=integrated_data)
                 
                 if matching_shows is None or matching_shows.empty:
-                    pass
                     return []
+                    
+                # Use the confidence_info from _find_matching_shows if none was provided
+                if confidence_info is None:
+                    confidence_info = new_confidence_info
             
             # Use NetworkAnalyzer to rank networks by compatibility
             # The limit is controlled by OptimizerConfig.DEFAULT_NETWORK_LIMIT
