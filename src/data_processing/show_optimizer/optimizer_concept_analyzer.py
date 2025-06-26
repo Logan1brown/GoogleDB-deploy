@@ -548,6 +548,10 @@ class ConceptAnalyzer:
             List of NetworkMatch objects sorted by compatibility score
         """
         try:
+            # Ensure confidence_info is initialized
+            if confidence_info is None:
+                confidence_info = {}
+                
             # Validate inputs
             if not criteria:
                 return []
