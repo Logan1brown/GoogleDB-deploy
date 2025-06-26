@@ -433,14 +433,15 @@ class CriteriaScorer:
                             if option_id == 'remove' and OptimizerConfig.DEBUG_MODE:
                                 OptimizerConfig.debug(f"Testing 'remove' option for {current_field} (with field removed from criteria)", category='impact')
                             
-                            # We need to ensure the matcher has access to the full dataset
-                            # For calculating impact, we need to match against the original data
-                            # Get the original data from the data manager
-                            original_data = self.fetch_criteria_data()
-                                
-                            # Get shows matching the modified criteria
-                            # Pass the original data to ensure we're matching against the full dataset
-                            option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, data=original_data)
+                            # For 'remove' recommendations, use the already filtered matching shows
+                            # For other types, let the matcher use its own data source
+                            if option_id == 'remove' and matching_shows is not None and not matching_shows.empty:
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Using existing matches for 'remove' option for {current_field}", category='impact')
+                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
+                            else:
+                                # For 'change' recommendations, use the matcher's own data source
+                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria)
                                                         
                             # Process option matching shows
                             
@@ -618,9 +619,8 @@ class CriteriaScorer:
                                 # When using existing matches, pass the matching_shows as data
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
                             else:
-                                # Get the original data for matching
-                                original_data = self.fetch_criteria_data()
-                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, data=original_data)
+                                # Let the matcher use its own data source
+                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria)
                             
                             # Skip options with no matching shows
                             if option_shows is None or option_shows.empty:
