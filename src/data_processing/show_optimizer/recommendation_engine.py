@@ -476,17 +476,14 @@ class RecommendationEngine:
                 # Note: This is business logic that should remain in the recommendation engine
                 impact_score = factor.impact_score
                 
-                # Get threshold values from OptimizerConfig for consistency
-                # These thresholds determine the minimum impact required for a recommendation to be visible
-                # Direct access enforces the config contract - these values must exist in OptimizerConfig
-                min_remove_impact = OptimizerConfig.SUGGESTIONS['min_remove_impact']
-                min_other_impact = OptimizerConfig.SUGGESTIONS['min_other_impact']
+                # Get minimum impact threshold from OptimizerConfig for consistency
+                # This threshold determines the minimum impact required for a recommendation to be visible
+                min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
                 
-                # Apply minimum thresholds based on recommendation type using constants
-                if rec_type == REC_TYPE_REMOVE and abs(impact_score) < min_remove_impact:
-                    impact_score = -min_remove_impact
-                elif abs(impact_score) < min_other_impact:
-                    impact_score = min_other_impact if impact_score > 0 else -min_other_impact
+                # Apply minimum threshold to ensure recommendations have meaningful impact values
+                if abs(impact_score) < min_impact:
+                    # Preserve the sign of the original impact score
+                    impact_score = min_impact if impact_score > 0 else -min_impact
                 
                 # Recommendation type and impact score finalized
                     
