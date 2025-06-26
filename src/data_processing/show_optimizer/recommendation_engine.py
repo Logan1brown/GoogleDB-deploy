@@ -839,8 +839,14 @@ class RecommendationEngine:
                 overall_details = all_scores.get('success_info', {})
             
                 # Store the overall rate using both key formats for flexible lookup
-                overall_rates[key] = overall_rate
-                overall_rates[field_name] = overall_rate
+                # Create a consistent data structure that matches what we expect for network_rate_data
+                overall_rate_data = {
+                    'success_rate': overall_rate,
+                    'sample_size': len(single_matches) if single_matches is not None else 0,
+                    'confidence': 'medium'  # Default confidence level
+                }
+                overall_rates[key] = overall_rate_data
+                overall_rates[field_name] = overall_rate_data
         
         recommendations = []
                  
@@ -922,10 +928,16 @@ class RecommendationEngine:
                 # It's a NetworkMatch object, use attribute access
                 network_rate = network_rate_data.success_probability
                 sample_size = getattr(network_rate_data, 'sample_size', 0)
-            else:
-                # It's a dictionary, use dictionary access
+            elif isinstance(network_rate_data, dict) and 'success_rate' in network_rate_data:
+                # It's a dictionary with the expected keys, use dictionary access
                 network_rate = network_rate_data['success_rate']
-                sample_size = network_rate_data['sample_size']
+                sample_size = network_rate_data.get('sample_size', 0)
+            else:
+                # Log unexpected type and use defaults
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Unexpected network_rate_data type: {type(network_rate_data)}")
+                network_rate = 0.0
+                sample_size = 0
             
             # Calculate the difference between network and overall rates
             difference = network_rate - overall_rate
@@ -976,8 +988,16 @@ class RecommendationEngine:
                     explanation_text = f"Consider changing {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% worse on {network_name} than average."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
-                # Use direct attribute access for NetworkMatch objects
-                confidence_value = getattr(network_rate_data, 'confidence', 'medium')
+                # Get confidence value based on the type of network_rate_data
+                if hasattr(network_rate_data, 'confidence'):
+                    # It's a NetworkMatch object with a confidence attribute
+                    confidence_value = network_rate_data.confidence
+                elif isinstance(network_rate_data, dict) and 'confidence' in network_rate_data:
+                    # It's a dictionary with a confidence key
+                    confidence_value = network_rate_data['confidence']
+                else:
+                    # Default confidence value
+                    confidence_value = 'medium'
                     
                 recommendation: RecommendationItem = {
                     'recommendation_type': network_rec_type,
