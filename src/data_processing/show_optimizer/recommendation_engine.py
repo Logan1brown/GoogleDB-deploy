@@ -934,10 +934,21 @@ class RecommendationEngine:
                 # It's a NetworkMatch object, use attribute access
                 network_rate = network_rate_data.success_probability
                 sample_size = getattr(network_rate_data, 'sample_size', 0)
-            elif isinstance(network_rate_data, dict) and 'success_rate' in network_rate_data:
-                # It's a dictionary with the expected keys, use dictionary access
-                network_rate = network_rate_data['success_rate']
-                sample_size = network_rate_data.get('sample_size', 0)
+            elif isinstance(network_rate_data, dict):
+                if 'success_rate' in network_rate_data:
+                    # Standard format
+                    network_rate = network_rate_data['success_rate']
+                    sample_size = network_rate_data.get('sample_size', 0)
+                elif 'rate' in network_rate_data:
+                    # Format seen in the debug logs
+                    network_rate = network_rate_data['rate']
+                    sample_size = network_rate_data.get('sample_size', 0)
+                else:
+                    # Log unexpected structure and use defaults
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Unexpected network_rate_data structure: {network_rate_data}")
+                    network_rate = 0.0
+                    sample_size = 0
             else:
                 # Log unexpected type and use defaults
                 if OptimizerConfig.DEBUG_MODE:
