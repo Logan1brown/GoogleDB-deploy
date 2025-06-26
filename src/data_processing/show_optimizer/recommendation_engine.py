@@ -560,6 +560,9 @@ class RecommendationEngine:
             test_matches, test_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(
                 test_criteria, flexible=True)
                 
+            # Get the count of test matches
+            test_count = len(test_matches) if test_matches is not None else 0
+                
             # If removing this criterion improves match level or significantly increases sample size
             if (test_confidence.get('match_level', match_level) < match_level or 
                     test_count > len(matching_shows) * 2):  # At least double the sample size
