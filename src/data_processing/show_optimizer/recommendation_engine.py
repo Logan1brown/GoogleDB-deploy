@@ -340,8 +340,14 @@ class RecommendationEngine:
                 st.error(f"Unable to analyze some criteria. Error: {str(e)}")
             
             # Identify limiting criteria that restrict match quality
-            # Ensure confidence_info is always a dictionary before accessing it
-            if isinstance(confidence_info, dict) and confidence_info.get('match_level', 1) > 1:
+            # Extract match_level safely from confidence_info, which could be a dict or object
+            match_level = 1  # Default value
+            if isinstance(confidence_info, dict):
+                match_level = confidence_info.get('match_level', 1)
+            elif hasattr(confidence_info, 'match_level'):
+                match_level = getattr(confidence_info, 'match_level', 1)
+                
+            if match_level > 1:
                 try:
                     limiting_criteria_recs = self._identify_limiting_criteria(criteria, matching_shows, confidence_info)
                     recommendations.extend(limiting_criteria_recs)
@@ -538,7 +544,13 @@ class RecommendationEngine:
             List of Recommendation objects with suggestions to improve match quality
         """
         recommendations = []
-        match_level = confidence_info.get('match_level', 1)
+        
+        # Extract match_level safely from confidence_info, which could be a dict or object
+        match_level = 1  # Default value
+        if isinstance(confidence_info, dict):
+            match_level = confidence_info.get('match_level', 1)
+        elif hasattr(confidence_info, 'match_level'):
+            match_level = getattr(confidence_info, 'match_level', 1)
         
         # Only run this analysis if we're not at match level 1 (perfect match)
         if match_level == 1:
@@ -566,8 +578,15 @@ class RecommendationEngine:
             # Get the count of test matches
             test_count = len(test_matches) if test_matches is not None else 0
                 
+            # Extract test_match_level safely from test_confidence
+            test_match_level = match_level  # Default to current match level
+            if isinstance(test_confidence, dict):
+                test_match_level = test_confidence.get('match_level', match_level)
+            elif hasattr(test_confidence, 'match_level'):
+                test_match_level = getattr(test_confidence, 'match_level', match_level)
+                
             # If removing this criterion improves match level or significantly increases sample size
-            if (test_confidence.get('match_level', match_level) < match_level or 
+            if (test_match_level < match_level or 
                     test_count > len(matching_shows) * 2):  # At least double the sample size
                     
                 # Get the name of the criterion

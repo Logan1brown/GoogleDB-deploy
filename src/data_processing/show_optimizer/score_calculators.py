@@ -726,14 +726,19 @@ class NetworkScoreCalculator(ScoreCalculator):
             if compatibility_score is not None:
                 network_match.compatibility_score = compatibility_score
                 
-            # Get confidence level
-            match_level = confidence_info.get('match_level', 1)
+            # Get confidence level - safely extract match_level from confidence_info
+            match_level = 1  # Default value
+            if isinstance(confidence_info, dict):
+                match_level = confidence_info.get('match_level', 1)
+            elif hasattr(confidence_info, 'match_level'):
+                match_level = getattr(confidence_info, 'match_level', 1)
+                
             confidence = OptimizerConfig.get_confidence_level(count, match_level) if count > 0 else OptimizerConfig.CONFIDENCE_LEVELS['none']
             network_match.confidence = confidence
             
             # Update details
             network_match.details.update({
-                'match_level': confidence_info.get('match_level', 1),
+                'match_level': match_level,  # Use the already extracted match_level value
                 'match_quality': confidence_info.get('match_quality', 0.0),
                 'confidence_info': confidence_info
             })
@@ -786,8 +791,13 @@ class NetworkScoreCalculator(ScoreCalculator):
             'total_count': total_count
         })
         
-        # Calculate confidence score based on sample size
-        match_level = confidence_info.get('match_level', OptimizerConfig.DEFAULT_MATCH_LEVEL)
+        # Calculate confidence score based on sample size - safely extract match_level
+        match_level = OptimizerConfig.DEFAULT_MATCH_LEVEL  # Default value
+        if isinstance(confidence_info, dict):
+            match_level = confidence_info.get('match_level', OptimizerConfig.DEFAULT_MATCH_LEVEL)
+        elif hasattr(confidence_info, 'match_level'):
+            match_level = getattr(confidence_info, 'match_level', OptimizerConfig.DEFAULT_MATCH_LEVEL)
+            
         confidence_score = OptimizerConfig.calculate_confidence_score(
             sample_size=total_count,
             match_level=match_level,
