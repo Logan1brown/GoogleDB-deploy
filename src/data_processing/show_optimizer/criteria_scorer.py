@@ -418,6 +418,11 @@ class CriteriaScorer:
                 if not option_matching_shows_map or current_field not in option_matching_shows_map:
                     # Generate option matching shows map for this field
                     field_options_map = {}
+                    # Track how many options have no data available
+                    missing_data_count = 0
+                    
+                    # Set batch operation flag on matcher to suppress repetitive debug messages
+                    setattr(self.matcher, '_in_batch_operation', True)
                     
                     # For each option in option_data, run the matcher to get matching shows
                     for i, (option_id, option_name) in enumerate(option_data):
@@ -428,6 +433,10 @@ class CriteriaScorer:
                             if option_id == 'remove' and OptimizerConfig.DEBUG_MODE:
                                 OptimizerConfig.debug(f"Testing 'remove' option for {current_field} (with field removed from criteria)", category='impact')
                             
+                            # Make sure the matcher has data to work with by using the original matching shows
+                            if self.matcher._criteria_data is None or self.matcher._criteria_data.empty:
+                                self.matcher.set_criteria_data(matching_shows)
+                                
                             # Get shows matching the modified criteria
                             option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria)
                                                         
@@ -437,6 +446,9 @@ class CriteriaScorer:
                             if self._is_valid_dataframe(option_shows):
                                 # Store in field_options_map
                                 field_options_map[option_id] = option_shows
+                            else:
+                                # Track missing data
+                                missing_data_count += 1
                         except Exception as e:
                             # Log error and skip this option
                             if OptimizerConfig.DEBUG_MODE:
@@ -448,6 +460,13 @@ class CriteriaScorer:
                     if not option_matching_shows_map:
                         option_matching_shows_map = {}
                     option_matching_shows_map[current_field] = field_options_map
+                    
+                    # Log a summary of missing data if any occurred
+                    if missing_data_count > 0 and OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"No data available for {missing_data_count} options in field '{current_field}'", category='impact')
+                    
+                    # Reset batch operation flag
+                    setattr(self.matcher, '_in_batch_operation', False)
                 else:
                     # Use the provided option_matching_shows_map
                     field_options_map = option_matching_shows_map[current_field]

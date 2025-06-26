@@ -304,7 +304,12 @@ class Matcher:
         # Get data for matching
         data_to_match = self._get_data(data)
         if data_to_match.empty:
-            OptimizerConfig.debug("No data available for matching", category='matcher')
+            # Only output debug message if we're not in a batch operation (criteria_scorer.calculate_criteria_impact)
+            # This reduces noise in the logs during impact calculations
+            if OptimizerConfig.DEBUG_MODE and not getattr(self, '_in_batch_operation', False):
+                # Include criteria keys in the debug message to help identify the source
+                criteria_keys = list(criteria.keys()) if criteria else []
+                OptimizerConfig.debug(f"No data available for matching criteria: {criteria_keys}", category='matcher')
             # Return an empty DataFrame with the required columns
             return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), self._empty_confidence_info()
         
