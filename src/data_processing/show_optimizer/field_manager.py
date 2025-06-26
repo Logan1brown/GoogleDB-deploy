@@ -614,7 +614,7 @@ class FieldManager:
         This method ensures that:
         1. List values with single items are converted to scalar values for scalar fields
         2. Scalar values are converted to lists for array fields
-        3. Numeric IDs like genre are properly typed as integers
+        3. Numeric IDs are properly typed as integers for all fields
         
         Args:
             criteria: Dictionary of criteria to normalize conforming to CriteriaDict
@@ -626,6 +626,10 @@ class FieldManager:
             return {}
             
         normalized_criteria = {}
+        
+        # Fields that should have integer IDs (based on FIELD_CONFIGS)
+        # Most fields in the system use integer IDs in the database
+        numeric_id_fields = [field for field, config in self.FIELD_CONFIGS.items()]
         
         for key, value in criteria.items():
             # Skip None values
@@ -644,23 +648,28 @@ class FieldManager:
             else:
                 normalized_criteria[key] = value
             
-            # Ensure numeric IDs are integers
-            if key == 'genre' and not isinstance(normalized_criteria[key], int):
-                try:
-                    normalized_criteria[key] = int(normalized_criteria[key])
-                except (ValueError, TypeError):
-                    # If conversion fails, keep the original value
-                    pass
+            # Ensure numeric IDs are integers for scalar fields
+            if field_type == 'scalar' and key in numeric_id_fields:
+                if not isinstance(normalized_criteria[key], int):
+                    try:
+                        # Only convert if it's a string that represents a number
+                        if isinstance(normalized_criteria[key], str) and normalized_criteria[key].isdigit():
+                            normalized_criteria[key] = int(normalized_criteria[key])
+                    except (ValueError, TypeError):
+                        # If conversion fails, keep the original value
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Failed to convert {key}={normalized_criteria[key]} to integer", category='field_manager')
             
             # Ensure array field values are lists of integers where appropriate
-            if field_type == 'array' and isinstance(normalized_criteria[key], list):
+            if field_type == 'array' and isinstance(normalized_criteria[key], list) and key in numeric_id_fields:
                 try:
                     # Convert string IDs to integers if needed
                     normalized_criteria[key] = [int(item) if isinstance(item, str) and item.isdigit() else item 
                                                for item in normalized_criteria[key]]
                 except (ValueError, TypeError):
                     # If conversion fails, keep the original values
-                    pass
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Failed to convert some items in {key}={normalized_criteria[key]} to integers", category='field_manager')
         
         if OptimizerConfig.DEBUG_MODE and normalized_criteria != criteria:
             OptimizerConfig.debug(f"Normalized criteria from {criteria} to {normalized_criteria}", category='field_manager')
@@ -685,8 +694,8 @@ class FieldManager:
     def get_field_column_name(self, field_name: str, data_columns: List[str]) -> Optional[str]:
         """Get the actual column name for a field in a DataFrame.
         
-        This method checks multiple possible column names and returns the first one
-        that exists in the provided data_columns list.
+        This method maps the field name to its corresponding column name and verifies
+        that the column exists in the provided data_columns list.
         
         Args:
             field_name: Field name to get column name for
@@ -696,24 +705,24 @@ class FieldManager:
             Column name if found, None otherwise
         """
         try:
-            # First try the mapped name
+            # Use the central mapping method to get the correct column name
             mapped_name = self.map_field_name(field_name)
+            
+            # Verify the mapped column exists in the data
             if mapped_name in data_columns:
                 return mapped_name
-                
-            # Then try the original name
-            if field_name in data_columns:
-                return field_name
-                
-            # For array fields, try with _ids suffix
-            if self.get_field_type(field_name) == 'array' and f"{field_name}_ids" in data_columns:
-                return f"{field_name}_ids"
-                
-            # If we get here, the field doesn't exist in the data
+            
+            # If the mapped column doesn't exist, log a debug message and return None
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(
+                    f"Field '{field_name}' mapped to '{mapped_name}' not found in data columns", 
+                    category='field_manager'
+                )
             return None
         except Exception as e:
-            st.error(f"Error getting column name for field '{field_name}': {str(e)}")
-            # Return None as fallback
+            # Log the error and return None
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Error mapping field '{field_name}': {str(e)}", category='field_manager')
             return None
         
     def get_criteria_importance(self, field_name: str) -> str:
@@ -792,21 +801,25 @@ class FieldManager:
             array_field_mapping = self.get_array_field_mapping()
             if field_name in array_field_mapping:
                 mapped_name = array_field_mapping[field_name]
-                if data_columns is None or mapped_name in data_columns:
-                    return mapped_name
+                return mapped_name
             
-            # For scalar fields, try with _id suffix which is common in the database
-            if field_name not in array_field_mapping:
-                field_id = f"{field_name}_id"
-                if data_columns is None or field_id in data_columns:
-                    return field_id
+            # For scalar fields, use _id suffix which is common in the database
+            field_type = self.get_field_type(field_name)
+            if field_type == 'scalar':
+                return f"{field_name}_id"
             
-            # If no special mapping or the mapped field doesn't exist in data_columns,
-            # return the original field name
+            # If we get here, it's not a recognized array field or scalar field
+            # Return the original field name as a last resort
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(
+                    f"No explicit mapping for field '{field_name}' (type: {field_type}), using original name",
+                    category='field_manager'
+                )
             return field_name
         except Exception as e:
-            st.error(f"Error mapping field name '{field_name}': {str(e)}")
-            # Return the original field name as fallback
+            # Log the error and return the original field name
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Error mapping field name '{field_name}': {str(e)}", category='field_manager')
             return field_name
     
     def standardize_field_name(self, field_name: str) -> str:
