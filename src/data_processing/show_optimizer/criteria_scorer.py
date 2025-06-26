@@ -76,13 +76,19 @@ class CriteriaScorer:
             integrated_data: Optional dict of integrated DataFrames conforming to IntegratedData
         Returns:
             Tuple of success rate and confidence information conforming to ConfidenceInfo
+            The confidence_info is always a dictionary with at least level, score, and error keys
         """
         # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
         if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data:
             shows = integrated_data['shows']
                 
-        # Initialize confidence info if not provided
-        confidence_info = confidence_info or {}
+        # Initialize confidence info as a dictionary with default values
+        # This ensures it's always a properly structured dictionary
+        confidence_info = {} if confidence_info is None else confidence_info
+        if not isinstance(confidence_info, dict):
+            # If somehow confidence_info is not a dict, create a new one
+            OptimizerConfig.debug(f"Warning: confidence_info was not a dictionary: {type(confidence_info)}", category='error')
+            confidence_info = {}
         
         # Handle case with no valid shows data
         if shows is None or shows.empty:
@@ -263,6 +269,7 @@ class CriteriaScorer:
             
         Returns:
             Dictionary of impact scores by field and option with metrics like impact, sample_size, confidence, etc.
+            Structure: {field_name: {option_id: {impact: float, sample_size: int, recommendation_type: str, ...}}}
         """
         # Validate inputs - fail fast with clear error messages
         if not criteria:
@@ -360,6 +367,10 @@ class CriteriaScorer:
                 if not options:
                     continue
                     
+                # Always initialize the field in impact_scores as an empty dict
+                # This ensures we never have a missing field entry
+                impact_scores[current_field] = {}
+                        
                 # Use field_manager to determine if this is an array field
                 is_array_field = self.field_manager.get_field_type(current_field) == 'array'
                 
@@ -474,8 +485,8 @@ class CriteriaScorer:
                     # Use the provided option_matching_shows_map
                     field_options_map = option_matching_shows_map[current_field]
                 
-                # Initialize field in impact scores
-                impact_scores[current_field] = {}
+                # Field is already initialized in impact scores above
+                # This ensures we maintain a consistent data structure
                 
                 # Process each option in option_data
                 for i, (option_id, option_name) in enumerate(option_data):
@@ -550,7 +561,8 @@ class CriteriaScorer:
                             impact_direction = "positive" if impact > 0 else "negative"
                             OptimizerConfig.debug(f"Recommendation for {current_field}={option_name}: type={recommendation_type}, impact={impact:.4f} ({impact_direction}), {selection_status}, {field_status}", category='impact')
                         
-                        # Store impact score with all relevant information
+                        # Store impact score with all relevant information - ALWAYS as a complete dictionary
+                        # This ensures consistent data structure throughout the application
                         impact_scores[current_field][option_id] = {
                             'option_id': option_id,
                             'option_name': option_name,
@@ -573,6 +585,16 @@ class CriteriaScorer:
                 field_count = len(impact_scores)
                 option_count = sum(len(options) for options in impact_scores.values())
                 OptimizerConfig.debug(f"Generated impact scores for {field_count} fields with {option_count} total options from selected fields", category='impact')
+                
+                # Debug log to verify impact data structure integrity
+                for field, options in impact_scores.items():
+                    if field == '_summary':
+                        continue
+                    for option_id, impact_info in options.items():
+                        if not isinstance(impact_info, dict):
+                            OptimizerConfig.debug(f"WARNING: Non-dict impact_info found for {field}.{option_id}: {type(impact_info)}", category='error')
+                        elif 'impact' not in impact_info:
+                            OptimizerConfig.debug(f"WARNING: Missing 'impact' key in impact_info for {field}.{option_id}", category='error')
             
             # Process unselected fields to generate 'add' recommendations
             if OptimizerConfig.DEBUG_MODE:
@@ -587,7 +609,8 @@ class CriteriaScorer:
                     if not options:
                         continue
                     
-                    # Initialize field in impact scores
+                    # Always initialize the field in impact_scores as an empty dict
+                    # This ensures we never have a missing field entry or inconsistent structure
                     impact_scores[field] = {}
                     
                     # For each option, calculate a default impact score
@@ -660,7 +683,8 @@ class CriteriaScorer:
                             if OptimizerConfig.DEBUG_MODE:
                                 OptimizerConfig.debug(f"Recommendation for {field}={option_name}: type={recommendation_type}, impact={impact:.4f} (positive)", category='impact')
                             
-                            # Store impact score with all relevant information
+                            # Store impact score with all relevant information - ALWAYS as a complete dictionary
+                            # This ensures consistent data structure throughout the application
                             impact_scores[field][option_id] = {
                                 'option_id': option_id,
                                 'option_name': option_name,
@@ -713,6 +737,24 @@ class CriteriaScorer:
                         'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
                     }
                 }
+            
+            # Final validation of impact data structure before returning
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("Performing final validation of impact data structure", category='impact')
+                for field, options in impact_scores.items():
+                    if field == '_summary' or field == '_error':
+                        continue
+                    for option_id, impact_info in options.items():
+                        if not isinstance(impact_info, dict):
+                            OptimizerConfig.debug(f"CRITICAL: Non-dict impact_info in final result for {field}.{option_id}: {type(impact_info)}", category='error')
+                            # Fix the issue by creating a proper dictionary
+                            impact_scores[field][option_id] = {
+                                'option_id': option_id,
+                                'impact': float(impact_info) if isinstance(impact_info, (int, float)) else 0.0,
+                                'sample_size': 0,
+                                'recommendation_type': 'add'
+                            }
+                            OptimizerConfig.debug(f"Fixed non-dict impact_info for {field}.{option_id}", category='impact')
                 
             return impact_scores
 

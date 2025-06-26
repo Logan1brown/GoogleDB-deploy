@@ -238,8 +238,12 @@ class RecommendationEngine:
             for criteria_type, values in impact_data.items():
                 processed_count = 0
                 
-                # Sort options by absolute impact score to prioritize highest impact options
-                sorted_options = sorted(values.items(), key=lambda x: abs(x[1].get('impact', 0)), reverse=True)
+                # Ensure we only process valid dictionary impact_info entries
+                valid_options = [(option_id, impact_data) for option_id, impact_data in values.items() 
+                                 if isinstance(impact_data, dict) and 'impact' in impact_data]
+            
+                # Sort by absolute impact score
+                sorted_options = sorted(valid_options, key=lambda x: abs(x[1].get('impact', 0)), reverse=True)
                 
                 for value_id, impact_info in sorted_options:
                     if processed_count >= limit:
@@ -305,11 +309,11 @@ class RecommendationEngine:
             return []
     
     def generate_recommendations(self, criteria: CriteriaDict,
-                                success_factors: List[SuccessFactor],
-                                top_networks: List[NetworkMatch],
-                                matching_shows: pd.DataFrame,
-                                confidence_info: ConfidenceInfo,
-                                integrated_data: IntegratedData) -> List[RecommendationItem]:
+                            success_factors: List[SuccessFactor],
+                            top_networks: List[NetworkMatch],
+                            matching_shows: pd.DataFrame,
+                            confidence_info: ConfidenceInfo,
+                            integrated_data: IntegratedData) -> List[RecommendationItem]:
         """Generate recommendations based on criteria analysis.
         
         Args:
@@ -335,7 +339,8 @@ class RecommendationEngine:
                 st.error(f"Unable to analyze some criteria. Error: {str(e)}")
             
             # Identify limiting criteria that restrict match quality
-            if confidence_info and confidence_info.get('match_level', 1) > 1:
+            # Ensure confidence_info is always a dictionary before accessing it
+            if isinstance(confidence_info, dict) and confidence_info.get('match_level', 1) > 1:
                 try:
                     limiting_criteria_recs = self._identify_limiting_criteria(criteria, matching_shows, confidence_info)
                     recommendations.extend(limiting_criteria_recs)
@@ -927,7 +932,14 @@ class RecommendationEngine:
                 continue
                 
             # Extract the actual success rate value from the overall_rate_data dictionary
-            overall_rate = overall_rate_data.get('success_rate', 0.0)
+            if 'success_rate' not in overall_rate_data or overall_rate_data['success_rate'] is None:
+                # Skip criteria without valid success rates
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Skipping due to missing success_rate in overall_rate_data: {overall_rate_data}")
+                continue
+                
+            # Use the explicit success_rate value
+            overall_rate = overall_rate_data['success_rate']
                 
             # Check if network_rate_data is a NetworkMatch object or a dictionary
             if hasattr(network_rate_data, 'network_id') and hasattr(network_rate_data, 'success_probability'):
