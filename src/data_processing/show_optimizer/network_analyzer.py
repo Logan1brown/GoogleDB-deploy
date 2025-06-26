@@ -43,7 +43,7 @@ class NetworkAnalyzer:
         self.criteria_scorer = criteria_scorer
         self.field_manager = field_manager or criteria_scorer.field_manager
         
-    def rank_networks_by_compatibility(self, matching_shows: pd.DataFrame, limit: Optional[int] = None) -> List[NetworkMatch]:
+    def rank_networks_by_compatibility(self, matching_shows: pd.DataFrame, confidence_info: Optional[ConfidenceInfo] = None, limit: Optional[int] = None) -> List[NetworkMatch]:
         """Rank networks by compatibility using only the matching shows DataFrame.
         
         Args:
@@ -80,15 +80,20 @@ class NetworkAnalyzer:
                         # Keep the default name
                         pass
                 
-                # Calculate compatibility score based on match levels
+                # Calculate compatibility score based on match level from confidence_info
                 # Lower match_level is better (1 is exact match)
-                if 'match_level' in network_shows.columns:
-                    avg_match_level = network_shows['match_level'].mean()
-                    # Convert to score (1 is best, lower match_level = higher score)
-                    compatibility_score = max(0.1, 1.0 - ((avg_match_level - 1) * 0.2))
-                else:
-                    # Default if no match_level column
-                    compatibility_score = 0.5
+                match_level = 1  # Default to exact match
+                
+                # Extract match_level from confidence_info if available
+                if confidence_info is not None:
+                    if isinstance(confidence_info, dict):
+                        match_level = confidence_info.get('match_level', 1)
+                    elif hasattr(confidence_info, 'match_level'):
+                        match_level = getattr(confidence_info, 'match_level', 1)
+                
+                # Calculate compatibility score based on match_level
+                # Convert to score (1 is best, lower match_level = higher score)
+                compatibility_score = max(0.1, 1.0 - ((match_level - 1) * 0.2))
                 
                 # Calculate success probability if success_score column exists
                 success_probability = None
@@ -211,7 +216,9 @@ class NetworkAnalyzer:
                 return {}
             
             # Get network matches using the simplified approach
-            network_matches = self.rank_networks_by_compatibility(matching_shows)
+            # Pass confidence_info if available, otherwise None
+            confidence_info = kwargs.get('confidence_info', None)
+            network_matches = self.rank_networks_by_compatibility(matching_shows, confidence_info)
             
             # Filter by confidence using OptimizerConfig
             # Map confidence levels to numeric values for comparison

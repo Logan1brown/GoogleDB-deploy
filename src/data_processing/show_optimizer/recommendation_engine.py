@@ -369,7 +369,7 @@ class RecommendationEngine:
                 for network in top_networks[:3]:
                     try:
                         network_recs = self.generate_network_specific_recommendations(
-                            criteria, network, matching_shows, integrated_data
+                            criteria, network, matching_shows, integrated_data, confidence_info
                         )
                         network_specific_recs.extend(network_recs)
                     except Exception as e:
@@ -779,9 +779,10 @@ class RecommendationEngine:
         return str(value)       
 
     def generate_network_specific_recommendations(self, criteria: CriteriaDict, 
-                                             network: NetworkMatch,
-                                             matching_shows: pd.DataFrame,
-                                             integrated_data: IntegratedData) -> List[RecommendationItem]:
+                                              network: NetworkMatch,
+                                              matching_shows: pd.DataFrame,
+                                              integrated_data: IntegratedData,
+                                              confidence_info: Optional[ConfidenceInfo] = None) -> List[RecommendationItem]:
         """
         Generate network-specific recommendations.
 
