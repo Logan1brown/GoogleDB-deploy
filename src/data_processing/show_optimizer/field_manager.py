@@ -809,6 +809,29 @@ class FieldManager:
             # Return the original field name as fallback
             return field_name
     
+    def standardize_field_name(self, field_name: str) -> str:
+        """Standardize a field name by removing common suffixes.
+        
+        This ensures consistent field name mapping between network rates and criteria keys.
+        
+        Args:
+            field_name: Name of the field to standardize (e.g., 'genre_id', 'genre_name')
+            
+        Returns:
+            The standardized field name (e.g., 'genre')
+        """
+        try:
+            # Normalize field name by removing common suffixes
+            if field_name.endswith('_id') or field_name.endswith('_ids'):
+                return field_name[:-3] if field_name.endswith('_id') else field_name[:-4]
+            elif field_name.endswith('_name') or field_name.endswith('_names'):
+                return field_name[:-5] if field_name.endswith('_name') else field_name[:-6]
+            return field_name
+        except Exception as e:
+            # If any error occurs, return the original field name
+            OptimizerConfig.debug(f"Error standardizing field name '{field_name}': {str(e)}", category='field_manager')
+            return field_name
+    
     def has_field(self, field_name: str) -> bool:
         """Check if a field exists in the field manager.
         

@@ -171,8 +171,11 @@ class RecommendationEngine:
             return None, self.config.CONFIDENCE_LEVELS.get('none', 'none')
             
         try:
-            # Get matching shows and count
-            matching_shows, match_count, confidence_info = self.criteria_scorer._get_matching_shows(criteria)
+            # Get matching shows using the matcher directly
+            matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(criteria)
+            
+            # Get match count from confidence_info
+            match_count = confidence_info.get('match_count', 0)
             
             # Return None if no matches found
             if matching_shows.empty or match_count == 0:
@@ -273,7 +276,7 @@ class RecommendationEngine:
                         
                         # Get shows matching just this single criteria
                         single_criteria = {criteria_type: match_value}
-                        single_matches, _, _ = self.criteria_scorer._get_matching_shows(single_criteria)
+                        single_matches, single_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
                         
                         if not single_matches.empty and 'title' in single_matches.columns:
                             matching_titles = single_matches['title'].tolist()[:100]  # Limit to 100 titles
@@ -554,7 +557,7 @@ class RecommendationEngine:
             # Get matching shows without this criterion
             # If this fails, the criteria_scorer will return appropriate values or raise an exception
             # that should be handled at a higher level
-            test_matches, test_count, test_confidence = self.criteria_scorer._get_matching_shows(
+            test_matches, test_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(
                 test_criteria, flexible=True)
                 
             # If removing this criterion improves match level or significantly increases sample size
@@ -801,11 +804,15 @@ class RecommendationEngine:
         # Process each key in network rates to calculate corresponding overall rates
         for key, network_rate_data in network_rates.items():
             # Extract field name from key using standard format
-            field_name = key.split(':', 1)[0] if ':' in key else key
+            raw_field_name = key.split(':', 1)[0] if ':' in key else key
+            
+            # Standardize field name using field manager
+            field_name = self.field_manager.standardize_field_name(raw_field_name)
             
             if OptimizerConfig.DEBUG_MODE:
                 # Using global st import
-                st.write(f"DEBUG: Extracted field_name: {field_name}")
+                st.write(f"DEBUG: Extracted raw field_name: {raw_field_name}")
+                st.write(f"DEBUG: Standardized field_name: {field_name}")
             
             # Skip if this field is not in our criteria
             if field_name not in criteria:
@@ -853,11 +860,15 @@ class RecommendationEngine:
                 st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
             
             # Extract field name from the key using standard format
-            field_name = key.split(':', 1)[0] if ':' in key else key
+            raw_field_name = key.split(':', 1)[0] if ':' in key else key
+            
+            # Standardize field name using field manager
+            field_name = self.field_manager.standardize_field_name(raw_field_name)
             
             if OptimizerConfig.DEBUG_MODE:
                 # Using global st import
-                st.write(f"DEBUG: Extracted field_name: {field_name}")
+                st.write(f"DEBUG: Extracted raw field_name: {raw_field_name}")
+                st.write(f"DEBUG: Standardized field_name: {field_name}")
             
             # Only process keys that correspond to fields in our criteria
             if field_name in valid_fields:
