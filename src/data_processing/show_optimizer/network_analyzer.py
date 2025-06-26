@@ -80,20 +80,22 @@ class NetworkAnalyzer:
                         # Keep the default name
                         pass
                 
-                # Calculate compatibility score based on match level from confidence_info
+                # Calculate compatibility score based on match levels in the network shows DataFrame
                 # Lower match_level is better (1 is exact match)
-                match_level = 1  # Default to exact match
-                
-                # Extract match_level from confidence_info if available
+                if 'match_level' in network_shows.columns:
+                    avg_match_level = network_shows['match_level'].mean()
+                    # Convert to score (1 is best, lower match_level = higher score)
+                    compatibility_score = max(0.1, 1.0 - ((avg_match_level - 1) * 0.2))
+                else:
+                    # Default if no match_level column
+                    compatibility_score = 0.5
+                    
+                # Store the match_level in the network details for reference
                 if confidence_info is not None:
                     if isinstance(confidence_info, dict):
-                        match_level = confidence_info.get('match_level', 1)
+                        network_match.details['global_match_level'] = confidence_info.get('match_level', 1)
                     elif hasattr(confidence_info, 'match_level'):
-                        match_level = getattr(confidence_info, 'match_level', 1)
-                
-                # Calculate compatibility score based on match_level
-                # Convert to score (1 is best, lower match_level = higher score)
-                compatibility_score = max(0.1, 1.0 - ((match_level - 1) * 0.2))
+                        network_match.details['global_match_level'] = getattr(confidence_info, 'match_level', 1)
                 
                 # Calculate success probability if success_score column exists
                 success_probability = None
