@@ -250,22 +250,22 @@ class OptimizerView:
             confidence: Confidence level (none, low, medium, high)
             
         Returns:
-            Dictionary with formatted success probability data including value, display_value, confidence, etc.
+            Dictionary with formatted success probability data including display, subtitle, etc.
         """
         # Get confidence display text from config
         confidence_display = self.config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
         
         # Format probability as percentage
         if probability is not None:
-            probability_display = f"{probability:.0%}"
+            return {
+                "display": f"{probability:.0%}",
+                "subtitle": f"Confidence: {confidence_display}"
+            }
         else:
-            probability_display = "N/A"
-            
-        return {
-            "value": probability_display,
-            "confidence": confidence_display,
-            "confidence_level": confidence
-        }
+            return {
+                "display": "N/A",
+                "subtitle": "Success probability not available"
+            }
         
     def _format_recommendations(self, recommendations: List[Dict[str, Any]]) -> Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]:
         """
