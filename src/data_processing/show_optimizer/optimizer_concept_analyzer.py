@@ -365,6 +365,13 @@ class ConceptAnalyzer:
             # This ensures the UI will have access to properly formatted recommendations
             formatted = summary.formatted_data
             
+            # Debug: Check if confidence_info has changed after accessing formatted_data
+            st.write(f"DEBUG: After formatted_data - summary.confidence_info type: {type(summary.confidence_info)}")
+            if isinstance(summary.confidence_info, dict):
+                st.write(f"DEBUG: After formatted_data - confidence_info keys: {list(summary.confidence_info.keys())}")
+            else:
+                st.write(f"DEBUG: After formatted_data - confidence_info value: {summary.confidence_info}")
+            
             # Log summary creation through centralized debug method
             # Debug removed for clarity
             return summary
