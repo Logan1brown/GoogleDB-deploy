@@ -787,11 +787,13 @@ class ConceptAnalyzer:
                 
                 try:
                     # Wrap the call in a try-except to catch any errors specific to this network
+                    # Ensure confidence_info is passed to avoid attribute errors
                     network_specific_recs = self.recommendation_engine.generate_network_specific_recommendations(
                         criteria=criteria,
                         network=network,
                         matching_shows=matching_shows,
-                        integrated_data=integrated_data
+                        integrated_data=integrated_data,
+                        confidence_info=confidence_info
                     )
                     network_recommendations.extend(network_specific_recs)
                     
