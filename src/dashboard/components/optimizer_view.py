@@ -282,40 +282,39 @@ class OptimizerView:
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Formatting {len(recommendations)} recommendations", category='recommendation', force=True)
             if recommendations:
-                # Count recommendations by type - enforce direct attribute access
+                # Count recommendations by type - use dictionary-style access
                 type_counts = {}
                 for rec in recommendations:
-                    rec_type = rec.recommendation_type
+                    rec_type = rec['recommendation_type']
                     if rec_type not in type_counts:
                         type_counts[rec_type] = 0
                     type_counts[rec_type] += 1
                 
                 OptimizerConfig.debug(f"Recommendation types: {type_counts}", category='recommendation', force=True)
                 
-                # Special debug for 'remove' recommendations - enforce direct attribute access
-                remove_recs = [rec for rec in recommendations if rec.recommendation_type == 'remove']
+                # Special debug for 'remove' recommendations - use dictionary-style access
+                remove_recs = [rec for rec in recommendations if rec['recommendation_type'] == 'remove']
                 if remove_recs:
                     OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations before formatting", category='recommendation', force=True)
                     # Inspect the first few remove recommendations in detail
                     for i, rec in enumerate(remove_recs[:3]):
-                        OptimizerConfig.debug(f"Remove recommendation {i+1} details:", category='recommendation', force=True)
-                        OptimizerConfig.debug(f"  - Type: {rec.recommendation_type}", category='recommendation', force=True)
-                        OptimizerConfig.debug(f"  - Criteria Type: {rec.criteria_type}", category='recommendation', force=True)
-                        OptimizerConfig.debug(f"  - Suggested Name: {rec.suggested_name}", category='recommendation', force=True)
-                        OptimizerConfig.debug(f"  - Impact: {rec.impact_score}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"Remove recommendation {i+1}:", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Type: {rec['recommendation_type']}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Field: {rec.get('field', rec.get('criteria_type', 'unknown'))}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Impact: {rec.get('impact_score', rec.get('impact', 0.0))}", category='recommendation', force=True)
                     for rec in remove_recs:
-                        OptimizerConfig.debug(f"Remove rec: {rec.criteria_type}/{rec.suggested_name}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"Remove rec: {rec['criteria_type']}/{rec['suggested_name']}", category='recommendation', force=True)
                 else:
                     OptimizerConfig.debug("No 'remove' recommendations found in original recommendations", category='recommendation', force=True)
                 
                 # Show the first few recommendations in detail
                 for i, rec in enumerate(recommendations[:3]):
                     OptimizerConfig.debug(f"Recommendation {i+1} details:", category='recommendation', force=True)
-                    OptimizerConfig.debug(f"  - Type: {rec.recommendation_type}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Criteria Type: {rec.criteria_type}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Suggested Name: {rec.suggested_name}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Impact: {rec.impact_score}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Explanation: {rec.explanation}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Type: {rec['recommendation_type']}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Criteria Type: {rec.get('criteria_type', rec.get('field', 'unknown'))}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Suggested Name: {rec.get('suggested_name', 'unknown')}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Impact: {rec.get('impact_score', rec.get('impact', 0.0))}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Explanation: {rec.get('explanation', rec.get('description', 'No explanation'))}", category='recommendation')
                     # Debug all attributes
                     # Debug removed for clarity
                 
@@ -333,33 +332,38 @@ class OptimizerView:
         formatted_recommendations = []
         
         for rec in recommendations:
-            # Use recommendation_type directly - it should always be present
-            rec_type = rec.recommendation_type
+            # Use recommendation_type with dictionary-style access
+            rec_type = rec['recommendation_type']
                 
             # Format impact percentage for display
-            impact_percent = abs(rec.impact_score * 100)
-            impact_direction = "Increase" if rec.impact_score > 0 else "Decrease"
+            impact_score = rec.get('impact_score', rec.get('impact', 0.0))
+            impact_percent = abs(impact_score * 100)
+            impact_direction = "Increase" if impact_score > 0 else "Decrease"
             
             # Special debug for 'remove' recommendations
             if rec_type == 'remove':
-                OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {rec.criteria_type}/{rec.suggested_name}", category='recommendation', force=True)
+                criteria_type = rec.get('criteria_type', rec.get('field', 'unknown'))
+                suggested_name = rec.get('suggested_name', 'unknown')
+                OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {criteria_type}/{suggested_name}", category='recommendation', force=True)
             
             # Create recommendation title without impact percentage
             if rec_type.startswith('network_'):
                 # For network recommendations
                 clean_rec_type = rec_type.replace('network_', '')
                 # Extract network name from suggested_name
-                network_name = rec.suggested_name
+                network_name = rec.get('suggested_name', '')
                 if ':' in network_name:
                     network_name = network_name.split(':', 1)[0].strip()
                     
-                title = f"{network_name} - {clean_rec_type.capitalize()} {rec.criteria_type}"
+                criteria_type = rec.get('criteria_type', rec.get('field', ''))
+                title = f"{network_name} - {clean_rec_type.capitalize()} {criteria_type}"
             else:
                 # Format the title to include only the criteria type and suggested name
-                criteria_type = rec.criteria_type.replace('_', ' ').title()
+                criteria_type = rec.get('criteria_type', rec.get('field', '')).replace('_', ' ').title()
+                suggested_name = rec.get('suggested_name', '')
                 
                 # Create a clean title without the impact information
-                title = f"{criteria_type}: {rec.suggested_name}"
+                title = f"{criteria_type}: {suggested_name}"
                 
             # Generate explanation text based on recommendation type and data
             # This is now the responsibility of the OptimizerView since the RecommendationEngine no longer provides formatted text
@@ -369,23 +373,23 @@ class OptimizerView:
             if explanation and not explanation.strip().endswith('.'):
                 explanation = f"{explanation}."
             
-            # Create formatted recommendation dictionary with direct attribute access
+            # Create formatted recommendation dictionary with dictionary-style access
             formatted_rec = {
                 # Display values
                 "title": title,
                 "description": explanation,
-                "importance": rec.confidence,
+                "importance": rec.get('confidence', 'medium'),
                 "category": rec_type,  # This is the key field for grouping
-                "impact": rec.impact_score,
-                "criteria_type": rec.criteria_type,
-                "suggested_name": rec.suggested_name,
-                # Direct attribute access - SuccessFactor objects should always have these attributes
-                "current_value": rec.current_value,
-                "suggested_value": rec.suggested_value,
+                "impact": impact_score,
+                "criteria_type": rec.get('criteria_type', rec.get('field', '')),
+                "suggested_name": rec.get('suggested_name', ''),
+                # Dictionary-style access for values
+                "current_value": rec.get('current_value', None),
+                "suggested_value": rec.get('suggested_value', None),
                 
                 # Raw data for sorting and filtering
-                "_impact_raw": rec.impact_score,
-                "_confidence_level": self._get_confidence_level(rec.confidence),
+                "_impact_raw": impact_score,
+                "_confidence_level": self._get_confidence_level(rec.get('confidence', 'medium')),
                 "_rec_type": rec_type
             }
             
@@ -633,14 +637,14 @@ class OptimizerView:
         Returns:
             Formatted explanation text for display in the UI
         """
-        # Extract common fields - direct attribute access
-        rec_type = recommendation.recommendation_type
-        impact_score = recommendation.impact_score
-        criteria_type = recommendation.criteria_type.replace('_', ' ').title()
-        suggested_name = recommendation.suggested_name
-        # Direct attribute access - recommendation objects should always have these attributes
-        current_name = recommendation.current_name
-        metadata = recommendation.metadata
+        # Extract common fields - dictionary-style access
+        rec_type = recommendation['recommendation_type']
+        impact_score = recommendation.get('impact_score', recommendation.get('impact', 0.0))
+        criteria_type = recommendation.get('criteria_type', recommendation.get('field', '')).replace('_', ' ').title()
+        suggested_name = recommendation.get('suggested_name', '')
+        # Dictionary-style access for all fields
+        current_name = recommendation.get('current_name', '')
+        metadata = recommendation.get('metadata', {})
         
         # Format impact percentage for display
         impact_percent = abs(impact_score * 100)

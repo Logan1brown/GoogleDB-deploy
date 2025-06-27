@@ -846,22 +846,9 @@ class RecommendationEngine:
             # Standardize field name using field manager
             field_name = self.field_manager.standardize_field_name(raw_field_name)
             
-            if OptimizerConfig.DEBUG_MODE:
-                # Using global st import
-                st.write(f"DEBUG: Extracted raw field_name: {raw_field_name}")
-                st.write(f"DEBUG: Standardized field_name: {field_name}")
-            
             # Skip if this field is not in our criteria
             if field_name not in criteria:
-                if OptimizerConfig.DEBUG_MODE:
-                    # Using global st import
-                    st.write(f"DEBUG: Field {field_name} not in criteria, skipping")
                 continue
-                
-            if OptimizerConfig.DEBUG_MODE:
-                # Using global st import
-                st.write(f"DEBUG: Creating single_criteria for {field_name}")
-                st.write(f"DEBUG: criteria[{field_name}] = {criteria[field_name]}")
             
             # Calculate the overall success rate for this criteria
             single_criteria = {field_name: criteria[field_name]}
@@ -892,33 +879,17 @@ class RecommendationEngine:
         valid_fields = set(criteria.keys())
         valid_network_rates = {}
         
-        if OptimizerConfig.DEBUG_MODE:
-            # Using global st import
-            st.write(f"DEBUG: Valid criteria fields: {valid_fields}")
+        # Process network rates for fields in criteria
         
         for key, network_rate_data in network_rates.items():
-            if OptimizerConfig.DEBUG_MODE:
-                # Using global st import
-                st.write(f"DEBUG: Processing network rate key: {key}")
-                st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
-            
             # Extract field name from the key using standard format
             raw_field_name = key.split(':', 1)[0] if ':' in key else key
             
             # Standardize field name using field manager
             field_name = self.field_manager.standardize_field_name(raw_field_name)
             
-            if OptimizerConfig.DEBUG_MODE:
-                # Using global st import
-                st.write(f"DEBUG: Extracted raw field_name: {raw_field_name}")
-                st.write(f"DEBUG: Standardized field_name: {field_name}")
-            
             # Only process keys that correspond to fields in our criteria
             if field_name in valid_fields:
-                if OptimizerConfig.DEBUG_MODE:
-                    # Using global st import
-                    st.write(f"DEBUG: Field {field_name} is valid, creating entry in valid_network_rates")
-                    st.write(f"DEBUG: criteria[{field_name}] = {criteria[field_name]}")
                 
                 valid_network_rates[key] = {
                     'field_name': field_name,
@@ -949,12 +920,7 @@ class RecommendationEngine:
             # Get the overall success rate using flexible key lookup
             overall_rate_data = overall_rates.get(key, overall_rates.get(field_name))
             
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Extracted field_name: {field_name}")
-                st.write(f"DEBUG: Network rate data type: {type(network_rate_data)}")
-                st.write(f"DEBUG: Current value: {current_value}")
-                st.write(f"DEBUG: Current name: {current_name}")
-                st.write(f"DEBUG: Overall rate for {key}/{field_name}: {overall_rate_data}")
+            # Skip debug messages for field extraction - too verbose
             
             if overall_rate_data is None:
                 # Skip criteria without overall rates
@@ -963,8 +929,6 @@ class RecommendationEngine:
             # Extract the actual success rate value from the overall_rate_data dictionary
             if 'success_rate' not in overall_rate_data or overall_rate_data['success_rate'] is None:
                 # Skip criteria without valid success rates
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Skipping due to missing success_rate in overall_rate_data: {overall_rate_data}")
                 continue
                 
             # Use the explicit success_rate value
@@ -981,30 +945,15 @@ class RecommendationEngine:
                     network_rate = network_rate_data['success_rate']
                     sample_size = network_rate_data.get('sample_size', 0)
                 else:
-                    # Log unexpected structure - this should never happen with standardized keys
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Missing success_rate key in network_rate_data: {network_rate_data}")
-                    # Skip this criteria instead of using defaults
+                    # Skip this criteria if missing success_rate key
                     continue
             else:
-                # Log unexpected type and use defaults
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Unexpected network_rate_data type: {type(network_rate_data)}")
-                network_rate = 0.0
-                sample_size = 0
+                # Skip unexpected types
+                continue
             
-            # Add debug logging to identify when values are None
-            if OptimizerConfig.DEBUG_MODE:
-                if network_rate is None:
-                    st.write(f"DEBUG: network_rate is None for {field_name}")
-                if overall_rate is None:
-                    st.write(f"DEBUG: overall_rate is None for {field_name}")
-                    
             # Check for None values before performing arithmetic
             if network_rate is None or overall_rate is None:
-                # Log the issue and skip this criteria
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Skipping {field_name} due to None values in rates")
+                # Skip this criteria if rates are None
                 continue
                 
             # Calculate the difference between network and overall rates
