@@ -203,8 +203,7 @@ class OptimizerView:
             # Replace the original DataFrame with the formatted one
             summary.matching_shows = formatted_shows
         
-        # Format success probability
-        # Use the overall_success_probability attribute which should always be present
+        # Format success probability - expect it to be present
         probability = summary.overall_success_probability
         confidence = summary.confidence
         

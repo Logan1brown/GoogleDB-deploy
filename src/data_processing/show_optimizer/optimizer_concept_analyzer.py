@@ -54,6 +54,17 @@ class OptimizationSummary:
     match_counts_by_level: Dict[int, int] = field(default_factory=dict)  # Count of shows by match level
     confidence_info: ConfidenceInfo = field(default_factory=dict)  # Detailed confidence information
     
+    def __post_init__(self):
+        """Post-initialization validation and logging."""
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"OptimizationSummary created with success probability: {self.overall_success_probability}", category='components')
+            
+            if self.component_scores:
+                OptimizerConfig.debug(f"Component scores: {list(self.component_scores.keys())}", category='components')
+                if 'success' in self.component_scores:
+                    success_score = self.component_scores['success']
+                    OptimizerConfig.debug(f"Success component score: {success_score.score}, confidence: {success_score.confidence}", category='components')
+    
     @property
     def network_compatibility(self) -> List[NetworkMatch]:
         """Return the top networks as network compatibility data.
@@ -125,6 +136,8 @@ class OptimizationSummary:
             
         # Format success probability for display
         if not hasattr(self, 'overall_success_probability') or self.overall_success_probability is None:
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("Success probability not available in OptimizationSummary", category='components')
             return {
                 'display': 'N/A',
                 'subtitle': 'Success probability not available'

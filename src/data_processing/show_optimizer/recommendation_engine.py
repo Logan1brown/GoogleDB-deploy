@@ -827,9 +827,7 @@ class RecommendationEngine:
         # Calculate overall success rates for comparison with network-specific rates
         overall_rates = {}
         
-        if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Network rates keys: {list(network_rates.keys())}")
-            st.write(f"DEBUG: Criteria keys: {list(criteria.keys())}")
+        # Debug information is handled through OptimizerConfig.debug if needed
         
         # Process each key in network rates to calculate corresponding overall rates
         for key, network_rate_data in network_rates.items():
