@@ -404,7 +404,11 @@ class RecommendationEngine:
             
         except Exception as e:
             st.error(f"Unable to generate recommendations based on your criteria: {str(e)}")
-            return []
+            # Always return a dictionary with the expected structure, even on error
+            return {
+                "general": [],
+                "network_specific": []
+            }
     
     def _recommend_missing_criteria(self, criteria: CriteriaDict, 
                                    success_factors: List[SuccessFactor],
@@ -965,22 +969,21 @@ class RecommendationEngine:
             # Use the explicit success_rate value
             overall_rate = overall_rate_data['success_rate']
                 
-            # Check if network_rate_data is a NetworkMatch object or a dictionary
-            if hasattr(network_rate_data, 'network_id') and hasattr(network_rate_data, 'success_probability'):
-                # It's a NetworkMatch object, use attribute access
-                network_rate = network_rate_data.success_probability
-                sample_size = getattr(network_rate_data, 'sample_size', 0)
-            elif isinstance(network_rate_data, dict):
-                if 'success_rate' in network_rate_data:
-                    # Use the standardized key consistently
-                    network_rate = network_rate_data['success_rate']
-                    sample_size = network_rate_data.get('sample_size', 0)
-                else:
-                    # Skip this criteria if missing success_rate key
-                    continue
-            else:
-                # Skip unexpected types
+            # network_rate_data should always be a dictionary from get_network_specific_success_rates
+            # This ensures consistent data structures throughout the application
+            if not isinstance(network_rate_data, dict):
+                # Log error and skip if not a dictionary
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: Unexpected network_rate_data type: {type(network_rate_data).__name__}")
                 continue
+                
+            # Use the standardized key consistently
+            if 'success_rate' not in network_rate_data:
+                # Skip this criteria if missing success_rate key
+                continue
+                
+            network_rate = network_rate_data['success_rate']
+            sample_size = network_rate_data.get('sample_size', 0)
             
             # Check for None values before performing arithmetic
             if network_rate is None or overall_rate is None:
@@ -1036,9 +1039,8 @@ class RecommendationEngine:
                     explanation_text = f"Consider changing {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% worse on {network_name} than average."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
-                # NetworkMatch objects should be used consistently as objects with attributes
-                # This enforces the contract rather than adding defensive programming
-                confidence_value = network_rate_data.confidence if hasattr(network_rate_data, 'confidence') else 'medium'
+                # network_rate_data is always a dictionary with standardized keys
+                confidence_value = network_rate_data.get('confidence', 'medium')
                     
                 recommendation: RecommendationItem = {
                     'recommendation_type': network_rec_type,
