@@ -97,8 +97,9 @@ class OptimizationSummary:
         if not hasattr(self, 'overall_success_probability') or self.overall_success_probability is None or not self.confidence_info:
             return {}
             
-        # Format the success probability
-        confidence = self.confidence_info.level if hasattr(self.confidence_info, 'level') else 'none'
+        # Format the success probability - confidence_info is always a dictionary (ConfidenceInfo TypedDict)
+        confidence = self.confidence_info.get('level', 'none')
+            
         return {
             'display': f"{self.overall_success_probability:.0%}",
             'subtitle': f"Confidence: {confidence.capitalize()}"
@@ -140,7 +141,7 @@ class OptimizationSummary:
             },
             'component_scores': self._format_component_scores(),
             'success_factors': [],  # Initialize empty list for success factors
-            'success_probability': self._format_success_probability()
+            'overall_success_probability': self._format_success_probability()
         }
         
         # Debug: Check confidence_info again
@@ -258,21 +259,13 @@ class ConceptAnalyzer:
         """
         st.error(f"Analysis failed: {error_message}")
         
-        # Create default component scores to prevent UI errors
-        default_component_scores = {
-            'audience': {'score': 0.0, 'confidence': 'none', 'sample_size': 0},
-            'concept': {'score': 0.0, 'confidence': 'none', 'sample_size': 0},
-            'execution': {'score': 0.0, 'confidence': 'none', 'sample_size': 0},
-            'marketability': {'score': 0.0, 'confidence': 'none', 'sample_size': 0},
-            'overall': {'score': 0.0, 'confidence': 'none', 'sample_size': 0}
-        }
-        
-        # Create a minimal summary with error information
+        # Create a minimal summary with error information - no default scores
+        # This will cause UI components to fail explicitly rather than showing fake data
         return OptimizationSummary(
             overall_success_probability=None,
             confidence='none',
             top_networks=[],
-            component_scores=default_component_scores,
+            component_scores={},  # Empty dict - no fake default scores
             recommendations=[],
             success_factors=[],
             matching_titles=[],

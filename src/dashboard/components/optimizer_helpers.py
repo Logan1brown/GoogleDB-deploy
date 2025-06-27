@@ -238,9 +238,9 @@ def render_success_metrics(summary: Any):
         
         # Success Probability
         with col2:
-            if 'success_probability' in formatted_data:
+            if 'overall_success_probability' in formatted_data:
                 # Use pre-formatted success probability data
-                success_data = formatted_data['success_probability']
+                success_data = formatted_data['overall_success_probability']
                 render_metric_card(
                     "Success Probability", 
                     success_data['display'], 
