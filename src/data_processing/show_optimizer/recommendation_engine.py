@@ -301,17 +301,22 @@ class RecommendationEngine:
             st.error(f"Error identifying success factors: {str(e)}")
             return []
     
-    def generate_recommendations(self, criteria: CriteriaDict,
-                            success_factors: List[SuccessFactor],
-                            top_networks: List[NetworkMatch],
-                            matching_shows: pd.DataFrame,
-                            confidence_info: ConfidenceInfo,
-                            integrated_data: IntegratedData) -> List[RecommendationItem]:
-        """Generate recommendations based on criteria analysis.
+    def generate_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, 
+                                 success_factors: List[SuccessFactor], top_networks: List[NetworkMatch] = None,
+                                 confidence_info: Optional[Dict[str, Any]] = None,
+                                 integrated_data: Optional[IntegratedData] = None) -> Dict[str, List[RecommendationItem]]:
+        """Generate recommendations based on success factors.
+        
+        This method processes success factors to create actionable recommendations.
+        It separates recommendations into general and network-specific categories.
         
         Args:
-            criteria: Dictionary of criteria conforming to CriteriaDict
-            success_factors: List of identified success factors
+            criteria: Dictionary of criteria key-value pairs from the UI
+            matching_shows: DataFrame of shows matching the criteria
+            success_factors: List of SuccessFactor objects with impact scores
+            top_networks: Optional list of top compatible networks
+            confidence_info: Optional confidence information dictionary
+            integrated_data: Optional integrated data dictionary
             top_networks: List of NetworkMatch dictionaries
             matching_shows: DataFrame of matching shows
             confidence_info: Dictionary with confidence metrics conforming to ConfidenceInfo

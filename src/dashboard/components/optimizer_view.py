@@ -749,8 +749,10 @@ class OptimizerView:
             
         # Extract common fields - dictionary-style access for TypedDict
         rec_type = recommendation['recommendation_type']
-        impact_score = recommendation.get('impact_score', recommendation.get('impact', 0.0))
-        criteria_type = recommendation.get('criteria_type', recommendation.get('field', '')).replace('_', ' ').title()
+        # Always use 'impact' as the standard field name from the recommendation engine
+        impact_score = recommendation.get('impact', 0.0)
+        # Always use 'field' as the standard field name from the recommendation engine
+        field_name = recommendation.get('field', '').replace('_', ' ').title()
         suggested_name = recommendation.get('suggested_name', '')
         current_name = recommendation.get('current_name', '')
         metadata = recommendation.get('metadata', {})

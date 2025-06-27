@@ -934,6 +934,18 @@ class ConceptAnalyzer:
                     self.config.debug(f"Error generating recommendations for {network_name}: {str(net_error)}", 
                                      category='error', force=True)
             
+            # Add explicit debug logging to identify the exact structure of recommendations
+            if self.config.DEBUG_MODE:
+                OptimizerConfig.debug(f"General recommendations count: {len(general_recommendations)}", category='recommendations', force=True)
+                if general_recommendations:
+                    OptimizerConfig.debug(f"First general recommendation type: {type(general_recommendations[0])}", category='recommendations', force=True)
+                    OptimizerConfig.debug(f"First general recommendation keys: {list(general_recommendations[0].keys()) if isinstance(general_recommendations[0], dict) else 'Not a dict'}", category='recommendations', force=True)
+                
+                OptimizerConfig.debug(f"Network recommendations count: {len(network_recommendations)}", category='recommendations', force=True)
+                if network_recommendations:
+                    OptimizerConfig.debug(f"First network recommendation type: {type(network_recommendations[0])}", category='recommendations', force=True)
+                    OptimizerConfig.debug(f"First network recommendation keys: {list(network_recommendations[0].keys()) if isinstance(network_recommendations[0], dict) else 'Not a dict'}", category='recommendations', force=True)
+            
             # Return recommendations in the expected structure for the UI
             # Instead of a flat list, return a dictionary with 'general' and 'network_specific' keys
             return {
