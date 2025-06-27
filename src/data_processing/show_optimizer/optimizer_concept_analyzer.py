@@ -73,21 +73,26 @@ class OptimizationSummary:
         ready for display in the UI.
         """
         # Debug: Check the type of confidence_info
-        st.write(f"DEBUG: confidence_info type: {type(self.confidence_info)}")
+        st.write(f"DEBUG: formatted_data START - confidence_info type: {type(self.confidence_info)}")
         if isinstance(self.confidence_info, dict):
-            st.write(f"DEBUG: confidence_info keys: {list(self.confidence_info.keys())}")
+            st.write(f"DEBUG: formatted_data START - confidence_info keys: {list(self.confidence_info.keys())}")
+            # Check specific keys we're interested in
+            if 'match_level' in self.confidence_info:
+                st.write(f"DEBUG: formatted_data START - match_level in confidence_info: {self.confidence_info['match_level']} (type: {type(self.confidence_info['match_level'])})")
         else:
-            st.write(f"DEBUG: confidence_info value: {self.confidence_info}")
+            st.write(f"DEBUG: formatted_data START - confidence_info value: {self.confidence_info}")
             
         # Debug: Check other attributes
-        st.write(f"DEBUG: match_level type: {type(self.match_level)}")
-        st.write(f"DEBUG: match_level value: {self.match_level}")
+        st.write(f"DEBUG: formatted_data START - match_level attribute type: {type(self.match_level)}")
+        st.write(f"DEBUG: formatted_data START - match_level attribute value: {self.match_level}")
             
         # If _formatted_data_dict has been set, return it
         if self._formatted_data_dict:
+            st.write("DEBUG: formatted_data - returning cached _formatted_data_dict")
             return self._formatted_data_dict
             
         # Otherwise generate formatted data
+        st.write("DEBUG: formatted_data - generating new formatted data")
         formatted = {
             'networks': [],
             'recommendations': {
@@ -96,6 +101,13 @@ class OptimizationSummary:
             },
             'component_scores': self.component_scores if self.component_scores else {}
         }
+        
+        # Debug: Check confidence_info again
+        st.write(f"DEBUG: formatted_data MIDDLE - confidence_info type: {type(self.confidence_info)}")
+        if isinstance(self.confidence_info, dict):
+            st.write(f"DEBUG: formatted_data MIDDLE - confidence_info keys: {list(self.confidence_info.keys())}")
+        else:
+            st.write(f"DEBUG: formatted_data MIDDLE - confidence_info value: {self.confidence_info}")
         
         # Format networks data using direct attribute access
         if self.top_networks:
@@ -137,6 +149,13 @@ class OptimizationSummary:
                 else:
                     formatted['recommendations']['general'].append(rec_dict)
         
+        # Debug: Check confidence_info one more time before returning
+        st.write(f"DEBUG: formatted_data END - confidence_info type: {type(self.confidence_info)}")
+        if isinstance(self.confidence_info, dict):
+            st.write(f"DEBUG: formatted_data END - confidence_info keys: {list(self.confidence_info.keys())}")
+        else:
+            st.write(f"DEBUG: formatted_data END - confidence_info value: {self.confidence_info}")
+            
         # Store the formatted data for future access
         self._formatted_data_dict = formatted
         return formatted
