@@ -897,9 +897,6 @@ class ConceptAnalyzer:
                 integrated_data=integrated_data
             )
             
-            if self.config.DEBUG_MODE:
-                self.config.debug(f"Generated {len(general_recommendations)} general recommendations", category='recommendation')
-            
             # Generate network-specific recommendations for top networks
             network_recommendations = []
             

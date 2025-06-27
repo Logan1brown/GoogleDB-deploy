@@ -383,22 +383,24 @@ class RecommendationEngine:
                 # Add network-specific recommendations to the main list
                 recommendations.extend(network_specific_recs)
             
-            # Filter valid recommendations
-            valid_recommendations = [rec for rec in recommendations if 'impact' in rec]
+            # Separate general and network-specific recommendations
+            general_recommendations = [rec for rec in recommendations if 'impact' in rec and rec.get('network_id') is None]
+            network_specific_recommendations = [rec for rec in recommendations if 'impact' in rec and rec.get('network_id') is not None]
             
             # Sort recommendations by impact score
-            valid_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
+            general_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
+            network_specific_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
             
             # Limit to max suggestions
             max_suggestions = self.config.SUGGESTIONS.get('max_suggestions', 5)
-            if len(valid_recommendations) > max_suggestions:
-                valid_recommendations = valid_recommendations[:max_suggestions]
-                
-            # Debug logging for recommendation generation
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Generated {len(valid_recommendations)} recommendations from {len(success_factors)} success factors", category='recommendation', force=True)
+            if len(general_recommendations) > max_suggestions:
+                general_recommendations = general_recommendations[:max_suggestions]
             
-            return valid_recommendations
+            # Return a dictionary with separate keys for general and network-specific recommendations
+            return {
+                "general": general_recommendations,
+                "network_specific": network_specific_recommendations
+            }
             
         except Exception as e:
             st.error(f"Unable to generate recommendations based on your criteria: {str(e)}")
@@ -486,7 +488,6 @@ class RecommendationEngine:
                 criteria_name = factor.criteria_name
                 
                 # Determine recommendation type based on selection status and impact
-                # First, check if a recommendation type is already set
                 if not rec_type or rec_type == 'unknown':
                     # For selected options with negative impact, recommend removing them
                     if is_option_selected and impact_score < 0:
@@ -498,12 +499,8 @@ class RecommendationEngine:
                     elif is_field_selected and not is_option_selected and impact_score > 0:
                         rec_type = self.REC_TYPE_CHANGE
                     # For any other factor with positive impact, recommend adding it
-                    # This ensures we don't miss any positive impact factors
                     elif impact_score > 0:
                         rec_type = self.REC_TYPE_ADD
-                        
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Factor {criteria_name} with impact {impact_score}: determined recommendation type {rec_type}", category='recommendation', force=True)
                 
                 # Skip recommendations that don't make logical sense
                 if rec_type == self.REC_TYPE_ADD and impact_score < 0:
