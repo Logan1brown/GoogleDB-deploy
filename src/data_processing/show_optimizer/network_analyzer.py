@@ -478,11 +478,14 @@ class NetworkAnalyzer:
                 st.write(f"DEBUG: Calling recommendation engine for network {network.network_name} (ID: {network.network_id})")
             
             # Call the recommendation engine with the network object
+            # Create a default confidence_info dictionary to ensure contract compliance
+            confidence_info = update_confidence_info({}, {})
             return recommendation_engine.generate_network_specific_recommendations(
                 criteria=criteria,
                 network=network,
                 matching_shows=network_shows,
-                integrated_data=integrated_data
+                integrated_data=integrated_data,
+                confidence_info=confidence_info
             )
         except Exception as e:
             st.error(f"Error generating network recommendations: {str(e)}")
