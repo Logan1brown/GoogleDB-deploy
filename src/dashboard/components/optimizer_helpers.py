@@ -179,7 +179,11 @@ def render_format_criteria(state: Dict, update_callback: Callable) -> None:
 
 
 def render_success_metrics(summary: Any):
-    """Render success probability metrics using pre-formatted data from OptimizerView.
+    """Render success metrics using pre-formatted data from OptimizerView.
+    
+    Displays:
+    1. Overall Success Score and Success Probability in top row
+    2. Component scores (Audience, Critics, Longevity) in bottom row
     
     Args:
         summary: Optimization summary with formatted_data attribute
@@ -188,28 +192,52 @@ def render_success_metrics(summary: Any):
         # Get config for consistent display
         config = OptimizerConfig()
         
-        col1, col2, col3, col4 = st.columns(4)
-        
         # Check if we have pre-formatted component scores
         has_formatted_data = hasattr(summary, 'formatted_data')
         
         if not has_formatted_data:
             # No formatted data available - show N/A for all metrics
+            st.write("### Success Metrics")
+            col1, col2 = st.columns(2)
             with col1:
-                render_metric_card("Success Probability", "N/A", "Data unavailable")
+                render_metric_card("Overall Success Score", "N/A", "Data unavailable")
             with col2:
+                render_metric_card("Success Probability", "N/A", "Data unavailable")
+                
+            st.write("### Component Scores")
+            col1, col2, col3 = st.columns(3)
+            with col1:
                 render_metric_card("Audience Appeal", "N/A", "Data unavailable")
-            with col3:
+            with col2:
                 render_metric_card("Critical Reception", "N/A", "Data unavailable")
-            with col4:
+            with col3:
                 render_metric_card("Longevity", "N/A", "Data unavailable")
             return
             
         # Use the formatted_data dictionary for all rendering
         formatted_data = summary.formatted_data
         
-        # Success Probability
+        # Top row: Overall Success Score and Success Probability
+        st.write("### Success Metrics")
+        col1, col2 = st.columns(2)
+        
+        # Overall Success Score
         with col1:
+            if 'success' in formatted_data['component_scores']:
+                # Use pre-formatted success score data
+                success_data = formatted_data['component_scores']['success']
+                # Success score is 0-100 scale
+                success_score = success_data['score'] * 100 if success_data['score'] <= 1 else success_data['score']
+                render_metric_card(
+                    "Overall Success Score", 
+                    f"{success_score:.0f}", 
+                    f"Scale: 0-100 | Sample: {success_data['sample_size']}"
+                )
+            else:
+                render_metric_card("Overall Success Score", "N/A", "Data unavailable")
+        
+        # Success Probability
+        with col2:
             if 'success_probability' in formatted_data:
                 # Use pre-formatted success probability data
                 success_data = formatted_data['success_probability']
@@ -221,8 +249,12 @@ def render_success_metrics(summary: Any):
             else:
                 render_metric_card("Success Probability", "N/A", "Data unavailable")
         
+        # Bottom row: Component Scores
+        st.write("### Component Scores")
+        col1, col2, col3 = st.columns(3)
+        
         # Audience Score
-        with col2:
+        with col1:
             if 'audience' in formatted_data['component_scores']:
                 # Use pre-formatted audience score data
                 audience_data = formatted_data['component_scores']['audience']
@@ -235,7 +267,7 @@ def render_success_metrics(summary: Any):
                 render_metric_card("Audience Appeal", "N/A", "Data unavailable")
         
         # Critics Score
-        with col3:
+        with col2:
             if 'critics' in formatted_data['component_scores']:
                 # Use pre-formatted critics score data
                 critics_data = formatted_data['component_scores']['critics']
@@ -248,7 +280,7 @@ def render_success_metrics(summary: Any):
                 render_metric_card("Critical Reception", "N/A", "Data unavailable")
         
         # Longevity Score
-        with col4:
+        with col3:
             if 'longevity' in formatted_data['component_scores']:
                 # Use pre-formatted longevity score data
                 longevity_data = formatted_data['component_scores']['longevity']

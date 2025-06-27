@@ -66,6 +66,44 @@ class OptimizationSummary:
     # Private attribute to store formatted data
     _formatted_data_dict: Dict[str, Union[float, str, List[Dict[str, Any]]]] = field(default_factory=dict)
     
+    def _format_component_scores(self) -> Dict[str, Dict[str, Union[float, int, str]]]:
+        """Format component scores for UI display.
+        
+        Returns:
+            Dictionary with formatted component scores
+        """
+        formatted_scores = {}
+        
+        if not self.component_scores:
+            return formatted_scores
+            
+        # Convert each ComponentScore dataclass to a dictionary with attribute-style access
+        for component_name, component_score in self.component_scores.items():
+            formatted_scores[component_name] = {
+                'score': float(component_score.score) if component_score.score is not None else 0.0,
+                'sample_size': component_score.sample_size,
+                'confidence': component_score.confidence
+            }
+            
+        return formatted_scores
+    
+    def _format_success_probability(self) -> Dict[str, str]:
+        """Format success probability for UI display.
+        
+        Returns:
+            Dictionary with formatted success probability data
+        """
+        # Format success probability for display
+        if not self.success_probability or not self.confidence_info:
+            return {}
+            
+        # Format the success probability
+        confidence = self.confidence_info.level if hasattr(self.confidence_info, 'level') else 'none'
+        return {
+            'display': f"{self.success_probability:.0%}",
+            'subtitle': f"Confidence: {confidence.capitalize()}"
+        }
+    
     @property
     def formatted_data(self) -> Dict[str, Union[float, str, List[Dict[str, Any]]]]:
         """Format data for UI display.
@@ -100,8 +138,9 @@ class OptimizationSummary:
                 'general': [],
                 'network_specific': []
             },
-            'component_scores': self.component_scores if self.component_scores else {},
-            'success_factors': []  # Initialize empty list for success factors
+            'component_scores': self._format_component_scores(),
+            'success_factors': [],  # Initialize empty list for success factors
+            'success_probability': self._format_success_probability()
         }
         
         # Debug: Check confidence_info again

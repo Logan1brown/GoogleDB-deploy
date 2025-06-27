@@ -152,9 +152,8 @@ class OptimizerView:
         if hasattr(summary, 'top_networks') and summary.top_networks:
             summary._formatted_data_dict['networks'] = self._format_network_matches(summary.top_networks)
             
-        # Format component scores if available
-        if hasattr(summary, 'component_scores') and summary.component_scores:
-            summary._formatted_data_dict['component_scores'] = self._format_component_scores(summary.component_scores)
+        # Component scores are already formatted in OptimizationSummary.formatted_data
+        # No need to reformat them here - use the pre-formatted data directly
             
         # Format match quality if available
         if hasattr(summary, 'match_level') and hasattr(summary, 'match_count'):
@@ -580,26 +579,8 @@ class OptimizerView:
         
         return formatted
     
-    def _format_component_scores(self, component_scores: Dict[str, ComponentScore]) -> Dict[str, Dict[str, Union[str, float, int, bool]]]:
-        """Format component scores for display.
-        
-        Args:
-            component_scores: Dictionary mapping component names to ComponentScore objects
-            
-        Returns:
-            Dictionary with formatted component score data including value, display_value, description, etc.
-        """
-        formatted = {}
-        
-        for component, score in component_scores.items():
-            # Format the score
-            formatted[component] = {
-                "score": score.score,
-                "confidence": score.confidence,
-                "sample_size": score.sample_size
-            }
-            
-        return formatted
+    # _format_component_scores method removed - now using pre-formatted data from OptimizationSummary
+    # This ensures consistent formatting and avoids duplicate code
         
     def _get_match_level_description(self, level: int) -> str:
         """Get a human-readable description for a match level.
