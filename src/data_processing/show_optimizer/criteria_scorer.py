@@ -599,6 +599,9 @@ class CriteriaScorer:
             # Process unselected fields to generate 'add' recommendations
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug("Processing unselected fields for 'add' recommendations", category='impact')
+                # Log the final impact_scores structure before returning
+                total_options = sum(len(options) for field, options in impact_scores.items() if field != '_summary')
+                OptimizerConfig.debug(f"Final impact_scores has {len(impact_scores)} fields and {total_options} total options", category='impact')
             
             # Process fields we haven't already processed
             processed_fields = set(fields_to_process)

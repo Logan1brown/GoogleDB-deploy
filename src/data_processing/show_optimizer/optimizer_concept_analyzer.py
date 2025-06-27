@@ -81,7 +81,13 @@ class OptimizationSummary:
         
         if not self.component_scores:
             # Return empty dict - UI will handle missing component scores
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("No component scores available to format", category='components')
             return formatted_scores
+            
+        # Debug log the component scores before formatting
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Formatting {len(self.component_scores)} component scores: {list(self.component_scores.keys())}", category='components')
             
         # Convert each ComponentScore dataclass to a dictionary with attribute-style access
         for component_name, component_score in self.component_scores.items():
@@ -91,6 +97,10 @@ class OptimizationSummary:
                 'sample_size': component_score.sample_size,
                 'confidence': component_score.confidence
             }
+            
+            # Debug log each component score
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Component {component_name}: score={score_dict['score']}, sample_size={score_dict['sample_size']}, confidence={score_dict['confidence']}", category='components')
             
             # Check if there's an error in the component score details
             if hasattr(component_score, 'details') and isinstance(component_score.details, dict):
@@ -218,6 +228,14 @@ class OptimizationSummary:
         if 'component_scores' not in formatted:
             st.write("ERROR: component_scores missing from formatted_data!")
             formatted['component_scores'] = component_scores
+            
+        # Debug log the formatted data structure
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Formatted data structure: {formatted.keys()}", category='format')
+            if 'component_scores' in formatted:
+                OptimizerConfig.debug(f"Component scores keys: {formatted['component_scores'].keys()}", category='format')
+            if 'overall_success_probability' in formatted:
+                OptimizerConfig.debug(f"Success probability: {formatted['overall_success_probability']}", category='format')
             
         return formatted
         

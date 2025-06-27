@@ -214,8 +214,15 @@ class RecommendationEngine:
             # Pass integrated_data to ensure matcher has access to full dataset
             impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
             
+            # Debug log the impact data
+            if self.config.DEBUG_MODE:
+                self.config.debug(f"Received impact data with {len(impact_data)} fields", category='success_factors')
+                for field, values in impact_data.items():
+                    self.config.debug(f"Field {field} has {len(values)} options", category='success_factors')
+            
             # Return empty list if no impact data was found
             if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
+                self.config.debug("No valid impact data found, returning empty success factors", category='success_factors')
                 return []
             
             # Convert to SuccessFactor objects
