@@ -152,8 +152,18 @@ class OptimizerView:
         if hasattr(summary, 'top_networks') and summary.top_networks:
             summary._formatted_data_dict['networks'] = self._format_network_matches(summary.top_networks)
             
-        # Component scores are already formatted in OptimizationSummary.formatted_data
-        # No need to reformat them here - use the pre-formatted data directly
+        # Format component scores directly in the view layer
+        if hasattr(summary, 'component_scores'):
+            # Format component scores for UI display
+            component_scores = {}
+            for component, score in summary.component_scores.items():
+                if isinstance(score, (int, float)):
+                    component_scores[component] = {
+                        'score': score,
+                        'label': component.replace('_', ' ').title(),
+                        'description': OptimizerConfig.COMPONENT_DESCRIPTIONS.get(component, '')
+                    }
+            summary._formatted_data_dict['component_scores'] = component_scores
             
         # Format match quality if available
         if hasattr(summary, 'match_level') and hasattr(summary, 'match_count'):

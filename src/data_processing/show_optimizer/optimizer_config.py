@@ -311,7 +311,7 @@ class OptimizerConfig:
     
     # Suggestion impact settings
     SUGGESTIONS = {
-        'minimum_impact': 0.01,        # Minimum impact score to generate suggestion (1%)
+        'minimum_impact': 0.001,       # Minimum impact score to generate suggestion (0.1%)
         'high_impact_threshold': 0.15, # Threshold for high impact suggestions (15%)
         'max_suggestions': 5,          # Maximum suggestions to return
         'network_specific_ratio': 0.6,  # Ratio of network-specific to general suggestions

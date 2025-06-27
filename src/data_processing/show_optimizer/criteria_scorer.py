@@ -523,17 +523,9 @@ class CriteriaScorer:
                         # Get minimum impact threshold
                         min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
                         
-                        # Store the original impact for reference and debugging
-                        original_impact = impact
-                        
-                        # Force a minimum impact for testing - this ensures we get recommendations
-                        if abs(impact) < min_impact:  # If impact is very small
-                            # Boost the impact slightly to ensure we get recommendations
-                            # But preserve the sign (positive/negative)
-                            impact = min_impact if impact >= 0 else -min_impact
-                            
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Boosted impact for {option_name} from {original_impact:.4f} to {impact:.4f}", category='impact')
+                        # Skip options with impact below minimum threshold
+                        if abs(impact) < min_impact:  # If impact is too small
+                            continue
                         
                         # Determine recommendation type based on impact and whether this specific option is selected
                         is_field_selected = current_field in criteria
