@@ -151,17 +151,21 @@ class OptimizationSummary:
             
         # Otherwise generate formatted data
         # Generate new formatted data
+        component_scores = self._format_component_scores()
+        
         formatted = {
             'networks': [],
             'recommendations': {
                 'general': [],
                 'network_specific': []
             },
-            'component_scores': self._format_component_scores(),
+            'component_scores': component_scores,
             'success_factors': [],  # Initialize empty list for success factors
             'overall_success_probability': self._format_success_probability(),
             'confidence_info': self.confidence_info  # Include confidence_info for error handling
         }
+        
+        # Component scores are now explicitly included
         
         # Format networks and recommendations data
         
@@ -209,6 +213,12 @@ class OptimizationSummary:
             
         # Store the formatted data for future access
         self._formatted_data_dict = formatted
+        
+        # Verify that component_scores is in the dictionary before returning
+        if 'component_scores' not in formatted:
+            st.write("ERROR: component_scores missing from formatted_data!")
+            formatted['component_scores'] = component_scores
+            
         return formatted
         
     @formatted_data.setter
@@ -407,10 +417,8 @@ class ConceptAnalyzer:
                 # Safely get recommendation types, handling both dict and object access
                 if recommendations:
                     # Enforce RecommendationItem TypedDict contract - recommendations should always be dictionaries
-                    rec_types = [rec.get('recommendation_type', 'unknown') for rec in recommendations]
-                    st.write("DEBUG: Recommendation types: " + ", ".join(rec_types))
-                else:
-                    st.write("DEBUG: Recommendation types: None")
+                    # No need to debug recommendation types
+                    pass
             
             # Get matching show titles (up to MAX_RESULTS) to include in the summary
             matching_titles = []
@@ -420,17 +428,9 @@ class ConceptAnalyzer:
                 if len(matching_titles) > self.config.MAX_RESULTS:
                     matching_titles = matching_titles[:self.config.MAX_RESULTS]
             
-            # Debug: Check the type of confidence_info before creating OptimizationSummary
-            st.write(f"DEBUG: Before summary creation - confidence_info type: {type(confidence_info)}")
-            if isinstance(confidence_info, dict):
-                st.write(f"DEBUG: Before summary creation - confidence_info keys: {list(confidence_info.keys())}")
-                st.write(f"DEBUG: Before summary creation - confidence_info['match_level']: {confidence_info.get('match_level', 'NOT FOUND')}")
-            else:
-                st.write(f"DEBUG: Before summary creation - confidence_info value: {confidence_info}")
+            # Create the optimization summary with confidence info
                 
-            # Debug: Check other variables
-            st.write(f"DEBUG: Before summary creation - match_level type: {type(match_level)}")
-            st.write(f"DEBUG: Before summary creation - match_level value: {match_level}")
+            # Prepare to create the optimization summary
             
             # Create and return the optimization summary
             summary = OptimizationSummary(
@@ -454,12 +454,14 @@ class ConceptAnalyzer:
             # This ensures the UI will have access to properly formatted recommendations
             formatted = summary.formatted_data
             
-            # Debug: Check if confidence_info has changed after accessing formatted_data
-            st.write(f"DEBUG: After formatted_data - summary.confidence_info type: {type(summary.confidence_info)}")
-            if isinstance(summary.confidence_info, dict):
-                st.write(f"DEBUG: After formatted_data - confidence_info keys: {list(summary.confidence_info.keys())}")
-            else:
-                st.write(f"DEBUG: After formatted_data - confidence_info value: {summary.confidence_info}")
+            # Ensure component_scores is included in the formatted_data
+            if 'component_scores' not in formatted:
+                # Add component scores directly to ensure they're available to the UI
+                formatted['component_scores'] = summary._format_component_scores()
+                # Update the cached formatted_data
+                summary.formatted_data = formatted
+            
+            # Return the summary with populated formatted_data
             
             # Log summary creation through centralized debug method
             # Debug removed for clarity
