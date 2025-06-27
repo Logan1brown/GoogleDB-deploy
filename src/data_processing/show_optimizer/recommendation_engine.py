@@ -339,9 +339,14 @@ class RecommendationEngine:
             except Exception as e:
                 st.error(f"Unable to analyze some criteria. Error: {str(e)}")
             
+            # Ensure confidence_info conforms to our ConfidenceInfo contract
+            # This enforces the contract rather than adding defensive checks
+            from .optimizer_data_contracts import update_confidence_info
+            confidence_info = update_confidence_info(confidence_info, {})
+            
             # Identify limiting criteria that restrict match quality
-            # Extract match_level from confidence_info dictionary
-            match_level = confidence_info.get('match_level', 1) if confidence_info else 1
+            # Now we can safely extract match_level from confidence_info dictionary
+            match_level = confidence_info['match_level']
                 
             if match_level > 1:
                 try:
@@ -541,9 +546,13 @@ class RecommendationEngine:
         """
         recommendations = []
         
-        # Extract match_level safely from confidence_info, which could be a dict or object
-        # Extract match_level from confidence_info dictionary
-        match_level = confidence_info.get('match_level', 1) if confidence_info else 1
+        # Ensure confidence_info conforms to our ConfidenceInfo contract
+        # This enforces the contract rather than adding defensive checks
+        from .optimizer_data_contracts import update_confidence_info
+        confidence_info = update_confidence_info(confidence_info, {})
+        
+        # Now we can safely extract match_level from confidence_info dictionary
+        match_level = confidence_info['match_level']
         
         # Only run this analysis if we're not at match level 1 (perfect match)
         if match_level == 1:
@@ -571,12 +580,12 @@ class RecommendationEngine:
             # Get the count of test matches
             test_count = len(test_matches) if test_matches is not None else 0
                 
-            # Extract test_match_level safely from test_confidence
-            test_match_level = match_level  # Default to current match level
-            if isinstance(test_confidence, dict):
-                test_match_level = test_confidence.get('match_level', match_level)
-            elif hasattr(test_confidence, 'match_level'):
-                test_match_level = getattr(test_confidence, 'match_level', match_level)
+            # Ensure test_confidence conforms to our ConfidenceInfo contract
+            # This enforces the contract rather than adding defensive checks
+            test_confidence = update_confidence_info(test_confidence, {})
+            
+            # Now we can safely extract match_level from test_confidence dictionary
+            test_match_level = test_confidence['match_level']
                 
             # If removing this criterion improves match level or significantly increases sample size
             if (test_match_level < match_level or 

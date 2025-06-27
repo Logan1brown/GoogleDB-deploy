@@ -18,6 +18,7 @@ import numpy as np
 import streamlit as st
 
 from .optimizer_config import OptimizerConfig
+from .optimizer_data_contracts import ConfidenceInfo, update_confidence_info
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
 from .optimizer_data_contracts import (
@@ -48,11 +49,16 @@ class NetworkAnalyzer:
         
         Args:
             matching_shows: DataFrame of shows matching the criteria with match_level column
+            confidence_info: Dictionary with confidence metrics conforming to ConfidenceInfo
             limit: Maximum number of networks to return
             
         Returns:
             List of NetworkMatch objects sorted by compatibility score
         """
+        # Ensure confidence_info conforms to our ConfidenceInfo contract
+        # This enforces the contract rather than adding defensive checks
+        if confidence_info is not None:
+            confidence_info = update_confidence_info(confidence_info, {})
         try:
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
@@ -90,10 +96,6 @@ class NetworkAnalyzer:
                     # Default if no match_level column
                     compatibility_score = 0.5
                     
-                # Store the match_level in the network details for reference
-                if confidence_info is not None:
-                    network_match.details['global_match_level'] = confidence_info.get('match_level', 1)
-                
                 # Calculate success probability if success_score column exists
                 success_probability = None
                 sample_size = len(network_shows)

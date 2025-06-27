@@ -82,19 +82,21 @@ class CriteriaScorer:
         if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data:
             shows = integrated_data['shows']
                 
-        # Initialize confidence info as a dictionary with default values
-        # This ensures it's always a properly structured dictionary
-        confidence_info = {} if confidence_info is None else confidence_info
+        # Initialize confidence info using update_confidence_info to ensure it conforms to ConfidenceInfo contract
+        from .optimizer_data_contracts import update_confidence_info
+        confidence_info = update_confidence_info({} if confidence_info is None else confidence_info, {})
         if not isinstance(confidence_info, dict):
-            # If somehow confidence_info is not a dict, create a new one
+            # If somehow confidence_info is not a dict, create a new one that conforms to contract
             OptimizerConfig.debug(f"Warning: confidence_info was not a dictionary: {type(confidence_info)}", category='error')
-            confidence_info = {}
+            confidence_info = update_confidence_info({}, {})
         
         # Handle case with no valid shows data
         if shows is None or shows.empty:
-            confidence_info['level'] = 'none'
-            confidence_info['score'] = 0.0
-            confidence_info['error'] = 'No valid shows data provided'
+            confidence_info = update_confidence_info(confidence_info, {
+                'level': 'none',
+                'score': 0.0,
+                'error': 'No valid shows data provided'
+            })
             return None, confidence_info
         
         # Define success filter function
@@ -113,9 +115,11 @@ class CriteriaScorer:
         
         # Handle validation failure
         if not is_valid or validated_data is None or validated_data.empty:
-            confidence_info['level'] = 'none'
-            confidence_info['score'] = 0.0
-            confidence_info['error'] = validation_info.get('error', 'Data validation failed')
+            confidence_info = update_confidence_info(confidence_info, {
+                'level': 'none',
+                'score': 0.0,
+                'error': validation_info.get('error', 'Data validation failed')
+            })
             return None, confidence_info
         
         # Use the provided threshold or default from config
@@ -126,9 +130,11 @@ class CriteriaScorer:
             component_score = calculator.calculate(validated_data, threshold=threshold)
             
             if component_score is None:
-                confidence_info['level'] = 'none'
-                confidence_info['score'] = 0.0
-                confidence_info['error'] = 'Failed to calculate success score'
+                confidence_info = update_confidence_info(confidence_info, {
+                    'level': 'none',
+                    'score': 0.0,
+                    'error': 'Failed to calculate success score'
+                })
                 return None, confidence_info
             
             # Extract success rate and update confidence info with component score details
@@ -143,9 +149,11 @@ class CriteriaScorer:
                 OptimizerConfig.debug(f"Exception during success score calculation: {str(e)}", category='success_rate')
                 OptimizerConfig.debug(traceback.format_exc(), category='success_rate')
             
-            confidence_info['level'] = 'none'
-            confidence_info['score'] = 0.0
-            confidence_info['error'] = f'Exception during calculation: {str(e)}'
+            confidence_info = update_confidence_info(confidence_info, {
+                'level': 'none',
+                'score': 0.0,
+                'error': f'Exception during calculation: {str(e)}'
+            })
             return None, confidence_info
 
    
@@ -816,12 +824,13 @@ class CriteriaScorer:
         """
         # Validate inputs
         if not self._is_valid_dataframe(matching_shows):
-            # Return a structured empty result with error information
+            # Return a structured empty result with error information that conforms to our contracts
+            from .optimizer_data_contracts import update_confidence_info
             return {
                 'component_scores': {},
                 'success_rate': None,
                 'success_info': {'error': 'No matching shows available for score calculation'},
-                'confidence': {'confidence': 'none', 'confidence_score': 0.0}
+                'confidence': update_confidence_info({}, {'level': 'none', 'score': 0.0})
             }
             
         # Calculate confidence information if not already provided
@@ -833,12 +842,13 @@ class CriteriaScorer:
         # Calculate success rate
         success_rate, success_info = self._calculate_success_rate(matching_shows)
         
-        # Combine all scores into a comprehensive result
+        # Combine all scores into a comprehensive result, ensuring confidence_info conforms to contract
+        from .optimizer_data_contracts import update_confidence_info
         all_scores = {
             'component_scores': component_scores,
             'success_rate': success_rate,
             'success_info': success_info,
-            'confidence': confidence_info
+            'confidence': update_confidence_info(confidence_info, {})
         }
         
         return all_scores

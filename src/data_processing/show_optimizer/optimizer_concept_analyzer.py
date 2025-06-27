@@ -98,55 +98,33 @@ class OptimizationSummary:
                     'confidence': network.confidence
                 }
                 formatted['networks'].append(network_data)
-        
-        # Format recommendations data - handle both dictionary and object access
+                # Format recommendations data - all recommendations should be dictionaries
         if self.recommendations:
             for rec in self.recommendations:
-                # Check if rec is a dictionary or an object
-                if isinstance(rec, dict):
-                    # Dictionary-style access for TypedDict
-                    rec_type = rec.get('recommendation_type', '')
-                    rec_dict = {
-                        'recommendation_type': rec_type,
-                        'criteria_type': rec.get('field', ''),
-                        'current_value': rec.get('current_value', None),
-                        'current_name': rec.get('current_name', ''),
-                        'suggested_value': rec.get('suggested_value', None),
-                        'suggested_name': rec.get('suggested_name', ''),
-                        'impact_score': rec.get('impact', 0.0),
-                        'confidence': rec.get('confidence', 'none'),
-                        'description': rec.get('explanation', 'No explanation available')
-                    }
+                # Ensure rec is a dictionary
+                if not isinstance(rec, dict):
+                    # Skip non-dictionary recommendations
+                    continue
                     
-                    # Categorize recommendations
-                    if rec_type.startswith('network_'):
-                        formatted['recommendations']['network_specific'].append(rec_dict)
-                    else:
-                        formatted['recommendations']['general'].append(rec_dict)
+                # Dictionary-style access for TypedDict
+                rec_type = rec.get('recommendation_type', '')
+                rec_dict = {
+                    'recommendation_type': rec_type,
+                    'criteria_type': rec.get('field', ''),
+                    'current_value': rec.get('current_value', None),
+                    'current_name': rec.get('current_name', ''),
+                    'suggested_value': rec.get('suggested_value', None),
+                    'suggested_name': rec.get('suggested_name', ''),
+                    'impact_score': rec.get('impact', 0.0),
+                    'confidence': rec.get('confidence', 'none'),
+                    'description': rec.get('explanation', 'No explanation available')
+                }
+                
+                # Categorize recommendations
+                if rec_type.startswith('network_'):
+                    formatted['recommendations']['network_specific'].append(rec_dict)
                 else:
-                    # For object-style access (e.g., NetworkMatch)
-                    # Skip objects that don't have the necessary attributes
-                    if not hasattr(rec, 'recommendation_type'):
-                        continue
-                        
-                    rec_type = rec.recommendation_type
-                    rec_dict = {
-                        'recommendation_type': rec_type,
-                        'criteria_type': getattr(rec, 'field', ''),
-                        'current_value': getattr(rec, 'current_value', None),
-                        'current_name': getattr(rec, 'current_name', ''),
-                        'suggested_value': getattr(rec, 'suggested_value', None),
-                        'suggested_name': getattr(rec, 'suggested_name', ''),
-                        'impact_score': getattr(rec, 'impact', 0.0),
-                        'confidence': getattr(rec, 'confidence', 'none'),
-                        'description': getattr(rec, 'explanation', 'No explanation available')
-                    }
-                    
-                    # Categorize recommendations
-                    if rec_type.startswith('network_'):
-                        formatted['recommendations']['network_specific'].append(rec_dict)
-                    else:
-                        formatted['recommendations']['general'].append(rec_dict)
+                    formatted['recommendations']['general'].append(rec_dict)
         
         # Store the formatted data for future access
         self._formatted_data_dict = formatted
@@ -264,44 +242,16 @@ class ConceptAnalyzer:
             
             # Extract match information
             match_count = len(matching_shows) if not matching_shows.empty else 0
-
-
             
-            # Safely extract match_level with detailed error tracing
-            try:
-                # First check if confidence_info is a dictionary
-                if not isinstance(confidence_info, dict):
-                    OptimizerConfig.debug(f"confidence_info is not a dictionary: {type(confidence_info)}", category='analyzer', force=True)
-                    # Default values for non-dict confidence_info
-                    match_level = 0
-                    match_quality = 0.0
-                    confidence_score = 0.0
-                else:
-                    # Extract match_level directly with explicit type handling
-                    match_level_value = confidence_info.get('match_level', 0)
-                    OptimizerConfig.debug(f"match_level_value type: {type(match_level_value)}, value: {match_level_value}", category='analyzer', force=True)
-                    
-                    # Convert to int to ensure we have a proper match level value
-                    if isinstance(match_level_value, (int, float)):
-                        match_level = int(match_level_value)
-                        OptimizerConfig.debug(f"match_level is numeric: {match_level}", category='analyzer', force=True)
-                    elif hasattr(match_level_value, 'match_level'):
-                        # Handle case where match_level_value is an object with match_level attribute
-                        match_level = int(getattr(match_level_value, 'match_level', 0))
-                        OptimizerConfig.debug(f"match_level from object attribute: {match_level}", category='analyzer', force=True)
-                    else:
-                        match_level = 0
-                        OptimizerConfig.debug(f"match_level has unexpected type, defaulting to 0", category='analyzer', force=True)
-                    
-                    # Safely extract match_quality and confidence_score
-                    match_quality = confidence_info.get('match_quality', 0.0)
-                    confidence_score = confidence_info.get('confidence_score', 0.0)
+            # Ensure confidence_info conforms to our ConfidenceInfo contract
+            # This is better than adding defensive checks - we enforce the contract
+            confidence_info = update_confidence_info(confidence_info, {})
             
-            except Exception as e:
-                OptimizerConfig.debug(f"Error extracting match_level: {str(e)}\nTraceback: {traceback.format_exc()}", category='analyzer', force=True)
-                match_level = 0
-                match_quality = 0.0
-                confidence_score = 0.0
+            # Now we can safely extract values from confidence_info
+            # The contract guarantees these keys exist
+            match_level = confidence_info['match_level']
+            match_quality = confidence_info.get('match_quality', 0.0)
+            confidence_score = confidence_info.get('confidence_score', 0.0)
             
             # Calculate match counts by level
             match_counts_by_level = {}
@@ -356,8 +306,6 @@ class ConceptAnalyzer:
                     for rec in recommendations:
                         if isinstance(rec, dict):
                             rec_types.append(rec.get('recommendation_type', 'unknown'))
-                        elif hasattr(rec, 'recommendation_type'):
-                            rec_types.append(rec.recommendation_type)
                         else:
                             rec_types.append('unknown')
                     st.write("DEBUG: Recommendation types: " + ", ".join(rec_types))
@@ -578,8 +526,12 @@ class ConceptAnalyzer:
                 pass
                 return []
                 
+            # Ensure confidence_info conforms to our ConfidenceInfo contract
+            # This enforces the contract rather than adding defensive checks
+            confidence_info = update_confidence_info(confidence_info, {})
+            
             # Call rank_networks_by_compatibility with proper error handling
-            # Pass confidence_info to ensure match_level is properly accessed
+            # Now we can safely pass confidence_info to ensure match_level is properly accessed
             network_matches = self.criteria_scorer.network_analyzer.rank_networks_by_compatibility(
                 matching_shows,
                 confidence_info
@@ -752,6 +704,10 @@ class ConceptAnalyzer:
                 st.warning("No matching shows found for recommendation generation")
                 return []
                 
+            # Ensure confidence_info conforms to our ConfidenceInfo contract
+            # This enforces the contract rather than adding defensive checks
+            confidence_info = update_confidence_info(confidence_info, {})
+            
             # Generate general recommendations
             general_recommendations = self.recommendation_engine.generate_recommendations(
                 criteria=criteria,

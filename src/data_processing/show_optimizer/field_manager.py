@@ -592,10 +592,12 @@ class FieldManager:
             # Map confidence score to level using OptimizerConfig
             confidence_level = OptimizerConfig.map_confidence_score_to_level(confidence_score)
                 
+            # Ensure we conform to the ConfidenceInfo contract
             return {
-                'overall': confidence_level,
+                'level': confidence_level,  # Use 'level' instead of 'overall' to match contract
                 'score': confidence_score,
                 'sample_size': overall_sample,
+                'match_level': 1,  # Default match level as required by contract
                 'fields': field_samples
             }
         except Exception as e:
