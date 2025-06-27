@@ -37,8 +37,8 @@ from ..analyze_shows import ShowsAnalyzer
 from ..success_analysis import SuccessAnalyzer
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer, ComponentScore
-from .optimizer_data_contracts import NetworkMatch
-from .recommendation_engine import SuccessFactor, RecommendationEngine, Recommendation
+from .optimizer_data_contracts import NetworkMatch, RecommendationItem
+from .recommendation_engine import SuccessFactor, RecommendationEngine
 from src.dashboard.components.optimizer_view import OptimizerView
 from .optimizer_config import OptimizerConfig
 from .optimizer_matcher import Matcher
@@ -381,13 +381,15 @@ class ShowOptimizer:
             top_networks=[],
             component_scores={},
             recommendations=[
-                Recommendation(
-                    title="Error Occurred",
-                    description=f"Analysis failed: {error_message}",
-                    impact_score=1.0,  # High impact
-                    confidence_score=0.0,  # Low confidence
-                    type="error"
-                )
+                {
+                    "field": "error",
+                    "option": "error",
+                    "option_name": "Error Occurred",
+                    "impact": 1.0,  # High impact
+                    "confidence": "low",
+                    "recommendation_type": "error",
+                    "explanation": f"Analysis failed: {error_message}"
+                }
             ],
             success_factors=[],
             matching_titles=[],

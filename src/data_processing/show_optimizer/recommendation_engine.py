@@ -31,24 +31,8 @@ class SuccessFactor:
     sample_size: int = 0
     matching_titles: List[str] = field(default_factory=list)  # List of show titles matching this criteria
 
-@dataclass
-# DEPRECATED: This class is deprecated in favor of the RecommendationItem TypedDict
+# Note: The Recommendation dataclass has been removed in favor of the RecommendationItem TypedDict
 # defined in optimizer_data_contracts.py
-class Recommendation:
-    """A recommendation for optimizing a show concept.
-    
-    DEPRECATED: Use RecommendationItem TypedDict from optimizer_data_contracts.py instead.
-    """
-    recommendation_type: str  # add, remove, replace, consider, relax, change
-    criteria_type: str        # e.g., "genre", "character_types" (renamed to 'field' in TypedDict)
-    current_value: Any        # Current value (if any)
-    suggested_value: Any      # Suggested value
-    suggested_name: str       # Reference name for suggested value
-    impact_score: float       # Expected impact on success (-1 to 1) (renamed to 'impact' in TypedDict)
-    confidence: str           # none, low, medium, high
-    explanation: str          # Raw data for OptimizerView to format
-    current_name: str = ""    # Reference name for current value
-    metadata: Dict = field(default_factory=dict)  # Additional data for OptimizerView formatting
 
 
 class RecommendationEngine:
@@ -453,7 +437,7 @@ class RecommendationEngine:
                         is_option_selected = criteria[criteria_type] == option_id
                 
                 # Start with the default recommendation type from the success factor
-                # Enforce SuccessFactor contract - no defensive programming
+                # SuccessFactor is a dataclass with attribute-style access (.attribute)
                 rec_type = factor.recommendation_type
                 
                 # Use class-level recommendation type constants for consistency
@@ -480,7 +464,7 @@ class RecommendationEngine:
                     continue
                 
                 # Update the recommendation type in the factor object for consistency
-                factor['recommendation_type'] = rec_type
+                factor.recommendation_type = rec_type
                 
                 # Apply minimum impact thresholds based on recommendation type
                 # This ensures recommendations have meaningful impact values for the UI
@@ -513,7 +497,7 @@ class RecommendationEngine:
                     explanation_text = f"Consider {criteria_name} for potential impact of {abs(impact_score)*100:.1f}%."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
-                # Enforce SuccessFactor contract - access with dictionary-style access
+                # Note: SuccessFactor uses attribute-style access (.attribute), while RecommendationItem uses dictionary-style access ['key']
                 recommendation: RecommendationItem = {
                     'recommendation_type': rec_type,
                     'field': criteria_type,  # Renamed from criteria_type to field per TypedDict contract

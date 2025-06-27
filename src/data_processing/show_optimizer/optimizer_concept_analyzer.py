@@ -29,7 +29,8 @@ from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedDa
 # Data contracts are now imported from optimizer_data_contracts.py
 from .score_calculators import ComponentScore
 from .network_analyzer import NetworkAnalyzer
-from .recommendation_engine import RecommendationEngine, SuccessFactor, Recommendation
+from .recommendation_engine import RecommendationEngine, SuccessFactor
+from .optimizer_data_contracts import RecommendationItem
 
 
 # Helper functions are now imported from optimizer_data_contracts.py
@@ -42,7 +43,7 @@ class OptimizationSummary:
     confidence: str
     top_networks: List[NetworkMatch]
     component_scores: Dict[str, ComponentScore]
-    recommendations: List[Recommendation]
+    recommendations: List[Dict[str, Any]]  # List of RecommendationItem dictionaries
     success_factors: List[SuccessFactor]
     matching_titles: List[str] = field(default_factory=list)  # Titles of shows matching all criteria
     match_level: int = 1  # Match level used (1-4, where 1 is highest)
