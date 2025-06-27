@@ -412,6 +412,7 @@ class OptimizerConfig:
         'high': "High confidence",
         'medium': "Medium confidence",
         'low': "Low confidence",
+        'very_low': "Very low confidence",
         'none': "Insufficient data"
     }
     

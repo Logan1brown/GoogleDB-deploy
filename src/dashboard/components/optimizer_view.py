@@ -211,6 +211,7 @@ class OptimizerView:
         # Debug log the success probability
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Formatting success probability: {probability:.4f}, confidence: {confidence}", category='format')
+            OptimizerConfig.debug(f"Success probability type: {type(probability)}, confidence type: {type(confidence)}", category='format')
             
         # The key in the formatted data dictionary is 'success_probability'
         summary._formatted_data_dict['success_probability'] = self._format_success_probability(
@@ -243,9 +244,9 @@ class OptimizerView:
         # Return the description or empty string if not found
         return descriptions.get(component_name, '')
     
-    def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, Union[float, str, bool]]:
+    def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, str]:
         """
-        Format success probability for display.
+        Format success probability for UI display.
         
         Args:
             probability: Success probability (0-1) or None
@@ -254,16 +255,24 @@ class OptimizerView:
         Returns:
             Dictionary with formatted success probability data including display, subtitle, etc.
         """
-        # Get confidence display text from config
-        confidence_display = self.config.CONFIDENCE_DISPLAY.get(confidence, confidence.capitalize())
-        
         # Format probability as percentage
         if probability is not None:
-            return {
+            # Get confidence display text from config - expect it to be a valid key
+            confidence_display = self.config.CONFIDENCE_DISPLAY[confidence]
+            
+            formatted_result = {
                 "display": f"{probability:.0%}",
                 "subtitle": f"Confidence: {confidence_display}"
             }
+            
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Formatted success probability result: {formatted_result}", category='format')
+                
+            return formatted_result
         else:
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug("Success probability is None, returning N/A", category='format')
+                
             return {
                 "display": "N/A",
                 "subtitle": "Success probability not available"
