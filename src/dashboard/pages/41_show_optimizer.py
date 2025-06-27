@@ -254,8 +254,9 @@ def show():
                                     level_counts[level] = count
                         
                         # Check if we have confidence_info with validation details
-                        if hasattr(summary, 'confidence_info') and summary.confidence_info:
+                        if hasattr(summary, 'confidence_info') and isinstance(summary.confidence_info, dict):
                             confidence_info = summary.confidence_info
+                            # Only access match_level if it exists in the dictionary
                             if 'original_match_level' in confidence_info and 'match_level' in confidence_info:
                                 original_level = confidence_info['original_match_level']
                                 actual_level = confidence_info['match_level']
@@ -552,8 +553,7 @@ def show():
                         # Add minimal debug output if in debug mode
                         if OptimizerConfig.DEBUG_MODE:
                             OptimizerConfig.debug("Formatted recommendations structure", category='recommendation')
-                            OptimizerConfig.debug(f"Total recommendations: {len(formatted_recommendations.get('all', []))}", category='recommendation')
-                            OptimizerConfig.debug(f"Non-empty groups: {[k for k, v in formatted_recommendations.get('grouped', {}).items() if v]}", category='recommendation')
+                            OptimizerConfig.debug(f"Total general recommendations: {len(formatted_recommendations.get('general', []))}", category='recommendation')
                             OptimizerConfig.debug(f"Network-specific recommendations: {len(formatted_recommendations.get('network_specific', []))}", category='recommendation')
                         
                         # Pass the formatted recommendations directly to render_recommendations

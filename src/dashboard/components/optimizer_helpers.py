@@ -335,13 +335,12 @@ def render_success_factors(formatted_factors: List[Dict[str, Union[str, float, i
 
 
 def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]):
-    """Render recommendations using pre-formatted data from OptimizerView.
+    """Render recommendations using pre-formatted data from OptimizationSummary.
     
     Args:
         formatted_recommendations: Dictionary with formatted recommendation data structure:
         {
-            'all': List of all recommendations with fields like field, option, impact, explanation, etc.,
-            'grouped': Dict of recommendation types to lists of recommendations,
+            'general': List of general recommendations with fields like field, option, impact, explanation, etc.,
             'network_specific': List of network-specific recommendations
         }
     """
@@ -351,13 +350,26 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
             st.info("No recommendations available.")
             return
             
-        # Extract recommendation groups - use direct attribute access
-        grouped = formatted_recommendations["grouped"]
-        network_specific = formatted_recommendations["network_specific"]
+        # Extract recommendation groups from OptimizationSummary structure
+        general = formatted_recommendations.get("general", [])
+        network_specific = formatted_recommendations.get("network_specific", [])
+        
+        # Create a grouped structure for compatibility with the rest of the function
+        grouped = {
+            "add": {"items": [], "header": "Add to Your Concept"},
+            "change": {"items": [], "header": "Consider Changing"},
+            "remove": {"items": [], "header": "Consider Removing"}
+        }
+        
+        # Populate the grouped structure with recommendations from general
+        for rec in general:
+            rec_type = rec.get('recommendation_type', '')
+            if rec_type in grouped:
+                grouped[rec_type]['items'].append(rec)
         
         # Keep minimal debug output for recommendations only
         if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Total recommendations: {len(formatted_recommendations['all'])}", category='recommendation')
+            OptimizerConfig.debug(f"Total general recommendations: {len(general)}", category='recommendation')
             OptimizerConfig.debug(f"Network-specific recommendations: {len(network_specific)}", category='recommendation')
                 
         # Check if there are any recommendations in any group
@@ -369,8 +381,8 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
             st.info("No recommendations available for your current criteria.")
             return
             
-        # Get the grouped recommendations
-        grouped = formatted_recommendations["grouped"]
+        # We already created the grouped structure earlier, so we can use it directly
+        # grouped structure is already populated from general recommendations
                 
         # First, render all non-network recommendations
         general_recommendations = []
