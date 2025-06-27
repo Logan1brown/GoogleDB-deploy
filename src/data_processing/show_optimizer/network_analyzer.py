@@ -287,9 +287,8 @@ class NetworkAnalyzer:
             # Calculate success rate for each criteria column
             success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
             
-            # Filter columns to only include those in our known criteria fields list
-            # This skips all the field_manager.has_field() checks that generate debug noise
-            valid_criteria_columns = []
+            # Group columns by their base field name to prioritize name fields over ID fields
+            base_field_columns = {}
             for column in network_shows.columns:
                 # Skip standard columns
                 if column in standard_columns:
@@ -303,9 +302,23 @@ class NetworkAnalyzer:
                     base_field = column[:-5] if column.endswith('_name') else column[:-6]
                 
                 # Only include columns related to our known criteria fields
-                # Skip the field_manager.has_field() check entirely
                 if base_field in known_criteria_fields:
-                    valid_criteria_columns.append(column)
+                    if base_field not in base_field_columns:
+                        base_field_columns[base_field] = []
+                    base_field_columns[base_field].append(column)
+            
+            # For each base field, prioritize name fields over ID fields
+            valid_criteria_columns = []
+            for base_field, columns in base_field_columns.items():
+                # Check if there's a name version of this field
+                name_columns = [c for c in columns if c.endswith('_name') or c.endswith('_names')]
+                if name_columns:
+                    # Use the first name column found
+                    valid_criteria_columns.append(name_columns[0])
+                else:
+                    # If no name version, use the first column (likely an ID version)
+                    valid_criteria_columns.append(columns[0])
+                    
             # Process each valid criteria column
             for column in valid_criteria_columns:
                 # Get unique values for this column
