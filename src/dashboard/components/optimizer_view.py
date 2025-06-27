@@ -489,39 +489,48 @@ class OptimizerView:
         
         # Now process the network-specific recommendations that are provided separately
         if network_specific_recs:
+            # Add minimal debugging to identify the structure of recommendations
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Processing {len(network_specific_recs)} network-specific recommendations", category='recommendation', force=True)
+                if network_specific_recs:
+                    # Debug the first network recommendation keys
+                    first_rec = network_specific_recs[0]
+                    OptimizerConfig.debug(f"First network recommendation keys: {list(first_rec.keys())}", category='recommendation', force=True)
+            
             for rec in network_specific_recs:
                 # Use recommendation_type with dictionary-style access
                 rec_type = rec['recommendation_type']
                 
                 # Format impact percentage for display
-                impact_score = rec.get('impact_score', rec.get('impact', 0.0))
+                # Always use 'impact' as the standard field name from the recommendation engine
+                impact_score = rec['impact']
                 impact_percent = abs(impact_score * 100)
                 impact_direction = "Increase" if impact_score > 0 else "Decrease"
                 
                 # Special debug for 'remove' recommendations
-                if rec_type == 'remove':
-                    criteria_type = rec.get('criteria_type', rec.get('field', 'unknown'))
-                    suggested_name = rec.get('suggested_name', 'unknown')
-                    OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {criteria_type}/{suggested_name}", category='recommendation', force=True)
+                if rec_type == 'remove' and OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {rec['field']}/{rec['suggested_name']}", category='recommendation', force=True)
                 
                 # Create recommendation title without impact percentage
                 if rec_type.startswith('network_'):
                     # For network recommendations
                     clean_rec_type = rec_type.replace('network_', '')
                     # Extract network name from suggested_name
-                    network_name = rec.get('suggested_name', '')
+                    network_name = rec['suggested_name']
                     if ':' in network_name:
                         network_name = network_name.split(':', 1)[0].strip()
                         
-                    criteria_type = rec.get('criteria_type', rec.get('field', ''))
-                    title = f"{network_name} - {clean_rec_type.capitalize()} {criteria_type}"
+                    # Always use 'field' as the standard field name
+                    field_name = rec['field']
+                    title = f"{network_name} - {clean_rec_type.capitalize()} {field_name}"
                 else:
-                    # Format the title to include only the criteria type and suggested name
-                    criteria_type = rec.get('criteria_type', rec.get('field', '')).replace('_', ' ').title()
-                    suggested_name = rec.get('suggested_name', '')
+                    # Format the title to include only the field and suggested name
+                    # Always use 'field' as the standard field name
+                    field_name = rec['field'].replace('_', ' ').title()
+                    suggested_name = rec['suggested_name']
                     
                     # Create a clean title without the impact information
-                    title = f"{criteria_type}: {suggested_name}"
+                    title = f"{field_name}: {suggested_name}"
                     
                 # Generate explanation text based on recommendation type and data
                 explanation = self._generate_explanation_text(rec)
@@ -535,18 +544,18 @@ class OptimizerView:
                     # Display values
                     "title": title,
                     "description": explanation,
-                    "importance": rec.get('confidence', 'medium'),
+                    "importance": rec['confidence'],
                     "category": rec_type,  # This is the key field for grouping
                     "impact": impact_score,
-                    "criteria_type": rec.get('criteria_type', rec.get('field', '')),
-                    "suggested_name": rec.get('suggested_name', ''),
+                    "field": rec['field'],  # Always use 'field' as the standard field name
+                    "suggested_name": rec['suggested_name'],
                     # Dictionary-style access for values
-                    "current_value": rec.get('current_value', None),
-                    "suggested_value": rec.get('suggested_value', None),
+                    "current_value": rec['current_value'],
+                    "suggested_value": rec['suggested_value'],
                     
                     # Raw data for sorting and filtering
                     "_impact_raw": impact_score,
-                    "_confidence_level": self._get_confidence_level(rec.get('confidence', 'medium')),
+                    "_confidence_level": self._get_confidence_level(rec['confidence']),
                     "_rec_type": rec_type
                 }
                 
