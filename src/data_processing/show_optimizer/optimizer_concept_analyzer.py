@@ -943,5 +943,9 @@ class ConceptAnalyzer:
             
         except Exception as e:
             st.error(f"Error generating recommendations: {str(e)}")
-            return []
+            # Always return the expected dictionary structure, even on error
+            return {
+                'general': [],
+                'network_specific': []
+            }
 
