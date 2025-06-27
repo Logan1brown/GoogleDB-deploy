@@ -154,7 +154,8 @@ class OptimizationSummary:
             },
             'component_scores': self._format_component_scores(),
             'success_factors': [],  # Initialize empty list for success factors
-            'overall_success_probability': self._format_success_probability()
+            'overall_success_probability': self._format_success_probability(),
+            'confidence_info': self.confidence_info  # Include confidence_info for error handling
         }
         
         # Format networks and recommendations data

@@ -208,10 +208,7 @@ def render_success_metrics(summary: Any):
             col1, col2, col3 = st.columns(3)
         formatted_data = summary.formatted_data
         
-        # Debug: Check what's in formatted_data
-        st.write(f"DEBUG: formatted_data keys: {list(formatted_data.keys())}")
-        if 'component_scores' in formatted_data:
-            st.write(f"DEBUG: component_scores keys: {list(formatted_data['component_scores'].keys())}")
+        # Check formatted_data structure
         
         # Check if component_scores exists
         if 'component_scores' not in formatted_data:
