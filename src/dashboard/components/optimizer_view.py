@@ -156,8 +156,16 @@ class OptimizerView:
             summary._formatted_data_dict['component_scores'] = self._format_component_scores(summary.component_scores)
             
         # Format match quality if available
-        if hasattr(summary, 'match_quality'):
-            summary._formatted_data_dict['match_quality'] = self._format_match_quality(summary)
+        if hasattr(summary, 'match_level') and hasattr(summary, 'match_count'):
+            # Create a proper match quality dictionary with all required fields
+            match_quality_data = {
+                'match_level': summary.match_level,
+                'match_count': summary.match_count,
+                'match_counts_by_level': summary.match_counts_by_level,
+                'confidence_score': summary.confidence_score,
+                'match_quality_score': summary.match_quality  # The float value
+            }
+            summary._formatted_data_dict['match_quality'] = match_quality_data
             
         # Format success factors if available
         if hasattr(summary, 'success_factors') and summary.success_factors:
@@ -724,33 +732,8 @@ class OptimizerView:
         
         return formatted
     
-    def _format_match_quality(self, summary: OptimizationSummary) -> Dict[str, Union[str, int, float, Dict[str, int]]]:
-        """Format match quality information for display.
-        
-        Args:
-            summary: The OptimizationSummary object containing match quality information
-            
-        Returns:
-            Dictionary with formatted match quality data including level, count, description, etc.
-        """
-        # Extract fields directly from the summary object and confidence_info dictionary
-        match_level = summary.match_level
-        match_count = summary.match_count
-        match_counts_by_level = summary.match_counts_by_level
-        confidence_score = summary.confidence_score
-        match_quality_score = summary.match_quality  # This is the float value
-        
-        # Get match level name from config
-        match_level_name = self.config.MATCH_LEVELS.get(match_level, {}).get('name', f"Level {match_level}")
-        
-        return {
-            "match_level": match_level,
-            "match_level_name": match_level_name,
-            "match_count": match_count,
-            "match_counts_by_level": match_counts_by_level,
-            "confidence_score": confidence_score,
-            "match_quality_score": match_quality_score
-        }
+    # _format_match_quality method has been removed and replaced with direct dictionary creation
+    # in the format_optimization_summary method to maintain explicit data contracts
     
     def _format_matching_shows(self, matching_shows: pd.DataFrame) -> pd.DataFrame:
         """Format matching shows for display in the UI.
