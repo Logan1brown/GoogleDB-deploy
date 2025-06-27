@@ -739,7 +739,7 @@ class ConceptAnalyzer:
             integrated_data: Dictionary of integrated data frames
             
         Returns:
-            List of Recommendation objects
+            List of RecommendationItem dictionaries
         """
         try:
             # Store matching_shows for later use in get_network_specific_recommendations

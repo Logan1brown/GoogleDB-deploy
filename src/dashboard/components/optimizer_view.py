@@ -29,7 +29,8 @@ import streamlit as st
 
 from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
 from src.data_processing.show_optimizer.criteria_scorer import ComponentScore
-from src.data_processing.show_optimizer.recommendation_engine import SuccessFactor, Recommendation
+from src.data_processing.show_optimizer.recommendation_engine import SuccessFactor
+from src.data_processing.show_optimizer.optimizer_data_contracts import RecommendationItem
 from src.data_processing.show_optimizer.field_manager import FieldManager
 from src.data_processing.show_optimizer.optimizer_concept_analyzer import OptimizationSummary
 from src.data_processing.show_optimizer.optimizer_data_contracts import (
@@ -232,7 +233,7 @@ class OptimizerView:
             "confidence_level": confidence
         }
         
-    def _format_recommendations(self, recommendations: List[Recommendation]) -> Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]:
+    def _format_recommendations(self, recommendations: List[Dict[str, Any]]) -> Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]:
         """
         Format recommendations for display in the UI.
         
@@ -249,7 +250,7 @@ class OptimizerView:
         - 'network_change': For suggesting to change elements that don't work well with a specific network
         
         Args:
-            recommendations: List of Recommendation objects with recommendation_type attribute
+            recommendations: List of RecommendationItem dictionaries with recommendation_type key
             
         Returns:
             Dictionary with formatted recommendations grouped by type:
@@ -631,8 +632,8 @@ class OptimizerView:
         - 'network_change': Explains why changing an element could be beneficial for a network
         
         Args:
-            recommendation: Recommendation object with recommendation_type, impact_score, 
-                          criteria_type, suggested_name, current_name, and metadata attributes
+            recommendation: RecommendationItem dictionary with recommendation_type, impact, 
+                          field, suggested_value, suggested_name, and other required keys
             
         Returns:
             Formatted explanation text for display in the UI
@@ -714,24 +715,24 @@ class OptimizerView:
         
         for factor in success_factors:
             # Get proper display name for criteria type using field_manager
-            criteria_type = factor.get('criteria_type', '')
+            criteria_type = factor.criteria_type
             criteria_type_display = criteria_type.replace("_", " ").title()
             
             # Format the success factor with all data needed for UI display
             formatted.append({
                 # Display values
                 "Type": criteria_type_display,
-                "Name": factor.get('criteria_name', ''),
-                "Impact": factor.get('impact_score', 0.0),
-                "ImpactDisplay": f"{factor.get('impact_score', 0.0):.2f}",
-                "Confidence": factor.get('confidence', 'medium').capitalize(),
-                "Sample": factor.get('sample_size', 0),
-                "SampleDisplay": f"Sample: {factor.get('sample_size', 0)}",
+                "Name": factor.criteria_name,
+                "Impact": factor.impact_score,
+                "ImpactDisplay": f"{factor.impact_score:.2f}",
+                "Confidence": factor.confidence.capitalize(),
+                "Sample": factor.sample_size,
+                "SampleDisplay": f"Sample: {factor.sample_size}",
                 
                 # Raw data for charts and sorting
-                "_impact_raw": factor.get('impact_score', 0.0),
-                "_confidence_level": self._get_confidence_level(factor.get('confidence', 'medium')),
-                "_matching_titles": factor.get('matching_titles', [])
+                "_impact_raw": factor.impact_score,
+                "_confidence_level": self._get_confidence_level(factor.confidence),
+                "_matching_titles": factor.matching_titles
             })
         
         # Sort by absolute impact (descending)

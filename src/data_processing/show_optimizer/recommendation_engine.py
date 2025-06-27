@@ -395,7 +395,7 @@ class RecommendationEngine:
             matching_shows: DataFrame of shows matching the current criteria
             
         Returns:
-            List of Recommendation objects sorted by impact score
+            List of RecommendationItem dictionaries sorted by impact score
     """
         # This method processes success factors to generate actionable recommendations
         # Data flow: success_factors -> filter by impact -> determine recommendation type -> create recommendations
@@ -523,7 +523,7 @@ class RecommendationEngine:
             return []
     
     def _identify_limiting_criteria(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, 
-                                confidence_info: ConfidenceInfo) -> List[Recommendation]:
+                                confidence_info: ConfidenceInfo) -> List[RecommendationItem]:
         """Identify criteria that are limiting match quality and suggest alternatives.
         
         Args:
@@ -532,7 +532,7 @@ class RecommendationEngine:
             confidence_info: Dictionary with confidence metrics conforming to ConfidenceInfo
             
         Returns:
-            List of Recommendation objects with suggestions to improve match quality
+            List of RecommendationItem dictionaries with suggestions to improve match quality
         """
         recommendations = []
         
@@ -609,7 +609,7 @@ class RecommendationEngine:
         
         return recommendations
     
-    def _analyze_successful_patterns(self, criteria: CriteriaDict, matching_shows: pd.DataFrame) -> List[Recommendation]:
+    def _analyze_successful_patterns(self, criteria: CriteriaDict, matching_shows: pd.DataFrame) -> List[RecommendationItem]:
         """Analyze patterns in successful shows and suggest criteria changes.
         
         Args:
@@ -617,7 +617,7 @@ class RecommendationEngine:
             matching_shows: DataFrame of matching shows
             
         Returns:
-            List of Recommendation objects based on successful patterns
+            List of RecommendationItem dictionaries based on successful patterns
         """
         # Skip if we don't have enough data
         if matching_shows is None or matching_shows.empty or len(matching_shows) < self.config.CONFIDENCE.get('minimum_sample', 10):

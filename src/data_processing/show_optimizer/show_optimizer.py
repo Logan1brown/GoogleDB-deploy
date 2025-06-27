@@ -569,14 +569,14 @@ class ShowOptimizer:
             st.error(f"Error analyzing success factors: {str(e)}")
             return []
     
-    def get_recommendations(self, criteria: CriteriaDict) -> List[Recommendation]:
+    def get_recommendations(self, criteria: CriteriaDict) -> List[Dict[str, Any]]:
         """Get recommendations for the given criteria.
         
         Args:
             criteria: Dictionary of criteria for recommendation generation conforming to CriteriaDict
             
         Returns:
-            List of Recommendation objects sorted by importance
+            List of RecommendationItem dictionaries sorted by importance
         """
         # Ensure initialization and check components
         initialized, error = self._ensure_initialized()
