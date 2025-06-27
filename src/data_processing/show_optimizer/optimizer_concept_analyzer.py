@@ -77,36 +77,35 @@ class OptimizationSummary:
         Returns:
             Dictionary with formatted component scores
         """
-        formatted_scores = {}
-        
+        # Component scores should always be present, but return empty dict if not
+        # This maintains the contract with the UI layer
         if not self.component_scores:
-            # Return empty dict - UI will handle missing component scores
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug("No component scores available to format", category='components')
-            return formatted_scores
+            return {}
             
         # Debug log the component scores before formatting
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Formatting {len(self.component_scores)} component scores: {list(self.component_scores.keys())}", category='components')
             
-        # Convert each ComponentScore dataclass to a dictionary with attribute-style access
+        # Format each ComponentScore object into a dictionary
+        formatted_scores = {}
         for component_name, component_score in self.component_scores.items():
-            # Start with basic score information
+            # Create a clean dictionary with the required fields
             score_dict = {
                 'score': float(component_score.score) if component_score.score is not None else None,
                 'sample_size': component_score.sample_size,
                 'confidence': component_score.confidence
             }
             
+            # Add error information if present in details
+            if component_score.details and 'error' in component_score.details:
+                score_dict['error'] = component_score.details['error']
+                
             # Debug log each component score
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Component {component_name}: score={score_dict['score']}, sample_size={score_dict['sample_size']}, confidence={score_dict['confidence']}", category='components')
-            
-            # Check if there's an error in the component score details
-            if hasattr(component_score, 'details') and isinstance(component_score.details, dict):
-                if 'error' in component_score.details:
-                    score_dict['error'] = component_score.details['error']
-                    
+                
             formatted_scores[component_name] = score_dict
             
         return formatted_scores

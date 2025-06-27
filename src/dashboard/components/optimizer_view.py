@@ -154,26 +154,17 @@ class OptimizerView:
             
         # Format component scores directly in the view layer
         if hasattr(summary, 'component_scores'):
-            # Format component scores for UI display
+            # Format component scores for UI display - expect all scores to be ComponentScore objects
             component_scores = {}
             for component, score in summary.component_scores.items():
-                # Handle ComponentScore objects properly
-                if hasattr(score, 'score') and hasattr(score, 'confidence'):
-                    # This is a ComponentScore object
-                    component_scores[component] = {
-                        'score': float(score.score) if score.score is not None else None,
-                        'sample_size': score.sample_size,
-                        'confidence': score.confidence,
-                        'label': component.replace('_', ' ').title(),
-                        'description': OptimizerConfig.COMPONENT_DESCRIPTIONS.get(component, '')
-                    }
-                elif isinstance(score, (int, float)):
-                    # Handle simple numeric scores
-                    component_scores[component] = {
-                        'score': score,
-                        'label': component.replace('_', ' ').title(),
-                        'description': OptimizerConfig.COMPONENT_DESCRIPTIONS.get(component, '')
-                    }
+                # Format the ComponentScore object for UI display
+                component_scores[component] = {
+                    'score': float(score.score) if score.score is not None else None,
+                    'sample_size': score.sample_size,
+                    'confidence': score.confidence,
+                    'label': component.replace('_', ' ').title(),
+                    'description': self._get_component_description(component)
+                }
             
             # Debug log the component scores
             if OptimizerConfig.DEBUG_MODE:
@@ -212,44 +203,18 @@ class OptimizerView:
             # Replace the original DataFrame with the formatted one
             summary.matching_shows = formatted_shows
         
-        # Format success probability if available
-        # Check for both direct attribute and formatted data from OptimizationSummary
-        if hasattr(summary, 'overall_success_probability') and summary.overall_success_probability is not None:
-            # Direct attribute access
-            probability = summary.overall_success_probability
-            confidence = summary.confidence if hasattr(summary, 'confidence') else self.config.DEFAULT_VALUES['confidence']
+        # Format success probability
+        # Use the overall_success_probability attribute which should always be present
+        probability = summary.overall_success_probability
+        confidence = summary.confidence
+        
+        # Debug log the success probability
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Formatting success probability: {probability:.4f}, confidence: {confidence}", category='format')
             
-            # Debug log the success probability
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Formatting success probability: {probability:.4f}, confidence: {confidence}", category='format')
-                
-            summary._formatted_data_dict['success_probability'] = self._format_success_probability(
-                probability, confidence
-            )
-        elif hasattr(summary, 'component_scores') and 'success' in summary.component_scores:
-            # Extract from component scores if available
-            success_component = summary.component_scores['success']
-            if hasattr(success_component, 'score') and success_component.score is not None:
-                probability = float(success_component.score)
-                confidence = success_component.confidence
-                
-                # Debug log the success probability from component scores
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Using success component score as probability: {probability:.4f}, confidence: {confidence}", category='format')
-                    
-                summary._formatted_data_dict['success_probability'] = self._format_success_probability(
-                    probability, confidence
-                )
-            else:
-                # No valid success probability found
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("No valid success probability found", category='format')
-                    
-                summary._formatted_data_dict['success_probability'] = {
-                    "value": "N/A",
-                    "confidence": "None",
-                    "confidence_level": "none"
-                }
+        summary._formatted_data_dict['success_probability'] = self._format_success_probability(
+            probability, confidence
+        )
         
         # Set the formatted_data property to the dictionary
         summary.formatted_data = summary._formatted_data_dict
