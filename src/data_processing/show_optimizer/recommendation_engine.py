@@ -14,7 +14,8 @@ from typing import Dict, List, Any, Tuple, Optional, Set, Union
 from .optimizer_config import OptimizerConfig
 from .optimizer_data_contracts import (
     CriteriaDict, ConfidenceInfo, IntegratedData,
-    NetworkMatch, RecommendationItem, FieldValueData, FieldValueSuccessRate
+    NetworkMatch, RecommendationItem, FieldValueData, FieldValueSuccessRate,
+    update_confidence_info
 )
 
 
@@ -785,10 +786,6 @@ class RecommendationEngine:
                                                matching_shows: pd.DataFrame,
                                                integrated_data: IntegratedData,
                                                confidence_info: Optional[ConfidenceInfo] = None) -> List[RecommendationItem]:
-        # Ensure confidence_info conforms to our ConfidenceInfo contract
-        # This enforces the contract rather than adding defensive checks
-        if confidence_info is not None:
-            confidence_info = update_confidence_info(confidence_info, {})
         """
         Generate network-specific recommendations.
 
@@ -797,10 +794,15 @@ class RecommendationEngine:
             network: NetworkMatch object with network information
             matching_shows: DataFrame of shows matching the criteria
             integrated_data: Integrated data for additional context
+            confidence_info: Optional confidence information dictionary
 
         Returns:
             List of network-specific recommendations
         """
+        # Ensure confidence_info conforms to our ConfidenceInfo contract
+        # This enforces the contract rather than adding defensive checks
+        if confidence_info is not None:
+            confidence_info = update_confidence_info(confidence_info, {})
         # Debug mode check for network-specific recommendations
         if OptimizerConfig.DEBUG_MODE:
             st.write("DEBUG: Starting network-specific recommendations generation")
