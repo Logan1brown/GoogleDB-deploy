@@ -221,6 +221,27 @@ class OptimizerView:
         
         return summary
     
+    def _get_component_description(self, component_name: str) -> str:
+        """
+        Get the description for a component.
+        
+        Args:
+            component_name: Name of the component
+            
+        Returns:
+            Description of the component
+        """
+        # Define descriptions for each component
+        descriptions = {
+            'success': 'Overall probability of success based on historical data',
+            'audience': 'Audience appeal and engagement potential',
+            'critics': 'Projected critical reception and reviews',
+            'longevity': 'Expected show lifespan and sustainability'
+        }
+        
+        # Return the description or empty string if not found
+        return descriptions.get(component_name, '')
+    
     def _format_success_probability(self, probability: Optional[float], confidence: str) -> Dict[str, Union[float, str, bool]]:
         """
         Format success probability for display.
