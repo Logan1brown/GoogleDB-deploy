@@ -452,6 +452,7 @@ class RecommendationEngine:
                         is_option_selected = criteria[factor.criteria_type] == option_id
                 
                 # Start with the default recommendation type from the success factor
+                # Enforce SuccessFactor contract - no defensive programming
                 rec_type = factor.recommendation_type
                 
                 # Use class-level recommendation type constants for consistency
@@ -499,6 +500,7 @@ class RecommendationEngine:
                 
                 # Create explanation text based on the recommendation type
                 explanation_text = ""
+                
                 if rec_type == self.REC_TYPE_ADD:
                     explanation_text = f"Adding {factor.criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
                 elif rec_type == self.REC_TYPE_REMOVE:
@@ -509,6 +511,7 @@ class RecommendationEngine:
                     explanation_text = f"Consider {factor.criteria_name} for potential impact of {abs(impact_score)*100:.1f}%."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
+                # Enforce SuccessFactor contract - access attributes directly
                 recommendation: RecommendationItem = {
                     'recommendation_type': rec_type,
                     'field': factor.criteria_type,  # Renamed from criteria_type to field per TypedDict contract
