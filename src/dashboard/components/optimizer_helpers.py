@@ -208,16 +208,21 @@ def render_success_metrics(summary: Any):
             col1, col2, col3 = st.columns(3)
         formatted_data = summary.formatted_data
         
-        # Check if we have an error in the confidence_info
-        if 'confidence_info' in formatted_data and isinstance(formatted_data['confidence_info'], dict) and 'error' in formatted_data['confidence_info']:
-            error_message = formatted_data['confidence_info']['error']
-            st.error(f"Unable to display success metrics due to an error: {error_message}")
-            return
-            
+        # Debug: Check what's in formatted_data
+        st.write(f"DEBUG: formatted_data keys: {list(formatted_data.keys())}")
+        if 'component_scores' in formatted_data:
+            st.write(f"DEBUG: component_scores keys: {list(formatted_data['component_scores'].keys())}")
+        
         # Check if component_scores exists
         if 'component_scores' not in formatted_data:
             st.error("Unable to display success metrics: Missing component scores data")
             return
+            
+        # Display any error message at the top if present
+        if 'confidence_info' in formatted_data and isinstance(formatted_data['confidence_info'], dict) and 'error' in formatted_data['confidence_info']:
+            error_message = formatted_data['confidence_info']['error']
+            st.warning(f"Analysis encountered an issue: {error_message}")
+            # Continue to display metrics with error information
             
         # Top row: Overall Success Score and Success Probability
         st.write("### Success Metrics")

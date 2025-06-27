@@ -74,30 +74,25 @@ class OptimizationSummary:
         """
         formatted_scores = {}
         
-        # Check for error in confidence_info
-        if isinstance(self.confidence_info, dict) and 'error' in self.confidence_info:
-            # Add error information to each component score
-            error_message = self.confidence_info['error']
-            for component_name in ['success', 'audience', 'critics', 'longevity']:
-                formatted_scores[component_name] = {
-                    'score': None,
-                    'sample_size': 0,
-                    'confidence': 'none',
-                    'error': error_message
-                }
-            return formatted_scores
-        
         if not self.component_scores:
             # Return empty dict - UI will handle missing component scores
             return formatted_scores
             
         # Convert each ComponentScore dataclass to a dictionary with attribute-style access
         for component_name, component_score in self.component_scores.items():
-            formatted_scores[component_name] = {
-                'score': float(component_score.score) if component_score.score is not None else 0.0,
+            # Start with basic score information
+            score_dict = {
+                'score': float(component_score.score) if component_score.score is not None else None,
                 'sample_size': component_score.sample_size,
                 'confidence': component_score.confidence
             }
+            
+            # Check if there's an error in the component score details
+            if hasattr(component_score, 'details') and isinstance(component_score.details, dict):
+                if 'error' in component_score.details:
+                    score_dict['error'] = component_score.details['error']
+                    
+            formatted_scores[component_name] = score_dict
             
         return formatted_scores
     
@@ -142,27 +137,15 @@ class OptimizationSummary:
         Returns a dictionary with formatted networks and recommendations data
         ready for display in the UI.
         """
-        # Debug: Check the type of confidence_info
-        st.write(f"DEBUG: formatted_data START - confidence_info type: {type(self.confidence_info)}")
-        if isinstance(self.confidence_info, dict):
-            st.write(f"DEBUG: formatted_data START - confidence_info keys: {list(self.confidence_info.keys())}")
-            # Check specific keys we're interested in
-            if 'match_level' in self.confidence_info:
-                st.write(f"DEBUG: formatted_data START - match_level in confidence_info: {self.confidence_info['match_level']} (type: {type(self.confidence_info['match_level'])})")
-        else:
-            st.write(f"DEBUG: formatted_data START - confidence_info value: {self.confidence_info}")
-            
-        # Debug: Check other attributes
-        st.write(f"DEBUG: formatted_data START - match_level attribute type: {type(self.match_level)}")
-        st.write(f"DEBUG: formatted_data START - match_level attribute value: {self.match_level}")
+        # No debug statements needed here - we've fixed the confidence_info handling
             
         # If _formatted_data_dict has been set, return it
         if self._formatted_data_dict:
-            st.write("DEBUG: formatted_data - returning cached _formatted_data_dict")
+            # Return cached formatted data
             return self._formatted_data_dict
             
         # Otherwise generate formatted data
-        st.write("DEBUG: formatted_data - generating new formatted data")
+        # Generate new formatted data
         formatted = {
             'networks': [],
             'recommendations': {
@@ -174,12 +157,7 @@ class OptimizationSummary:
             'overall_success_probability': self._format_success_probability()
         }
         
-        # Debug: Check confidence_info again
-        st.write(f"DEBUG: formatted_data MIDDLE - confidence_info type: {type(self.confidence_info)}")
-        if isinstance(self.confidence_info, dict):
-            st.write(f"DEBUG: formatted_data MIDDLE - confidence_info keys: {list(self.confidence_info.keys())}")
-        else:
-            st.write(f"DEBUG: formatted_data MIDDLE - confidence_info value: {self.confidence_info}")
+        # Format networks and recommendations data
         
         # Format networks data using direct attribute access
         if self.top_networks:
@@ -221,12 +199,7 @@ class OptimizationSummary:
                 else:
                     formatted['recommendations']['general'].append(rec_dict)
         
-        # Debug: Check confidence_info one more time before returning
-        st.write(f"DEBUG: formatted_data END - confidence_info type: {type(self.confidence_info)}")
-        if isinstance(self.confidence_info, dict):
-            st.write(f"DEBUG: formatted_data END - confidence_info keys: {list(self.confidence_info.keys())}")
-        else:
-            st.write(f"DEBUG: formatted_data END - confidence_info value: {self.confidence_info}")
+        # Cache and return the formatted data
             
         # Store the formatted data for future access
         self._formatted_data_dict = formatted
@@ -289,13 +262,44 @@ class ConceptAnalyzer:
         """
         st.error(f"Analysis failed: {error_message}")
         
-        # Create a minimal summary with error information - no default scores
-        # This will cause UI components to fail explicitly rather than showing fake data
+        # Create a minimal summary with error information
+        # Include placeholder component scores with error information for better UI display
+        component_scores = {
+            'success': ComponentScore(
+                component='success',
+                score=None,
+                sample_size=0,
+                confidence='none',
+                details={'error': error_message}
+            ),
+            'audience': ComponentScore(
+                component='audience',
+                score=None,
+                sample_size=0,
+                confidence='none',
+                details={'error': error_message}
+            ),
+            'critics': ComponentScore(
+                component='critics',
+                score=None,
+                sample_size=0,
+                confidence='none',
+                details={'error': error_message}
+            ),
+            'longevity': ComponentScore(
+                component='longevity',
+                score=None,
+                sample_size=0,
+                confidence='none',
+                details={'error': error_message}
+            )
+        }
+        
         return OptimizationSummary(
             overall_success_probability=None,
             confidence='none',
             top_networks=[],
-            component_scores={},  # Empty dict - no fake default scores
+            component_scores=component_scores,  # Include component scores with error info
             recommendations=[],
             success_factors=[],
             matching_titles=[],
