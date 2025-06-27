@@ -430,13 +430,13 @@ class RecommendationEngine:
             for factor in success_factors:
                 # Skip factors with impact below threshold
                 # This is a business rule, not defensive programming
-                if abs(factor.get('impact_score', 0.0)) < min_impact:
+                if abs(factor.impact_score) < min_impact:
                     continue
                 
                 # Get information about the selection status for filtering
-                criteria_type = factor.get('criteria_type', '')
+                criteria_type = factor.criteria_type
                 is_field_selected = criteria_type in criteria
-                option_id = factor.get('criteria_value', '')
+                option_id = factor.criteria_value
                 is_option_selected = False
                 
                 # Check if this specific option is selected
@@ -454,7 +454,7 @@ class RecommendationEngine:
                 
                 # Start with the default recommendation type from the success factor
                 # Enforce SuccessFactor contract - no defensive programming
-                rec_type = factor.get('recommendation_type', '')
+                rec_type = factor.recommendation_type
                 
                 # Use class-level recommendation type constants for consistency
                 # This follows the recommendation from the data flow analysis to standardize types
@@ -462,7 +462,7 @@ class RecommendationEngine:
                 # Determine recommendation type based on selection status and impact score
                 # This ensures consistent recommendation types across the application
                 # TODO: Move recommendation type definitions to OptimizerConfig for standardization
-                impact_score = factor.get('impact_score', 0.0)
+                impact_score = factor.impact_score
                 if is_option_selected and impact_score < 0:
                     # Selected option with negative impact should be a 'remove' recommendation
                     rec_type = self.REC_TYPE_REMOVE
@@ -502,7 +502,7 @@ class RecommendationEngine:
                 # Create explanation text based on the recommendation type
                 explanation_text = ""
                 
-                criteria_name = factor.get('criteria_name', '')
+                criteria_name = factor.criteria_name
                 if rec_type == self.REC_TYPE_ADD:
                     explanation_text = f"Adding {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
                 elif rec_type == self.REC_TYPE_REMOVE:
@@ -518,10 +518,10 @@ class RecommendationEngine:
                     'recommendation_type': rec_type,
                     'field': criteria_type,  # Renamed from criteria_type to field per TypedDict contract
                     'current_value': None,
-                    'suggested_value': option_id,  # Using option_id which was set from factor.get('criteria_value', '')
-                    'suggested_name': criteria_name,  # Using criteria_name which was set from factor.get('criteria_name', '')
+                    'suggested_value': option_id,  # Using option_id which was set from factor.criteria_value
+                    'suggested_name': criteria_name,  # Using criteria_name which was set from factor.criteria_name
                     'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
-                    'confidence': factor.get('confidence', 'medium'),
+                    'confidence': factor.confidence,
                     'explanation': explanation_text
                 }
                 
