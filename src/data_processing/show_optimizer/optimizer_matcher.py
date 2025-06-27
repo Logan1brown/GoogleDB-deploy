@@ -47,8 +47,7 @@ class Matcher:
         if data is None or data.empty:
             # Use stored criteria data if available
             if self._criteria_data is not None and not self._criteria_data.empty:
-                if OptimizerConfig.DEBUG_MODE and not getattr(self, '_in_batch_operation', False):
-                    OptimizerConfig.debug(f"Using stored criteria data with {len(self._criteria_data)} rows", category='matcher')
+
                 return self._criteria_data
             return pd.DataFrame()
         return data
@@ -298,10 +297,7 @@ class Matcher:
         if data_to_match.empty:
             # Only output debug message if we're not in a batch operation (criteria_scorer.calculate_criteria_impact)
             # This reduces noise in the logs during impact calculations
-            if OptimizerConfig.DEBUG_MODE and not getattr(self, '_in_batch_operation', False):
-                # Include criteria keys in the debug message to help identify the source
-                criteria_keys = list(criteria.keys()) if criteria else []
-                OptimizerConfig.debug(f"No data available for matching criteria: {criteria_keys}", category='matcher')
+
             # Return an empty DataFrame with the required columns and explicit confidence info
             empty_confidence = update_confidence_info({}, {
                 'level': 'none',
@@ -348,13 +344,7 @@ class Matcher:
             if not best_confidence_info:
                 best_confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
                 
-                # Debug log when confidence info is first calculated
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: First confidence_info in find_matches_with_fallback: match_level={best_confidence_info['match_level']}, level={best_confidence_info['level']}")
-                    st.write(f"DEBUG: Criteria used: {list(criteria.keys()) if criteria else []}")
-                    st.write(f"DEBUG: Number of matches: {len(level_matches)}")
-                    st.write(f"DEBUG: Match level: {level}")
-                    st.write(f"DEBUG: Match level description: {level_desc}")
+
             
             # Filter out shows we've already found at better match levels
             new_matches = level_matches[~level_matches['title'].isin(unique_titles)]
@@ -512,8 +502,7 @@ class Matcher:
                     sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
             except Exception as e:
                 # If groupby fails, fall back to simple sampling
-                OptimizerConfig.debug(f"Sampling by match_level failed: {str(e)}", category='matcher')
-                OptimizerConfig.debug("Falling back to simple sampling", category='matcher')
+                # Falling back to simple sampling
                 
                 # Sort if possible, otherwise just sample
                 try:
@@ -621,27 +610,7 @@ class Matcher:
             
         # Matching complete
         match_count = len(matches)
-        if match_count == 0:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("_match_shows found 0 matching shows after applying all filters", category='matcher')
-                OptimizerConfig.debug(f"Original criteria: {criteria}", category='matcher')
-                OptimizerConfig.debug(f"Clean criteria: {clean_criteria}", category='matcher')
-                
-                # Log field mapping details to help diagnose issues
-                field_mapping_details = {}
-                for field_name in clean_criteria.keys():
-                    field_column = self.field_manager.get_field_column_name(field_name, data.columns)
-                    field_type = self.field_manager.get_field_type(field_name)
-                    field_mapping_details[field_name] = {
-                        'mapped_column': field_column,
-                        'field_type': field_type,
-                        'in_data_columns': field_column in data.columns,
-                        'value_type': type(clean_criteria[field_name]).__name__
-                    }
-                OptimizerConfig.debug(f"Field mapping details: {field_mapping_details}", category='matcher')
-                
-                OptimizerConfig.debug("No matches found. This could be due to:\n\nCriteria that are too restrictive\nMissing or mismatched field names\nData format issues (e.g., array vs scalar fields)", category='matcher')
-
+        
         return matches, match_count
     
     def calculate_match_confidence(self, shows: pd.DataFrame, match_level: int, 
@@ -755,9 +724,7 @@ class Matcher:
             'match_level_name': self._get_match_level_description(actual_match_level)
         }
         
-        # Debug log the confidence info generation
-        if OptimizerConfig.DEBUG_MODE:
-            st.write(f"DEBUG: Generated confidence_info with match_level={confidence_info['match_level']}, level={confidence_info['level']}")
+
             
         return confidence_info
         

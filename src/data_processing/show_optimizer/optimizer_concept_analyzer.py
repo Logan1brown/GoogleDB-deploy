@@ -253,12 +253,10 @@ class ConceptAnalyzer:
             # VERY OBVIOUS UI CHANGE TO CONFIRM CODE UPDATES ARE WORKING
             # Version indicator is now in the sidebar
             
-            if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Starting analyze_concept method")
+
             
             # Step 1: Find matching shows using integrated data
-            if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Finding matching shows")
+
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data)
             
             # Store matching_shows for later use in get_network_specific_recommendations
@@ -266,10 +264,7 @@ class ConceptAnalyzer:
             
             # Extract match information
             match_count = len(matching_shows) if not matching_shows.empty else 0
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Found {match_count} matching shows")
-                st.write(f"DEBUG: Confidence info: {confidence_info}")
-                st.write(f"DEBUG: Matching shows columns: {matching_shows.columns.tolist() if not matching_shows.empty else []}")
+
 
             
             # Safely extract match_level with detailed error tracing
