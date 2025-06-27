@@ -72,6 +72,17 @@ class OptimizationSummary:
         Returns a dictionary with formatted networks and recommendations data
         ready for display in the UI.
         """
+        # Debug: Check the type of confidence_info
+        st.write(f"DEBUG: confidence_info type: {type(self.confidence_info)}")
+        if isinstance(self.confidence_info, dict):
+            st.write(f"DEBUG: confidence_info keys: {list(self.confidence_info.keys())}")
+        else:
+            st.write(f"DEBUG: confidence_info value: {self.confidence_info}")
+            
+        # Debug: Check other attributes
+        st.write(f"DEBUG: match_level type: {type(self.match_level)}")
+        st.write(f"DEBUG: match_level value: {self.match_level}")
+            
         # If _formatted_data_dict has been set, return it
         if self._formatted_data_dict:
             return self._formatted_data_dict
@@ -319,6 +330,18 @@ class ConceptAnalyzer:
                 # Limit to MAX_RESULTS titles
                 if len(matching_titles) > self.config.MAX_RESULTS:
                     matching_titles = matching_titles[:self.config.MAX_RESULTS]
+            
+            # Debug: Check the type of confidence_info before creating OptimizationSummary
+            st.write(f"DEBUG: Before summary creation - confidence_info type: {type(confidence_info)}")
+            if isinstance(confidence_info, dict):
+                st.write(f"DEBUG: Before summary creation - confidence_info keys: {list(confidence_info.keys())}")
+                st.write(f"DEBUG: Before summary creation - confidence_info['match_level']: {confidence_info.get('match_level', 'NOT FOUND')}")
+            else:
+                st.write(f"DEBUG: Before summary creation - confidence_info value: {confidence_info}")
+                
+            # Debug: Check other variables
+            st.write(f"DEBUG: Before summary creation - match_level type: {type(match_level)}")
+            st.write(f"DEBUG: Before summary creation - match_level value: {match_level}")
             
             # Create and return the optimization summary
             summary = OptimizationSummary(
