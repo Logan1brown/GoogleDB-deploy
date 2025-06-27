@@ -519,6 +519,9 @@ class CriteriaScorer:
                             
                         # Calculate impact as the difference from base rate
                         impact = option_rate - base_rate
+                        
+                        # Store the original impact for reference
+                        original_impact = impact
                     
                         # Get minimum impact threshold
                         min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
@@ -558,8 +561,7 @@ class CriteriaScorer:
                                 OptimizerConfig.debug(f"Skipping {current_field}={option_name}: negative impact {impact:.4f} on unselected field", category='impact')
                             continue  # Skip to next option
                         
-                        # Add detailed debug output for recommendation type determination
-                        # Removed verbose debug statement about recommendation type determination
+                        # Recommendation type determination logic follows
                         
                         # Store impact score with all relevant information - ALWAYS as a complete dictionary
                         # This ensures consistent data structure throughout the application
@@ -581,7 +583,7 @@ class CriteriaScorer:
                         continue
                 
             # Check if we have any impact scores after processing all fields
-            # Removed debug statement about impact score counts
+            # Process impact scores
                 
                 # Debug log to verify impact data structure integrity
                 for field, options in impact_scores.items():
@@ -897,7 +899,7 @@ class CriteriaScorer:
             return component_scores
             
         except Exception as e:
-            # Error handling without excessive debug output
+            # Error handling
             return {}
 
     def calculate_confidence(self, criteria: CriteriaDict) -> ConfidenceInfo:
