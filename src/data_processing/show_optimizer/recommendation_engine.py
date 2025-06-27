@@ -778,13 +778,17 @@ class RecommendationEngine:
         for option in options:
             if option.id == value:
                 return option.name
-        return str(value)       
+        return str(value)
 
     def generate_network_specific_recommendations(self, criteria: CriteriaDict, 
-                                              network: NetworkMatch,
-                                              matching_shows: pd.DataFrame,
-                                              integrated_data: IntegratedData,
-                                              confidence_info: Optional[ConfidenceInfo] = None) -> List[RecommendationItem]:
+                                               network: NetworkMatch,
+                                               matching_shows: pd.DataFrame,
+                                               integrated_data: IntegratedData,
+                                               confidence_info: Optional[ConfidenceInfo] = None) -> List[RecommendationItem]:
+        # Ensure confidence_info conforms to our ConfidenceInfo contract
+        # This enforces the contract rather than adding defensive checks
+        if confidence_info is not None:
+            confidence_info = update_confidence_info(confidence_info, {})
         """
         Generate network-specific recommendations.
 
