@@ -714,23 +714,24 @@ class OptimizerView:
         
         for factor in success_factors:
             # Get proper display name for criteria type using field_manager
-            criteria_type_display = factor.criteria_type.replace("_", " ").title()
+            criteria_type = factor.get('criteria_type', '')
+            criteria_type_display = criteria_type.replace("_", " ").title()
             
             # Format the success factor with all data needed for UI display
             formatted.append({
                 # Display values
                 "Type": criteria_type_display,
-                "Name": factor.criteria_name,
-                "Impact": factor.impact_score,
-                "ImpactDisplay": f"{factor.impact_score:.2f}",
-                "Confidence": factor.confidence.capitalize(),
-                "Sample": factor.sample_size,
-                "SampleDisplay": f"Sample: {factor.sample_size}",
+                "Name": factor.get('criteria_name', ''),
+                "Impact": factor.get('impact_score', 0.0),
+                "ImpactDisplay": f"{factor.get('impact_score', 0.0):.2f}",
+                "Confidence": factor.get('confidence', 'medium').capitalize(),
+                "Sample": factor.get('sample_size', 0),
+                "SampleDisplay": f"Sample: {factor.get('sample_size', 0)}",
                 
                 # Raw data for charts and sorting
-                "_impact_raw": factor.impact_score,
-                "_confidence_level": self._get_confidence_level(factor.confidence),
-                "_matching_titles": factor.matching_titles if hasattr(factor, 'matching_titles') else []
+                "_impact_raw": factor.get('impact_score', 0.0),
+                "_confidence_level": self._get_confidence_level(factor.get('confidence', 'medium')),
+                "_matching_titles": factor.get('matching_titles', [])
             })
         
         # Sort by absolute impact (descending)

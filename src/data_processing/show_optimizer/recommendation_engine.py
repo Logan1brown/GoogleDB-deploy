@@ -453,7 +453,7 @@ class RecommendationEngine:
                 
                 # Start with the default recommendation type from the success factor
                 # Enforce SuccessFactor contract - no defensive programming
-                rec_type = factor.recommendation_type
+                rec_type = factor.get('recommendation_type', '')
                 
                 # Use class-level recommendation type constants for consistency
                 # This follows the recommendation from the data flow analysis to standardize types
@@ -461,29 +461,29 @@ class RecommendationEngine:
                 # Determine recommendation type based on selection status and impact score
                 # This ensures consistent recommendation types across the application
                 # TODO: Move recommendation type definitions to OptimizerConfig for standardization
-                if is_option_selected and factor.impact_score < 0:
+                impact_score = factor.get('impact_score', 0.0)
+                if is_option_selected and impact_score < 0:
                     # Selected option with negative impact should be a 'remove' recommendation
                     rec_type = self.REC_TYPE_REMOVE
-                elif not is_field_selected and factor.impact_score > 0:
+                elif not is_field_selected and impact_score > 0:
                     # Unselected field with positive impact should be an 'add' recommendation
                     rec_type = self.REC_TYPE_ADD
-                elif is_field_selected and not is_option_selected and factor.impact_score > 0:
+                elif is_field_selected and not is_option_selected and impact_score > 0:
                     # Selected field but different option with positive impact should be a 'change' recommendation
                     rec_type = self.REC_TYPE_CHANGE
-                elif factor.recommendation_type == self.REC_TYPE_ADD and factor.impact_score < 0:
+                elif rec_type == self.REC_TYPE_ADD and impact_score < 0:
                     # Don't recommend adding something with negative impact
                     continue
-                elif factor.recommendation_type == self.REC_TYPE_REMOVE and not is_field_selected:
+                elif rec_type == self.REC_TYPE_REMOVE and not is_field_selected:
                     # Can't remove what's not selected
                     continue
                 
                 # Update the recommendation type in the factor object for consistency
-                factor.recommendation_type = rec_type
+                factor['recommendation_type'] = rec_type
                 
                 # Apply minimum impact thresholds based on recommendation type
                 # This ensures recommendations have meaningful impact values for the UI
                 # Note: This is business logic that should remain in the recommendation engine
-                impact_score = factor.impact_score
                 
                 # Get minimum impact threshold from OptimizerConfig for consistency
                 # This threshold determines the minimum impact required for a recommendation to be visible
