@@ -362,8 +362,9 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
         }
         
         # Populate the grouped structure with recommendations from general
+        # Enforce consistent dictionary access pattern for RecommendationItem objects
         for rec in general:
-            rec_type = rec.get('recommendation_type', '')
+            rec_type = rec['recommendation_type']
             if rec_type in grouped:
                 grouped[rec_type]['items'].append(rec)
         

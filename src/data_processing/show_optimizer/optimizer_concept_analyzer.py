@@ -332,12 +332,8 @@ class ConceptAnalyzer:
                 st.write(f"DEBUG: Generated {len(recommendations)} recommendations")
                 # Safely get recommendation types, handling both dict and object access
                 if recommendations:
-                    rec_types = []
-                    for rec in recommendations:
-                        if isinstance(rec, dict):
-                            rec_types.append(rec.get('recommendation_type', 'unknown'))
-                        else:
-                            rec_types.append('unknown')
+                    # Enforce RecommendationItem TypedDict contract - recommendations should always be dictionaries
+                    rec_types = [rec.get('recommendation_type', 'unknown') for rec in recommendations]
                     st.write("DEBUG: Recommendation types: " + ", ".join(rec_types))
                 else:
                     st.write("DEBUG: Recommendation types: None")

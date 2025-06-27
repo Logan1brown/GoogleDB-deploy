@@ -1056,16 +1056,9 @@ class RecommendationEngine:
                     explanation_text = f"Consider changing {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% worse on {network_name} than average."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
-                # Get confidence value based on the type of network_rate_data
-                if hasattr(network_rate_data, 'confidence'):
-                    # It's a NetworkMatch object with a confidence attribute
-                    confidence_value = network_rate_data.confidence
-                elif isinstance(network_rate_data, dict) and 'confidence' in network_rate_data:
-                    # It's a dictionary with a confidence key
-                    confidence_value = network_rate_data['confidence']
-                else:
-                    # Default confidence value
-                    confidence_value = 'medium'
+                # NetworkMatch objects should be used consistently as objects with attributes
+                # This enforces the contract rather than adding defensive programming
+                confidence_value = network_rate_data.confidence if hasattr(network_rate_data, 'confidence') else 'medium'
                     
                 recommendation: RecommendationItem = {
                     'recommendation_type': network_rec_type,

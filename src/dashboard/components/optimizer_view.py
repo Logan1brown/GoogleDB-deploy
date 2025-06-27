@@ -282,40 +282,40 @@ class OptimizerView:
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Formatting {len(recommendations)} recommendations", category='recommendation', force=True)
             if recommendations:
-                # Count recommendations by type
+                # Count recommendations by type - enforce direct attribute access
                 type_counts = {}
                 for rec in recommendations:
-                    rec_type = getattr(rec, 'recommendation_type', 'unknown')
+                    rec_type = rec.recommendation_type
                     if rec_type not in type_counts:
                         type_counts[rec_type] = 0
                     type_counts[rec_type] += 1
                 
                 OptimizerConfig.debug(f"Recommendation types: {type_counts}", category='recommendation', force=True)
                 
-                # Special debug for 'remove' recommendations
-                remove_recs = [rec for rec in recommendations if getattr(rec, 'recommendation_type', '') == 'remove']
+                # Special debug for 'remove' recommendations - enforce direct attribute access
+                remove_recs = [rec for rec in recommendations if rec.recommendation_type == 'remove']
                 if remove_recs:
                     OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations before formatting", category='recommendation', force=True)
                     # Inspect the first few remove recommendations in detail
                     for i, rec in enumerate(remove_recs[:3]):
                         OptimizerConfig.debug(f"Remove recommendation {i+1} details:", category='recommendation', force=True)
-                        OptimizerConfig.debug(f"  - Type: {getattr(rec, 'recommendation_type', 'unknown')}", category='recommendation', force=True)
-                        OptimizerConfig.debug(f"  - Criteria Type: {getattr(rec, 'criteria_type', 'unknown')}", category='recommendation', force=True)
-                        OptimizerConfig.debug(f"  - Suggested Name: {getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
-                        OptimizerConfig.debug(f"  - Impact: {getattr(rec, 'impact_score', 0)}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Type: {rec.recommendation_type}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Criteria Type: {rec.criteria_type}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Suggested Name: {rec.suggested_name}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"  - Impact: {rec.impact_score}", category='recommendation', force=True)
                     for rec in remove_recs:
-                        OptimizerConfig.debug(f"Remove rec: {getattr(rec, 'criteria_type', 'unknown')}/{getattr(rec, 'suggested_name', 'unknown')}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"Remove rec: {rec.criteria_type}/{rec.suggested_name}", category='recommendation', force=True)
                 else:
                     OptimizerConfig.debug("No 'remove' recommendations found in original recommendations", category='recommendation', force=True)
                 
                 # Show the first few recommendations in detail
                 for i, rec in enumerate(recommendations[:3]):
                     OptimizerConfig.debug(f"Recommendation {i+1} details:", category='recommendation', force=True)
-                    OptimizerConfig.debug(f"  - Type: {getattr(rec, 'recommendation_type', 'unknown')}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Criteria Type: {getattr(rec, 'criteria_type', 'unknown')}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Suggested Name: {getattr(rec, 'suggested_name', 'unknown')}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Impact: {getattr(rec, 'impact_score', 0)}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Explanation: {getattr(rec, 'explanation', '')}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Type: {rec.recommendation_type}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Criteria Type: {rec.criteria_type}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Suggested Name: {rec.suggested_name}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Impact: {rec.impact_score}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Explanation: {rec.explanation}", category='recommendation')
                     # Debug all attributes
                     # Debug removed for clarity
                 
@@ -379,8 +379,9 @@ class OptimizerView:
                 "impact": rec.impact_score,
                 "criteria_type": rec.criteria_type,
                 "suggested_name": rec.suggested_name,
-                "current_value": rec.current_value if hasattr(rec, 'current_value') else None,
-                "suggested_value": rec.suggested_value if hasattr(rec, 'suggested_value') else None,
+                # Direct attribute access - SuccessFactor objects should always have these attributes
+                "current_value": rec.current_value,
+                "suggested_value": rec.suggested_value,
                 
                 # Raw data for sorting and filtering
                 "_impact_raw": rec.impact_score,
@@ -637,8 +638,9 @@ class OptimizerView:
         impact_score = recommendation.impact_score
         criteria_type = recommendation.criteria_type.replace('_', ' ').title()
         suggested_name = recommendation.suggested_name
-        current_name = recommendation.current_name if hasattr(recommendation, 'current_name') else ''
-        metadata = recommendation.metadata if hasattr(recommendation, 'metadata') else {}
+        # Direct attribute access - recommendation objects should always have these attributes
+        current_name = recommendation.current_name
+        metadata = recommendation.metadata
         
         # Format impact percentage for display
         impact_percent = abs(impact_score * 100)

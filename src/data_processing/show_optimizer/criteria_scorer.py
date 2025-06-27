@@ -450,21 +450,18 @@ class CriteriaScorer:
                             # Create criteria for this option using our helper method
                             option_criteria = self._create_option_criteria(normalized_base_criteria, current_field, option_id, is_array_field)
                             
-                            if option_id == 'remove' and OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Testing 'remove' option for {current_field} (with field removed from criteria)", category='impact')
+                            # Debug removed - redundant remove option testing log
                             
                             # For 'remove' recommendations, use the already filtered matching shows
                             # For other types, let the matcher use its own data source
                             if option_id == 'remove' and matching_shows is not None and not matching_shows.empty:
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Using existing matches for 'remove' option for {current_field}", category='impact')
+                                # Debug removed - redundant existing matches usage log
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
                             else:
                                 # For 'change' recommendations, use the integrated data
                                 if integrated_data and 'shows' in integrated_data and not integrated_data['shows'].empty:
                                     option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        OptimizerConfig.debug(f"Using integrated data with {len(integrated_data['shows'])} rows for option {option_name}", category='impact')
+                                    # Debug removed - redundant integrated data usage log
                                 else:
                                     # No fallback - we need integrated data
                                     if OptimizerConfig.DEBUG_MODE:
@@ -556,8 +553,7 @@ class CriteriaScorer:
                             else:
                                 is_option_selected = current_value == option_id
                                 
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Option {option_name} selection status: {is_option_selected}", category='impact')
+                            # Debug removed - redundant option selection status
                         
                         # Determine recommendation type based on impact and selection status
                         # Centralized recommendation type assignment rules:
@@ -762,7 +758,7 @@ class CriteriaScorer:
             
             # Final validation of impact data structure before returning
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Performing final validation of impact data structure", category='impact')
+                # Debug removed - redundant final validation log
                 for field, options in impact_scores.items():
                     if field == '_summary' or field == '_error':
                         continue
