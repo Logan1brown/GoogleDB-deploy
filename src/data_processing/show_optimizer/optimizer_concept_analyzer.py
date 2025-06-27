@@ -94,13 +94,13 @@ class OptimizationSummary:
             Dictionary with formatted success probability data
         """
         # Format success probability for display
-        if not self.success_probability or not self.confidence_info:
+        if not hasattr(self, 'overall_success_probability') or self.overall_success_probability is None or not self.confidence_info:
             return {}
             
         # Format the success probability
         confidence = self.confidence_info.level if hasattr(self.confidence_info, 'level') else 'none'
         return {
-            'display': f"{self.success_probability:.0%}",
+            'display': f"{self.overall_success_probability:.0%}",
             'subtitle': f"Confidence: {confidence.capitalize()}"
         }
     
