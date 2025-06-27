@@ -430,12 +430,13 @@ class RecommendationEngine:
             for factor in success_factors:
                 # Skip factors with impact below threshold
                 # This is a business rule, not defensive programming
-                if abs(factor.impact_score) < min_impact:
+                if abs(factor.get('impact_score', 0.0)) < min_impact:
                     continue
                 
                 # Get information about the selection status for filtering
-                is_field_selected = factor.criteria_type in criteria
-                option_id = factor.criteria_value
+                criteria_type = factor.get('criteria_type', '')
+                is_field_selected = criteria_type in criteria
+                option_id = factor.get('criteria_value', '')
                 is_option_selected = False
                 
                 # Check if this specific option is selected
@@ -446,10 +447,10 @@ class RecommendationEngine:
                     # 2. Single values (e.g., genre, format) - check if option matches exactly
                     # Access the criteria value directly since we've already verified it exists
                     # This removes defensive programming (criteria.get) while maintaining the data contract
-                    if isinstance(criteria[factor.criteria_type], list):
-                        is_option_selected = option_id in criteria[factor.criteria_type]
+                    if isinstance(criteria[criteria_type], list):
+                        is_option_selected = option_id in criteria[criteria_type]
                     else:
-                        is_option_selected = criteria[factor.criteria_type] == option_id
+                        is_option_selected = criteria[criteria_type] == option_id
                 
                 # Start with the default recommendation type from the success factor
                 # Enforce SuccessFactor contract - no defensive programming
@@ -501,25 +502,26 @@ class RecommendationEngine:
                 # Create explanation text based on the recommendation type
                 explanation_text = ""
                 
+                criteria_name = factor.get('criteria_name', '')
                 if rec_type == self.REC_TYPE_ADD:
-                    explanation_text = f"Adding {factor.criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
+                    explanation_text = f"Adding {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
                 elif rec_type == self.REC_TYPE_REMOVE:
-                    explanation_text = f"Removing {factor.criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
+                    explanation_text = f"Removing {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
                 elif rec_type == self.REC_TYPE_CHANGE:
-                    explanation_text = f"Changing to {factor.criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
+                    explanation_text = f"Changing to {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
                 else:
-                    explanation_text = f"Consider {factor.criteria_name} for potential impact of {abs(impact_score)*100:.1f}%."
+                    explanation_text = f"Consider {criteria_name} for potential impact of {abs(impact_score)*100:.1f}%."
                 
                 # Create a RecommendationItem dictionary using the TypedDict contract
-                # Enforce SuccessFactor contract - access attributes directly
+                # Enforce SuccessFactor contract - access with dictionary-style access
                 recommendation: RecommendationItem = {
                     'recommendation_type': rec_type,
-                    'field': factor.criteria_type,  # Renamed from criteria_type to field per TypedDict contract
+                    'field': criteria_type,  # Renamed from criteria_type to field per TypedDict contract
                     'current_value': None,
-                    'suggested_value': factor.criteria_value,
-                    'suggested_name': factor.criteria_name,
+                    'suggested_value': option_id,  # Using option_id which was set from factor.get('criteria_value', '')
+                    'suggested_name': criteria_name,  # Using criteria_name which was set from factor.get('criteria_name', '')
                     'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
-                    'confidence': factor.confidence,
+                    'confidence': factor.get('confidence', 'medium'),
                     'explanation': explanation_text
                 }
                 
