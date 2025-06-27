@@ -356,9 +356,9 @@ class OptimizerView:
                 for i, rec in enumerate(general_recs[:3]):
                     OptimizerConfig.debug(f"General recommendation {i+1} details:", category='recommendation', force=True)
                     OptimizerConfig.debug(f"  - Type: {rec['recommendation_type']}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Criteria Type: {rec.get('criteria_type', rec.get('field', 'unknown'))}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Field: {rec.get('field', 'unknown')}", category='recommendation')
                     OptimizerConfig.debug(f"  - Suggested Name: {rec.get('suggested_name', 'unknown')}", category='recommendation')
-                    OptimizerConfig.debug(f"  - Impact: {rec.get('impact_score', rec.get('impact', 0.0))}", category='recommendation')
+                    OptimizerConfig.debug(f"  - Impact: {rec.get('impact', 0.0)}", category='recommendation')
                     OptimizerConfig.debug(f"  - Explanation: {rec.get('explanation', rec.get('description', 'No explanation'))}", category='recommendation')
                     # Debug all attributes
                     # Debug removed for clarity
@@ -382,15 +382,16 @@ class OptimizerView:
             rec_type = rec['recommendation_type']
                 
             # Format impact percentage for display
-            impact_score = rec.get('impact_score', rec.get('impact', 0.0))
+            # Always use 'impact' as the standard field name from the recommendation engine
+            impact_score = rec.get('impact', 0.0)
             impact_percent = abs(impact_score * 100)
             impact_direction = "Increase" if impact_score > 0 else "Decrease"
             
             # Special debug for 'remove' recommendations
             if rec_type == 'remove':
-                criteria_type = rec.get('criteria_type', rec.get('field', 'unknown'))
+                field_name = rec.get('field', 'unknown')  # Always use 'field' as the standard field name
                 suggested_name = rec.get('suggested_name', 'unknown')
-                OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {criteria_type}/{suggested_name}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {field_name}/{suggested_name}", category='recommendation', force=True)
             
             # Create recommendation title without impact percentage
             if rec_type.startswith('network_'):
@@ -401,15 +402,16 @@ class OptimizerView:
                 if ':' in network_name:
                     network_name = network_name.split(':', 1)[0].strip()
                     
-                criteria_type = rec.get('criteria_type', rec.get('field', ''))
-                title = f"{network_name} - {clean_rec_type.capitalize()} {criteria_type}"
+                field_name = rec.get('field', '')  # Always use 'field' as the standard field name
+                title = f"{network_name} - {clean_rec_type.capitalize()} {field_name}"
             else:
-                # Format the title to include only the criteria type and suggested name
-                criteria_type = rec.get('criteria_type', rec.get('field', '')).replace('_', ' ').title()
+                # Format the title to include only the field and suggested name
+                # Always use 'field' as the standard field name from the recommendation engine
+                field_name = rec.get('field', '').replace('_', ' ').title()
                 suggested_name = rec.get('suggested_name', '')
                 
                 # Create a clean title without the impact information
-                title = f"{criteria_type}: {suggested_name}"
+                title = f"{field_name}: {suggested_name}"
                 
             # Generate explanation text based on recommendation type and data
             # This is now the responsibility of the OptimizerView since the RecommendationEngine no longer provides formatted text
@@ -427,7 +429,7 @@ class OptimizerView:
                 "importance": rec.get('confidence', 'medium'),
                 "category": rec_type,  # This is the key field for grouping
                 "impact": impact_score,
-                "criteria_type": rec.get('criteria_type', rec.get('field', '')),
+                "field": rec.get('field', ''),  # Always use 'field' as the standard field name
                 "suggested_name": rec.get('suggested_name', ''),
                 # Dictionary-style access for values
                 "current_value": rec.get('current_value', None),

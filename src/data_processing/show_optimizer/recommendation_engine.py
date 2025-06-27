@@ -570,7 +570,8 @@ class RecommendationEngine:
                     'suggested_name': criteria_name,  # Using criteria_name which was set from factor.criteria_name
                     'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
                     'confidence': factor.confidence,
-                    'explanation': explanation_text
+                    'explanation': explanation_text,
+                    'metadata': {}  # Add empty metadata field for consistency with network-specific recommendations
                 }
                 
                 # Add to recommendations list
