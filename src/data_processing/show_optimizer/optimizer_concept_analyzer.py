@@ -64,7 +64,12 @@ class OptimizationSummary:
         return self.top_networks
         
     # Private attribute to store formatted data
-    _formatted_data_dict: Dict[str, Union[float, str, List[Dict[str, Any]]]] = field(default_factory=dict)
+    _formatted_data_dict: Dict[str, Union[float, str, List[Dict[str, Any]]]] = None
+    
+    def __post_init__(self):
+        """Initialize instance variables after dataclass initialization."""
+        # Initialize _formatted_data_dict as an instance variable
+        self._formatted_data_dict = {}
     
     def _format_component_scores(self) -> Dict[str, Dict[str, Union[float, int, str]]]:
         """Format component scores for UI display.

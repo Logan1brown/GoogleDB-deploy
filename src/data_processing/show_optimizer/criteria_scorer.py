@@ -315,8 +315,6 @@ class CriteriaScorer:
             # We'll continue and let other validation steps catch issues
             
         if matching_shows is None or matching_shows.empty:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Cannot calculate criteria impact: no matching shows", category='impact')
             return {}
             
         # Initialize impact scores dictionary
@@ -450,18 +448,14 @@ class CriteriaScorer:
                             # Create criteria for this option using our helper method
                             option_criteria = self._create_option_criteria(normalized_base_criteria, current_field, option_id, is_array_field)
                             
-                            # Debug removed - redundant remove option testing log
-                            
                             # For 'remove' recommendations, use the already filtered matching shows
                             # For other types, let the matcher use its own data source
                             if option_id == 'remove' and matching_shows is not None and not matching_shows.empty:
-                                # Debug removed - redundant existing matches usage log
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
                             else:
                                 # For 'change' recommendations, use the integrated data
                                 if integrated_data and 'shows' in integrated_data and not integrated_data['shows'].empty:
                                     option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
-                                    # Debug removed - redundant integrated data usage log
                                 else:
                                     # No fallback - we need integrated data
                                     if OptimizerConfig.DEBUG_MODE:
@@ -504,7 +498,7 @@ class CriteriaScorer:
                     # Use the provided option_matching_shows_map
                     field_options_map = option_matching_shows_map[current_field]
                 
-                # Field is already initialized in impact scores above
+                # Field is already initialized in impact_scores above
                 # This ensures we maintain a consistent data structure
                 
                 # Process each option in option_data
@@ -573,11 +567,7 @@ class CriteriaScorer:
                             continue  # Skip to next option
                         
                         # Add detailed debug output for recommendation type determination
-                        if OptimizerConfig.DEBUG_MODE:
-                            selection_status = "selected" if is_option_selected else "not selected"
-                            field_status = "field selected" if is_field_selected else "field not selected"
-                            impact_direction = "positive" if impact > 0 else "negative"
-                            OptimizerConfig.debug(f"Recommendation for {current_field}={option_name}: type={recommendation_type}, impact={impact:.4f} ({impact_direction}), {selection_status}, {field_status}", category='impact')
+                        # Removed verbose debug statement about recommendation type determination
                         
                         # Store impact score with all relevant information - ALWAYS as a complete dictionary
                         # This ensures consistent data structure throughout the application
@@ -599,10 +589,7 @@ class CriteriaScorer:
                         continue
                 
             # Check if we have any impact scores after processing all fields
-            if OptimizerConfig.DEBUG_MODE:
-                field_count = len(impact_scores)
-                option_count = sum(len(options) for options in impact_scores.values())
-                OptimizerConfig.debug(f"Generated impact scores for {field_count} fields with {option_count} total options from selected fields", category='impact')
+            # Removed debug statement about impact score counts
                 
                 # Debug log to verify impact data structure integrity
                 for field, options in impact_scores.items():
@@ -882,8 +869,6 @@ class CriteriaScorer:
         try:
             # Check sample size
             match_count = len(matching_shows)
-            if match_count < OptimizerConfig.CONFIDENCE['minimum_sample'] and OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Small sample size for component scores: {match_count} shows (min: {OptimizerConfig.CONFIDENCE['minimum_sample']})", category='components')
             
             # Initialize calculators
             calculators = [
@@ -920,10 +905,7 @@ class CriteriaScorer:
             return component_scores
             
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                import traceback
-                OptimizerConfig.debug(f"Exception in calculate_component_scores: {str(e)}", category='error')
-                OptimizerConfig.debug(traceback.format_exc(), category='error')
+            # Error handling without excessive debug output
             return {}
 
     def calculate_confidence(self, criteria: CriteriaDict) -> ConfidenceInfo:
