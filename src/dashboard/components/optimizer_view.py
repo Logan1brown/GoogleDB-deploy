@@ -638,12 +638,17 @@ class OptimizerView:
         Returns:
             Formatted explanation text for display in the UI
         """
-        # Extract common fields - dictionary-style access
+        # Ensure we're only using dictionary-style access on dictionaries
+        # RecommendationItem objects should always be dictionaries (TypedDict)
+        if not isinstance(recommendation, dict):
+            # If we somehow got a non-dictionary, return a generic explanation
+            return "No detailed explanation available for this recommendation."
+            
+        # Extract common fields - dictionary-style access for TypedDict
         rec_type = recommendation['recommendation_type']
         impact_score = recommendation.get('impact_score', recommendation.get('impact', 0.0))
         criteria_type = recommendation.get('criteria_type', recommendation.get('field', '')).replace('_', ' ').title()
         suggested_name = recommendation.get('suggested_name', '')
-        # Dictionary-style access for all fields
         current_name = recommendation.get('current_name', '')
         metadata = recommendation.get('metadata', {})
         

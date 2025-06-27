@@ -100,7 +100,8 @@ class OptimizationSummary:
                 'general': [],
                 'network_specific': []
             },
-            'component_scores': self.component_scores if self.component_scores else {}
+            'component_scores': self.component_scores if self.component_scores else {},
+            'success_factors': []  # Initialize empty list for success factors
         }
         
         # Debug: Check confidence_info again

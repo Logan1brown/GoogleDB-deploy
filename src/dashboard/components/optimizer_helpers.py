@@ -320,8 +320,11 @@ def render_success_factors(formatted_factors: List[Dict[str, Union[str, float, i
         
     # Display matching show titles in an expander
     for factor in formatted_factors:
+        # Access matching_titles using the correct key '_matching_titles'
+        # This matches the key used in _format_success_factors in optimizer_view.py
         matching_titles = factor['_matching_titles']
         if matching_titles:
+            # Access Name using the correct key 'Name' from _format_success_factors
             with st.expander(f"Shows matching '{factor['Name']}' ({len(matching_titles)} shows)"):
                 # Display titles in a scrollable container with fixed height
                 titles_html = "<div style='max-height: 300px; overflow-y: auto;'><ul>"
