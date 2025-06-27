@@ -206,17 +206,19 @@ def render_success_metrics(summary: Any):
                 
             st.write("### Component Scores")
             col1, col2, col3 = st.columns(3)
-            with col1:
-                render_metric_card("Audience Appeal", "N/A", "Data unavailable")
-            with col2:
-                render_metric_card("Critical Reception", "N/A", "Data unavailable")
-            with col3:
-                render_metric_card("Longevity", "N/A", "Data unavailable")
-            return
-            
-        # Use the formatted_data dictionary for all rendering
         formatted_data = summary.formatted_data
         
+        # Check if we have an error in the confidence_info
+        if 'confidence_info' in formatted_data and isinstance(formatted_data['confidence_info'], dict) and 'error' in formatted_data['confidence_info']:
+            error_message = formatted_data['confidence_info']['error']
+            st.error(f"Unable to display success metrics due to an error: {error_message}")
+            return
+            
+        # Check if component_scores exists
+        if 'component_scores' not in formatted_data:
+            st.error("Unable to display success metrics: Missing component scores data")
+            return
+            
         # Top row: Overall Success Score and Success Probability
         st.write("### Success Metrics")
         col1, col2 = st.columns(2)
@@ -226,19 +228,30 @@ def render_success_metrics(summary: Any):
             if 'success' in formatted_data['component_scores']:
                 # Use pre-formatted success score data
                 success_data = formatted_data['component_scores']['success']
-                # Success score is 0-100 scale
-                success_score = success_data['score'] * 100 if success_data['score'] <= 1 else success_data['score']
-                render_metric_card(
-                    "Overall Success Score", 
-                    f"{success_score:.0f}", 
-                    f"Scale: 0-100 | Sample: {success_data['sample_size']}"
-                )
+                
+                # Check if there's an error in the component score
+                if 'error' in success_data:
+                    render_metric_card(
+                        "Overall Success Score", 
+                        "Error", 
+                        success_data['error'][:50] + "..." if len(success_data['error']) > 50 else success_data['error']
+                    )
+                elif success_data['score'] is not None:
+                    # Success score is 0-100 scale
+                    success_score = success_data['score'] * 100 if success_data['score'] <= 1 else success_data['score']
+                    render_metric_card(
+                        "Overall Success Score", 
+                        f"{success_score:.0f}", 
+                        f"Scale: 0-100 | Sample: {success_data['sample_size']}"
+                    )
+                else:
+                    render_metric_card("Overall Success Score", "N/A", "Success score not available")
             else:
-                render_metric_card("Overall Success Score", "N/A", "Data unavailable")
+                render_metric_card("Overall Success Score", "N/A", "Success score not available")
         
         # Success Probability
         with col2:
-            if 'overall_success_probability' in formatted_data:
+            if 'overall_success_probability' in formatted_data and formatted_data['overall_success_probability']:
                 # Use pre-formatted success probability data
                 success_data = formatted_data['overall_success_probability']
                 render_metric_card(
@@ -247,7 +260,7 @@ def render_success_metrics(summary: Any):
                     success_data['subtitle']
                 )
             else:
-                render_metric_card("Success Probability", "N/A", "Data unavailable")
+                render_metric_card("Success Probability", "N/A", "Success probability not available")
         
         # Bottom row: Component Scores
         st.write("### Component Scores")
@@ -258,57 +271,82 @@ def render_success_metrics(summary: Any):
             if 'audience' in formatted_data['component_scores']:
                 # Use pre-formatted audience score data
                 audience_data = formatted_data['component_scores']['audience']
-                render_metric_card(
-                    "Audience Appeal", 
-                    f"{audience_data['score']:.0%}", 
-                    f"Sample: {audience_data['sample_size']}"
-                )
+                
+                # Check if there's an error in the component score
+                if 'error' in audience_data:
+                    render_metric_card(
+                        "Audience Appeal", 
+                        "Error", 
+                        audience_data['error'][:50] + "..." if len(audience_data['error']) > 50 else audience_data['error']
+                    )
+                elif audience_data['score'] is not None:
+                    render_metric_card(
+                        "Audience Appeal", 
+                        f"{audience_data['score']:.0%}", 
+                        f"Sample: {audience_data['sample_size']}"
+                    )
+                else:
+                    render_metric_card("Audience Appeal", "N/A", "Audience data not available")
             else:
-                render_metric_card("Audience Appeal", "N/A", "Data unavailable")
+                render_metric_card("Audience Appeal", "N/A", "Audience data not available")
         
         # Critics Score
         with col2:
             if 'critics' in formatted_data['component_scores']:
                 # Use pre-formatted critics score data
                 critics_data = formatted_data['component_scores']['critics']
-                render_metric_card(
-                    "Critical Reception", 
-                    f"{critics_data['score']:.0%}", 
-                    f"Sample: {critics_data['sample_size']}"
-                )
+                
+                # Check if there's an error in the component score
+                if 'error' in critics_data:
+                    render_metric_card(
+                        "Critical Reception", 
+                        "Error", 
+                        critics_data['error'][:50] + "..." if len(critics_data['error']) > 50 else critics_data['error']
+                    )
+                elif critics_data['score'] is not None:
+                    render_metric_card(
+                        "Critical Reception", 
+                        f"{critics_data['score']:.0%}", 
+                        f"Sample: {critics_data['sample_size']}"
+                    )
+                else:
+                    render_metric_card("Critical Reception", "N/A", "Critics data not available")
             else:
-                render_metric_card("Critical Reception", "N/A", "Data unavailable")
+                render_metric_card("Critical Reception", "N/A", "Critics data not available")
         
         # Longevity Score
         with col3:
             if 'longevity' in formatted_data['component_scores']:
                 # Use pre-formatted longevity score data
                 longevity_data = formatted_data['component_scores']['longevity']
-                score = longevity_data['score']
-                sample_size = longevity_data['sample_size']
                 
-                render_metric_card(
-                    "Longevity", 
-                    f"{score:.0%}", 
-                    f"Sample: {sample_size}"
-                )
+                # Check if there's an error in the component score
+                if 'error' in longevity_data:
+                    render_metric_card(
+                        "Longevity", 
+                        "Error", 
+                        longevity_data['error'][:50] + "..." if len(longevity_data['error']) > 50 else longevity_data['error']
+                    )
+                elif longevity_data['score'] is not None:
+                    score = longevity_data['score']
+                    sample_size = longevity_data['sample_size']
+                    
+                    render_metric_card(
+                        "Longevity", 
+                        f"{score:.0%}", 
+                        f"Sample: {sample_size}"
+                    )
+                else:
+                    render_metric_card("Longevity", "N/A", "Longevity data not available")
             else:
-                render_metric_card("Longevity", "N/A", "Data unavailable")
+                render_metric_card("Longevity", "N/A", "Longevity data not available")
     
     except Exception as e:
-        OptimizerConfig.debug(f"Error rendering success metrics: {str(e)}", category='recommendation')
+        # Show the actual error message to help with debugging
+        error_msg = str(e)
+        st.error(f"Error rendering success metrics: {error_msg}")
+        OptimizerConfig.debug(f"Error rendering success metrics: {error_msg}", category='recommendation')
         OptimizerConfig.debug(traceback.format_exc(), category='recommendation')
-        st.error("Unable to display success metrics due to an error.")
-        # Render empty cards as fallback
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            render_metric_card("Success Probability", "N/A", "Error in data")
-        with col2:
-            render_metric_card("Audience Appeal", "N/A", "Error in data")
-        with col3:
-            render_metric_card("Critical Reception", "N/A", "Error in data")
-        with col4:
-            render_metric_card("Longevity", "N/A", "Error in data")
 
 
 def render_success_factors(formatted_factors: List[Dict[str, Union[str, float, int]]]):

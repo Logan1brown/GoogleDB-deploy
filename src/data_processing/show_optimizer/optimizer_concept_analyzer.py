@@ -74,7 +74,21 @@ class OptimizationSummary:
         """
         formatted_scores = {}
         
+        # Check for error in confidence_info
+        if isinstance(self.confidence_info, dict) and 'error' in self.confidence_info:
+            # Add error information to each component score
+            error_message = self.confidence_info['error']
+            for component_name in ['success', 'audience', 'critics', 'longevity']:
+                formatted_scores[component_name] = {
+                    'score': None,
+                    'sample_size': 0,
+                    'confidence': 'none',
+                    'error': error_message
+                }
+            return formatted_scores
+        
         if not self.component_scores:
+            # Return empty dict - UI will handle missing component scores
             return formatted_scores
             
         # Convert each ComponentScore dataclass to a dictionary with attribute-style access
@@ -93,9 +107,25 @@ class OptimizationSummary:
         Returns:
             Dictionary with formatted success probability data
         """
+        # Check for error in confidence_info
+        if isinstance(self.confidence_info, dict) and 'error' in self.confidence_info:
+            return {
+                'display': 'Error',
+                'subtitle': f"Analysis failed: {self.confidence_info['error']}"
+            }
+            
         # Format success probability for display
-        if not hasattr(self, 'overall_success_probability') or self.overall_success_probability is None or not self.confidence_info:
-            return {}
+        if not hasattr(self, 'overall_success_probability') or self.overall_success_probability is None:
+            return {
+                'display': 'N/A',
+                'subtitle': 'Success probability not available'
+            }
+            
+        if not self.confidence_info:
+            return {
+                'display': f"{self.overall_success_probability:.0%}",
+                'subtitle': 'Confidence data not available'
+            }
             
         # Format the success probability - confidence_info is always a dictionary (ConfidenceInfo TypedDict)
         confidence = self.confidence_info.get('level', 'none')
