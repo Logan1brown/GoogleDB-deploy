@@ -384,8 +384,21 @@ class RecommendationEngine:
                 recommendations.extend(network_specific_recs)
             
             # Separate general and network-specific recommendations
-            general_recommendations = [rec for rec in recommendations if 'impact' in rec and rec.get('network_id') is None]
-            network_specific_recommendations = [rec for rec in recommendations if 'impact' in rec and rec.get('network_id') is not None]
+            # Ensure we only process recommendations with the required 'impact' field
+            # Use the metadata field to identify network-specific recommendations
+            general_recommendations = []
+            network_specific_recommendations = []
+            
+            for rec in recommendations:
+                if 'impact' not in rec:
+                    # Skip recommendations without impact score
+                    continue
+                    
+                # Check if this is a network-specific recommendation by looking for network data in metadata
+                if 'metadata' in rec and rec['metadata'] and 'network_name' in rec['metadata']:
+                    network_specific_recommendations.append(rec)
+                else:
+                    general_recommendations.append(rec)
             
             # Sort recommendations by impact score
             general_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
