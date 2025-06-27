@@ -92,10 +92,7 @@ class NetworkAnalyzer:
                     
                 # Store the match_level in the network details for reference
                 if confidence_info is not None:
-                    if isinstance(confidence_info, dict):
-                        network_match.details['global_match_level'] = confidence_info.get('match_level', 1)
-                    elif hasattr(confidence_info, 'match_level'):
-                        network_match.details['global_match_level'] = getattr(confidence_info, 'match_level', 1)
+                    network_match.details['global_match_level'] = confidence_info.get('match_level', 1)
                 
                 # Calculate success probability if success_score column exists
                 success_probability = None

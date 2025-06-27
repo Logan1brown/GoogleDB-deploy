@@ -340,12 +340,8 @@ class RecommendationEngine:
                 st.error(f"Unable to analyze some criteria. Error: {str(e)}")
             
             # Identify limiting criteria that restrict match quality
-            # Extract match_level safely from confidence_info, which could be a dict or object
-            match_level = 1  # Default value
-            if isinstance(confidence_info, dict):
-                match_level = confidence_info.get('match_level', 1)
-            elif hasattr(confidence_info, 'match_level'):
-                match_level = getattr(confidence_info, 'match_level', 1)
+            # Extract match_level from confidence_info dictionary
+            match_level = confidence_info.get('match_level', 1) if confidence_info else 1
                 
             if match_level > 1:
                 try:
@@ -546,11 +542,8 @@ class RecommendationEngine:
         recommendations = []
         
         # Extract match_level safely from confidence_info, which could be a dict or object
-        match_level = 1  # Default value
-        if isinstance(confidence_info, dict):
-            match_level = confidence_info.get('match_level', 1)
-        elif hasattr(confidence_info, 'match_level'):
-            match_level = getattr(confidence_info, 'match_level', 1)
+        # Extract match_level from confidence_info dictionary
+        match_level = confidence_info.get('match_level', 1) if confidence_info else 1
         
         # Only run this analysis if we're not at match level 1 (perfect match)
         if match_level == 1:

@@ -727,11 +727,8 @@ class NetworkScoreCalculator(ScoreCalculator):
                 network_match.compatibility_score = compatibility_score
                 
             # Get confidence level - safely extract match_level from confidence_info
-            match_level = 1  # Default value
-            if isinstance(confidence_info, dict):
-                match_level = confidence_info.get('match_level', 1)
-            elif hasattr(confidence_info, 'match_level'):
-                match_level = getattr(confidence_info, 'match_level', 1)
+            # Extract match_level from confidence_info dictionary
+            match_level = confidence_info.get('match_level', 1) if confidence_info else 1
                 
             confidence = OptimizerConfig.get_confidence_level(count, match_level) if count > 0 else OptimizerConfig.CONFIDENCE_LEVELS['none']
             network_match.confidence = confidence
@@ -791,12 +788,8 @@ class NetworkScoreCalculator(ScoreCalculator):
             'total_count': total_count
         })
         
-        # Calculate confidence score based on sample size - safely extract match_level
-        match_level = OptimizerConfig.DEFAULT_MATCH_LEVEL  # Default value
-        if isinstance(confidence_info, dict):
-            match_level = confidence_info.get('match_level', OptimizerConfig.DEFAULT_MATCH_LEVEL)
-        elif hasattr(confidence_info, 'match_level'):
-            match_level = getattr(confidence_info, 'match_level', OptimizerConfig.DEFAULT_MATCH_LEVEL)
+        # Calculate confidence score based on sample size - extract match_level from dictionary
+        match_level = confidence_info.get('match_level', OptimizerConfig.DEFAULT_MATCH_LEVEL) if confidence_info else OptimizerConfig.DEFAULT_MATCH_LEVEL
             
         confidence_score = OptimizerConfig.calculate_confidence_score(
             sample_size=total_count,
