@@ -204,6 +204,7 @@ class OptimizerView:
             summary.matching_shows = formatted_shows
         
         # Format success probability - expect it to be present
+        # The attribute is named overall_success_probability in the OptimizationSummary class
         probability = summary.overall_success_probability
         confidence = summary.confidence
         
@@ -211,6 +212,7 @@ class OptimizerView:
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Formatting success probability: {probability:.4f}, confidence: {confidence}", category='format')
             
+        # The key in the formatted data dictionary is 'success_probability'
         summary._formatted_data_dict['success_probability'] = self._format_success_probability(
             probability, confidence
         )

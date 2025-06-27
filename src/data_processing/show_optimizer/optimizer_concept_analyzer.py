@@ -183,7 +183,7 @@ class OptimizationSummary:
             },
             'component_scores': component_scores,
             'success_factors': [],  # Initialize empty list for success factors
-            'overall_success_probability': self._format_success_probability(),
+            'success_probability': self._format_success_probability(),
             'confidence_info': self.confidence_info  # Include confidence_info for error handling
         }
         
@@ -246,8 +246,8 @@ class OptimizationSummary:
             OptimizerConfig.debug(f"Formatted data structure: {formatted.keys()}", category='format')
             if 'component_scores' in formatted:
                 OptimizerConfig.debug(f"Component scores keys: {formatted['component_scores'].keys()}", category='format')
-            if 'overall_success_probability' in formatted:
-                OptimizerConfig.debug(f"Success probability: {formatted['overall_success_probability']}", category='format')
+            if 'success_probability' in formatted:
+                OptimizerConfig.debug(f"Success probability: {formatted['success_probability']}", category='format')
             
         return formatted
         
@@ -407,43 +407,43 @@ class ConceptAnalyzer:
             
             # Step 2: Calculate success probability
             if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Calculating success probability")
+                OptimizerConfig.debug("Calculating success probability", category='analysis')
             success_probability, confidence = self._calculate_success_probability(criteria, matching_shows)
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Success probability: {success_probability}, confidence: {confidence}")
+                OptimizerConfig.debug(f"Success probability: {success_probability}, confidence: {confidence}", category='analysis')
             
             # Step 3: Find top networks - pass the existing matching_shows and confidence_info to avoid redundant matching
             if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Finding top networks")
+                OptimizerConfig.debug("Finding top networks", category='analysis')
             top_networks = self._find_top_networks(criteria, integrated_data=integrated_data, matching_shows=matching_shows, confidence_info=confidence_info)
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Found {len(top_networks)} top networks")
+                OptimizerConfig.debug(f"Found {len(top_networks)} top networks", category='analysis')
                 for i, network in enumerate(top_networks):
-                    st.write(f"DEBUG: Network {i+1}: {network.network_name} (ID: {network.network_id})")
-                    st.write(f"DEBUG: Network {i+1} type: {type(network).__name__}")
+                    OptimizerConfig.debug(f"Network {i+1}: {network.network_name} (ID: {network.network_id})", category='networks')
+                    OptimizerConfig.debug(f"Network {i+1} type: {type(network).__name__}", category='networks')
             
             # Step 4: Calculate component scores
             if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Calculating component scores")
+                OptimizerConfig.debug("Calculating component scores", category='analysis')
             component_scores = self._get_component_scores(criteria, matching_shows, integrated_data)
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Component scores: {component_scores}")
+                OptimizerConfig.debug(f"Component scores: {component_scores}", category='analysis')
             
             # Step 5: Identify success factors
             if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Identifying success factors")
+                OptimizerConfig.debug("Identifying success factors", category='analysis')
             success_factors = self._identify_success_factors(criteria, matching_shows, integrated_data)
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Found {len(success_factors)} success factors")
+                OptimizerConfig.debug(f"Found {len(success_factors)} success factors", category='analysis')
             
             # Step 6: Generate recommendations
             if OptimizerConfig.DEBUG_MODE:
-                st.write("DEBUG: Generating recommendations")
+                OptimizerConfig.debug("Generating recommendations", category='analysis')
             recommendations = self._generate_recommendations(
                 criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
             )
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Generated {len(recommendations)} recommendations")
+                OptimizerConfig.debug(f"Generated {len(recommendations)} recommendations", category='analysis')
                 # Safely get recommendation types, handling both dict and object access
                 if recommendations:
                     # Enforce RecommendationItem TypedDict contract - recommendations should always be dictionaries
@@ -877,7 +877,7 @@ class ConceptAnalyzer:
                 # Add detailed debugging for NetworkMatch objects
                 if self.config.DEBUG_MODE:
                     st.write(f"DEBUG: Network object type: {type(network).__name__}")
-                    st.write(f"DEBUG: Network object attributes: {dir(network)}")
+
                     st.write(f"DEBUG: Network ID: {network.network_id}")
                     st.write(f"DEBUG: Network Name: {network.network_name}")
                 

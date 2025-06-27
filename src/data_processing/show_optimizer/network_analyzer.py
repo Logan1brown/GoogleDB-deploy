@@ -442,7 +442,7 @@ class NetworkAnalyzer:
             # Debug logging to verify network object type and attributes
             if OptimizerConfig.DEBUG_MODE:
                 st.write(f"DEBUG [network_analyzer.py:get_network_recommendations]: Network object type: {type(network).__name__}")
-                st.write(f"DEBUG [network_analyzer.py:get_network_recommendations]: Network object attributes: {dir(network)}")
+
             
             # Get the RecommendationEngine from the ConceptAnalyzer
             recommendation_engine = concept_analyzer.recommendation_engine

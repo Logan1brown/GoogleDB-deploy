@@ -801,7 +801,7 @@ class RecommendationEngine:
             confidence_info = update_confidence_info(confidence_info, {})
         # Debug mode check for network-specific recommendations
         if OptimizerConfig.DEBUG_MODE:
-            st.write("DEBUG: Starting network-specific recommendations generation")
+            OptimizerConfig.debug("Starting network-specific recommendations generation", category='recommendations')
         
         # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
         
