@@ -83,7 +83,7 @@ def create_default_confidence_info() -> ConfidenceInfo:
     """
     return {
         'level': 'none',
-        'match_level': 0,
+        'match_level': 1,  # Default to exact match (level 1) instead of 0
         'match_count': 0,
         'sample_size': 0
     }

@@ -548,10 +548,6 @@ class ConceptAnalyzer:
             List of NetworkMatch objects sorted by compatibility score
         """
         try:
-            # Ensure confidence_info is initialized
-            if confidence_info is None:
-                confidence_info = {}
-                
             # Validate inputs
             if not criteria:
                 return []
@@ -749,10 +745,6 @@ class ConceptAnalyzer:
             List of Recommendation objects
         """
         try:
-            # Ensure confidence_info is initialized
-            if confidence_info is None:
-                confidence_info = {}
-                
             # Store matching_shows for later use in get_network_specific_recommendations
             self._last_matching_shows = matching_shows
             
