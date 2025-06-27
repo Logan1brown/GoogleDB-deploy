@@ -749,6 +749,10 @@ class ConceptAnalyzer:
             List of Recommendation objects
         """
         try:
+            # Ensure confidence_info is initialized
+            if confidence_info is None:
+                confidence_info = {}
+                
             # Store matching_shows for later use in get_network_specific_recommendations
             self._last_matching_shows = matching_shows
             
