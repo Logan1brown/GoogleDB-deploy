@@ -211,7 +211,6 @@ class OptimizerView:
         # Debug log the success probability
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Formatting success probability: {probability:.4f}, confidence: {confidence}", category='format')
-            OptimizerConfig.debug(f"Success probability type: {type(probability)}, confidence type: {type(confidence)}", category='format')
             
         # The key in the formatted data dictionary is 'success_probability'
         summary._formatted_data_dict['success_probability'] = self._format_success_probability(
@@ -260,19 +259,11 @@ class OptimizerView:
             # Get confidence display text from config - expect it to be a valid key
             confidence_display = self.config.CONFIDENCE_DISPLAY[confidence]
             
-            formatted_result = {
+            return {
                 "display": f"{probability:.0%}",
                 "subtitle": f"Confidence: {confidence_display}"
             }
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Formatted success probability result: {formatted_result}", category='format')
-                
-            return formatted_result
         else:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Success probability is None, returning N/A", category='format')
-                
             return {
                 "display": "N/A",
                 "subtitle": "Success probability not available"
