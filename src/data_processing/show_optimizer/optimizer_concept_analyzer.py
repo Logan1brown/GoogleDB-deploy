@@ -24,7 +24,7 @@ from ..success_analysis import SuccessAnalyzer
 from .optimizer_matcher import Matcher
 from .field_manager import FieldManager
 from .criteria_scorer import CriteriaScorer
-from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData, NetworkMatch, validate_criteria, validate_integrated_data, create_default_confidence_info, update_confidence_info
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData, NetworkMatch, validate_criteria, validate_integrated_data, update_confidence_info
 
 # Data contracts are now imported from optimizer_data_contracts.py
 from .score_calculators import ComponentScore
@@ -460,19 +460,23 @@ class ConceptAnalyzer:
                 
                 return matching_shows, confidence_info
             else:
-                # Create an error confidence info using our helper
-                error_info: ConfidenceInfo = create_default_confidence_info()
-                error_info['error'] = 'No matcher available'
-                error_info['level'] = 'none'  # Explicitly set confidence level
+                # Create an error confidence info
+                error_info: ConfidenceInfo = update_confidence_info({}, {
+                    'error': 'No matcher available',
+                    'level': 'none',
+                    'match_level': 1  # Explicitly set match_level to avoid attribute errors
+                })
                 
                 st.error("No matcher available in CriteriaScorer. Cannot find matching shows.")
                 return pd.DataFrame(), error_info
                 
         except ValueError as e:
             # Handle validation errors
-            error_info: ConfidenceInfo = create_default_confidence_info()
-            error_info['error'] = str(e)
-            error_info['level'] = 'none'  # Explicitly set confidence level
+            error_info: ConfidenceInfo = update_confidence_info({}, {
+                'error': str(e),
+                'level': 'none',
+                'match_level': 1  # Explicitly set match_level to avoid attribute errors
+            })
             
             st.error(f"Error finding matching shows: {str(e)}")
             return pd.DataFrame(), error_info

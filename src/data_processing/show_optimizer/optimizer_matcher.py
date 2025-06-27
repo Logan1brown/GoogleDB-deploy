@@ -16,7 +16,7 @@ import numpy as np
 import streamlit as st
 
 from .optimizer_config import OptimizerConfig
-from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, update_confidence_info
 
 
 class Matcher:
@@ -53,20 +53,7 @@ class Matcher:
             return pd.DataFrame()
         return data
         
-    def _empty_confidence_info(self) -> ConfidenceInfo:
-        """Create an empty confidence info dictionary conforming to ConfidenceInfo.
-        
-        Returns:
-            Empty confidence info dictionary with default values conforming to ConfidenceInfo
-        """
-        return {
-            'level': 'none',  # Use string directly instead of non-existent CONFIDENCE_LEVELS
-            'score': 0.0,
-            'match_quality': 0.0,
-            'sample_size': 0,
-            'criteria_coverage': 0.0,
-            'match_level': 0  # Maintain backward compatibility
-        }
+    # _empty_confidence_info method removed - using update_confidence_info from optimizer_data_contracts instead
         
     def get_criteria_for_match_level(self, criteria: CriteriaDict, match_level: int) -> CriteriaDict:
         """Get a subset of criteria based on match level.
@@ -315,8 +302,13 @@ class Matcher:
                 # Include criteria keys in the debug message to help identify the source
                 criteria_keys = list(criteria.keys()) if criteria else []
                 OptimizerConfig.debug(f"No data available for matching criteria: {criteria_keys}", category='matcher')
-            # Return an empty DataFrame with the required columns
-            return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), self._empty_confidence_info()
+            # Return an empty DataFrame with the required columns and explicit confidence info
+            empty_confidence = update_confidence_info({}, {
+                'level': 'none',
+                'match_level': 1,  # Use 1 as the default match level
+                'error': 'No data available for matching'
+            })
+            return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), empty_confidence
         
         # Determine how many criteria we have to work with
         total_criteria = len(criteria)
@@ -355,6 +347,14 @@ class Matcher:
             # Calculate confidence for this level if it's the first with matches
             if not best_confidence_info:
                 best_confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
+                
+                # Debug log when confidence info is first calculated
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG: First confidence_info in find_matches_with_fallback: match_level={best_confidence_info['match_level']}, level={best_confidence_info['level']}")
+                    st.write(f"DEBUG: Criteria used: {list(criteria.keys()) if criteria else []}")
+                    st.write(f"DEBUG: Number of matches: {len(level_matches)}")
+                    st.write(f"DEBUG: Match level: {level}")
+                    st.write(f"DEBUG: Match level description: {level_desc}")
             
             # Filter out shows we've already found at better match levels
             new_matches = level_matches[~level_matches['title'].isin(unique_titles)]
@@ -396,10 +396,19 @@ class Matcher:
             # Create an empty DataFrame with the required columns
             # Include all columns that will be used downstream
             empty_df = pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title'])
-            return empty_df, self._empty_confidence_info()
+            empty_confidence = update_confidence_info({}, {
+                'level': 'none',
+                'match_level': 1,  # Use 1 as the default match level
+                'error': 'No matches found at any level'
+            })
+            return empty_df, empty_confidence
         
         # Prepare confidence info for the combined results
-        confidence_info = best_confidence_info.copy() if best_confidence_info else self._empty_confidence_info()
+        confidence_info = best_confidence_info.copy() if best_confidence_info else update_confidence_info({}, {
+            'level': 'none',
+            'match_level': 1,  # Use 1 as the default match level
+            'error': 'No confidence info available'
+        })
         confidence_info['match_counts_by_level'] = all_match_counts
         confidence_info['total_unique_matches'] = total_unique_matches
         
@@ -734,7 +743,8 @@ class Matcher:
                         actual_match_level = 2  # Downgrade to level 2
                         break
         
-        return {
+        # Create the confidence info dictionary
+        confidence_info = {
             'level': confidence_level,
             'score': confidence_score,
             'match_quality': match_quality,
@@ -744,6 +754,12 @@ class Matcher:
             # Generate level name dynamically based on criteria difference
             'match_level_name': self._get_match_level_description(actual_match_level)
         }
+        
+        # Debug log the confidence info generation
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG: Generated confidence_info with match_level={confidence_info['match_level']}, level={confidence_info['level']}")
+            
+        return confidence_info
         
     def _get_relaxed_criteria(self, criteria: CriteriaDict, relaxation_tier: str) -> List[CriteriaDict]:
         """Generate sets of relaxed criteria by removing criteria of the specified importance tier.

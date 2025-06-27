@@ -18,7 +18,7 @@ from .optimizer_config import OptimizerConfig
 from .score_calculators import ComponentScore, ScoreCalculationError, NetworkScoreCalculator
 from .optimizer_data_contracts import NetworkMatch
 from .score_calculators import SuccessScoreCalculator, AudienceScoreCalculator, CriticsScoreCalculator, LongevityScoreCalculator
-from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData
+from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData, update_confidence_info
 
 SCORE_CALCULATORS_CLASSES = {
     'success': SuccessScoreCalculator,
@@ -462,7 +462,11 @@ class CriteriaScorer:
                                     if OptimizerConfig.DEBUG_MODE:
                                         OptimizerConfig.debug(f"Missing integrated data for option {option_name}", category='error')
                                     option_shows = pd.DataFrame()
-                                    confidence_info = self._empty_confidence_info()
+                                    confidence_info = update_confidence_info({}, {
+                                        'level': 'none',
+                                        'match_level': 1,  # Use 1 as the default match level
+                                        'error': 'Missing integrated data for option'
+                                    })
                                                         
                             # Process option matching shows
                             

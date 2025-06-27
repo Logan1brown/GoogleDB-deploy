@@ -75,20 +75,6 @@ class IntegratedData(TypedDict):
 
 # Helper functions for working with these contracts
 
-def create_default_confidence_info() -> ConfidenceInfo:
-    """Create a default confidence info dictionary with standard values.
-    
-    Returns:
-        Default ConfidenceInfo dictionary
-    """
-    return {
-        'level': 'none',
-        'match_level': 1,  # Default to exact match (level 1) instead of 0
-        'match_count': 0,
-        'sample_size': 0
-    }
-
-
 def update_confidence_info(base_info: Dict[str, Any], updates: Dict[str, Any]) -> ConfidenceInfo:
     """Update confidence info with new values while maintaining the contract.
     
@@ -99,20 +85,19 @@ def update_confidence_info(base_info: Dict[str, Any], updates: Dict[str, Any]) -
     Returns:
         Updated ConfidenceInfo dictionary
     """
-    # Start with default values if base_info is empty
-    if not base_info:
-        result = create_default_confidence_info()
-    else:
-        # Create a copy to avoid modifying the original
-        result = dict(base_info)
+    # Create a copy to avoid modifying the original
+    result = dict(base_info) if base_info else {}
     
     # Update with new values
     for key, value in updates.items():
         result[key] = value
     
-    # Ensure the required 'level' field is present
+    # Ensure the required fields are present
     if 'level' not in result:
         result['level'] = 'none'
+        
+    if 'match_level' not in result:
+        result['match_level'] = 1  # Default to exact match (level 1)
     
     return result
 
