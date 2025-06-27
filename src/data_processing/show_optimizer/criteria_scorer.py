@@ -524,7 +524,7 @@ class CriteriaScorer:
                         original_impact = impact
                     
                         # Get minimum impact threshold
-                        min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
+                        min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
                         
                         # Skip options with impact below minimum threshold
                         if abs(impact) < min_impact:  # If impact is too small
@@ -557,8 +557,6 @@ class CriteriaScorer:
                         
                         # Skip options with no recommendation type (e.g., negative impact on unselected fields)
                         if recommendation_type is None:
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Skipping {current_field}={option_name}: negative impact {impact:.4f} on unselected field", category='impact')
                             continue  # Skip to next option
                         
                         # Recommendation type determination logic follows
@@ -577,23 +575,26 @@ class CriteriaScorer:
                     except Exception as e:
                         # Skip this option if there's an error
                         if OptimizerConfig.DEBUG_MODE:
-                            import traceback
                             OptimizerConfig.debug(f"Error processing option {option_name}: {str(e)}", category='impact')
-                            OptimizerConfig.debug(traceback.format_exc(), category='impact')
                         continue
                 
             # Check if we have any impact scores after processing all fields
             # Process impact scores
                 
                 # Debug log to verify impact data structure integrity
-                for field, options in impact_scores.items():
-                    if field == '_summary':
-                        continue
-                    for option_id, impact_info in options.items():
-                        if not isinstance(impact_info, dict):
-                            OptimizerConfig.debug(f"WARNING: Non-dict impact_info found for {field}.{option_id}: {type(impact_info)}", category='error')
-                        elif 'impact' not in impact_info:
-                            OptimizerConfig.debug(f"WARNING: Missing 'impact' key in impact_info for {field}.{option_id}", category='error')
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Impact scores structure: {impact_scores.keys()}", category='impact')
+                    for field, options in impact_scores.items():
+                        if field == '_summary':
+                            continue
+                        OptimizerConfig.debug(f"Field {field} has {len(options)} options", category='impact')
+                        for option_id, impact_info in options.items():
+                            if not isinstance(impact_info, dict):
+                                OptimizerConfig.debug(f"WARNING: Non-dict impact_info found for {field}.{option_id}: {type(impact_info)}", category='error')
+                            elif 'impact' not in impact_info:
+                                OptimizerConfig.debug(f"WARNING: Missing 'impact' key in impact_info for {field}.{option_id}", category='error')
+                            else:
+                                OptimizerConfig.debug(f"Impact for {field}.{option_id}: {impact_info['impact']:.4f}", category='impact')
             
             # Process unselected fields to generate 'add' recommendations
             if OptimizerConfig.DEBUG_MODE:
@@ -661,26 +662,19 @@ class CriteriaScorer:
                             original_impact = impact
                             
                             # Skip if impact is too small
-                            min_impact = OptimizerConfig.SUGGESTIONS.get('minimum_impact', 0.05)
+                            min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
                             if abs(impact) < min_impact:
                                 # Skip options with minimal impact
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Skipping {field}={option_name} due to small impact: {impact:.4f}", category='impact')
                                 continue
                             
                             # For unselected fields, only store positive impact scores (as 'add' recommendations)
                             # Skip negative impact scores for unselected fields as they're not actionable
                             if impact <= 0:
                                 # Skip storing negative impact scores for unselected fields
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Skipping {field}={option_name}: negative impact {impact:.4f} on unselected field", category='impact')
                                 continue
                                 
                             # For unselected fields with positive impact, always use 'add' recommendation type
                             recommendation_type = 'add'
-                            
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Recommendation for {field}={option_name}: type={recommendation_type}, impact={impact:.4f} (positive)", category='impact')
                             
                             # Store impact score with all relevant information - ALWAYS as a complete dictionary
                             # This ensures consistent data structure throughout the application
