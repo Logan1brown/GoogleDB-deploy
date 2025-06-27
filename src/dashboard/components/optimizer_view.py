@@ -269,7 +269,7 @@ class OptimizerView:
                 "subtitle": "Success probability not available"
             }
         
-    def _format_recommendations(self, recommendations: List[Dict[str, Any]]) -> Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]:
+    def _format_recommendations(self, recommendations: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]:
         """
         Format recommendations for display in the UI.
         
@@ -286,7 +286,7 @@ class OptimizerView:
         - 'network_change': For suggesting to change elements that don't work well with a specific network
         
         Args:
-            recommendations: List of RecommendationItem dictionaries with recommendation_type key
+            recommendations: Dictionary with 'general' and 'network_specific' recommendation lists
             
         Returns:
             Dictionary with formatted recommendations grouped by type:
@@ -312,25 +312,33 @@ class OptimizerView:
                 header = config.RECOMMENDATION_TYPES.get(rec_type, f"{rec_type.replace('_', ' ').title()} Recommendations")
                 grouped[rec_type] = {'items': [], 'header': header}
             
-        # Track network-specific recommendations separately
-        network_specific = []
+        # Extract general and network-specific recommendations from the dictionary structure
+        general_recs = recommendations.get('general', [])
+        network_specific_recs = recommendations.get('network_specific', [])
+        
+        # Track formatted network-specific recommendations
+        network_specific_formatted = []
         
         # Debug log the recommendations count
         if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Formatting {len(recommendations)} recommendations", category='recommendation', force=True)
-            if recommendations:
+            general_count = len(general_recs)
+            network_count = len(network_specific_recs)
+            total_count = general_count + network_count
+            OptimizerConfig.debug(f"Formatting {total_count} recommendations ({general_count} general, {network_count} network-specific)", category='recommendation', force=True)
+            
+            if general_recs:
                 # Count recommendations by type - use dictionary-style access
                 type_counts = {}
-                for rec in recommendations:
+                for rec in general_recs:
                     rec_type = rec['recommendation_type']
                     if rec_type not in type_counts:
                         type_counts[rec_type] = 0
                     type_counts[rec_type] += 1
                 
-                OptimizerConfig.debug(f"Recommendation types: {type_counts}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"General recommendation types: {type_counts}", category='recommendation', force=True)
                 
                 # Special debug for 'remove' recommendations - use dictionary-style access
-                remove_recs = [rec for rec in recommendations if rec['recommendation_type'] == 'remove']
+                remove_recs = [rec for rec in general_recs if rec['recommendation_type'] == 'remove']
                 if remove_recs:
                     OptimizerConfig.debug(f"Found {len(remove_recs)} 'remove' recommendations before formatting", category='recommendation', force=True)
                     # Inspect the first few remove recommendations in detail
@@ -344,9 +352,9 @@ class OptimizerView:
                 else:
                     OptimizerConfig.debug("No 'remove' recommendations found in original recommendations", category='recommendation', force=True)
                 
-                # Show the first few recommendations in detail
-                for i, rec in enumerate(recommendations[:3]):
-                    OptimizerConfig.debug(f"Recommendation {i+1} details:", category='recommendation', force=True)
+                # Show the first few general recommendations in detail
+                for i, rec in enumerate(general_recs[:3]):
+                    OptimizerConfig.debug(f"General recommendation {i+1} details:", category='recommendation', force=True)
                     OptimizerConfig.debug(f"  - Type: {rec['recommendation_type']}", category='recommendation')
                     OptimizerConfig.debug(f"  - Criteria Type: {rec.get('criteria_type', rec.get('field', 'unknown'))}", category='recommendation')
                     OptimizerConfig.debug(f"  - Suggested Name: {rec.get('suggested_name', 'unknown')}", category='recommendation')
@@ -368,7 +376,8 @@ class OptimizerView:
             
         formatted_recommendations = []
         
-        for rec in recommendations:
+        # Process general recommendations
+        for rec in general_recs:
             # Use recommendation_type with dictionary-style access
             rec_type = rec['recommendation_type']
                 
@@ -439,8 +448,9 @@ class OptimizerView:
             
             # Add to appropriate group based on recommendation type
             if rec_type.startswith('network_'):
-                # Handle network-specific recommendations
-                network_specific.append(formatted_rec)
+                # Handle network-specific recommendations from general recommendations
+                # This should be rare since we now separate them at the source
+                network_specific_formatted.append(formatted_rec)
                 
                 # Ensure network-specific recommendations are properly grouped
                 if 'network_specific' not in grouped:
@@ -449,7 +459,7 @@ class OptimizerView:
                 
                 # Keep debug output for network recommendations as they're specifically related to recommendations
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Added network recommendation to 'network_specific' group: {formatted_rec['title']}", category='recommendation')
+                    OptimizerConfig.debug(f"Added network recommendation from general recs to 'network_specific' group: {formatted_rec['title']}", category='recommendation')
                 
             # Ensure the group exists
             if rec_type not in grouped:
@@ -475,6 +485,79 @@ class OptimizerView:
                 OptimizerConfig.debug(f"VERIFY: Added 'remove' recommendation to grouped dictionary", category='recommendation', force=True)
                 OptimizerConfig.debug(f"  - Group 'remove' now has {len(grouped['remove'])} recommendations", category='recommendation', force=True)
         
+        # Now process the network-specific recommendations that are provided separately
+        if network_specific_recs:
+            for rec in network_specific_recs:
+                # Use recommendation_type with dictionary-style access
+                rec_type = rec['recommendation_type']
+                
+                # Format impact percentage for display
+                impact_score = rec.get('impact_score', rec.get('impact', 0.0))
+                impact_percent = abs(impact_score * 100)
+                impact_direction = "Increase" if impact_score > 0 else "Decrease"
+                
+                # Special debug for 'remove' recommendations
+                if rec_type == 'remove':
+                    criteria_type = rec.get('criteria_type', rec.get('field', 'unknown'))
+                    suggested_name = rec.get('suggested_name', 'unknown')
+                    OptimizerConfig.debug(f"REMOVE RECOMMENDATION FOUND IN OPTIMIZER_VIEW: {criteria_type}/{suggested_name}", category='recommendation', force=True)
+                
+                # Create recommendation title without impact percentage
+                if rec_type.startswith('network_'):
+                    # For network recommendations
+                    clean_rec_type = rec_type.replace('network_', '')
+                    # Extract network name from suggested_name
+                    network_name = rec.get('suggested_name', '')
+                    if ':' in network_name:
+                        network_name = network_name.split(':', 1)[0].strip()
+                        
+                    criteria_type = rec.get('criteria_type', rec.get('field', ''))
+                    title = f"{network_name} - {clean_rec_type.capitalize()} {criteria_type}"
+                else:
+                    # Format the title to include only the criteria type and suggested name
+                    criteria_type = rec.get('criteria_type', rec.get('field', '')).replace('_', ' ').title()
+                    suggested_name = rec.get('suggested_name', '')
+                    
+                    # Create a clean title without the impact information
+                    title = f"{criteria_type}: {suggested_name}"
+                    
+                # Generate explanation text based on recommendation type and data
+                explanation = self._generate_explanation_text(rec)
+                
+                # Make sure the explanation ends with a period for consistency
+                if explanation and not explanation.strip().endswith('.'):
+                    explanation = f"{explanation}."
+                
+                # Create formatted recommendation dictionary with dictionary-style access
+                formatted_rec = {
+                    # Display values
+                    "title": title,
+                    "description": explanation,
+                    "importance": rec.get('confidence', 'medium'),
+                    "category": rec_type,  # This is the key field for grouping
+                    "impact": impact_score,
+                    "criteria_type": rec.get('criteria_type', rec.get('field', '')),
+                    "suggested_name": rec.get('suggested_name', ''),
+                    # Dictionary-style access for values
+                    "current_value": rec.get('current_value', None),
+                    "suggested_value": rec.get('suggested_value', None),
+                    
+                    # Raw data for sorting and filtering
+                    "_impact_raw": impact_score,
+                    "_confidence_level": self._get_confidence_level(rec.get('confidence', 'medium')),
+                    "_rec_type": rec_type
+                }
+                
+                # Add to formatted recommendations list
+                formatted_recommendations.append(formatted_rec)
+                
+                # Add to network_specific group and tracking list
+                grouped['network_specific']['items'].append(formatted_rec)
+                network_specific_formatted.append(formatted_rec)
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Added network-specific recommendation: {formatted_rec['title']}", category='recommendation')
+        
         # Sort each group by impact score (descending)
         for rec_type in grouped:
             if 'items' in grouped[rec_type]:
@@ -485,7 +568,7 @@ class OptimizerView:
             non_empty_groups = [k for k, v in grouped.items() if v.get('items', [])]
             OptimizerConfig.debug(f"Formatted recommendations structure", category='recommendation')
             OptimizerConfig.debug(f"Non-empty groups: {non_empty_groups}", category='recommendation')
-            OptimizerConfig.debug(f"Network-specific recommendations: {len(network_specific)}", category='recommendation')
+            OptimizerConfig.debug(f"Network-specific recommendations: {len(network_specific_formatted)}", category='recommendation')
             
             # Log counts for each recommendation type
             for rec_type in config.RECOMMENDATION_TYPES.keys():
@@ -505,7 +588,7 @@ class OptimizerView:
             remove_recs = grouped.get('remove', {}).get('items', [])
             change_recs = grouped.get('change', {}).get('items', [])
             add_recs = grouped.get('add', {}).get('items', [])
-            network_recs = len(network_specific)
+            network_recs = len(network_specific_formatted)
             
             OptimizerConfig.debug(f"Recommendation counts: Add={len(add_recs)}, Change={len(change_recs)}, Remove={len(remove_recs)}, Network={network_recs}", category='recommendation')
             
@@ -544,14 +627,14 @@ class OptimizerView:
         # Since they're already included in grouped['network_specific']
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Preparing final recommendations dictionary", category='recommendation', force=True)
-            OptimizerConfig.debug(f"Network-specific count: {len(network_specific)}", category='recommendation', force=True)
+            OptimizerConfig.debug(f"Network-specific count: {len(network_specific_formatted)}", category='recommendation', force=True)
             OptimizerConfig.debug(f"Grouped keys: {list(grouped.keys())}", category='recommendation', force=True)
             for k, group_data in grouped.items():
                 OptimizerConfig.debug(f"Group '{k}' has {len(group_data.get('items', []))} items with header '{group_data.get('header', '')}'")
             
         return {
             "grouped": grouped,
-            "network_specific": network_specific,
+            "network_specific": network_specific_formatted,
             "all": [rec for group_data in grouped.values() for rec in group_data.get('items', [])]
         }
     
@@ -705,6 +788,8 @@ class OptimizerView:
         # Default explanation if no specific format is defined
         return f"This recommendation could {impact_direction} success probability by {impact_percent:.1f}%."
     
+
+        
     def _get_confidence_level(self, confidence: str) -> int:
         """Convert confidence string to numeric level for sorting.
         
@@ -714,13 +799,14 @@ class OptimizerView:
         Returns:
             Numeric confidence level (0-3)
         """
-        confidence_levels = {
-            'none': 0,
-            'low': 1,
-            'medium': 2,
-            'high': 3
-        }
-        return confidence_levels.get(confidence.lower(), 0)
+        if confidence == 'high':
+            return 3
+        elif confidence == 'medium':
+            return 2
+        elif confidence == 'low':
+            return 1
+        else:
+            return 0
         
     def _format_success_factors(self, success_factors: List[SuccessFactor]) -> List[Dict[str, Union[str, float, int]]]:
         """Format success factors for display.

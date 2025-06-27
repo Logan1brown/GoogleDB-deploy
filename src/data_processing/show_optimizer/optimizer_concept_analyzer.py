@@ -43,7 +43,7 @@ class OptimizationSummary:
     confidence: str
     top_networks: List[NetworkMatch]
     component_scores: Dict[str, ComponentScore]
-    recommendations: List[Dict[str, Any]]  # List of RecommendationItem dictionaries
+    recommendations: Dict[str, List[Dict[str, Any]]]  # Dictionary with 'general' and 'network_specific' recommendation lists
     success_factors: List[SuccessFactor]
     matching_titles: List[str] = field(default_factory=list)  # Titles of shows matching all criteria
     match_level: int = 1  # Match level used (1-4, where 1 is highest)
@@ -203,9 +203,11 @@ class OptimizationSummary:
                     'confidence': network.confidence
                 }
                 formatted['networks'].append(network_data)
-                # Format recommendations data - all recommendations should be dictionaries
+                # Format recommendations data - now using the new dictionary structure
         if self.recommendations:
-            for rec in self.recommendations:
+            # Process general recommendations
+            general_recs = self.recommendations.get('general', [])
+            for rec in general_recs:
                 # Ensure rec is a dictionary
                 if not isinstance(rec, dict):
                     # Skip non-dictionary recommendations
@@ -225,11 +227,33 @@ class OptimizationSummary:
                     'description': rec.get('explanation', 'No explanation available')
                 }
                 
-                # Categorize recommendations
-                if rec_type.startswith('network_'):
-                    formatted['recommendations']['network_specific'].append(rec_dict)
-                else:
-                    formatted['recommendations']['general'].append(rec_dict)
+                # Add to general recommendations
+                formatted['recommendations']['general'].append(rec_dict)
+            
+            # Process network-specific recommendations
+            network_recs = self.recommendations.get('network_specific', [])
+            for rec in network_recs:
+                # Ensure rec is a dictionary
+                if not isinstance(rec, dict):
+                    # Skip non-dictionary recommendations
+                    continue
+                    
+                # Dictionary-style access for TypedDict
+                rec_type = rec.get('recommendation_type', '')
+                rec_dict = {
+                    'recommendation_type': rec_type,
+                    'criteria_type': rec.get('field', ''),
+                    'current_value': rec.get('current_value', None),
+                    'current_name': rec.get('current_name', ''),
+                    'suggested_value': rec.get('suggested_value', None),
+                    'suggested_name': rec.get('suggested_name', ''),
+                    'impact_score': rec.get('impact', 0.0),
+                    'confidence': rec.get('confidence', 'none'),
+                    'description': rec.get('explanation', 'No explanation available')
+                }
+                
+                # Add to network-specific recommendations
+                formatted['recommendations']['network_specific'].append(rec_dict)
         
         # Cache and return the formatted data
             
@@ -443,9 +467,13 @@ class ConceptAnalyzer:
                 criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
             )
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Generated {len(recommendations)} recommendations", category='analysis')
+                # Handle the new dictionary structure for recommendations
+                general_count = len(recommendations.get('general', []))
+                network_specific_count = len(recommendations.get('network_specific', []))
+                total_count = general_count + network_specific_count
+                OptimizerConfig.debug(f"Generated {total_count} recommendations ({general_count} general, {network_specific_count} network-specific)", category='analysis')
                 # Safely get recommendation types, handling both dict and object access
-                if recommendations:
+                if recommendations and total_count > 0:
                     # Enforce RecommendationItem TypedDict contract - recommendations should always be dictionaries
                     # No need to debug recommendation types
                     pass
@@ -906,8 +934,12 @@ class ConceptAnalyzer:
                     self.config.debug(f"Error generating recommendations for {network_name}: {str(net_error)}", 
                                      category='error', force=True)
             
-            # Combine and return all recommendations
-            return general_recommendations + network_recommendations
+            # Return recommendations in the expected structure for the UI
+            # Instead of a flat list, return a dictionary with 'general' and 'network_specific' keys
+            return {
+                'general': general_recommendations,
+                'network_specific': network_recommendations
+            }
             
         except Exception as e:
             st.error(f"Error generating recommendations: {str(e)}")
