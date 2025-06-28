@@ -460,35 +460,35 @@ class ConceptAnalyzer:
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Found {len(success_factors)} success factors", category='analysis')
                 
-                # Add direct streamlit debug for visibility
-                st.write(f"DEBUG: analyze_concept found {len(success_factors)} success factors")
+                # Add detailed debugging for success factors
+                OptimizerConfig.debug(f"analyze_concept found {len(success_factors)} success factors", category='recommendation', force=True)
                 
                 # Log the first few success factors with their impact scores
                 for i, factor in enumerate(success_factors[:5]):
-                    st.write(f"DEBUG: Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}")
+                    OptimizerConfig.debug(f"Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}", category='recommendation', force=True)
                 
                 # Check if any success factors have high impact
                 high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
-                st.write(f"DEBUG: Found {len(high_impact_factors)} success factors with impact >= 0.05")
+                OptimizerConfig.debug(f"Found {len(high_impact_factors)} success factors with impact >= 0.05", category='recommendation', force=True)
                 
                 # Check minimum impact threshold from config
                 min_impact = self.config.SUGGESTIONS['minimum_impact']
-                st.write(f"DEBUG: Minimum impact threshold from config: {min_impact}")
+                OptimizerConfig.debug(f"Minimum impact threshold from config: {min_impact}", category='recommendation', force=True)
                 
                 # Count factors that pass the threshold
                 passing_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
-                st.write(f"DEBUG: Success factors passing minimum impact threshold: {len(passing_factors)} of {len(success_factors)}")
+                OptimizerConfig.debug(f"Success factors passing minimum impact threshold: {len(passing_factors)} of {len(success_factors)}", category='recommendation', force=True)
                 
                 # Check if any success factors have recommendation_type set
                 typed_factors = [f for f in success_factors if hasattr(f, 'recommendation_type') and f.recommendation_type]
-                st.write(f"DEBUG: Success factors with recommendation_type: {len(typed_factors)} of {len(success_factors)}")
+                OptimizerConfig.debug(f"Success factors with recommendation_type: {len(typed_factors)} of {len(success_factors)}", category='recommendation', force=True)
                 if typed_factors:
                     rec_types = {}
                     for f in typed_factors:
                         if f.recommendation_type not in rec_types:
                             rec_types[f.recommendation_type] = 0
                         rec_types[f.recommendation_type] += 1
-                    st.write(f"DEBUG: Recommendation types: {rec_types}")
+                    OptimizerConfig.debug(f"Recommendation types: {rec_types}", category='recommendation', force=True)
                     
                 # Check if any success factors have selection status
                 for i, factor in enumerate(success_factors[:3]):
@@ -498,7 +498,7 @@ class ConceptAnalyzer:
                     is_option_selected = False
                     if is_field_selected and option_id in criteria.get(criteria_type, []):
                         is_option_selected = True
-                    st.write(f"DEBUG: Factor {i+1} selection status: field_selected={is_field_selected}, option_selected={is_option_selected}")
+                    OptimizerConfig.debug(f"Factor {i+1} selection status: field_selected={is_field_selected}, option_selected={is_option_selected}", category='recommendation', force=True)
                     
                 # Check if we have any success factors that would pass the recommendation filters
                 potential_recs = []
@@ -542,9 +542,9 @@ class ConceptAnalyzer:
                         'impact': impact_score
                     })
                     
-                st.write(f"DEBUG: Potential recommendations after filtering: {len(potential_recs)}")
+                OptimizerConfig.debug(f"Potential recommendations after filtering: {len(potential_recs)}", category='recommendation', force=True)
                 for i, rec in enumerate(potential_recs[:3]):
-                    st.write(f"DEBUG: Potential rec {i+1}: {rec['type']} {rec['field']}.{rec['value']} ({rec['name']}) with impact {rec['impact']}")
+                    OptimizerConfig.debug(f"Potential rec {i+1}: {rec['type']} {rec['field']}.{rec['value']} ({rec['name']}) with impact {rec['impact']}", category='recommendation', force=True)
             
             # Step 6: Generate recommendations
             if OptimizerConfig.DEBUG_MODE:
