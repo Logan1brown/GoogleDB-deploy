@@ -648,10 +648,11 @@ class OptimizerView:
             for k, group_data in grouped.items():
                 OptimizerConfig.debug(f"Group '{k}' has {len(group_data.get('items', []))} items with header '{group_data.get('header', '')}'")
             
+        # Return the structure expected by render_recommendations
+        # This is a direct structure with 'general' and 'network_specific' keys
         return {
-            "grouped": grouped,
-            "network_specific": network_specific_formatted,
-            "all": [rec for group_data in grouped.values() for rec in group_data.get('items', [])]
+            "general": [rec for group_data in grouped.values() for rec in group_data.get('items', [])],
+            "network_specific": network_specific_formatted
         }
     
     def _format_network_matches(self, network_matches: List[NetworkMatch]) -> List[Dict[str, Any]]:
