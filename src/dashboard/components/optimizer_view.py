@@ -656,10 +656,17 @@ class OptimizerView:
         general_flattened = []
         
         # Only include recommendations from 'add', 'change', and 'remove' groups
+        # But exclude network-related recommendations from general section
         for group_name, group_data in grouped.items():
             if group_name in ['add', 'change', 'remove']:
                 for rec in group_data.get('items', []):
-                    general_flattened.append(rec)
+                    # Skip network recommendations in general section
+                    if rec.get('field', '').lower() == 'network':
+                        # Add to network_specific_formatted if not already there
+                        if rec not in network_specific_formatted:
+                            network_specific_formatted.append(rec)
+                    else:
+                        general_flattened.append(rec)
         
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Flattened general recommendations count: {len(general_flattened)}", category='recommendation', force=True)
