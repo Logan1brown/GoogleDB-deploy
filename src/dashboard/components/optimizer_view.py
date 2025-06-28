@@ -650,8 +650,22 @@ class OptimizerView:
             
         # Return the structure expected by render_recommendations
         # This is a direct structure with 'general' and 'network_specific' keys
+        # We need to exclude the 'network_specific' group from the general recommendations
+        general_flattened = []
+        
+        # Only include recommendations from 'add', 'change', and 'remove' groups
+        for group_name, group_data in grouped.items():
+            if group_name in ['add', 'change', 'remove']:
+                for rec in group_data.get('items', []):
+                    general_flattened.append(rec)
+        
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Flattened general recommendations count: {len(general_flattened)}", category='recommendation', force=True)
+            for i, rec in enumerate(general_flattened[:3]):
+                OptimizerConfig.debug(f"Flattened general rec {i+1} type: {rec.get('recommendation_type', 'MISSING')}", category='recommendation', force=True)
+        
         return {
-            "general": [rec for group_data in grouped.values() for rec in group_data.get('items', [])],
+            "general": general_flattened,
             "network_specific": network_specific_formatted
         }
     
