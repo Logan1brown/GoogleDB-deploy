@@ -51,8 +51,14 @@ def show():
             debug_mode = st.checkbox("Enable Debug Mode", value=st.session_state.get('debug_mode', False))
             st.session_state['debug_mode'] = debug_mode
             
+            # Connect session state debug toggle to OptimizerConfig.DEBUG_MODE
+            from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
+            OptimizerConfig.DEBUG_MODE = debug_mode
+            
             if debug_mode:
-                pass  # Debug mode is now ON
+                st.write("Debug mode is now ON - Debug messages will be displayed")
+                # Force debug message to confirm it's working
+                OptimizerConfig.debug("Debug mode enabled through UI toggle", category='system', force=True)
                 if st.button("Reset Profiling Data"):
                     from src.data_processing.show_optimizer.optimizer_profiler import reset_profiling
                     reset_profiling()
