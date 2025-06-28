@@ -861,19 +861,40 @@ class ConceptAnalyzer:
             return []
 
     def _generate_recommendations(self, criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data):
-        """Generate recommendations based on criteria, matching shows, and analysis results.
+        """Generate recommendations based on success factors.
         
         Args:
-            criteria: Dictionary of criteria for the show concept
-            matching_shows: DataFrame of shows matching the criteria
-            success_factors: List of identified success factors
-            top_networks: List of top compatible networks as NetworkMatch objects
+            criteria: Dictionary of criteria key-value pairs
+            matching_shows: DataFrame of matching shows
+            success_factors: List of SuccessFactor objects
+            top_networks: List of top networks
             confidence_info: Dictionary with confidence metrics
             integrated_data: Dictionary of integrated data frames
             
         Returns:
-            List of RecommendationItem dictionaries
+            Dictionary with 'general' and 'network_specific' recommendations
         """
+        
+        # Add detailed debugging for success factors
+        if self.config.DEBUG_MODE:
+            st.write(f"DEBUG: _generate_recommendations received {len(success_factors)} success factors")
+            
+            # Log the first few success factors
+            for i, factor in enumerate(success_factors[:5]):
+                st.write(f"DEBUG: Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}")
+                
+            # Check if any success factors have high impact
+            high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
+            st.write(f"DEBUG: Found {len(high_impact_factors)} success factors with impact >= 0.05")
+            
+            # Check minimum impact threshold from config
+            min_impact = self.config.SUGGESTIONS['minimum_impact']
+            st.write(f"DEBUG: Minimum impact threshold from config: {min_impact}")
+            
+            # Count factors that pass the threshold
+            passing_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
+            st.write(f"DEBUG: Success factors passing minimum impact threshold: {len(passing_factors)} of {len(success_factors)}")
+            
         try:
             # Store matching_shows for later use in get_network_specific_recommendations
             self._last_matching_shows = matching_shows
