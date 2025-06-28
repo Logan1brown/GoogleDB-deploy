@@ -326,16 +326,23 @@ class RecommendationEngine:
             List of RecommendationItem dictionaries with standardized structure
         """
         # Add direct debug output to ensure visibility
-        st.write(f"DEBUG DIRECT: generate_recommendations called with {len(success_factors)} success factors")
-        
-        # Check if any success factors have high impact
-        min_impact = self.config.SUGGESTIONS['minimum_impact']
-        high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
-        st.write(f"DEBUG DIRECT: Found {len(high_impact_factors)} success factors with impact >= {min_impact}")
-        
-        # Log the first few success factors directly
-        for i, factor in enumerate(success_factors[:3]):
-            st.write(f"DEBUG DIRECT: Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}")
+        try:
+            st.write("DEBUG DIRECT: generate_recommendations called with " + str(len(success_factors)) + " success factors")
+            
+            # Check if any success factors have high impact
+            min_impact = self.config.SUGGESTIONS['minimum_impact']
+            high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
+            st.write("DEBUG DIRECT: Found " + str(len(high_impact_factors)) + " success factors with impact >= " + str(min_impact))
+            
+            # Log the first few success factors directly
+            for i, factor in enumerate(success_factors[:3]):
+                st.write("DEBUG DIRECT: Success factor " + str(i+1) + ": " + 
+                         "type=" + str(factor.criteria_type) + ", " + 
+                         "value=" + str(factor.criteria_value) + ", " + 
+                         "name=" + str(factor.criteria_name) + ", " + 
+                         "impact=" + str(factor.impact_score))
+        except Exception as e:
+            st.write("DEBUG ERROR: " + str(e))
         
         try:
             # Initialize empty list for recommendations
