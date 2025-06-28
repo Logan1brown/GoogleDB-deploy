@@ -480,11 +480,14 @@ class RecommendationEngine:
             min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
             
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"_recommend_missing_criteria processing {len(success_factors)} success factors with min_impact={min_impact}", category='recommendation', force=True)
-                
-                # Log details about each success factor for debugging
-                for i, factor in enumerate(success_factors[:5]):  # Limit to first 5 to avoid excessive logging
-                    OptimizerConfig.debug(f"Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}", category='recommendation', force=True)
+                try:
+                    OptimizerConfig.debug("_recommend_missing_criteria processing " + str(len(success_factors)) + " success factors with min_impact=" + str(min_impact), category='recommendation', force=True)
+                    
+                    # Log details about each success factor for debugging
+                    for i, factor in enumerate(success_factors[:5]):  # Limit to first 5 to avoid excessive logging
+                        OptimizerConfig.debug("Success factor " + str(i+1) + ": type=" + str(factor.criteria_type) + ", value=" + str(factor.criteria_value) + ", name=" + str(factor.criteria_name) + ", impact=" + str(factor.impact_score), category='recommendation', force=True)
+                except Exception as e:
+                    st.write("DEBUG ERROR in _recommend_missing_criteria: " + str(e))
             
 
               
@@ -493,7 +496,10 @@ class RecommendationEngine:
                 # This is a business rule, not defensive programming
                 if abs(factor.impact_score) < min_impact:
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Skipping factor {factor.criteria_name} due to low impact: {factor.impact_score} < {min_impact}", category='recommendation', force=True)
+                        try:
+                            OptimizerConfig.debug("Skipping factor " + str(factor.criteria_name) + " due to low impact: " + str(factor.impact_score) + " < " + str(min_impact), category='recommendation', force=True)
+                        except Exception as e:
+                            st.write("DEBUG ERROR in skipping factor: " + str(e))
                     continue
                 
                 # Get information about the selection status for filtering
