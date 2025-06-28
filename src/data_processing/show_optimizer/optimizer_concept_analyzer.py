@@ -908,13 +908,7 @@ class ConceptAnalyzer:
             # This enforces the contract rather than adding defensive checks
             confidence_info = update_confidence_info(confidence_info, {})
             
-            # Debug success factors before passing to recommendation engine
-            if self.config.DEBUG_MODE:
-                st.write(f"DEBUG: Passing {len(success_factors)} success factors to recommendation engine")
-                if success_factors:
-                    st.write(f"DEBUG: First factor type: {type(success_factors[0]).__name__}")
-                    st.write(f"DEBUG: First factor impact: {success_factors[0].impact_score}")
-                    st.write(f"DEBUG: First factor recommendation type: {success_factors[0].recommendation_type}")
+
             
             # Generate general recommendations
             general_recommendations = self.recommendation_engine.generate_recommendations(
