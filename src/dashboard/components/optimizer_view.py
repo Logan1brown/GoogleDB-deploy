@@ -662,9 +662,26 @@ class OptimizerView:
                 for rec in group_data.get('items', []):
                     # Skip network recommendations in general section
                     if rec.get('field', '').lower() == 'network':
-                        # Add to network_specific_formatted if not already there
-                        if rec not in network_specific_formatted:
-                            network_specific_formatted.append(rec)
+                        # Create a network-specific recommendation format
+                        network_rec = rec.copy()
+                        
+                        # Get network name from suggested_name
+                        network_name = network_rec.get('suggested_name', '')
+                        
+                        # Format description to match expected pattern in 41_show_optimizer.py
+                        # This needs to follow the pattern: "Network ABC has a 50% success rate..."
+                        if network_name:
+                            explanation = network_rec.get('explanation', '')
+                            if explanation:
+                                network_rec['description'] = f"Network {network_name} {explanation}"
+                            
+                            # Add metadata field with network_name for proper grouping
+                            if 'metadata' not in network_rec:
+                                network_rec['metadata'] = {}
+                            network_rec['metadata']['network_name'] = network_name
+                        
+                        # Add to network_specific_formatted
+                        network_specific_formatted.append(network_rec)
                     else:
                         general_flattened.append(rec)
         
