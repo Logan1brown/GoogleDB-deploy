@@ -541,9 +541,13 @@ class RecommendationEngine:
                 # Skip recommendations that don't make logical sense
                 if rec_type == self.REC_TYPE_ADD and impact_score < 0:
                     # Don't recommend adding something with negative impact
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"  - Skipping: ADD recommendation with negative impact ({impact_score})", category='recommendation', force=True)
                     continue
                 elif rec_type == self.REC_TYPE_REMOVE and not is_field_selected:
                     # Can't remove what's not selected
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"  - Skipping: REMOVE recommendation for unselected field", category='recommendation', force=True)
                     continue
                 
                 # Update the recommendation type in the factor object for consistency
@@ -595,8 +599,23 @@ class RecommendationEngine:
                 
                 # Add to recommendations list
                 recommendations.append(recommendation)
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"  - Added recommendation: {rec_type} for {criteria_name} with impact {impact_score}", category='recommendation', force=True)
                  
                 # Recommendation processing complete
+            
+            # Final debug summary
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Final recommendations count: {len(recommendations)} from {len(success_factors)} success factors", category='recommendation', force=True)
+                if recommendations:
+                    rec_types = {}
+                    for rec in recommendations:
+                        rec_type = rec['recommendation_type']
+                        if rec_type not in rec_types:
+                            rec_types[rec_type] = 0
+                        rec_types[rec_type] += 1
+                    OptimizerConfig.debug(f"Recommendation types: {rec_types}", category='recommendation', force=True)
+            
             return recommendations
         except Exception as e:
             # Log the error with more context for debugging
