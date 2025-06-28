@@ -429,6 +429,7 @@ class OptimizerView:
                 "impact_direction": impact_direction,
                 "recommendation_type": rec_type,  # Preserve the original recommendation_type
                 "category": rec_type,  # Keep category for backward compatibility
+                "criteria_type": rec.get('field', ''),  # Add criteria_type mapped from field
                 "impact": impact_score,
                 "field": rec.get('field', ''),  # Always use 'field' as the standard field name
                 "suggested_name": rec.get('suggested_name', ''),
