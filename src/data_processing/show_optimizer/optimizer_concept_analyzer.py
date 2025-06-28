@@ -459,6 +459,92 @@ class ConceptAnalyzer:
             success_factors = self._identify_success_factors(criteria, matching_shows, integrated_data)
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Found {len(success_factors)} success factors", category='analysis')
+                
+                # Add direct streamlit debug for visibility
+                st.write(f"DEBUG: analyze_concept found {len(success_factors)} success factors")
+                
+                # Log the first few success factors with their impact scores
+                for i, factor in enumerate(success_factors[:5]):
+                    st.write(f"DEBUG: Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}")
+                
+                # Check if any success factors have high impact
+                high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
+                st.write(f"DEBUG: Found {len(high_impact_factors)} success factors with impact >= 0.05")
+                
+                # Check minimum impact threshold from config
+                min_impact = self.config.SUGGESTIONS['minimum_impact']
+                st.write(f"DEBUG: Minimum impact threshold from config: {min_impact}")
+                
+                # Count factors that pass the threshold
+                passing_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
+                st.write(f"DEBUG: Success factors passing minimum impact threshold: {len(passing_factors)} of {len(success_factors)}")
+                
+                # Check if any success factors have recommendation_type set
+                typed_factors = [f for f in success_factors if hasattr(f, 'recommendation_type') and f.recommendation_type]
+                st.write(f"DEBUG: Success factors with recommendation_type: {len(typed_factors)} of {len(success_factors)}")
+                if typed_factors:
+                    rec_types = {}
+                    for f in typed_factors:
+                        if f.recommendation_type not in rec_types:
+                            rec_types[f.recommendation_type] = 0
+                        rec_types[f.recommendation_type] += 1
+                    st.write(f"DEBUG: Recommendation types: {rec_types}")
+                    
+                # Check if any success factors have selection status
+                for i, factor in enumerate(success_factors[:3]):
+                    criteria_type = factor.criteria_type
+                    is_field_selected = criteria_type in criteria
+                    option_id = factor.criteria_value
+                    is_option_selected = False
+                    if is_field_selected and option_id in criteria.get(criteria_type, []):
+                        is_option_selected = True
+                    st.write(f"DEBUG: Factor {i+1} selection status: field_selected={is_field_selected}, option_selected={is_option_selected}")
+                    
+                # Check if we have any success factors that would pass the recommendation filters
+                potential_recs = []
+                for factor in success_factors:
+                    if abs(factor.impact_score) < min_impact:
+                        continue
+                        
+                    criteria_type = factor.criteria_type
+                    is_field_selected = criteria_type in criteria
+                    option_id = factor.criteria_value
+                    is_option_selected = False
+                    if is_field_selected and option_id in criteria.get(criteria_type, []):
+                        is_option_selected = True
+                        
+                    impact_score = factor.impact_score
+                    
+                    # Determine recommendation type based on selection status and impact
+                    rec_type = getattr(factor, 'recommendation_type', None) or 'unknown'
+                    
+                    if rec_type == 'unknown':
+                        if is_option_selected and impact_score < 0:
+                            rec_type = 'remove'
+                        elif not is_field_selected and impact_score > 0:
+                            rec_type = 'add'
+                        elif is_field_selected and not is_option_selected and impact_score > 0:
+                            rec_type = 'change'
+                        elif impact_score > 0:
+                            rec_type = 'add'
+                    
+                    # Skip recommendations that don't make logical sense
+                    if rec_type == 'add' and impact_score < 0:
+                        continue
+                    elif rec_type == 'remove' and not is_field_selected:
+                        continue
+                        
+                    potential_recs.append({
+                        'type': rec_type,
+                        'field': criteria_type,
+                        'value': option_id,
+                        'name': factor.criteria_name,
+                        'impact': impact_score
+                    })
+                    
+                st.write(f"DEBUG: Potential recommendations after filtering: {len(potential_recs)}")
+                for i, rec in enumerate(potential_recs[:3]):
+                    st.write(f"DEBUG: Potential rec {i+1}: {rec['type']} {rec['field']}.{rec['value']} ({rec['name']}) with impact {rec['impact']}")
             
             # Step 6: Generate recommendations
             if OptimizerConfig.DEBUG_MODE:
