@@ -526,8 +526,18 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                                         
                 # Render each recommendation (limit to top 20 per criteria type)
                 for rec in criteria_recs[:20]:
+                    # Get the title - ensure we have a fallback
+                    title = rec.get('title', rec.get('name', 'Recommendation'))
+                    
+                    # Get the content - could be 'explanation' or 'description' depending on where it was formatted
+                    content = rec.get('explanation', rec.get('description', 'No details available.'))
+                    
+                    # Debug the keys in this recommendation
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Recommendation keys: {list(rec.keys())}", category='recommendation')
+                    
                     # Use info card style for all recommendations
-                    render_info_card(rec['title'], rec['description'])
+                    render_info_card(title, content)
                         
         else:
             # If no general recommendations were found
