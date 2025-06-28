@@ -926,6 +926,15 @@ class ConceptAnalyzer:
                 integrated_data=integrated_data
             )
             
+            # Debug what was returned from general recommendations
+            if self.config.DEBUG_MODE:
+                st.write(f"DEBUG: General recommendations returned: {len(general_recommendations.get('general', []))}")
+                st.write(f"DEBUG: General recommendations type: {type(general_recommendations)}")
+                if general_recommendations and 'general' in general_recommendations:
+                    st.write(f"DEBUG: First recommendation: {general_recommendations['general'][0] if general_recommendations['general'] else 'None'}")
+                else:
+                    st.write("DEBUG: No general recommendations or invalid structure returned")
+            
             # Generate network-specific recommendations for top networks
             network_recommendations = []
             
