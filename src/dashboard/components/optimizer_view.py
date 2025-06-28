@@ -489,13 +489,18 @@ class OptimizerView:
         
         # Now process the network-specific recommendations that are provided separately
         if network_specific_recs:
-            # Add minimal debugging to identify the structure of recommendations
+            # Add focused debugging to identify if any recommendations are strings
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Processing {len(network_specific_recs)} network-specific recommendations", category='recommendation', force=True)
-                if network_specific_recs:
-                    # Debug the first network recommendation keys
-                    first_rec = network_specific_recs[0]
-                    OptimizerConfig.debug(f"First network recommendation keys: {list(first_rec.keys())}", category='recommendation', force=True)
+                # Check each recommendation's type
+                for i, rec in enumerate(network_specific_recs):
+                    OptimizerConfig.debug(f"Network recommendation {i} type: {type(rec)}", category='recommendation', force=True)
+                    if isinstance(rec, str):
+                        OptimizerConfig.debug(f"FOUND STRING RECOMMENDATION: {rec}", category='recommendation', force=True)
+                    elif isinstance(rec, dict):
+                        OptimizerConfig.debug(f"Dictionary recommendation keys: {list(rec.keys())}", category='recommendation', force=True)
+                    else:
+                        OptimizerConfig.debug(f"Unexpected recommendation type: {type(rec)}", category='recommendation', force=True)
             
             for rec in network_specific_recs:
                 # Use recommendation_type with dictionary-style access
