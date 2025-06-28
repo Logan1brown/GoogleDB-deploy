@@ -55,12 +55,7 @@ def show():
             from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
             OptimizerConfig.DEBUG_MODE = debug_mode
             
-            # Direct debug output to verify connection
-            try:
-                st.write("DEBUG STATUS: Debug mode is " + ("ON" if debug_mode else "OFF"))
-                st.write("DEBUG STATUS: OptimizerConfig.DEBUG_MODE is " + ("ON" if OptimizerConfig.DEBUG_MODE else "OFF"))
-            except Exception as e:
-                st.write("DEBUG ERROR: " + str(e))
+            # Debug mode is now connected to OptimizerConfig.DEBUG_MODE
             
             if debug_mode:
                 st.write("Debug mode is now ON - Debug messages will be displayed")

@@ -325,24 +325,7 @@ class RecommendationEngine:
         Returns:
             List of RecommendationItem dictionaries with standardized structure
         """
-        # Add direct debug output to ensure visibility
-        try:
-            st.write("DEBUG DIRECT: generate_recommendations called with " + str(len(success_factors)) + " success factors")
-            
-            # Check if any success factors have high impact
-            min_impact = self.config.SUGGESTIONS['minimum_impact']
-            high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
-            st.write("DEBUG DIRECT: Found " + str(len(high_impact_factors)) + " success factors with impact >= " + str(min_impact))
-            
-            # Log the first few success factors directly
-            for i, factor in enumerate(success_factors[:3]):
-                st.write("DEBUG DIRECT: Success factor " + str(i+1) + ": " + 
-                         "type=" + str(factor.criteria_type) + ", " + 
-                         "value=" + str(factor.criteria_value) + ", " + 
-                         "name=" + str(factor.criteria_name) + ", " + 
-                         "impact=" + str(factor.impact_score))
-        except Exception as e:
-            st.write("DEBUG ERROR: " + str(e))
+        # Process recommendations
         
         try:
             # Initialize empty list for recommendations
@@ -480,14 +463,11 @@ class RecommendationEngine:
             min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
             
             if OptimizerConfig.DEBUG_MODE:
-                try:
-                    OptimizerConfig.debug("_recommend_missing_criteria processing " + str(len(success_factors)) + " success factors with min_impact=" + str(min_impact), category='recommendation', force=True)
-                    
-                    # Log details about each success factor for debugging
-                    for i, factor in enumerate(success_factors[:5]):  # Limit to first 5 to avoid excessive logging
-                        OptimizerConfig.debug("Success factor " + str(i+1) + ": type=" + str(factor.criteria_type) + ", value=" + str(factor.criteria_value) + ", name=" + str(factor.criteria_name) + ", impact=" + str(factor.impact_score), category='recommendation', force=True)
-                except Exception as e:
-                    st.write("DEBUG ERROR in _recommend_missing_criteria: " + str(e))
+                OptimizerConfig.debug(f"_recommend_missing_criteria processing {len(success_factors)} success factors with min_impact={min_impact}", category='recommendation', force=True)
+                
+                # Log details about each success factor for debugging
+                for i, factor in enumerate(success_factors[:5]):  # Limit to first 5 to avoid excessive logging
+                    OptimizerConfig.debug(f"Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}", category='recommendation', force=True)
             
 
               
@@ -496,10 +476,7 @@ class RecommendationEngine:
                 # This is a business rule, not defensive programming
                 if abs(factor.impact_score) < min_impact:
                     if OptimizerConfig.DEBUG_MODE:
-                        try:
-                            OptimizerConfig.debug("Skipping factor " + str(factor.criteria_name) + " due to low impact: " + str(factor.impact_score) + " < " + str(min_impact), category='recommendation', force=True)
-                        except Exception as e:
-                            st.write("DEBUG ERROR in skipping factor: " + str(e))
+                        OptimizerConfig.debug(f"Skipping factor {factor.criteria_name} due to low impact: {factor.impact_score} < {min_impact}", category='recommendation', force=True)
                     continue
                 
                 # Get information about the selection status for filtering
