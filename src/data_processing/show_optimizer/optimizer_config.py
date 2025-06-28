@@ -36,14 +36,11 @@ class OptimizerConfig:
     # Debug message counter to limit output volume
     _debug_message_count = 0
     
-    # Maximum number of debug messages to show
-    MAX_DEBUG_MESSAGES = 100
-    
     # Debug mode flag - will be controlled by session state
     DEBUG_MODE = False
     
     # Maximum number of debug messages to show - increased to capture more logs
-    MAX_DEBUG_MESSAGES = 500
+    MAX_DEBUG_MESSAGES = 2000
     
     # Debug categories to filter messages
     DEBUG_CATEGORIES = {
