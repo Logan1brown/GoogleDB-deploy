@@ -509,20 +509,34 @@ class RecommendationEngine:
                 impact_score = factor.impact_score
                 criteria_name = factor.criteria_name
                 
+                # Add detailed debugging to track recommendation type determination
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Processing factor: {criteria_name} ({criteria_type}={option_id})", category='recommendation', force=True)
+                    OptimizerConfig.debug(f"  - Impact: {impact_score}, Initial rec_type: {rec_type}", category='recommendation', force=True)
+                    OptimizerConfig.debug(f"  - Selection status: field_selected={is_field_selected}, option_selected={is_option_selected}", category='recommendation', force=True)
+                
                 # Determine recommendation type based on selection status and impact
                 if not rec_type or rec_type == 'unknown':
                     # For selected options with negative impact, recommend removing them
                     if is_option_selected and impact_score < 0:
                         rec_type = self.REC_TYPE_REMOVE
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"  - Setting rec_type to REMOVE (selected option with negative impact)", category='recommendation', force=True)
                     # For unselected fields with positive impact, recommend adding them
                     elif not is_field_selected and impact_score > 0:
                         rec_type = self.REC_TYPE_ADD
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"  - Setting rec_type to ADD (unselected field with positive impact)", category='recommendation', force=True)
                     # For selected fields but different options with positive impact, recommend changing
                     elif is_field_selected and not is_option_selected and impact_score > 0:
                         rec_type = self.REC_TYPE_CHANGE
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"  - Setting rec_type to CHANGE (selected field, different option with positive impact)", category='recommendation', force=True)
                     # For any other factor with positive impact, recommend adding it
                     elif impact_score > 0:
                         rec_type = self.REC_TYPE_ADD
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"  - Setting rec_type to ADD (fallback for positive impact)", category='recommendation', force=True)
                 
                 # Skip recommendations that don't make logical sense
                 if rec_type == self.REC_TYPE_ADD and impact_score < 0:
