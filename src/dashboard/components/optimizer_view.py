@@ -421,13 +421,14 @@ class OptimizerView:
             if explanation and not explanation.strip().endswith('.'):
                 explanation = f"{explanation}."
             
-            # Create formatted recommendation dictionary with dictionary-style access
+            # Create a formatted recommendation object with all necessary fields
             formatted_rec = {
-                # Display values
                 "title": title,
-                "description": explanation,
-                "importance": rec.get('confidence', 'medium'),
-                "category": rec_type,  # This is the key field for grouping
+                "explanation": explanation,
+                "impact_percent": impact_percent,
+                "impact_direction": impact_direction,
+                "recommendation_type": rec_type,  # Preserve the original recommendation_type
+                "category": rec_type,  # Keep category for backward compatibility
                 "impact": impact_score,
                 "field": rec.get('field', ''),  # Always use 'field' as the standard field name
                 "suggested_name": rec.get('suggested_name', ''),
