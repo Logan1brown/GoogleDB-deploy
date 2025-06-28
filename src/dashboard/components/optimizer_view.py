@@ -700,11 +700,17 @@ class OptimizerView:
             
             # Format compatibility score as percentage
             compatibility_value = float(match.compatibility_score)
+            # Check if value is already a percentage (>1.0)
+            if compatibility_value > 1.0:
+                compatibility_value = compatibility_value / 100.0  # Convert to decimal
             compatibility_display = f"{compatibility_value*100:.1f}%"
             compatibility_raw = compatibility_value
             
             # Format success probability as percentage
             success_value = float(match.success_probability) if match.success_probability is not None else 0.0
+            # Check if value is already a percentage (>1.0)
+            if success_value > 1.0:
+                success_value = success_value / 100.0  # Convert to decimal
             success_display = f"{success_value*100:.1f}%"
             success_raw = success_value
                 

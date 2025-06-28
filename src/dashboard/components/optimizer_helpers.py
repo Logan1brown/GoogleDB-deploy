@@ -499,7 +499,16 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                             
             # Process each recommendation for grouping
             for rec in general_recommendations:
-                criteria_type = rec['criteria_type']
+                # Use field as criteria_type if criteria_type is not present
+                if 'criteria_type' in rec:
+                    criteria_type = rec['criteria_type']
+                elif 'field' in rec:
+                    criteria_type = rec['field']
+                else:
+                    # Skip recommendations without criteria_type or field
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Skipping recommendation without criteria_type or field: {rec.get('title', 'Unknown')}", category='recommendation')
+                    continue
                 
                 # Group by criteria_type only
                 if criteria_type not in by_criteria_type:
