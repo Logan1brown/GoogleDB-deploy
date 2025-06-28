@@ -528,7 +528,7 @@ class ConceptAnalyzer:
         except Exception as e:
             error_msg = f"Error in analyze_concept: {str(e)}"
             trace = traceback.format_exc()
-            OptimizerConfig.debug(f"{error_msg}\n{trace}", category='analyzer', force=True)
+            OptimizerConfig.debug("Analysis error occurred", category='analyzer')
             st.error(error_msg)
 
             return self._handle_analysis_error(f"Analysis error: {str(e)}")
@@ -875,25 +875,44 @@ class ConceptAnalyzer:
             Dictionary with 'general' and 'network_specific' recommendations
         """
         
+        # Add debug logging at the start of the method
+        if self.config.DEBUG_MODE:
+            OptimizerConfig.debug(f"Starting _generate_recommendations with {len(success_factors)} success factors", category='recommendation', force=True)
+        
         # Add detailed debugging for success factors
         if self.config.DEBUG_MODE:
-            st.write(f"DEBUG: _generate_recommendations received {len(success_factors)} success factors")
+            # Use OptimizerConfig.debug instead of st.write for consistent logging
+            OptimizerConfig.debug(f"_generate_recommendations received {len(success_factors)} success factors", category='recommendation', force=True)
             
             # Log the first few success factors
             for i, factor in enumerate(success_factors[:5]):
-                st.write(f"DEBUG: Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}")
-                
+                # Check if factor has all expected attributes before accessing them
+                if hasattr(factor, 'criteria_type') and hasattr(factor, 'criteria_value') and hasattr(factor, 'criteria_name') and hasattr(factor, 'impact_score'):
+                    OptimizerConfig.debug(f"Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}", category='recommendation', force=True)
+                else:
+                    # Log which attributes are missing
+                    missing_attrs = []
+                    for attr in ['criteria_type', 'criteria_value', 'criteria_name', 'impact_score']:
+                        if not hasattr(factor, attr):
+                            missing_attrs.append(attr)
+                    OptimizerConfig.debug(f"Success factor {i+1} is missing attributes: {missing_attrs}", category='recommendation', force=True)
+                    OptimizerConfig.debug(f"Success factor {i+1} type: {type(factor)}", category='recommendation', force=True)
+                    # If it's a dict, show the keys
+                    if isinstance(factor, dict):
+                        OptimizerConfig.debug(f"Success factor {i+1} keys: {factor.keys()}", category='recommendation', force=True)
+            
             # Check if any success factors have high impact
-            high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
-            st.write(f"DEBUG: Found {len(high_impact_factors)} success factors with impact >= 0.05")
+            # Use a safer approach to check for impact_score attribute
+            high_impact_factors = [f for f in success_factors if hasattr(f, 'impact_score') and abs(f.impact_score) >= 0.05]
+            OptimizerConfig.debug(f"Found {len(high_impact_factors)} success factors with impact >= 0.05", category='recommendation', force=True)
             
             # Check minimum impact threshold from config
             min_impact = self.config.SUGGESTIONS['minimum_impact']
-            st.write(f"DEBUG: Minimum impact threshold from config: {min_impact}")
+            OptimizerConfig.debug(f"Minimum impact threshold from config: {min_impact}", category='recommendation', force=True)
             
-            # Count factors that pass the threshold
-            passing_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
-            st.write(f"DEBUG: Success factors passing minimum impact threshold: {len(passing_factors)} of {len(success_factors)}")
+            # Count factors that pass the threshold - safely check for impact_score attribute
+            passing_factors = [f for f in success_factors if hasattr(f, 'impact_score') and abs(f.impact_score) >= min_impact]
+            OptimizerConfig.debug(f"Success factors passing minimum impact threshold: {len(passing_factors)} of {len(success_factors)}", category='recommendation', force=True)
             
         try:
             # Store matching_shows for later use in get_network_specific_recommendations
@@ -952,20 +971,11 @@ class ConceptAnalyzer:
                     # Log the error but continue processing other networks
                     if self.config.DEBUG_MODE:
                         st.write(f"DEBUG: Error generating recommendations for {network_name}: {str(net_error)}")
-                    self.config.debug(f"Error generating recommendations for {network_name}: {str(net_error)}", 
-                                     category='error', force=True)
+                    self.config.debug("Error generating network recommendations", category='error')
             
             # Add explicit debug logging to identify the exact structure of recommendations
             if self.config.DEBUG_MODE:
-                OptimizerConfig.debug(f"General recommendations count: {len(general_recommendations)}", category='recommendations', force=True)
-                if general_recommendations:
-                    OptimizerConfig.debug(f"First general recommendation type: {type(general_recommendations[0])}", category='recommendations', force=True)
-                    OptimizerConfig.debug(f"First general recommendation keys: {list(general_recommendations[0].keys()) if isinstance(general_recommendations[0], dict) else 'Not a dict'}", category='recommendations', force=True)
-                
-                OptimizerConfig.debug(f"Network recommendations count: {len(network_recommendations)}", category='recommendations', force=True)
-                if network_recommendations:
-                    OptimizerConfig.debug(f"First network recommendation type: {type(network_recommendations[0])}", category='recommendations', force=True)
-                    OptimizerConfig.debug(f"First network recommendation keys: {list(network_recommendations[0].keys()) if isinstance(network_recommendations[0], dict) else 'Not a dict'}", category='recommendations', force=True)
+                OptimizerConfig.debug("Processing recommendations", category='recommendations')
             
             # Return recommendations in the expected structure for the UI
             # Instead of a flat list, return a dictionary with 'general' and 'network_specific' keys
@@ -975,7 +985,17 @@ class ConceptAnalyzer:
             }
             
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
             st.error(f"Error generating recommendations: {str(e)}")
+            if self.config.DEBUG_MODE:
+                OptimizerConfig.debug(f"Recommendation generation error details: {error_details}", category='error', force=True)
+                # Debug the success factors to see if they're valid
+                OptimizerConfig.debug(f"Success factors count: {len(success_factors)}", category='error', force=True)
+                if success_factors:
+                    for i, factor in enumerate(success_factors[:3]):
+                        OptimizerConfig.debug(f"Factor {i}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}", category='error', force=True)
+            
             # Always return the expected dictionary structure, even on error
             return {
                 'general': [],

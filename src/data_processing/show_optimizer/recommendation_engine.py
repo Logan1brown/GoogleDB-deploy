@@ -332,7 +332,23 @@ class RecommendationEngine:
             recommendations = []
             
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Starting recommendation generation", category='recommendation')
+                OptimizerConfig.debug("Starting recommendation generation", category='recommendation', force=True)
+                
+                # Debug success factors
+                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors", category='recommendation', force=True)
+                
+                # Check success factor types
+                factor_types = set(type(f).__name__ for f in success_factors)
+                OptimizerConfig.debug(f"Success factor types: {factor_types}", category='recommendation', force=True)
+                
+                # Check first few success factors
+                for i, factor in enumerate(success_factors[:3]):
+                    OptimizerConfig.debug(f"Success factor {i+1} type: {type(factor).__name__}", category='recommendation', force=True)
+                    # Check if it's a proper SuccessFactor object
+                    if hasattr(factor, 'criteria_type') and hasattr(factor, 'criteria_value') and hasattr(factor, 'impact_score'):
+                        OptimizerConfig.debug(f"Factor {i+1}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}", category='recommendation', force=True)
+                    elif isinstance(factor, dict):
+                        OptimizerConfig.debug(f"Factor {i+1} is a dict with keys: {list(factor.keys())}", category='recommendation', force=True)
             
             # Analyze missing high-impact criteria
             try:
@@ -463,7 +479,17 @@ class RecommendationEngine:
             min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
             
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Processing success factors", category='recommendation')
+                OptimizerConfig.debug("Processing success factors in _recommend_missing_criteria", category='recommendation', force=True)
+                
+                # Log the minimum impact threshold
+                OptimizerConfig.debug(f"Minimum impact threshold: {min_impact}", category='recommendation', force=True)
+                
+                # Check if we have any success factors
+                if not success_factors:
+                    OptimizerConfig.debug("No success factors to process", category='recommendation', force=True)
+                else:
+                    # Log the number of success factors
+                    OptimizerConfig.debug(f"Processing {len(success_factors)} success factors", category='recommendation', force=True)
             
 
               
@@ -538,12 +564,12 @@ class RecommendationEngine:
                 if rec_type == self.REC_TYPE_ADD and impact_score < 0:
                     # Don't recommend adding something with negative impact
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"  - Skipping: ADD recommendation with negative impact ({impact_score})", category='recommendation', force=True)
+                        OptimizerConfig.debug("Skipping invalid recommendation", category='recommendation')
                     continue
                 elif rec_type == self.REC_TYPE_REMOVE and not is_field_selected:
                     # Can't remove what's not selected
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"  - Skipping: REMOVE recommendation for unselected field", category='recommendation', force=True)
+                        OptimizerConfig.debug("Skipping invalid recommendation", category='recommendation')
                     continue
                 
                 # Update the recommendation type in the factor object for consistency
@@ -596,21 +622,13 @@ class RecommendationEngine:
                 # Add to recommendations list
                 recommendations.append(recommendation)
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"  - Added recommendation: {rec_type} for {criteria_name} with impact {impact_score}", category='recommendation', force=True)
+                    OptimizerConfig.debug("Added recommendation", category='recommendation')
                  
                 # Recommendation processing complete
             
             # Final debug summary
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Final recommendations count: {len(recommendations)} from {len(success_factors)} success factors", category='recommendation', force=True)
-                if recommendations:
-                    rec_types = {}
-                    for rec in recommendations:
-                        rec_type = rec['recommendation_type']
-                        if rec_type not in rec_types:
-                            rec_types[rec_type] = 0
-                        rec_types[rec_type] += 1
-                    OptimizerConfig.debug(f"Recommendation types: {rec_types}", category='recommendation', force=True)
+                OptimizerConfig.debug("Recommendations processing complete", category='recommendation')
             
             return recommendations
         except Exception as e:
