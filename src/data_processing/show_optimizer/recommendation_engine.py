@@ -345,6 +345,9 @@ class RecommendationEngine:
                     OptimizerConfig.debug("_recommend_missing_criteria completed", category='recommendation')
                 
                 recommendations.extend(missing_criteria_recs)
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Added {len(missing_criteria_recs)} recommendations from _recommend_missing_criteria", category='recommendation')
             except Exception as e:
                 st.error(f"Unable to analyze some criteria. Error: {str(e)}")
                 if OptimizerConfig.DEBUG_MODE:
@@ -415,6 +418,10 @@ class RecommendationEngine:
             max_suggestions = self.config.SUGGESTIONS.get('max_suggestions', 5)
             if len(general_recommendations) > max_suggestions:
                 general_recommendations = general_recommendations[:max_suggestions]
+            
+            # Debug the final recommendations count
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Final recommendations count - general: {len(general_recommendations)}, network: {len(network_specific_recommendations)}", category='recommendation')
             
             # Return a dictionary with separate keys for general and network-specific recommendations
             return {
@@ -596,13 +603,14 @@ class RecommendationEngine:
                 # Add to recommendations list
                 recommendations.append(recommendation)
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Added recommendation", category='recommendation')
+                    OptimizerConfig.debug(f"Added recommendation of type {rec_type}", category='recommendation')
                  
                 # Recommendation processing complete
             
             # Final debug summary
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug("Recommendations processing complete", category='recommendation')
+                OptimizerConfig.debug(f"Returning {len(recommendations)} recommendations from _recommend_missing_criteria", category='recommendation')
             
             return recommendations
         except Exception as e:

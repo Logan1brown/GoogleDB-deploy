@@ -877,23 +877,19 @@ class ConceptAnalyzer:
         
         # Add detailed debugging for success factors
         if self.config.DEBUG_MODE:
-            st.write(f"DEBUG: _generate_recommendations received {len(success_factors)} success factors")
+            OptimizerConfig.debug(f"_generate_recommendations received {len(success_factors)} success factors", category='recommendation')
             
-            # Log the first few success factors
-            for i, factor in enumerate(success_factors[:5]):
-                st.write(f"DEBUG: Success factor {i+1}: type={factor.criteria_type}, value={factor.criteria_value}, name={factor.criteria_name}, impact={factor.impact_score}")
-                
-            # Check if any success factors have high impact
+            # Log high impact factors count
             high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
-            st.write(f"DEBUG: Found {len(high_impact_factors)} success factors with impact >= 0.05")
+            OptimizerConfig.debug(f"Found {len(high_impact_factors)} high impact success factors", category='recommendation')
             
             # Check minimum impact threshold from config
             min_impact = self.config.SUGGESTIONS['minimum_impact']
-            st.write(f"DEBUG: Minimum impact threshold from config: {min_impact}")
+            OptimizerConfig.debug(f"Minimum impact threshold: {min_impact}", category='recommendation')
             
             # Count factors that pass the threshold
             passing_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
-            st.write(f"DEBUG: Success factors passing minimum impact threshold: {len(passing_factors)} of {len(success_factors)}")
+            OptimizerConfig.debug(f"Success factors passing threshold: {len(passing_factors)} of {len(success_factors)}", category='recommendation')
             
         try:
             # Store matching_shows for later use in get_network_specific_recommendations
@@ -929,10 +925,7 @@ class ConceptAnalyzer:
             for i, network in enumerate(top_networks[:3]):
                 # Add detailed debugging for NetworkMatch objects
                 if self.config.DEBUG_MODE:
-                    st.write(f"DEBUG: Network object type: {type(network).__name__}")
-
-                    st.write(f"DEBUG: Network ID: {network.network_id}")
-                    st.write(f"DEBUG: Network Name: {network.network_name}")
+                    OptimizerConfig.debug(f"Processing network: {network.network_name} (ID: {network.network_id})", category='network')
                 
                 network_id = network.network_id
                 network_name = network.network_name
@@ -955,18 +948,34 @@ class ConceptAnalyzer:
                 except Exception as net_error:
                     # Log the error but continue processing other networks
                     if self.config.DEBUG_MODE:
-                        st.write(f"DEBUG: Error generating recommendations for {network_name}: {str(net_error)}")
-                    self.config.debug("Error generating network recommendations", category='error')
+                        OptimizerConfig.debug(f"Error generating recommendations for {network_name}: {str(net_error)}", category='error')
             
             # Add explicit debug logging to identify the exact structure of recommendations
             if self.config.DEBUG_MODE:
                 OptimizerConfig.debug("Processing recommendations", category='recommendations')
             
-            # Return recommendations in the expected structure for the UI
-            # Instead of a flat list, return a dictionary with 'general' and 'network_specific' keys
+            # Add debug statement to check the final recommendations structure
+            if self.config.DEBUG_MODE:
+                self.config.debug("Recommendations generated successfully", category='recommendation')
+                # Debug the structure of general_recommendations
+                self.config.debug(f"general_recommendations type: {type(general_recommendations).__name__}", category='recommendation')
+                
+                if isinstance(general_recommendations, dict):
+                    self.config.debug(f"general_recommendations keys: {list(general_recommendations.keys())}", category='recommendation')
+                    general_count = len(general_recommendations.get("general", []))
+                    self.config.debug(f"Final general recommendations count: {general_count}", category='recommendation')
+                else:
+                    self.config.debug(f"Error: general_recommendations is not a dictionary", category='error')
+                
+                # Debug the structure of network_recommendations
+                network_count = len(network_recommendations)
+                self.config.debug(f"Final network recommendations count: {network_count}", category='recommendation')
+            
+            # Return the recommendations dictionary with the correct structure
+            # The recommendation_engine.generate_recommendations already returns a dict with 'general' key
             return {
-                'general': general_recommendations,
-                'network_specific': network_recommendations
+                "general": general_recommendations["general"] if isinstance(general_recommendations, dict) and "general" in general_recommendations else [],
+                "network_specific": network_recommendations
             }
             
         except Exception as e:
