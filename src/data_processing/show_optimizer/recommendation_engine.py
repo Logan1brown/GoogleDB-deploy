@@ -286,6 +286,12 @@ class RecommendationEngine:
                         if self.config.DEBUG_MODE:
                             self.config.debug(f"Determined recommendation type for {criteria_type}/{name}: {recommendation_type}", category='success_factors')
                     
+                    # Skip factors with no recommendation type (e.g., negative impact on unselected fields)
+                    if recommendation_type is None:
+                        if self.config.DEBUG_MODE:
+                            self.config.debug(f"Skipping factor {criteria_type}/{name} due to no recommendation type", category='success_factors')
+                        continue
+                    
                     # Get matching titles for this criteria
                     matching_titles = []
                     try:
@@ -574,17 +580,18 @@ class RecommendationEngine:
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Processing factor: {criteria_type}/{criteria_name} with type {rec_type} and impact {impact_score}", category='recommendation')
                 
-                # Skip recommendations that don't make logical sense
-                if rec_type == self.REC_TYPE_ADD and impact_score < 0:
-                    # Don't recommend adding something with negative impact
+                # Skip recommendations that don't have a valid recommendation type
+                if rec_type is None:
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Skipping invalid recommendation for {criteria_type}/{criteria_name}: can't add with negative impact {impact_score}", category='recommendation')
+                        OptimizerConfig.debug(f"Skipping recommendation for {criteria_type}/{criteria_name}: no recommendation type", category='recommendation')
                     continue
-                elif rec_type == self.REC_TYPE_REMOVE and not is_field_selected:
-                    # Can't remove what's not selected
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Skipping invalid recommendation for {criteria_type}/{criteria_name}: can't remove unselected field", category='recommendation')
-                    continue
+                    
+                # The recommendation type was already determined by CriteriaScorer based on selection status
+                # and impact score. We trust that determination and don't need to re-validate it here.
+                # This ensures consistency with the recommendation type rules defined in CriteriaScorer.
+                # 
+                # The previous validation logic here was redundant and caused valid recommendations
+                # to be incorrectly filtered out.
                 
                 # Debug for recommendation processing
                 if OptimizerConfig.DEBUG_MODE and abs(impact_score) >= min_impact:
