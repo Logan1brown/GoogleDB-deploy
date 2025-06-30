@@ -470,20 +470,44 @@ class RecommendationEngine:
             
             # Debug the final recommendations count and details
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Final recommendations count - general: {len(general_recommendations)}, network: {len(network_specific_recommendations)}", category='recommendation')
+                OptimizerConfig.debug(f"Final recommendations count - general: {len(general_recommendations)}, network: {len(network_specific_recommendations)}", category='recommendation', force=True)
                 
-                # Debug why general recommendations might be empty
-                if len(general_recommendations) == 0:
-                    OptimizerConfig.debug("No general recommendations were generated - investigating why", category='recommendation')
-                    OptimizerConfig.debug(f"Original recommendations count before separation: {len(recommendations)}", category='recommendation')
+                # Debug all recommendations in detail
+                OptimizerConfig.debug(f"Original recommendations count before separation: {len(recommendations)}", category='recommendation', force=True)
+                
+                # Log details of all recommendations for debugging
+                for i, rec in enumerate(recommendations):
+                    rec_type = rec.get('recommendation_type', 'unknown')
+                    field = rec.get('field', 'unknown')
+                    impact = rec.get('impact', 'unknown')
+                    suggested = rec.get('suggested_name', 'unknown')
+                    is_network = 'Yes' if ('metadata' in rec and rec['metadata'] and 'network_name' in rec['metadata']) else 'No'
+                    OptimizerConfig.debug(f"Recommendation {i+1}: {field}/{suggested}, type={rec_type}, impact={impact}, network-specific={is_network}", 
+                                        category='recommendation', force=True)
+                
+                # Debug why general recommendations might be empty or incomplete
+                if len(general_recommendations) < 3 and len(success_factors) > 3:
+                    OptimizerConfig.debug("Few general recommendations were generated despite many success factors - investigating why", 
+                                        category='recommendation', force=True)
                     
                     # Check if any recommendations were filtered out during separation
                     network_metadata_count = sum(1 for rec in recommendations if 'metadata' in rec and rec['metadata'] and 'network_name' in rec['metadata'])
-                    OptimizerConfig.debug(f"Recommendations with network metadata: {network_metadata_count}", category='recommendation')
+                    OptimizerConfig.debug(f"Recommendations with network metadata: {network_metadata_count}", category='recommendation', force=True)
                     
                     # Check if any recommendations were filtered out due to missing impact
                     missing_impact = sum(1 for rec in recommendations if 'impact' not in rec)
-                    OptimizerConfig.debug(f"Recommendations missing impact field: {missing_impact}", category='recommendation')
+                    OptimizerConfig.debug(f"Recommendations missing impact field: {missing_impact}", category='recommendation', force=True)
+                    
+                    # Log success factors that didn't become recommendations
+                    OptimizerConfig.debug(f"Success factors count: {len(success_factors)}", category='recommendation', force=True)
+                    for i, factor in enumerate(success_factors):
+                        became_rec = any(rec.get('field') == factor.criteria_type and 
+                                        rec.get('suggested_name') == factor.criteria_name 
+                                        for rec in recommendations)
+                        OptimizerConfig.debug(f"Success factor {i+1}: {factor.criteria_type}/{factor.criteria_name}, "
+                                            f"impact={factor.impact_score}, rec_type={factor.recommendation_type}, "
+                                            f"became recommendation={became_rec}", 
+                                            category='recommendation', force=True)
             
             # Return a dictionary with separate keys for general and network-specific recommendations
             return {
@@ -531,7 +555,13 @@ class RecommendationEngine:
             min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
             
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors with minimum impact threshold {min_impact}", category='recommendation')
+                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors with minimum impact threshold {min_impact}", category='recommendation', force=True)
+                
+                # Log all success factors at the start
+                for i, factor in enumerate(success_factors):
+                    OptimizerConfig.debug(f"Input success factor {i+1}: {factor.criteria_type}/{factor.criteria_name}, "
+                                        f"impact={factor.impact_score}, rec_type={factor.recommendation_type}", 
+                                        category='recommendation', force=True)
                 
             for factor in success_factors:
                 # Skip factors with impact below threshold
@@ -583,7 +613,7 @@ class RecommendationEngine:
                 # Skip recommendations that don't have a valid recommendation type
                 if rec_type is None:
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Skipping recommendation for {criteria_type}/{criteria_name}: no recommendation type", category='recommendation')
+                        OptimizerConfig.debug(f"Skipping recommendation for {criteria_type}/{criteria_name}: no recommendation type", category='recommendation', force=True)
                     continue
                     
                 # The recommendation type was already determined by CriteriaScorer based on selection status
@@ -592,6 +622,11 @@ class RecommendationEngine:
                 # 
                 # The previous validation logic here was redundant and caused valid recommendations
                 # to be incorrectly filtered out.
+                
+                # Special debug for important genres
+                if criteria_type == 'genre' and criteria_name in ['Animation', 'Action & Adventure', 'Comedy', 'Family']:
+                    OptimizerConfig.debug(f"IMPORTANT GENRE: Processing {criteria_type}/{criteria_name} with type {rec_type} and impact {impact_score}", 
+                                        category='recommendation', force=True)
                 
                 # Debug for recommendation processing
                 if OptimizerConfig.DEBUG_MODE and abs(impact_score) >= min_impact:
@@ -640,7 +675,8 @@ class RecommendationEngine:
                 # Add to recommendations list
                 recommendations.append(recommendation)
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Added recommendation of type {rec_type}", category='recommendation')
+                    OptimizerConfig.debug(f"Added recommendation for {criteria_type}/{criteria_name} of type {rec_type} with impact {impact_score}", 
+                                         category='recommendation', force=True)
                  
                 # Recommendation processing complete
             
