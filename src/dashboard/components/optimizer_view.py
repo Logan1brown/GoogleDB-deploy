@@ -652,15 +652,14 @@ class OptimizerView:
             
         # Return the structure expected by render_recommendations
         # This is a direct structure with 'general' and 'network_specific' keys
-        # We need to exclude the 'network_specific' group from the general recommendations
+        # We need to separate network recommendations from general recommendations
         general_flattened = []
         
         # Only include recommendations from 'add', 'change', and 'remove' groups
-        # But exclude network-related recommendations from general section
         for group_name, group_data in grouped.items():
             if group_name in ['add', 'change', 'remove']:
                 for rec in group_data.get('items', []):
-                    # Skip network recommendations in general section
+                    # Check if this is a network recommendation (field is 'network')
                     if rec.get('field', '').lower() == 'network':
                         # Create a network-specific recommendation format
                         network_rec = rec.copy()
@@ -673,16 +672,22 @@ class OptimizerView:
                         if network_name:
                             explanation = network_rec.get('explanation', '')
                             if explanation:
-                                network_rec['description'] = f"Network {network_name} {explanation}"
+                                # Ensure description starts with "Network {name} has" to match parsing in 41_show_optimizer.py
+                                network_rec['description'] = f"Network {network_name} has {explanation}"
                             
                             # Add metadata field with network_name for proper grouping
                             if 'metadata' not in network_rec:
                                 network_rec['metadata'] = {}
                             network_rec['metadata']['network_name'] = network_name
+                            
+                            # Debug output for network recommendation formatting
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Moving network recommendation to network-specific section: {network_name}", category='recommendation')
                         
-                        # Add to network_specific_formatted
+                        # Add to network_specific_formatted but NOT to general_flattened
                         network_specific_formatted.append(network_rec)
                     else:
+                        # Add non-network recommendations to general section
                         general_flattened.append(rec)
         
         if OptimizerConfig.DEBUG_MODE:
