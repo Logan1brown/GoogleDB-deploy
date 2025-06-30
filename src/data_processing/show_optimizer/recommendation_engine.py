@@ -500,24 +500,18 @@ class RecommendationEngine:
             recommendations = []
 
             # Process all success factors to create recommendations
-            # Get minimum impact threshold from config - this filters out insignificant factors
-            # Direct access instead of using .get() with fallback - enforcing the config contract
+            # Get minimum impact threshold from config - this is the SINGLE place where factors are filtered by threshold
             min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
             
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Processing success factors", category='recommendation')
-            
-
-              
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Processing {len(success_factors)} success factors with minimum impact threshold {min_impact}", category='recommendation')
                 
             for factor in success_factors:
                 # Skip factors with impact below threshold
-                # This is a business rule, not defensive programming
+                # This is the ONLY place where we filter by threshold
                 if abs(factor.impact_score) < min_impact:
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Skipping factor {factor.criteria_type}/{factor.criteria_name} due to low impact: {factor.impact_score}", category='recommendation')
+                        OptimizerConfig.debug(f"Skipping factor {factor.criteria_type}/{factor.criteria_name} due to low impact: {factor.impact_score} (threshold: {min_impact})", category='recommendation')
                     continue
                 
                 if OptimizerConfig.DEBUG_MODE:
@@ -549,52 +543,15 @@ class RecommendationEngine:
                         if is_field_selected:
                             OptimizerConfig.debug(f"Current genre value: {criteria[criteria_type]}", category='recommendation', force=True)
                 
-                # Start with the default recommendation type from the success factor
+                # Use the recommendation type that was already determined by CriteriaScorer
                 # SuccessFactor is a dataclass with attribute-style access (.attribute)
                 rec_type = factor.recommendation_type
-                
-                # Use class-level recommendation type constants for consistency
-                # This follows the recommendation from the data flow analysis to standardize types
-                
-                # Determine recommendation type based on selection status and impact score
-                # This ensures consistent recommendation types across the application
-                # TODO: Move recommendation type definitions to OptimizerConfig for standardization
                 impact_score = factor.impact_score
                 criteria_name = factor.criteria_name
                 
-                # Track recommendation type determination
+                # Debug logging for recommendation processing
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Processing factor", category='recommendation')
-                
-                # Determine recommendation type based on selection status and impact
-                if not rec_type or rec_type == 'unknown':
-                    # For selected options with negative impact, recommend removing them
-                    if is_option_selected and impact_score < 0:
-                        rec_type = self.REC_TYPE_REMOVE
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Setting recommendation type to {rec_type} for {criteria_type}/{criteria_name} (selected option with negative impact)", category='recommendation')
-                    # For unselected fields with positive impact, recommend adding them
-                    elif not is_field_selected and impact_score > 0:
-                        rec_type = self.REC_TYPE_ADD
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Setting recommendation type to {rec_type} for {criteria_type}/{criteria_name} (unselected field with positive impact)", category='recommendation')
-                    # For selected fields but different options with positive impact, recommend changing
-                    elif is_field_selected and not is_option_selected and impact_score > 0:
-                        # For selected fields but different options with positive impact, recommend changing
-                        rec_type = self.REC_TYPE_CHANGE
-                        if OptimizerConfig.DEBUG_MODE:
-                            if criteria_type == 'genre':
-                                OptimizerConfig.debug(f"Setting recommendation type to {rec_type} for {criteria_type}/{criteria_name} (genre field with positive impact)", category='recommendation')
-                            else:
-                                OptimizerConfig.debug(f"Setting recommendation type to {rec_type} for {criteria_type}/{criteria_name} (selected field but different option with positive impact)", category='recommendation')
-                    # For any other factor with positive impact, recommend adding it
-                    elif impact_score > 0:
-                        rec_type = self.REC_TYPE_ADD
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Setting recommendation type to {rec_type} for {criteria_type}/{criteria_name} (fallback for positive impact)", category='recommendation')
-                    else:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"No recommendation type determined for {criteria_type}/{criteria_name} - selection status: field={is_field_selected}, option={is_option_selected}, impact={impact_score}", category='recommendation')
+                    OptimizerConfig.debug(f"Processing factor: {criteria_type}/{criteria_name} with type {rec_type} and impact {impact_score}", category='recommendation')
                 
                 # Skip recommendations that don't make logical sense
                 if rec_type == self.REC_TYPE_ADD and impact_score < 0:
@@ -608,10 +565,9 @@ class RecommendationEngine:
                         OptimizerConfig.debug(f"Skipping invalid recommendation for {criteria_type}/{criteria_name}: can't remove unselected field", category='recommendation')
                     continue
                 
-                # Additional debug info for Animation genre specifically
-                if criteria_type == 'genre' and criteria_name == 'Animation':
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Animation genre factor details: impact={impact_score}, is_field_selected={is_field_selected}, is_option_selected={is_option_selected}, rec_type={rec_type}", category='recommendation', force=True)
+                # Debug for recommendation processing
+                if OptimizerConfig.DEBUG_MODE and abs(impact_score) >= min_impact:
+                    OptimizerConfig.debug(f"Recommendation will be created for {criteria_type}/{criteria_name}: impact={impact_score}, rec_type={rec_type}", category='recommendation')
                 
                 # Update the recommendation type in the factor object for consistency
                 factor.recommendation_type = rec_type

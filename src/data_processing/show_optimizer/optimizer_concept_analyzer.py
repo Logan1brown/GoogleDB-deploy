@@ -880,10 +880,7 @@ class ConceptAnalyzer:
             OptimizerConfig.debug(f"_generate_recommendations received {len(success_factors)} success factors", category='recommendation')
             high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
             OptimizerConfig.debug(f"Found {len(high_impact_factors)} high impact success factors", category='recommendation')
-            min_impact = self.config.SUGGESTIONS['minimum_impact']
-            OptimizerConfig.debug(f"Minimum impact threshold: {min_impact}", category='recommendation')
-            passing_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
-            OptimizerConfig.debug(f"Success factors passing threshold: {len(passing_factors)} of {len(success_factors)}", category='recommendation')
+            # Do not filter by threshold here - let RecommendationEngine handle it once
             
             # Debug the first few success factors to understand what's being passed
             for i, factor in enumerate(success_factors[:5]):
