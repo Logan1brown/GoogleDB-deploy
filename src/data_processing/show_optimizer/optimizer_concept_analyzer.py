@@ -908,8 +908,6 @@ class ConceptAnalyzer:
             # This enforces the contract rather than adding defensive checks
             confidence_info = update_confidence_info(confidence_info, {})
             
-
-            
             # Generate general recommendations
             general_recommendations = self.recommendation_engine.generate_recommendations(
                 criteria=criteria,
@@ -919,8 +917,6 @@ class ConceptAnalyzer:
                 confidence_info=confidence_info,
                 integrated_data=integrated_data
             )
-            
-
             
             # Generate network-specific recommendations for top networks
             network_recommendations = []

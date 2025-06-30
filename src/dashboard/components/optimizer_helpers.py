@@ -489,18 +489,8 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
             general_recommendations.sort(key=lambda x: abs(x['_impact_raw']), reverse=True)
             
             # Group by criteria_type only, regardless of recommendation type
-            # This ensures all recommendations for the same criteria type are grouped together
             by_criteria_type = {}
             
-            # Count recommendations by type before grouping
-            rec_type_counts = {'add': 0, 'change': 0, 'remove': 0}
-            for rec in general_recommendations:
-                rec_type = rec.get('recommendation_type', 'add')  # Default to 'add' if not specified
-                if rec_type in rec_type_counts:
-                    rec_type_counts[rec_type] += 1
-                elif OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Unknown recommendation_type: {rec_type}", category='recommendation')
-                            
             # Process each recommendation for grouping
             for rec in general_recommendations:
                 # Get criteria type - fallback to field if criteria_type is not available
@@ -511,7 +501,6 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                     OptimizerConfig.debug(f"Using fallback 'Other' for recommendation with keys: {list(rec.keys())}", category='recommendation')
                 
                 # Initialize this criteria type group if needed
-                # Group by criteria_type only
                 if criteria_type not in by_criteria_type:
                     by_criteria_type[criteria_type] = []
                 by_criteria_type[criteria_type].append(rec)
