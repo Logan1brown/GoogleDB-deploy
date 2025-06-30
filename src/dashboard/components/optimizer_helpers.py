@@ -440,44 +440,35 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
         }
         
         # Populate the grouped structure with recommendations from general
-        # Enforce consistent dictionary access pattern for RecommendationItem objects
-        by_criteria_type = {}
+        # This is used for checking if we have any recommendations at all
         for rec in general:
-            rec_type = rec['recommendation_type']
+            rec_type = rec.get('recommendation_type', 'add')
             if rec_type in grouped:
                 grouped[rec_type]['items'].append(rec)
                 
-            # Get criteria type - fallback to field if criteria_type is not available
-            criteria_type = rec.get('criteria_type', rec.get('field', 'Other'))
-            
-            # Initialize this criteria type group if needed
-            # Group by criteria_type only
-            if criteria_type not in by_criteria_type:
-                by_criteria_type[criteria_type] = []
-            by_criteria_type[criteria_type].append(rec)
-                
         if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Grouped {len(general)} recommendations into {len(by_criteria_type)} criteria types", category='recommendation', force=True)
-            # Count recommendations by type
             rec_type_counts = {'add': 0, 'change': 0, 'remove': 0}
             for rec in general:
-                # Use recommendation_type key which is assigned in criteria_scorer.py
-                rec_type = rec.get('recommendation_type', 'add')
+                rec_type = rec.get('recommendation_type', 'add')  # Default to 'add' if not specified
                 if rec_type in rec_type_counts:
                     rec_type_counts[rec_type] += 1
                 elif OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Unknown recommendation_type: {rec_type}", category='recommendation')
             OptimizerConfig.debug(f"Recommendation type counts: {rec_type_counts}", category='recommendation')
-            OptimizerConfig.debug(f"Criteria types: {list(by_criteria_type.keys())}", category='recommendation')
                 
-        # Check if there are any recommendations at all
-        if not general and not network_specific:
+        # Check if there are any recommendations in any group
+        has_recommendations = any(group_data['items'] for group_data in grouped.values())
+                
+        if not has_recommendations:
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug("No recommendations found in any group", category='recommendation')
             st.info("No recommendations available for your current criteria.")
             return
             
-        # Use the general recommendations directly
+        # We already created the grouped structure earlier, so we can use it directly
+        # grouped structure is already populated from general recommendations
+                
+        # Extract general recommendations directly from the input
         general_recommendations = general
         
         # Debug output to understand what's happening
@@ -486,8 +477,6 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
             if general_recommendations:
                 OptimizerConfig.debug(f"First general recommendation title: {general_recommendations[0].get('title', 'No title')}", category='recommendation')
                 OptimizerConfig.debug(f"First general recommendation keys: {list(general_recommendations[0].keys())}", category='recommendation')
-                OptimizerConfig.debug(f"First general recommendation type: {general_recommendations[0].get('recommendation_type', 'Unknown')}", category='recommendation')
-                OptimizerConfig.debug(f"First general recommendation criteria_type: {general_recommendations[0].get('criteria_type', general_recommendations[0].get('field', 'Unknown'))}", category='recommendation')
                 
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Found {len(general_recommendations)} general recommendations", category='recommendation')
@@ -517,7 +506,8 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                 # Get criteria type - fallback to field if criteria_type is not available
                 criteria_type = rec.get('criteria_type', rec.get('field', 'Other'))
                 
-                if criteria_type == 'Other' and OptimizerConfig.DEBUG_MODE:
+                # Debug output for criteria_type
+                if OptimizerConfig.DEBUG_MODE and criteria_type == 'Other':
                     OptimizerConfig.debug(f"Using fallback 'Other' for recommendation with keys: {list(rec.keys())}", category='recommendation')
                 
                 # Initialize this criteria type group if needed
@@ -537,15 +527,11 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                                         
                 # Render each recommendation (limit to top 20 per criteria type)
                 for rec in criteria_recs[:20]:
-                    # Get the title from the recommendation - try different keys that might contain the title
-                    title = rec.get('title', rec.get('name', rec.get('field', 'Recommendation')))
+                    # Get the title - ensure we have a fallback
+                    title = rec.get('title', rec.get('name', 'Recommendation'))
                     
                     # Get the content - could be 'explanation' or 'description' depending on where it was formatted
-                    content = rec.get('description', rec.get('explanation', 'No details available.'))
-                    
-                    # Debug the title and content
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Rendering recommendation with title: {title}", category='recommendation')
+                    content = rec.get('explanation', rec.get('description', 'No details available.'))
                     
                     # Debug the keys in this recommendation
                     if OptimizerConfig.DEBUG_MODE:

@@ -891,6 +891,10 @@ class ConceptAnalyzer:
             passing_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
             OptimizerConfig.debug(f"Success factors passing threshold: {len(passing_factors)} of {len(success_factors)}", category='recommendation')
             
+            # Debug the first few success factors to understand what's being passed
+            for i, factor in enumerate(success_factors[:3]):
+                OptimizerConfig.debug(f"Success factor {i+1}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}", category='recommendation')
+            
         try:
             # Store matching_shows for later use in get_network_specific_recommendations
             self._last_matching_shows = matching_shows

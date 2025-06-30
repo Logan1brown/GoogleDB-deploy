@@ -419,9 +419,22 @@ class RecommendationEngine:
             if len(general_recommendations) > max_suggestions:
                 general_recommendations = general_recommendations[:max_suggestions]
             
-            # Debug the final recommendations count
+            # Debug the final recommendations count and details
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Final recommendations count - general: {len(general_recommendations)}, network: {len(network_specific_recommendations)}", category='recommendation')
+                
+                # Debug why general recommendations might be empty
+                if len(general_recommendations) == 0:
+                    OptimizerConfig.debug("No general recommendations were generated - investigating why", category='recommendation')
+                    OptimizerConfig.debug(f"Original recommendations count before separation: {len(recommendations)}", category='recommendation')
+                    
+                    # Check if any recommendations were filtered out during separation
+                    network_metadata_count = sum(1 for rec in recommendations if 'metadata' in rec and rec['metadata'] and 'network_name' in rec['metadata'])
+                    OptimizerConfig.debug(f"Recommendations with network metadata: {network_metadata_count}", category='recommendation')
+                    
+                    # Check if any recommendations were filtered out due to missing impact
+                    missing_impact = sum(1 for rec in recommendations if 'impact' not in rec)
+                    OptimizerConfig.debug(f"Recommendations missing impact field: {missing_impact}", category='recommendation')
             
             # Return a dictionary with separate keys for general and network-specific recommendations
             return {

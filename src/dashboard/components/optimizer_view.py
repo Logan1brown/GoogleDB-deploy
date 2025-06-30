@@ -451,7 +451,7 @@ class OptimizerView:
             formatted_recommendations.append(formatted_rec)
             
             # Add to appropriate group based on recommendation type
-            if rec_type.startswith('network_'):
+            if rec_type.startswith('network_') or ('metadata' in rec and rec['metadata'] and 'network_name' in rec['metadata']):
                 # Handle network-specific recommendations from general recommendations
                 # This should be rare since we now separate them at the source
                 network_specific_formatted.append(formatted_rec)
@@ -464,6 +464,9 @@ class OptimizerView:
                 # Keep debug output for network recommendations as they're specifically related to recommendations
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Added network recommendation from general recs to 'network_specific' group: {formatted_rec['title']}", category='recommendation')
+                    
+                # Skip adding to regular groups - network recommendations should only go in network_specific group
+                continue
                 
             # Ensure the group exists
             if rec_type not in grouped:
