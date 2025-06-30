@@ -572,18 +572,11 @@ class RecommendationEngine:
                 # Update the recommendation type in the factor object for consistency
                 factor.recommendation_type = rec_type
                 
-                # Apply minimum impact thresholds based on recommendation type
-                # This ensures recommendations have meaningful impact values for the UI
-                # Note: This is business logic that should remain in the recommendation engine
+                # Note: We've already filtered by minimum impact threshold earlier in this method
+                # No need to re-check or re-apply the threshold here
                 
-                # Get minimum impact threshold from OptimizerConfig for consistency
-                # This threshold determines the minimum impact required for a recommendation to be visible
-                min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
-                
-                # Apply minimum threshold to ensure recommendations have meaningful impact values
-                if abs(impact_score) < min_impact:
-                    # Preserve the sign of the original impact score
-                    impact_score = min_impact if impact_score > 0 else -min_impact
+                # The impact_score is already validated to be above the minimum threshold
+                # and we're preserving the recommendation type from the CriteriaScorer
                 
                 # Recommendation type and impact score finalized
                     
