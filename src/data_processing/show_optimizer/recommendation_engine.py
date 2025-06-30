@@ -541,6 +541,13 @@ class RecommendationEngine:
                         is_option_selected = option_id in criteria[criteria_type]
                     else:
                         is_option_selected = criteria[criteria_type] == option_id
+                        
+                # Special debug for genre recommendations
+                if criteria_type == 'genre' and factor.criteria_name == 'Animation':
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Animation genre selection status: field_selected={is_field_selected}, option_selected={is_option_selected}", category='recommendation', force=True)
+                        if is_field_selected:
+                            OptimizerConfig.debug(f"Current genre value: {criteria[criteria_type]}", category='recommendation', force=True)
                 
                 # Start with the default recommendation type from the success factor
                 # SuccessFactor is a dataclass with attribute-style access (.attribute)
@@ -573,9 +580,13 @@ class RecommendationEngine:
                             OptimizerConfig.debug(f"Setting recommendation type to {rec_type} for {criteria_type}/{criteria_name} (unselected field with positive impact)", category='recommendation')
                     # For selected fields but different options with positive impact, recommend changing
                     elif is_field_selected and not is_option_selected and impact_score > 0:
+                        # For selected fields but different options with positive impact, recommend changing
                         rec_type = self.REC_TYPE_CHANGE
                         if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Setting recommendation type to {rec_type} for {criteria_type}/{criteria_name} (selected field but different option with positive impact)", category='recommendation')
+                            if criteria_type == 'genre':
+                                OptimizerConfig.debug(f"Setting recommendation type to {rec_type} for {criteria_type}/{criteria_name} (genre field with positive impact)", category='recommendation')
+                            else:
+                                OptimizerConfig.debug(f"Setting recommendation type to {rec_type} for {criteria_type}/{criteria_name} (selected field but different option with positive impact)", category='recommendation')
                     # For any other factor with positive impact, recommend adding it
                     elif impact_score > 0:
                         rec_type = self.REC_TYPE_ADD

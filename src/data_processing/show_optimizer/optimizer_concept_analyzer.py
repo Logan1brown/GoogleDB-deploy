@@ -878,22 +878,28 @@ class ConceptAnalyzer:
         # Add detailed debugging for success factors
         if self.config.DEBUG_MODE:
             OptimizerConfig.debug(f"_generate_recommendations received {len(success_factors)} success factors", category='recommendation')
-            
-            # Log high impact factors count
             high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
             OptimizerConfig.debug(f"Found {len(high_impact_factors)} high impact success factors", category='recommendation')
-            
-            # Check minimum impact threshold from config
             min_impact = self.config.SUGGESTIONS['minimum_impact']
             OptimizerConfig.debug(f"Minimum impact threshold: {min_impact}", category='recommendation')
-            
-            # Count factors that pass the threshold
             passing_factors = [f for f in success_factors if abs(f.impact_score) >= min_impact]
             OptimizerConfig.debug(f"Success factors passing threshold: {len(passing_factors)} of {len(success_factors)}", category='recommendation')
             
             # Debug the first few success factors to understand what's being passed
-            for i, factor in enumerate(success_factors[:3]):
+            for i, factor in enumerate(success_factors[:5]):
                 OptimizerConfig.debug(f"Success factor {i+1}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}", category='recommendation')
+                
+            # Debug any Animation genre factor specifically
+            animation_factors = [f for f in success_factors if f.criteria_type == 'genre' and f.criteria_name == 'Animation']
+            if animation_factors:
+                for af in animation_factors:
+                    OptimizerConfig.debug(f"Animation factor details: impact={af.impact_score}, rec_type={af.recommendation_type}", category='recommendation', force=True)
+            else:
+                OptimizerConfig.debug("No Animation genre factor found in success factors", category='recommendation', force=True)
+                
+            # Debug the criteria to understand what's currently selected
+            if 'genre' in criteria:
+                OptimizerConfig.debug(f"Current genre selection: {criteria['genre']}", category='recommendation', force=True)
             
         try:
             # Store matching_shows for later use in get_network_specific_recommendations
