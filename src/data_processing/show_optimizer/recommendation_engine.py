@@ -261,9 +261,30 @@ class RecommendationEngine:
                     # Get recommendation type from impact data
                     recommendation_type = impact_info.get('recommendation_type')
                     
-                    # If no recommendation_type is specified, determine based on impact
+                    # If no recommendation_type is specified, use criteria_scorer to determine it properly
                     if not recommendation_type:
-                        recommendation_type = self.REC_TYPE_ADD if impact > 0 else self.REC_TYPE_REMOVE
+                        # Check if the field is selected in the criteria
+                        is_field_selected = criteria_type in criteria
+                        is_option_selected = False
+                        
+                        # Check if this specific option is selected
+                        if is_field_selected:
+                            if isinstance(criteria[criteria_type], list):
+                                is_option_selected = value_id in criteria[criteria_type]
+                            else:
+                                is_option_selected = criteria[criteria_type] == value_id
+                        
+                        # Use the criteria scorer's method to determine recommendation type
+                        if hasattr(self.criteria_scorer, '_determine_recommendation_type'):
+                            recommendation_type = self.criteria_scorer._determine_recommendation_type(
+                                value_id, impact, is_field_selected, is_option_selected
+                            )
+                        else:
+                            # Fallback only if criteria_scorer method is not available
+                            recommendation_type = self.REC_TYPE_ADD if impact > 0 else self.REC_TYPE_REMOVE
+                            
+                        if self.config.DEBUG_MODE:
+                            self.config.debug(f"Determined recommendation type for {criteria_type}/{name}: {recommendation_type}", category='success_factors')
                     
                     # Get matching titles for this criteria
                     matching_titles = []
