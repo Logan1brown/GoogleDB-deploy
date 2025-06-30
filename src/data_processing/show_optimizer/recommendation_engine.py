@@ -366,16 +366,38 @@ class RecommendationEngine:
                 try:
                     limiting_criteria_recs = self._identify_limiting_criteria(criteria, matching_shows, confidence_info)
                     recommendations.extend(limiting_criteria_recs)
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Added {len(limiting_criteria_recs)} recommendations from limiting criteria analysis", category='recommendation')
                 except Exception as e:
-                    st.error("Unable to analyze criteria limitations. Some recommendations may be missing.")
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Error in _identify_limiting_criteria: {str(e)}", category='error')
+                        import traceback
+                        OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
+                    # Use a less alarming message for users
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug("Unable to analyze criteria limitations. Some recommendations may be missing.", category='warning')
+                    else:
+                        # Only show this in non-debug mode to avoid duplicate messages
+                        st.warning("Unable to analyze criteria limitations. Some recommendations may be missing.")
             
             # Analyze successful patterns in the matched shows
             if not matching_shows.empty:
                 try:
                     pattern_recs = self._analyze_successful_patterns(criteria, matching_shows)
                     recommendations.extend(pattern_recs)
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Added {len(pattern_recs)} recommendations from pattern analysis", category='recommendation')
                 except Exception as e:
-                    st.error("Unable to analyze successful patterns. Some recommendations may be missing.")
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Error in _analyze_successful_patterns: {str(e)}", category='error')
+                        import traceback
+                        OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
+                    # Use a less alarming message for users
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug("Unable to analyze successful patterns. Some recommendations may be missing.", category='warning')
+                    else:
+                        # Only show this in non-debug mode to avoid duplicate messages
+                        st.warning("Unable to analyze successful patterns. Some recommendations may be missing.")
                 
             # Generate network-specific recommendations
             if top_networks:
