@@ -14,7 +14,8 @@ from collections import defaultdict
 # Local imports
 from .optimizer_config import OptimizerConfig
 from .field_manager import FieldManager, CriteriaDict
-from .optimizer_matcher import Matcher, IntegratedData
+from .optimizer_matcher import Matcher
+from .optimizer_data_contracts import IntegratedData
 
 # Type aliases
 ImpactScores = Dict[str, Dict[Any, Dict[str, Any]]]
