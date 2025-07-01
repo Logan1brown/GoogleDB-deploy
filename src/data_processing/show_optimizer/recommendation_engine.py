@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Any, Tuple, Optional, Set, Union
 
 from .optimizer_config import OptimizerConfig
+from .criteria_scorer import ImpactAnalysisResult, ImpactAnalysisSummary
 from .optimizer_data_contracts import (
     CriteriaDict, ConfidenceInfo, IntegratedData,
     NetworkMatch, RecommendationItem, FieldValueData, FieldValueSuccessRate,
@@ -212,17 +213,41 @@ class RecommendationEngine:
         try:
             # Calculate impact data using the criteria scorer
             # Pass integrated_data to ensure matcher has access to full dataset
-            impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
+            impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
+            
+            # Check for errors
+            if impact_result.error:
+                if self.config.DEBUG_MODE:
+                    self.config.debug(f"Error in impact analysis: {impact_result.error}", category='error')
+                return []
+                
+            # Get the impact data from the result
+            impact_data = impact_result.criteria_impacts
+            
+            # Log summary information for debugging
+            if self.config.DEBUG_MODE:
+                summary = impact_result.summary
+                self.config.debug(
+                    f"Impact analysis complete: {summary['field_count']} fields, "
+                    f"{summary['option_count']} options, "
+                    f"recommendations: {summary['recommendation_counts']}",
+                    category='impact'
+                )
             
             # Convert to SuccessFactor objects
             success_factors = []
             
+            # Process each criteria type in the impact data
             for criteria_type, values in impact_data.items():
-                processed_count = 0
-                
+                # Skip empty values
+                if not values:
+                    continue
+                    
                 # Skip if no values to process
                 if not values:
                     continue
+                    
+                processed_count = 0
                 
                 # Process each value in the impact data
                 for value_id, impact_info in values.items():
@@ -336,179 +361,159 @@ class RecommendationEngine:
             top_networks: Optional list of top compatible networks
             confidence_info: Optional confidence information dictionary
             integrated_data: Optional integrated data dictionary
-            top_networks: List of NetworkMatch dictionaries
-            matching_shows: DataFrame of matching shows
-            confidence_info: Dictionary with confidence metrics conforming to ConfidenceInfo
-            integrated_data: Dictionary of integrated data frames conforming to IntegratedData
             
         Returns:
-            List of RecommendationItem dictionaries with standardized structure
+            Dictionary with two keys:
+            - 'general': List of general recommendations
+            - 'network_specific': List of network-specific recommendations
         """
-        # Process recommendations
-        
         try:
-            # Initialize empty list for recommendations
+            # Initialize empty lists for recommendations
             recommendations = []
+            general_recommendations = []
+            network_specific_recommendations = []
             
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug("Starting recommendation generation", category='recommendation')
+                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors", category='recommendation')
             
             # Analyze missing high-impact criteria
             try:
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Calling _recommend_missing_criteria", category='recommendation')
+                    OptimizerConfig.debug("Generating recommendations from missing criteria", category='recommendation')
                 
                 missing_criteria_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
                 
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("_recommend_missing_criteria completed", category='recommendation')
+                    OptimizerConfig.debug(
+                        f"Generated {len(missing_criteria_recs)} recommendations from missing criteria",
+                        category='recommendation'
+                    )
                 
                 recommendations.extend(missing_criteria_recs)
                 
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Added {len(missing_criteria_recs)} recommendations from _recommend_missing_criteria", category='recommendation')
             except Exception as e:
-                st.error(f"Unable to analyze some criteria. Error: {str(e)}")
+                error_msg = f"Error in _recommend_missing_criteria: {str(e)}"
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Error in _recommend_missing_criteria", category='recommendation')
+                    OptimizerConfig.debug(error_msg, category='error')
+                    import traceback
+                    OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
             
-            # Ensure confidence_info conforms to our ConfidenceInfo contract
-            # This enforces the contract rather than adding defensive checks
-            from .optimizer_data_contracts import update_confidence_info
-            confidence_info = update_confidence_info(confidence_info, {})
-            
-            # Identify limiting criteria that restrict match quality
-            # Now we can safely extract match_level from confidence_info dictionary
-            match_level = confidence_info['match_level']
-                
-            if match_level > 1:
+            # Process confidence info if available
+            if confidence_info:
                 try:
-                    limiting_criteria_recs = self._identify_limiting_criteria(criteria, matching_shows, confidence_info)
-                    recommendations.extend(limiting_criteria_recs)
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Added {len(limiting_criteria_recs)} recommendations from limiting criteria analysis", category='recommendation')
+                    from .optimizer_data_contracts import update_confidence_info
+                    confidence_info = update_confidence_info(confidence_info, {})
+                    match_level = confidence_info.get('match_level', 1)
+                    
+                    # Analyze limiting criteria if match level is not perfect
+                    if match_level > 1:
+                        try:
+                            limiting_criteria_recs = self._identify_limiting_criteria(
+                                criteria, matching_shows, confidence_info
+                            )
+                            recommendations.extend(limiting_criteria_recs)
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(
+                                    f"Added {len(limiting_criteria_recs)} recommendations from limiting criteria analysis", 
+                                    category='recommendation'
+                                )
+                        except Exception as e:
+                            error_msg = f"Error in _identify_limiting_criteria: {str(e)}"
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(error_msg, category='error')
+                                import traceback
+                                OptimizerDebug.log_traceback()
                 except Exception as e:
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Error in _identify_limiting_criteria: {str(e)}", category='error')
-                        import traceback
-                        OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
-                    # Use a less alarming message for users
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug("Unable to analyze criteria limitations. Some recommendations may be missing.", category='warning')
-                    else:
-                        # Only show this in non-debug mode to avoid duplicate messages
-                        st.warning("Unable to analyze criteria limitations. Some recommendations may be missing.")
+                        OptimizerConfig.debug(f"Error processing confidence info: {str(e)}", category='error')
             
-            # Analyze successful patterns in the matched shows
+            # Analyze successful patterns in the matched shows if we have data
             if not matching_shows.empty:
                 try:
                     pattern_recs = self._analyze_successful_patterns(criteria, matching_shows)
                     recommendations.extend(pattern_recs)
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Added {len(pattern_recs)} recommendations from pattern analysis", category='recommendation')
+                        OptimizerConfig.debug(
+                            f"Added {len(pattern_recs)} recommendations from pattern analysis", 
+                            category='recommendation'
+                        )
                 except Exception as e:
+                    error_msg = f"Error in _analyze_successful_patterns: {str(e)}"
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Error in _analyze_successful_patterns: {str(e)}", category='error')
-                        import traceback
-                        OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
-                    # Use a less alarming message for users
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug("Unable to analyze successful patterns. Some recommendations may be missing.", category='warning')
-                    else:
-                        # Only show this in non-debug mode to avoid duplicate messages
-                        st.warning("Unable to analyze successful patterns. Some recommendations may be missing.")
+                        OptimizerConfig.debug(error_msg, category='error')
+                        OptimizerDebug.log_traceback()
+            
+            # Generate network-specific recommendations if networks are provided
+            if top_networks and len(top_networks) > 0:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug("Generating network-specific recommendations", category='recommendation')
                 
-            # Generate network-specific recommendations
-            if top_networks:
                 # Limit to top 3 networks for performance
-                network_specific_recs = []
                 for network in top_networks[:3]:
                     try:
                         network_recs = self.generate_network_specific_recommendations(
                             criteria, network, matching_shows, integrated_data, confidence_info
                         )
-                        network_specific_recs.extend(network_recs)
+                        recommendations.extend(network_recs)
+                        
+                        if OptimizerConfig.DEBUG_MODE:
+                            network_name = network.get('name', 'unknown')
+                            OptimizerConfig.debug(
+                                f"Added {len(network_recs)} recommendations for network {network_name}", 
+                                category='recommendation'
+                            )
                     except Exception as e:
-                        st.error(f"Error generating network recommendations: {str(e)}")
-                
-                # Add network-specific recommendations to the main list
-                recommendations.extend(network_specific_recs)
+                        error_msg = f"Error generating network recommendations: {str(e)}"
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(error_msg, category='error')
             
-            # Separate general and network-specific recommendations
-            # Ensure we only process recommendations with the required 'impact' field
-            # Use the metadata field to identify network-specific recommendations
-            general_recommendations = []
-            network_specific_recommendations = []
-            
+            # Process all recommendations to separate general and network-specific
             for rec in recommendations:
+                # Skip recommendations without impact score
                 if 'impact' not in rec:
-                    # Skip recommendations without impact score
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(
+                            f"Skipping recommendation without impact score: {rec.get('field', 'unknown')}",
+                            category='warning'
+                        )
                     continue
-                    
-                # Check if this is a network-specific recommendation by looking for network data in metadata
-                if 'metadata' in rec and rec['metadata'] and 'network_name' in rec['metadata']:
+                
+                # Check if this is a network-specific recommendation
+                if 'metadata' in rec and isinstance(rec['metadata'], dict) and 'network_name' in rec['metadata']:
                     network_specific_recommendations.append(rec)
                 else:
                     general_recommendations.append(rec)
             
-            # Sort recommendations by impact score
-            general_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
-            network_specific_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
+            # Sort by absolute impact (descending)
+            general_recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
+            network_specific_recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
             
-            # Limit to max suggestions
+            # Apply max suggestions limit to general recommendations
             max_suggestions = self.config.SUGGESTIONS.get('max_suggestions', 5)
             if len(general_recommendations) > max_suggestions:
                 general_recommendations = general_recommendations[:max_suggestions]
             
-            # Debug the final recommendations count and details
+            # Debug output
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Final recommendations count - general: {len(general_recommendations)}, network: {len(network_specific_recommendations)}", category='recommendation', force=True)
-                
-                # Debug all recommendations in detail
-                OptimizerConfig.debug(f"Original recommendations count before separation: {len(recommendations)}", category='recommendation', force=True)
-                
-                # Log details of all recommendations for debugging
-                for i, rec in enumerate(recommendations):
-                    rec_type = rec.get('recommendation_type', 'unknown')
-                    field = rec.get('field', 'unknown')
-                    impact = rec.get('impact', 'unknown')
-                    suggested = rec.get('suggested_name', 'unknown')
-                    is_network = 'Yes' if ('metadata' in rec and rec['metadata'] and 'network_name' in rec['metadata']) else 'No'
-                    OptimizerConfig.debug(f"Recommendation {i+1}: {field}/{suggested}, type={rec_type}, impact={impact}, network-specific={is_network}", 
-                                        category='recommendation', force=True)
-                
-                # Debug why general recommendations might be empty or incomplete
-                if len(general_recommendations) < 3 and len(success_factors) > 3:
-                    OptimizerConfig.debug("Few general recommendations were generated despite many success factors - investigating why", 
-                                        category='recommendation', force=True)
-                    
-                    # Check if any recommendations were filtered out during separation
-                    network_metadata_count = sum(1 for rec in recommendations if 'metadata' in rec and rec['metadata'] and 'network_name' in rec['metadata'])
-                    OptimizerConfig.debug(f"Recommendations with network metadata: {network_metadata_count}", category='recommendation', force=True)
-                    
-                    # Check if any recommendations were filtered out due to missing impact
-                    missing_impact = sum(1 for rec in recommendations if 'impact' not in rec)
-                    OptimizerConfig.debug(f"Recommendations missing impact field: {missing_impact}", category='recommendation', force=True)
-                    
-                    # Log success factors that didn't become recommendations
-                    OptimizerConfig.debug(f"Success factors count: {len(success_factors)}", category='recommendation', force=True)
-                    for i, factor in enumerate(success_factors):
-                        became_rec = any(rec.get('field') == factor.criteria_type and 
-                                        rec.get('suggested_name') == factor.criteria_name 
-                                        for rec in recommendations)
-                        OptimizerConfig.debug(f"Success factor {i+1}: {factor.criteria_type}/{factor.criteria_name}, "
-                                            f"impact={factor.impact_score}, rec_type={factor.recommendation_type}, "
-                                            f"became recommendation={became_rec}", 
-                                            category='recommendation', force=True)
+                self._debug_recommendations(
+                    general_recommendations, 
+                    network_specific_recommendations, 
+                    success_factors
+                )
             
-            # Return a dictionary with separate keys for general and network-specific recommendations
             return {
                 "general": general_recommendations,
                 "network_specific": network_specific_recommendations
             }
             
         except Exception as e:
-            st.error(f"Unable to generate recommendations based on your criteria: {str(e)}")
+            error_msg = f"Error in generate_recommendations: {str(e)}"
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(error_msg, category='error')
+                import traceback
+                OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
+            
             # Always return a dictionary with the expected structure, even on error
             return {
                 "general": [],
@@ -532,7 +537,7 @@ class RecommendationEngine:
             
         Returns:
             List of RecommendationItem dictionaries sorted by impact score
-    """
+        """
         # This method processes success factors to generate actionable recommendations
         # Data flow: success_factors -> filter by impact -> determine recommendation type -> create recommendations
         # The recommendation types follow these rules (as per memory f48dc725):
@@ -547,13 +552,15 @@ class RecommendationEngine:
             min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
             
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors with minimum impact threshold {min_impact}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors with minimum impact threshold {min_impact}", category='recommendation')
                 
                 # Log all success factors at the start
                 for i, factor in enumerate(success_factors):
-                    OptimizerConfig.debug(f"Input success factor {i+1}: {factor.criteria_type}/{factor.criteria_name}, "
-                                        f"impact={factor.impact_score}, rec_type={factor.recommendation_type}", 
-                                        category='recommendation', force=True)
+                    OptimizerConfig.debug(
+                        f"Input success factor {i+1}: {factor.criteria_type}/{factor.criteria_name}, "
+                        f"impact={factor.impact_score}, rec_type={factor.recommendation_type}", 
+                        category='recommendation'
+                    )
                 
             for factor in success_factors:
                 # Skip factors with impact below threshold
@@ -672,10 +679,22 @@ class RecommendationEngine:
                  
                 # Recommendation processing complete
             
+            # Sort recommendations by absolute impact (descending)
+            recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
+            
             # Final debug summary
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug("Recommendations processing complete", category='recommendation')
                 OptimizerConfig.debug(f"Returning {len(recommendations)} recommendations from _recommend_missing_criteria", category='recommendation')
+                
+                # Log the top 5 recommendations for debugging
+                for i, rec in enumerate(recommendations[:5], 1):
+                    OptimizerConfig.debug(
+                        f"Top {i}: {rec['field']}/{rec.get('suggested_name', 'N/A')} - "
+                        f"impact: {rec['impact']:.2f}, type: {rec['recommendation_type']}", 
+                        category='recommendation',
+                        force=True
+                    )
             
             return recommendations
         except Exception as e:

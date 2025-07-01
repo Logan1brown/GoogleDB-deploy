@@ -5,19 +5,63 @@ based on integrated data provided by orchestrator components.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Callable, Union
-import pandas as pd
+from typing import Dict, List, Tuple, Optional, Any, Union, Set, Callable, TypedDict
 import numpy as np
-import ast
-import streamlit as st
-import time
-from datetime import datetime, timedelta
+import pandas as pd
+from dataclasses import dataclass, field
+from collections import defaultdict
 
-from .field_manager import FieldManager
+# Local imports
 from .optimizer_config import OptimizerConfig
-from .score_calculators import ComponentScore, ScoreCalculationError, NetworkScoreCalculator
+from .optimizer_utils import safe_divide, normalize_text, debug_timeit, log_execution_time
+from .field_manager import FieldManager, CriteriaDict, FieldType, FIELD_CONFIGS
+from .optimizer_matcher import OptimizerMatcher, MatchResult, IntegratedData
+
+# Type aliases
+ImpactScores = Dict[str, Dict[Any, Dict[str, Any]]]
+OptionMatchingShowsMap = Dict[str, Dict[Any, pd.DataFrame]]
+
+class ImpactAnalysisSummary(TypedDict):
+    field_count: int
+    option_count: int
+    recommendation_counts: Dict[str, int]
+
+@dataclass
+class ImpactAnalysisResult:
+    """Structured result of criteria impact analysis.
+    
+    Attributes:
+        criteria_impacts: Dictionary mapping criteria types to their impact data
+        summary: Summary statistics about the analysis
+        error: Optional error message if the analysis failed
+    """
+    criteria_impacts: Dict[str, Dict[Any, Dict[str, Any]]]
+    summary: ImpactAnalysisSummary
+    error: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the result to a dictionary for backward compatibility."""
+        result = dict(self.criteria_impacts)
+        result['_summary'] = dict(self.summary)
+        if self.error:
+            result['_error'] = self.error
+        return result
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ImpactAnalysisResult':
+        """Create an ImpactAnalysisResult from a legacy dictionary format."""
+        criteria_impacts = {k: v for k, v in data.items() 
+                          if k not in ('_summary', '_error')}
+        summary = data.get('_summary', {
+            'field_count': 0,
+            'option_count': 0,
+            'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
+        })
+        error = data.get('_error')
+        return cls(criteria_impacts, summary, error)
+
 from .optimizer_data_contracts import NetworkMatch
-from .score_calculators import SuccessScoreCalculator, AudienceScoreCalculator, CriticsScoreCalculator, LongevityScoreCalculator
+from .score_calculators import ComponentScore, ScoreCalculationError, NetworkScoreCalculator
 from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData, update_confidence_info
 
 SCORE_CALCULATORS_CLASSES = {
@@ -267,7 +311,7 @@ class CriteriaScorer:
                 # No recommendation for unselected options with negative impact
                 return None
     
-    def calculate_criteria_impact(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None, integrated_data: IntegratedData = None) -> Dict[str, Dict[Any, Dict[str, Union[float, int, str, bool]]]]:
+    def calculate_criteria_impact(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None, integrated_data: IntegratedData = None) -> ImpactAnalysisResult:
         """Calculate the impact of each criteria option on success rate.
         
         Args:
@@ -705,80 +749,112 @@ class CriteriaScorer:
                             continue
                 
             # Summarize the impact scores we've generated
+            # Count fields, options, and recommendation types
+            field_count = 0
+            option_count = 0
+            recommendation_counts = {'add': 0, 'change': 0, 'remove': 0}
+            
+            # Count fields, options, and recommendation types
+            for field, options in impact_scores.items():
+                if field in ('_summary', '_error'):
+                    continue
+                field_count += 1
+                option_count += len(options)
+                for option in options.values():
+                    rec_type = option.get('recommendation_type')
+                    if rec_type in recommendation_counts:
+                        recommendation_counts[rec_type] += 1
+            
+            # Create summary statistics
+            result_summary = {
+                'field_count': field_count,
+                'option_count': option_count,
+                'recommendation_counts': recommendation_counts
+            }
+            
+            # Store the summary in the result for backward compatibility
             if OptimizerConfig.DEBUG_MODE:
-                # Count fields, options, and recommendation types
-                field_count = len(impact_scores)
-                option_count = 0
-                recommendation_counts = {'add': 0, 'change': 0, 'remove': 0}
-                
-                # Count options and recommendation types
-                for field, options in impact_scores.items():
-                    option_count += len(options)
-                    for option in options.values():
-                        rec_type = option.get('recommendation_type')
-                        if rec_type in recommendation_counts:
-                            recommendation_counts[rec_type] += 1
-                # Add summary statistics to the result for better recommendations
-                result_summary = {
-                    'field_count': field_count,
-                    'option_count': option_count,
-                    'recommendation_counts': recommendation_counts
-                }
-                
-                # Store the summary in the result
                 impact_scores['_summary'] = result_summary
                 
                 # Summary information is now stored in impact_scores['_summary'] for better recommendations
                 
-            # If we still have no impact scores, return structured empty dict with error info
+            # If we still have no impact scores, return empty result with error
             if not any(impact_scores.values()) or all(k == '_summary' for k in impact_scores.keys()):
-                return {
-                    '_error': 'No impact scores could be generated from any selected or unselected fields',
-                    '_summary': {
+                return ImpactAnalysisResult(
+                    criteria_impacts={},
+                    summary={
                         'field_count': 0,
                         'option_count': 0,
                         'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
-                    }
-                }
+                    },
+                    error='No impact scores could be generated from any selected or unselected fields'
+                )
             
-            # Final validation of impact data structure before returning
+            # Prepare the result with proper typing
+            result = ImpactAnalysisResult(
+                criteria_impacts={
+                    k: v for k, v in impact_scores.items() 
+                    if k != '_summary' and k != '_error'
+                },
+                summary={
+                    'field_count': 0,
+                    'option_count': 0,
+                    'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
+                }
+            )
+            
+            # Update summary if available
+            if '_summary' in impact_scores:
+                result.summary.update(impact_scores['_summary'])
+            
+            # Validate impact data structure
             if OptimizerConfig.DEBUG_MODE:
-                # Debug removed - redundant final validation log
-                for field, options in impact_scores.items():
-                    if field == '_summary' or field == '_error':
-                        continue
+                for field, options in result.criteria_impacts.items():
                     for option_id, impact_info in options.items():
                         if not isinstance(impact_info, dict):
                             OptimizerConfig.debug(f"CRITICAL: Non-dict impact_info in final result for {field}.{option_id}: {type(impact_info)}", category='error')
                             # Fix the issue by creating a proper dictionary
-                            impact_scores[field][option_id] = {
+                            result.criteria_impacts[field][option_id] = {
                                 'option_id': option_id,
                                 'impact': float(impact_info) if isinstance(impact_info, (int, float)) else 0.0,
                                 'sample_size': 0,
                                 'recommendation_type': 'add'
                             }
                             OptimizerConfig.debug(f"Fixed non-dict impact_info for {field}.{option_id}", category='impact')
-                
-            return impact_scores
+            
+            return result
 
         except ValueError as ve:
+            error_msg = f"ValueError in calculate_criteria_impact: {str(ve)}"
             if OptimizerConfig.DEBUG_MODE:
                 import traceback
-                OptimizerConfig.debug(f"ValueError in calculate_criteria_impact: {str(ve)}", category='error')
+                OptimizerConfig.debug(error_msg, category='error')
                 OptimizerConfig.debug(traceback.format_exc(), category='error')
-            return {}
+            return ImpactAnalysisResult(
+                criteria_impacts={},
+                summary={
+                    'field_count': 0,
+                    'option_count': 0,
+                    'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
+                },
+                error=error_msg
+            )
         except Exception as e:
-            # Log the exception with detailed traceback
+            error_msg = f"Unexpected error in calculate_criteria_impact: {str(e)}"
             if OptimizerConfig.DEBUG_MODE:
                 import traceback
-                OptimizerConfig.debug(f"Exception in calculate_criteria_impact: {str(e)}", category='error')
+                OptimizerConfig.debug(error_msg, category='error')
                 OptimizerConfig.debug(traceback.format_exc(), category='error')
-                # Log the state of key variables to help diagnose the issue
-                OptimizerConfig.debug(f"Criteria: {criteria}", category='error')
-                OptimizerConfig.debug(f"Matching shows count: {len(matching_shows) if matching_shows is not None and not matching_shows.empty else 0}", category='error')
-                OptimizerConfig.debug(f"Fields processed: {fields_to_process if 'fields_to_process' in locals() else 'Not initialized'}", category='error')
-            return {}
-            
+            return ImpactAnalysisResult(
+                criteria_impacts={},
+                summary={
+                    'field_count': 0,
+                    'option_count': 0,
+                    'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
+                },
+                error=error_msg
+            )
+
     def calculate_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, integrated_data: IntegratedData = None) -> Dict[str, Any]:
         """Calculate all scores for a set of criteria and matching shows.
         
