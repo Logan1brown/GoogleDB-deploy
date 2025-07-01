@@ -497,34 +497,90 @@ class Matcher:
             
             # Try to sample by match level groups, but with safety checks
             try:
-                # REVISED SAMPLING STRATEGY:
+                # TIERED SAMPLING STRATEGY:
                 # 1. Keep ALL perfect matches (match_level=1)
-                # 2. For each other match level, prioritize by RT/TMDB data and apply MAX_RESULTS per level
+                # 2. Fill remaining slots (up to MAX_RESULTS) with next match levels
+                # 3. Within each level, sort by RT/TMDB data inclusion
                 
-                # First, separate by match level
+                # First, separate by match level and sort them (1 is best)
                 match_levels = sorted(all_matches['match_level'].unique())
+                remaining_slots = OptimizerConfig.MAX_RESULTS
                 result_dfs = []
                 
-                # Process each match level separately
+                # Define a function to sort by RT/TMDB data inclusion (no filtering)
+                def sort_by_metrics(df):
+                    """Sort shows by RT and TMDB data inclusion.
+                    
+                    Args:
+                        df: DataFrame of shows to sort
+                        
+                    Returns:
+                        DataFrame of sorted shows (no filtering)
+                    """
+                    # Check if we have RT and TMDB columns
+                    has_rt = 'rt_score' in df.columns
+                    has_tmdb = 'tmdb_score' in df.columns
+                    
+                    if not has_rt and not has_tmdb:
+                        return df
+                        
+                    # Create a priority column for sorting
+                    # 3: Has both RT and TMDB
+                    # 2: Has RT only
+                    # 1: Has TMDB only
+                    # 0: Has neither
+                    if has_rt and has_tmdb:
+                        df['metrics_priority'] = 0
+                        df.loc[(df['rt_score'].notna()) & (df['tmdb_score'].notna()), 'metrics_priority'] = 3
+                        df.loc[(df['rt_score'].notna()) & (df['tmdb_score'].isna()), 'metrics_priority'] = 2
+                        df.loc[(df['rt_score'].isna()) & (df['tmdb_score'].notna()), 'metrics_priority'] = 1
+                    elif has_rt:
+                        df['metrics_priority'] = 0
+                        df.loc[df['rt_score'].notna(), 'metrics_priority'] = 2
+                    elif has_tmdb:
+                        df['metrics_priority'] = 0
+                        df.loc[df['tmdb_score'].notna(), 'metrics_priority'] = 1
+                    
+                    # Sort by priority (descending)
+                    return df.sort_values(by=['metrics_priority'], ascending=[False])
+                
+                # Process each match level in order
                 for level in match_levels:
                     level_matches = all_matches[all_matches['match_level'] == level].copy()
                     
                     # For perfect matches (level 1), keep ALL of them
                     if level == 1:
                         # Keep ALL perfect matches - they are critical for accurate recommendations
+                        perfect_count = len(level_matches)
+                        
+                        # Sort by RT/TMDB data inclusion
+                        level_matches = sort_by_metrics(level_matches)
+                        
                         OptimizerConfig.debug(
-                            f"Keeping ALL {len(level_matches)} perfect matches",
+                            f"Keeping ALL {perfect_count} perfect matches",
                             category='matcher',
                             force=True
                         )
                         result_dfs.append(level_matches)
-                    else:
-                        # For non-perfect matches, apply prioritization and MAX_RESULTS
-                        # Prioritize shows with RT and TMDB data
-                        prioritized = prioritize_shows(level_matches)
                         
-                        # Add to results
-                        result_dfs.append(prioritized)
+                        # Update remaining slots
+                        remaining_slots -= perfect_count
+                    else:
+                        # For non-perfect matches, sort by RT/TMDB data inclusion
+                        level_matches = sort_by_metrics(level_matches)
+                        
+                        # Only take what fits in remaining slots
+                        if remaining_slots > 0:
+                            slots_to_use = min(remaining_slots, len(level_matches))
+                            OptimizerConfig.debug(
+                                f"Taking {slots_to_use} matches from level {level} (remaining slots: {remaining_slots})",
+                                category='matcher'
+                            )
+                            result_dfs.append(level_matches.head(slots_to_use))
+                            remaining_slots -= slots_to_use
+                        else:
+                            # No slots left
+                            break
                 
                 # Combine all match levels, with perfect matches first
                 sampled_matches = pd.concat(result_dfs) if result_dfs else pd.DataFrame()
@@ -539,31 +595,74 @@ class Matcher:
                         # Add match_level column with default value (1 = best match)
                         all_matches['match_level'] = 1
                     
-                    # REVISED FALLBACK SAMPLING STRATEGY:
+                    # TIERED FALLBACK SAMPLING STRATEGY:
                     # 1. Keep ALL perfect matches (match_level=1)
-                    # 2. For each other match level, apply MAX_RESULTS per level
+                    # 2. Fill remaining slots (up to MAX_RESULTS) with next match levels
+                    # 3. Within each level, sort by RT/TMDB data inclusion if possible
                     
-                    # First, separate by match level
+                    # First, separate by match level and sort them (1 is best)
                     match_levels = sorted(all_matches['match_level'].unique())
+                    remaining_slots = OptimizerConfig.MAX_RESULTS
                     result_dfs = []
                     
-                    # Process each match level separately
+                    # Process each match level in order
                     for level in match_levels:
                         level_matches = all_matches[all_matches['match_level'] == level].copy()
                         
                         # For perfect matches (level 1), keep ALL of them
                         if level == 1:
                             # Keep ALL perfect matches - they are critical for accurate recommendations
+                            perfect_count = len(level_matches)
+                            
+                            # Try to sort by RT/TMDB if those columns exist
+                            try:
+                                has_rt = 'rt_score' in level_matches.columns
+                                has_tmdb = 'tmdb_score' in level_matches.columns
+                                
+                                if has_rt or has_tmdb:
+                                    # Create a priority column
+                                    level_matches['metrics_priority'] = 0
+                                    
+                                    if has_rt and has_tmdb:
+                                        level_matches.loc[(level_matches['rt_score'].notna()) & 
+                                                         (level_matches['tmdb_score'].notna()), 'metrics_priority'] = 3
+                                        level_matches.loc[(level_matches['rt_score'].notna()) & 
+                                                         (level_matches['tmdb_score'].isna()), 'metrics_priority'] = 2
+                                        level_matches.loc[(level_matches['rt_score'].isna()) & 
+                                                         (level_matches['tmdb_score'].notna()), 'metrics_priority'] = 1
+                                    elif has_rt:
+                                        level_matches.loc[level_matches['rt_score'].notna(), 'metrics_priority'] = 2
+                                    elif has_tmdb:
+                                        level_matches.loc[level_matches['tmdb_score'].notna(), 'metrics_priority'] = 1
+                                    
+                                    # Sort by priority
+                                    level_matches = level_matches.sort_values(by=['metrics_priority'], ascending=[False])
+                            except Exception as e:
+                                # If sorting fails, just continue with unsorted matches
+                                OptimizerConfig.debug(f"Fallback: Sorting error: {str(e)}", category='matcher')
+                            
                             OptimizerConfig.debug(
-                                f"Fallback: Keeping ALL {len(level_matches)} perfect matches",
+                                f"Fallback: Keeping ALL {perfect_count} perfect matches",
                                 category='matcher',
                                 force=True
                             )
                             result_dfs.append(level_matches)
+                            
+                            # Update remaining slots
+                            remaining_slots -= perfect_count
                         else:
-                            # For non-perfect matches, limit to MAX_RESULTS per level
-                            level_limit = min(len(level_matches), OptimizerConfig.MAX_RESULTS)
-                            result_dfs.append(level_matches.head(level_limit))
+                            # For non-perfect matches, only take what fits in remaining slots
+                            if remaining_slots > 0:
+                                slots_to_use = min(remaining_slots, len(level_matches))
+                                OptimizerConfig.debug(
+                                    f"Fallback: Taking {slots_to_use} matches from level {level} (remaining: {remaining_slots})",
+                                    category='matcher'
+                                )
+                                result_dfs.append(level_matches.head(slots_to_use))
+                                remaining_slots -= slots_to_use
+                            else:
+                                # No slots left
+                                break
                     
                     # Combine all match levels, with perfect matches first
                     sampled_matches = pd.concat(result_dfs) if result_dfs else pd.DataFrame()
