@@ -389,7 +389,6 @@ class Matcher:
         if all_matches.empty:
             # Create an empty DataFrame with the required columns
             # Include all columns that will be used downstream
-{{ ... }}
             empty_df = pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title'])
             empty_confidence = update_confidence_info({}, {
                 'level': 'none',
