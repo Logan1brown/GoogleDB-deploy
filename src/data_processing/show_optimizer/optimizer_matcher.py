@@ -380,12 +380,16 @@ class Matcher:
             # Only apply early termination for relaxed criteria (level > 1)
             # This ensures we find ALL exact matches before moving to relaxed criteria
             if level > 1 and total_unique_matches >= target_sample_size:
+                # Add debug to show we're stopping early
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Early termination at level {level} with {total_unique_matches} matches", category='matcher')
                 break
         
         # If we still didn't find any matches at any level
         if all_matches.empty:
             # Create an empty DataFrame with the required columns
             # Include all columns that will be used downstream
+{{ ... }}
             empty_df = pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title'])
             empty_confidence = update_confidence_info({}, {
                 'level': 'none',
@@ -497,10 +501,32 @@ class Matcher:
                 # Group and sample
                 sampled_matches = all_matches.groupby('match_level').apply(prioritize_shows).reset_index(drop=True)
                 
-                # If we still have too many, sort by match level and take the top ones
+                # If we still have too many, ensure perfect matches are kept
                 if len(sampled_matches) > OptimizerConfig.MAX_RESULTS:
-                    sampled_matches = sampled_matches.sort_values(by=['match_level'], ascending=[True])
-                    sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
+                    # First, separate perfect matches (match_level=1)
+                    perfect_matches = sampled_matches[sampled_matches['match_level'] == 1].copy()
+                    other_matches = sampled_matches[sampled_matches['match_level'] > 1].copy()
+                    
+                    # Calculate remaining slots after including all perfect matches
+                    remaining_slots = max(0, OptimizerConfig.MAX_RESULTS - len(perfect_matches))
+                    
+                    # Log what we're doing
+                    OptimizerConfig.debug(
+                        f"Sampling: {len(perfect_matches)} perfect matches, {remaining_slots} slots for other matches",
+                        category='matcher'
+                    )
+                    
+                    # If we have slots left, include other matches sorted by match level
+                    if remaining_slots > 0 and not other_matches.empty:
+                        other_matches = other_matches.sort_values(by=['match_level'], ascending=[True])
+                        other_matches = other_matches.head(remaining_slots)
+                        sampled_matches = pd.concat([perfect_matches, other_matches])
+                    else:
+                        # If perfect matches exceed MAX_RESULTS, we still need to sample them
+                        if len(perfect_matches) > OptimizerConfig.MAX_RESULTS:
+                            sampled_matches = perfect_matches.head(OptimizerConfig.MAX_RESULTS)
+                        else:
+                            sampled_matches = perfect_matches
             except Exception as e:
                 # If groupby fails, fall back to simple sampling
                 # Falling back to simple sampling
@@ -512,10 +538,32 @@ class Matcher:
                         # Add match_level column with default value (1 = best match)
                         all_matches['match_level'] = 1
                     
-                    sampled_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
-                    sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
+                    # First, separate perfect matches (match_level=1)
+                    perfect_matches = all_matches[all_matches['match_level'] == 1].copy()
+                    other_matches = all_matches[all_matches['match_level'] > 1].copy()
+                    
+                    # Calculate remaining slots after including all perfect matches
+                    remaining_slots = max(0, OptimizerConfig.MAX_RESULTS - len(perfect_matches))
+                    
+                    OptimizerConfig.debug(
+                        f"Fallback sampling: {len(perfect_matches)} perfect matches, {remaining_slots} slots for other matches",
+                        category='matcher'
+                    )
+                    
+                    # If we have slots left, include other matches sorted by match level
+                    if remaining_slots > 0 and not other_matches.empty:
+                        other_matches = other_matches.sort_values(by=['match_level'], ascending=[True])
+                        other_matches = other_matches.head(remaining_slots)
+                        sampled_matches = pd.concat([perfect_matches, other_matches])
+                    else:
+                        # If perfect matches exceed MAX_RESULTS, we still need to sample them
+                        if len(perfect_matches) > OptimizerConfig.MAX_RESULTS:
+                            sampled_matches = perfect_matches.head(OptimizerConfig.MAX_RESULTS)
+                        else:
+                            sampled_matches = perfect_matches
                 except Exception as e:
-                    # If sorting fails, just sample
+                    # If sorting fails, just sample randomly but log a warning
+                    OptimizerConfig.debug(f"Fallback to random sampling due to error: {str(e)}", category='matcher')
                     sampled_matches = all_matches.sample(min(OptimizerConfig.MAX_RESULTS, len(all_matches)), random_state=42)
             
             # Use the sampled matches as our final result
