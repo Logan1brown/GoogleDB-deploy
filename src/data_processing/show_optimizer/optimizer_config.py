@@ -40,7 +40,7 @@ class OptimizerConfig:
     DEBUG_MODE = False
     
     # Maximum number of debug messages to show - limited to avoid overwhelming the UI
-    MAX_DEBUG_MESSAGES = 100
+    MAX_DEBUG_MESSAGES = 500
     
     # Debug categories to filter messages
     DEBUG_CATEGORIES = {

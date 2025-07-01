@@ -638,34 +638,29 @@ class RecommendationEngine:
                 impact_score = factor.impact_score
                 criteria_name = factor.criteria_name
                 
-                # Determine recommendation type based on impact and selection status
-                # This follows the rules from memory f48dc725:
-                # - 'add': For suggesting new unselected fields with positive impact
-                # - 'change': For suggesting different values for already selected fields
-                # - 'remove': For suggesting removal of selected fields with negative impact
-                if option_id == 'remove':
-                    rec_type = self.REC_TYPE_REMOVE
-                elif impact_score > 0:
-                    if is_field_selected:
-                        if is_option_selected:
-                            rec_type = None  # No need to recommend what's already selected
-                        else:
-                            rec_type = self.REC_TYPE_CHANGE
-                    else:
-                        rec_type = self.REC_TYPE_ADD
-                else:  # negative impact
-                    if is_option_selected:
-                        rec_type = self.REC_TYPE_REMOVE
-                    else:
-                        rec_type = None  # No recommendation for unselected options with negative impact
+                # Use the recommendation type that was already determined in the criteria_scorer
+                # This ensures consistency with the recommendation type determination logic
+                rec_type = factor.recommendation_type
+                
+                # Skip factors without a recommendation type
+                if rec_type is None:
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Skipping factor {factor.criteria_type}/{factor.criteria_name} with no recommendation type", 
+                                            category='recommendation')
+                    continue
+                    
+                # Special debug for important criteria types
+                if OptimizerConfig.DEBUG_MODE and factor.criteria_type == 'genre':
+                    OptimizerConfig.debug(f"Using recommendation type {rec_type} for {factor.criteria_type}/{factor.criteria_name}", 
+                                        category='recommendation', force=True)
                 
                 # Special debug for important genres
                 if criteria_type == 'genre' and criteria_name in ['Animation', 'Action & Adventure', 'Comedy', 'Family']:
                     OptimizerConfig.debug(f"IMPORTANT GENRE: Processing {criteria_type}/{criteria_name} with type {rec_type} and impact {impact_score}", 
                                         category='recommendation', force=True)
                 
-                # Update the recommendation type in the factor object for consistency
-                factor.recommendation_type = rec_type
+                # We're now using the original recommendation type from the factor object
+                # No need to update it here
                 
                 # Create a potential recommendation if we have a valid recommendation type
                 if rec_type is not None:
