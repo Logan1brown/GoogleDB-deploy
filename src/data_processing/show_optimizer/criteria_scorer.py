@@ -286,8 +286,14 @@ class CriteriaScorer:
                 OptimizerConfig.debug("Cannot calculate criteria impact: empty criteria", category='impact')
             return {}
             
-        # Normalize base criteria once at the beginning
-        normalized_base_criteria = self.field_manager.normalize_criteria(criteria)
+        try:
+            # Normalize base criteria once at the beginning
+            normalized_base_criteria = self.field_manager.normalize_criteria(criteria)
+        except ValueError as e:
+            # Re-raise with more context about the validation error
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Invalid criteria format: {str(e)}", category='validation')
+            raise ValueError(f"Invalid criteria format: {str(e)}") from e
             
         # Check if criteria contains only empty values
         try:
@@ -318,6 +324,7 @@ class CriteriaScorer:
             return {}
             
         # Initialize impact scores dictionary
+        # Ensure all keys are strings to prevent 'criteria_type' errors later
         impact_scores = {}
         
         try:

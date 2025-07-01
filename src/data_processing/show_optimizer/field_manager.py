@@ -617,23 +617,35 @@ class FieldManager:
         1. List values with single items are converted to scalar values for scalar fields
         2. Scalar values are converted to lists for array fields
         3. Numeric IDs are properly typed as integers for all fields
+        4. All field names are strings
         
         Args:
             criteria: Dictionary of criteria to normalize conforming to CriteriaDict
             
         Returns:
             Normalized criteria dictionary conforming to CriteriaDict
+            
+        Raises:
+            ValueError: If any field name is not a string
         """
         if not criteria:
             return {}
             
+        # Validate field names in FIELD_CONFIGS
+        for field in self.FIELD_CONFIGS:
+            if not isinstance(field, str):
+                raise ValueError(f"Invalid field name in FIELD_CONFIGS: {field!r} is not a string")
+        
+        # Fields that should have integer IDs
+        numeric_id_fields = list(self.FIELD_CONFIGS.keys())  # All fields use numeric IDs
+        
         normalized_criteria = {}
         
-        # Fields that should have integer IDs (based on FIELD_CONFIGS)
-        # Most fields in the system use integer IDs in the database
-        numeric_id_fields = [field for field, config in self.FIELD_CONFIGS.items()]
-        
         for key, value in criteria.items():
+            # Validate field name is a string
+            if not isinstance(key, str):
+                raise ValueError(f"Field name must be a string, got {key!r} of type {type(key).__name__}")
+                
             # Skip None values
             if value is None:
                 continue
@@ -657,6 +669,9 @@ class FieldManager:
                         # Only convert if it's a string that represents a number
                         if isinstance(normalized_criteria[key], str) and normalized_criteria[key].isdigit():
                             normalized_criteria[key] = int(normalized_criteria[key])
+                    except (ValueError, TypeError) as e:
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Error converting {key} value to int: {e}", category='validation')
                     except (ValueError, TypeError):
                         # If conversion fails, keep the original value
                         if OptimizerConfig.DEBUG_MODE:

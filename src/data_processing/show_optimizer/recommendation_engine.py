@@ -214,62 +214,19 @@ class RecommendationEngine:
             # Pass integrated_data to ensure matcher has access to full dataset
             impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
             
-            # Debug impact data structure
-            if self.config.DEBUG_MODE:
-                self.config.debug(f"Impact data keys: {list(impact_data.keys())}", category='success_factors')
-                
-                # Check for genre and subgenres in criteria
-                has_genre = 'genre' in criteria and criteria['genre']
-                has_subgenres = 'subgenres' in criteria and criteria['subgenres']
-                if has_genre and has_subgenres:
-                    self.config.debug(f"Both genre and subgenres are selected", category='success_factors')
-                    self.config.debug(f"Genre: {criteria['genre']}", category='success_factors')
-                    self.config.debug(f"Subgenres: {criteria['subgenres']}", category='success_factors')
-                    
-                    # Check if both are in impact_data
-                    if 'genre' in impact_data and 'subgenres' in impact_data:
-                        self.config.debug(f"Both genre and subgenres are in impact_data", category='success_factors')
-                        
-                        # Debug genre impact data
-                        genre_impact = impact_data['genre']
-                        self.config.debug(f"Genre impact keys: {list(genre_impact.keys())}", category='success_factors')
-                        
-                        # Debug subgenres impact data
-                        subgenres_impact = impact_data['subgenres']
-                        self.config.debug(f"Subgenres impact keys: {list(subgenres_impact.keys())}", category='success_factors')
-                
-                # Debug the first key more thoroughly
-                if impact_data:
-                    first_key = list(impact_data.keys())[0]
-                    self.config.debug(f"First key: {first_key}, type: {type(first_key)}", category='success_factors')
-                    first_values = impact_data[first_key]
-                    self.config.debug(f"First values keys: {list(first_values.keys())}", category='success_factors')
-                    if first_values:
-                        first_value_key = list(first_values.keys())[0]
-                        first_value = first_values[first_value_key]
-                        self.config.debug(f"First value key: {first_value_key}, type: {type(first_value)}", category='success_factors')
-                        if isinstance(first_value, dict):
-                            self.config.debug(f"Keys in first value: {list(first_value.keys())}", category='success_factors')
-            
-            # Return empty list if no impact data was found
-            if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
-                self.config.debug("No valid impact data found, returning empty success factors", category='success_factors')
-                return []
-            
             # Convert to SuccessFactor objects
             success_factors = []
             
             for criteria_type, values in impact_data.items():
                 processed_count = 0
                 
-                # Ensure we only process valid dictionary impact_info entries
-                valid_options = [(option_id, impact_data) for option_id, impact_data in values.items() 
-                                 if isinstance(impact_data, dict) and 'impact' in impact_data]
-            
-                # Sort by absolute impact score
-                sorted_options = sorted(valid_options, key=lambda x: abs(x[1].get('impact', 0)), reverse=True)
+                # Skip if no values to process
+                if not values:
+                    continue
                 
-                for value_id, impact_info in sorted_options:
+                # Process each value in the impact data
+                for value_id, impact_info in values.items():
+                    # Limit the number of factors per criteria type
                     if processed_count >= limit:
                         break
                     
@@ -300,27 +257,25 @@ class RecommendationEngine:
                         
                         # Check if this specific option is selected
                         if is_field_selected:
-                            if isinstance(criteria[criteria_type], list):
-                                is_option_selected = value_id in criteria[criteria_type]
+                            field_value = criteria[criteria_type]
+                            if isinstance(field_value, list):
+                                is_option_selected = value_id in field_value
                             else:
-                                is_option_selected = criteria[criteria_type] == value_id
+                                is_option_selected = value_id == field_value
                         
-                        # Use the criteria scorer's method to determine recommendation type
-                        if hasattr(self.criteria_scorer, '_determine_recommendation_type'):
-                            recommendation_type = self.criteria_scorer._determine_recommendation_type(
-                                value_id, impact, is_field_selected, is_option_selected
-                            )
+                        # Determine recommendation type based on selection status and impact
+                        if not is_field_selected and impact > 0:
+                            recommendation_type = 'add'
+                        elif is_field_selected and is_option_selected and impact < 0:
+                            recommendation_type = 'remove'
+                        elif is_field_selected and not is_option_selected and impact > 0:
+                            recommendation_type = 'change'
                         else:
-                            # Fallback only if criteria_scorer method is not available
-                            recommendation_type = self.REC_TYPE_ADD if impact > 0 else self.REC_TYPE_REMOVE
-                            
-                        if self.config.DEBUG_MODE:
-                            self.config.debug(f"Determined recommendation type for {criteria_type}/{name}: {recommendation_type}", category='success_factors')
+                            # Skip this factor if no valid recommendation type
+                            continue
                     
-                    # Skip factors with no recommendation type (e.g., negative impact on unselected fields)
-                    if recommendation_type is None:
-                        if self.config.DEBUG_MODE:
-                            self.config.debug(f"Skipping factor {criteria_type}/{name} due to no recommendation type", category='success_factors')
+                    # Skip if we still don't have a valid recommendation type
+                    if not recommendation_type:
                         continue
                     
                     # Get matching titles for this criteria
@@ -336,22 +291,11 @@ class RecommendationEngine:
                         if not single_matches.empty and 'title' in single_matches.columns:
                             matching_titles = single_matches['title'].tolist()[:100]  # Limit to 100 titles
                     except Exception as e:
-                        st.error(f"Error getting matching titles: {str(e)}")
+                        if self.config.DEBUG_MODE:
+                            self.config.debug(f"Error getting matching titles: {str(e)}", category='error')
                     
                     # Create and add the success factor
                     try:
-                        # Debug the values being used to create the SuccessFactor
-                        if self.config.DEBUG_MODE:
-                            self.config.debug(f"Creating SuccessFactor with criteria_type={criteria_type}, value={criteria_value}, name={name}", category='success_factors')
-                            self.config.debug(f"criteria_type type: {type(criteria_type)}", category='success_factors')
-                            self.config.debug(f"criteria_value type: {type(criteria_value)}", category='success_factors')
-                            self.config.debug(f"recommendation_type: {recommendation_type}", category='success_factors')
-                            
-                        # Check if criteria_type is valid before creating SuccessFactor
-                        if not isinstance(criteria_type, str):
-                            self.config.debug(f"Invalid criteria_type: {criteria_type} of type {type(criteria_type)}", category='error')
-                            continue
-                            
                         factor = SuccessFactor(
                             criteria_type=criteria_type,
                             criteria_value=criteria_value,
@@ -367,11 +311,8 @@ class RecommendationEngine:
                     except Exception as e:
                         if self.config.DEBUG_MODE:
                             self.config.debug(f"Error creating success factor: {str(e)}", category='error')
-                            self.config.debug(f"Error details - criteria_type: {criteria_type}, value: {criteria_value}, name: {name}", category='error')
-                        # Continue processing other factors
             
             return success_factors
-            
         except Exception as e:
             st.error(f"Error identifying success factors: {str(e)}")
             return []
