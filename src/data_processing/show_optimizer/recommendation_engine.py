@@ -217,8 +217,16 @@ class RecommendationEngine:
             # Debug log the impact data
             if self.config.DEBUG_MODE:
                 self.config.debug(f"Received impact data with {len(impact_data)} fields", category='success_factors')
+                self.config.debug(f"Impact data keys: {list(impact_data.keys())}", category='success_factors')
                 for field, values in impact_data.items():
                     self.config.debug(f"Field {field} has {len(values)} options", category='success_factors')
+                    # Check the structure of values
+                    if len(values) > 0:
+                        first_key = next(iter(values))
+                        first_value = values[first_key]
+                        self.config.debug(f"First value for {field}: {type(first_value)}", category='success_factors')
+                        if isinstance(first_value, dict):
+                            self.config.debug(f"Keys in first value: {list(first_value.keys())}", category='success_factors')
             
             # Return empty list if no impact data was found
             if not impact_data or all(len(values) == 0 for field, values in impact_data.items()):
@@ -308,19 +316,28 @@ class RecommendationEngine:
                         st.error(f"Error getting matching titles: {str(e)}")
                     
                     # Create and add the success factor
-                    factor = SuccessFactor(
-                        criteria_type=criteria_type,
-                        criteria_value=criteria_value,
-                        criteria_name=name,
-                        impact_score=impact,
-                        confidence=confidence,
-                        sample_size=sample_size,
-                        matching_titles=matching_titles,
-                        recommendation_type=recommendation_type
-                    )
-                    
-                    success_factors.append(factor)
-                    processed_count += 1
+                    try:
+                        # Debug the values being used to create the SuccessFactor
+                        if self.config.DEBUG_MODE:
+                            self.config.debug(f"Creating SuccessFactor with criteria_type={criteria_type}, value={criteria_value}, name={name}", category='success_factors')
+                            
+                        factor = SuccessFactor(
+                            criteria_type=criteria_type,
+                            criteria_value=criteria_value,
+                            criteria_name=name,
+                            impact_score=impact,
+                            confidence=confidence,
+                            sample_size=sample_size,
+                            matching_titles=matching_titles,
+                            recommendation_type=recommendation_type
+                        )
+                        
+                        success_factors.append(factor)
+                        processed_count += 1
+                    except Exception as e:
+                        # Catch any errors during SuccessFactor creation
+                        self.config.debug(f"Error creating SuccessFactor: {str(e)}", category='error')
+                        # Continue processing other factors
             
             return success_factors
             
