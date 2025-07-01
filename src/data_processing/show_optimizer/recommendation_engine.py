@@ -214,17 +214,40 @@ class RecommendationEngine:
             # Pass integrated_data to ensure matcher has access to full dataset
             impact_data = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
             
-            # Debug log the impact data
+            # Debug impact data structure
             if self.config.DEBUG_MODE:
-                self.config.debug(f"Received impact data with {len(impact_data)} fields", category='success_factors')
                 self.config.debug(f"Impact data keys: {list(impact_data.keys())}", category='success_factors')
-                for field, values in impact_data.items():
-                    self.config.debug(f"Field {field} has {len(values)} options", category='success_factors')
-                    # Check the structure of values
-                    if len(values) > 0:
-                        first_key = next(iter(values))
-                        first_value = values[first_key]
-                        self.config.debug(f"First value for {field}: {type(first_value)}", category='success_factors')
+                
+                # Check for genre and subgenres in criteria
+                has_genre = 'genre' in criteria and criteria['genre']
+                has_subgenres = 'subgenres' in criteria and criteria['subgenres']
+                if has_genre and has_subgenres:
+                    self.config.debug(f"Both genre and subgenres are selected", category='success_factors')
+                    self.config.debug(f"Genre: {criteria['genre']}", category='success_factors')
+                    self.config.debug(f"Subgenres: {criteria['subgenres']}", category='success_factors')
+                    
+                    # Check if both are in impact_data
+                    if 'genre' in impact_data and 'subgenres' in impact_data:
+                        self.config.debug(f"Both genre and subgenres are in impact_data", category='success_factors')
+                        
+                        # Debug genre impact data
+                        genre_impact = impact_data['genre']
+                        self.config.debug(f"Genre impact keys: {list(genre_impact.keys())}", category='success_factors')
+                        
+                        # Debug subgenres impact data
+                        subgenres_impact = impact_data['subgenres']
+                        self.config.debug(f"Subgenres impact keys: {list(subgenres_impact.keys())}", category='success_factors')
+                
+                # Debug the first key more thoroughly
+                if impact_data:
+                    first_key = list(impact_data.keys())[0]
+                    self.config.debug(f"First key: {first_key}, type: {type(first_key)}", category='success_factors')
+                    first_values = impact_data[first_key]
+                    self.config.debug(f"First values keys: {list(first_values.keys())}", category='success_factors')
+                    if first_values:
+                        first_value_key = list(first_values.keys())[0]
+                        first_value = first_values[first_value_key]
+                        self.config.debug(f"First value key: {first_value_key}, type: {type(first_value)}", category='success_factors')
                         if isinstance(first_value, dict):
                             self.config.debug(f"Keys in first value: {list(first_value.keys())}", category='success_factors')
             
@@ -320,6 +343,14 @@ class RecommendationEngine:
                         # Debug the values being used to create the SuccessFactor
                         if self.config.DEBUG_MODE:
                             self.config.debug(f"Creating SuccessFactor with criteria_type={criteria_type}, value={criteria_value}, name={name}", category='success_factors')
+                            self.config.debug(f"criteria_type type: {type(criteria_type)}", category='success_factors')
+                            self.config.debug(f"criteria_value type: {type(criteria_value)}", category='success_factors')
+                            self.config.debug(f"recommendation_type: {recommendation_type}", category='success_factors')
+                            
+                        # Check if criteria_type is valid before creating SuccessFactor
+                        if not isinstance(criteria_type, str):
+                            self.config.debug(f"Invalid criteria_type: {criteria_type} of type {type(criteria_type)}", category='error')
+                            continue
                             
                         factor = SuccessFactor(
                             criteria_type=criteria_type,
@@ -331,12 +362,12 @@ class RecommendationEngine:
                             matching_titles=matching_titles,
                             recommendation_type=recommendation_type
                         )
-                        
                         success_factors.append(factor)
                         processed_count += 1
                     except Exception as e:
-                        # Catch any errors during SuccessFactor creation
-                        self.config.debug(f"Error creating SuccessFactor: {str(e)}", category='error')
+                        if self.config.DEBUG_MODE:
+                            self.config.debug(f"Error creating success factor: {str(e)}", category='error')
+                            self.config.debug(f"Error details - criteria_type: {criteria_type}, value: {criteria_value}, name: {name}", category='error')
                         # Continue processing other factors
             
             return success_factors

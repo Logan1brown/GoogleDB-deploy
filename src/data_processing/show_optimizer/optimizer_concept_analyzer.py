@@ -491,22 +491,46 @@ class ConceptAnalyzer:
             # Prepare to create the optimization summary
             
             # Create and return the optimization summary
-            summary = OptimizationSummary(
-                overall_success_probability=success_probability,
-                confidence=confidence,
-                top_networks=top_networks,
-                component_scores=component_scores,
-                recommendations=recommendations,
-                success_factors=success_factors,
-                matching_titles=matching_titles,
-                match_level=match_level,
-                match_quality=match_quality,
-                confidence_score=confidence_score,
-                matching_shows=matching_shows,
-                match_count=match_count,
-                match_counts_by_level=match_counts_by_level,
-                confidence_info=confidence_info
-            )
+            try:
+                # Ensure success_factors is a list, even if None
+                if success_factors is None:
+                    success_factors = []
+                    
+                summary = OptimizationSummary(
+                    overall_success_probability=success_probability,
+                    confidence=confidence,
+                    top_networks=top_networks,
+                    component_scores=component_scores,
+                    recommendations=recommendations,
+                    success_factors=success_factors,
+                    matching_titles=matching_titles,
+                    match_level=match_level,
+                    match_quality=match_quality,
+                    confidence_score=confidence_score,
+                    matching_shows=matching_shows,
+                    match_count=match_count,
+                    match_counts_by_level=match_counts_by_level,
+                    confidence_info=confidence_info
+                )
+            except Exception as e:
+                # Debug the error
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Error creating OptimizationSummary: {str(e)}", category='error')
+                    OptimizerConfig.debug(f"success_factors type: {type(success_factors)}", category='error')
+                    if success_factors:
+                        for i, factor in enumerate(success_factors):
+                            OptimizerConfig.debug(f"Factor {i} type: {type(factor)}", category='error')
+                    
+                # Create a minimal summary with empty values
+                summary = OptimizationSummary(
+                    overall_success_probability=None,
+                    confidence="none",
+                    top_networks=[],
+                    component_scores={},
+                    recommendations={'general': [], 'network_specific': []},
+                    success_factors=[],
+                    matching_titles=[]
+                )
             
             # Explicitly access formatted_data to ensure it's populated before returning
             # This ensures the UI will have access to properly formatted recommendations
