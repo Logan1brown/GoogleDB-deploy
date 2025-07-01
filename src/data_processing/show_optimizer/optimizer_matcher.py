@@ -646,8 +646,9 @@ class Matcher:
                 if isinstance(value, list):
                     value_set = set(value)
                     # If the column contains lists, use list intersection
+                    # For each show's array field, convert to set and check intersection with criteria values
                     mask = matches[field_column].apply(
-                        lambda x: isinstance(x, list) and bool(value_set.intersection(set(x) if isinstance(x, list) else set())))
+                        lambda x: isinstance(x, list) and len(value_set.intersection(set(x))) > 0)
                 else:
                     # Single value in array field
                     mask = matches[field_column].apply(
