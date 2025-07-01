@@ -260,7 +260,7 @@ class OptimizerView:
             confidence_display = self.config.CONFIDENCE_DISPLAY[confidence]
             
             return {
-                "display": f"{probability:.0%}",
+                "display": f"{probability:.1%}",
                 "subtitle": f"Confidence: {confidence_display}"
             }
         else:

@@ -257,9 +257,40 @@ class SuccessScoreCalculator(ScoreCalculator):
                 details=details
             )
         
-        # Calculate average success score from valid shows
-        avg_score = valid_shows['success_score'].mean()
-        
+        # Calculate average success score from valid shows, weighted by match level if available
+        if 'match_level' in valid_shows.columns:
+            # Apply match level weighting
+            weighted_scores = []
+            match_level_counts = {}
+            
+            # Group by match level and apply weighting
+            for level, level_shows in valid_shows.groupby('match_level'):
+                level_count = len(level_shows)
+                match_level_counts[level] = level_count
+                
+                # Get weight factor for this match level
+                weight_factor = OptimizerConfig.get_match_level_factor(level - 1)  # level-1 = criteria diff
+                
+                # Calculate weighted score for this level
+                level_score = level_shows['success_score'].mean() * weight_factor
+                weighted_scores.append(level_score * level_count)
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Match level {level}: {level_count} shows, weight={weight_factor:.2f}, score={level_score:.4f}", category='scoring')
+            
+            # Calculate weighted average
+            total_shows = sum(match_level_counts.values())
+            if total_shows > 0:
+                avg_score = sum(weighted_scores) / total_shows
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Weighted avg score: {avg_score:.4f} across {total_shows} shows in {len(match_level_counts)} match levels", category='scoring')
+            else:
+                avg_score = valid_shows['success_score'].mean()
+        else:
+            # Fall back to simple average if match_level not available
+            avg_score = valid_shows['success_score'].mean()
+            
         # Normalize to 0-1 if on a 0-100 scale
         if avg_score > 1.0:
             avg_score = avg_score / 100.0
@@ -277,6 +308,11 @@ class SuccessScoreCalculator(ScoreCalculator):
             'min_score': valid_shows['success_score'].min() if sample_size > 0 else None,
             'max_score': valid_shows['success_score'].max() if sample_size > 0 else None
         }
+        
+        # Add match level distribution to details if available
+        if 'match_level' in valid_shows.columns:
+            match_level_dist = {f'level_{level}': count for level, count in match_level_counts.items()}
+            details['match_level_distribution'] = match_level_dist
         
         return ComponentScore(
             component=self.component_name,
