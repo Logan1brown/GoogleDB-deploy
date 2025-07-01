@@ -572,9 +572,15 @@ class CriteriaScorer:
                             if option_id == 'remove' and matching_shows is not None and not matching_shows.empty:
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
                             else:
-                                # For 'change' recommendations, use the integrated data
+                                # For 'change' and 'add' recommendations, use the integrated data
                                 if integrated_data and 'shows' in integrated_data and not integrated_data['shows'].empty:
+                                    # Always use the full dataset from integrated_data for testing different criteria
+                                    # This ensures we have access to all possible matches for each criteria combination
                                     option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
+                                    
+                                    # Debug log the number of matches found for this option
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        OptimizerConfig.debug(f"Found {len(option_shows)} matches for {current_field}/{option_name}", category='recommendation')
                                 else:
                                     # No fallback - we need integrated data
                                     if OptimizerConfig.DEBUG_MODE:
@@ -773,12 +779,16 @@ class CriteriaScorer:
                             if OptimizerConfig.DEBUG_MODE:
                                 OptimizerConfig.debug(f"Testing 'add' option {option_name} with criteria: {option_criteria} (using existing matches: {use_matching_shows})", category='impact')
                             
-                            # Use existing matches if appropriate, otherwise run a fresh match
-                            if use_matching_shows:
-                                # When using existing matches, pass the matching_shows as data
-                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
+                            # Always use the integrated data for unselected fields to ensure consistent comparison
+                            if integrated_data and 'shows' in integrated_data and not integrated_data['shows'].empty:
+                                # Use the full dataset from integrated_data for testing different criteria
+                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
+                                
+                                # Debug log the number of matches found for this option
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Found {len(option_shows)} matches for unselected field {field}/{option_name}", category='recommendation')
                             else:
-                                # Let the matcher use its own data source
+                                # Let the matcher use its own data source as fallback
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria)
                             
                             # Skip options with no matching shows

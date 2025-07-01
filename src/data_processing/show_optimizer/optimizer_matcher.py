@@ -633,6 +633,14 @@ class Matcher:
             # This ensures consistency with how fields are processed elsewhere
             is_array = self.field_manager.get_field_type(field_name) == 'array'
             
+            # Special handling for subgenres which is always an array field
+            if field_name == 'subgenres':
+                is_array = True
+                
+            # Add debug logging for array field detection
+            if OptimizerConfig.DEBUG_MODE and field_name in ['genre', 'subgenres']:
+                OptimizerConfig.debug(f"Field {field_name} is_array={is_array}, value={value}, type={type(value)}", category='matcher')
+            
             if is_array:
                 # For array fields, we need to check if any value matches
                 if isinstance(value, list):
