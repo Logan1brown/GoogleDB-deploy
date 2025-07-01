@@ -645,6 +645,11 @@ class CriteriaScorer:
                         if rec_type == self.REC_TYPE_ADD and OptimizerConfig.DEBUG_MODE:
                             OptimizerConfig.debug(f"ADD recommendation for {current_field}/{option_name}: impact={impact}, base_rate={base_rate}, option_rate={option_rate}", 
                                                   category='recommendation', force=True)
+                            
+                            # Highlight positive impact options for unselected fields - these are potential ADD recommendations
+                            if impact > 0:
+                                OptimizerConfig.debug(f"POTENTIAL ADD RECOMMENDATION: {current_field}/{option_name} has positive impact: {impact}", 
+                                                      category='recommendation', force=True)
                     
                         # Get minimum impact threshold
                         min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']

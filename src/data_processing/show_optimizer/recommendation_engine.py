@@ -548,8 +548,16 @@ class RecommendationEngine:
         try:
             # Debug log to check which fields are selected and not selected
             if OptimizerConfig.DEBUG_MODE:
-                # Get all available field types from the criteria scorer
-                all_fields = self.criteria_scorer.field_manager.get_all_fields()
+                # Get all available field types from the criteria scorer's field manager
+                # The field_manager doesn't have get_all_fields, but we can get the field names from get_field_options
+                all_fields = []
+                try:
+                    # Get fields that have options defined
+                    field_options = self.criteria_scorer.field_manager.get_field_options()
+                    all_fields = list(field_options.keys())
+                except Exception as e:
+                    OptimizerConfig.debug(f"Error getting field options: {str(e)}", category='error')
+                
                 selected_fields = list(criteria.keys())
                 unselected_fields = [field for field in all_fields if field not in selected_fields]
                 
