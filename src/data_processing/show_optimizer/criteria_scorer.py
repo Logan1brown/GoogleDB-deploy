@@ -13,7 +13,7 @@ from collections import defaultdict
 
 # Local imports
 from .optimizer_config import OptimizerConfig
-from .field_manager import FieldManager, CriteriaDict, FIELD_CONFIGS
+from .field_manager import FieldManager, CriteriaDict
 from .optimizer_matcher import OptimizerMatcher, MatchResult, IntegratedData
 
 # Type aliases
