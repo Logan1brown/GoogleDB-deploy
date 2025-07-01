@@ -423,7 +423,7 @@ class RecommendationEngine:
                             if OptimizerConfig.DEBUG_MODE:
                                 OptimizerConfig.debug(error_msg, category='error')
                                 import traceback
-                                OptimizerDebug.log_traceback()
+                                OptimizerConfig.debug(traceback.format_exc(), category='error')
                 except Exception as e:
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(f"Error processing confidence info: {str(e)}", category='error')
@@ -442,7 +442,8 @@ class RecommendationEngine:
                     error_msg = f"Error in _analyze_successful_patterns: {str(e)}"
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(error_msg, category='error')
-                        OptimizerDebug.log_traceback()
+                        import traceback
+                        OptimizerConfig.debug(traceback.format_exc(), category='error')
             
             # Generate network-specific recommendations if networks are provided
             if top_networks and len(top_networks) > 0:

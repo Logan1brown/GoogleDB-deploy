@@ -13,7 +13,6 @@ from collections import defaultdict
 
 # Local imports
 from .optimizer_config import OptimizerConfig
-from .optimizer_utils import safe_divide, normalize_text, debug_timeit, log_execution_time
 from .field_manager import FieldManager, CriteriaDict, FieldType, FIELD_CONFIGS
 from .optimizer_matcher import OptimizerMatcher, MatchResult, IntegratedData
 
