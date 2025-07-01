@@ -448,13 +448,24 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                 
         if OptimizerConfig.DEBUG_MODE:
             rec_type_counts = {'add': 0, 'change': 0, 'remove': 0}
+            
+            # Count recommendation types from general recommendations
             for rec in general:
                 rec_type = rec.get('recommendation_type', 'add')  # Default to 'add' if not specified
                 if rec_type in rec_type_counts:
                     rec_type_counts[rec_type] += 1
                 elif OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Unknown recommendation_type: {rec_type}", category='recommendation')
-            OptimizerConfig.debug(f"Recommendation type counts: {rec_type_counts}", category='recommendation')
+                    OptimizerConfig.debug(f"Unknown recommendation_type in general: {rec_type}", category='recommendation')
+            
+            # Count recommendation types from network-specific recommendations
+            for rec in network_specific:
+                rec_type = rec.get('recommendation_type', 'add')  # Default to 'add' if not specified
+                if rec_type in rec_type_counts:
+                    rec_type_counts[rec_type] += 1
+                elif OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Unknown recommendation_type in network-specific: {rec_type}", category='recommendation')
+                    
+            OptimizerConfig.debug(f"Recommendation type counts: {rec_type_counts} (general: {len(general)}, network-specific: {len(network_specific)})", category='recommendation')
                 
         # Check if there are any recommendations in any group
         has_recommendations = any(group_data['items'] for group_data in grouped.values())
