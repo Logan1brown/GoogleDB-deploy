@@ -10,6 +10,7 @@ Key responsibilities:
 - Generate optimization summaries with recommendations
 """
 
+import hashlib
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Any, Union
 import pandas as pd
@@ -304,12 +305,20 @@ class ConceptAnalyzer:
             criteria_scorer: CriteriaScorer instance for scoring components
 
         """
+        # Core analyzers
         self.shows_analyzer = shows_analyzer
         self.success_analyzer = success_analyzer
         self.field_manager = field_manager
         self.criteria_scorer = criteria_scorer
         self.config = OptimizerConfig
-
+        
+        # State management
+        self._recommendation_state = {
+            'criteria_hash': None,
+            'general_recommendations': [],
+            'network_recommendations': [],
+            'last_processed_at': None
+        }
         
         # Initialize the recommendation engine
         self.recommendation_engine = RecommendationEngine(
@@ -382,6 +391,33 @@ class ConceptAnalyzer:
             confidence_info={'error': error_message, 'level': 'none'}
         )
     
+    def _get_criteria_hash(self, criteria: CriteriaDict) -> str:
+        """Generate a hash of the criteria to detect changes.
+        
+        Args:
+            criteria: Dictionary of criteria defining the show concept
+            
+        Returns:
+            String hash representing the criteria state
+        """
+        # Convert criteria to a sorted tuple of items for consistent hashing
+        criteria_items = sorted(criteria.items())
+        criteria_str = str(criteria_items)
+        return hashlib.md5(criteria_str.encode()).hexdigest()
+    
+    def reset_recommendation_state(self):
+        """Reset the recommendation state to ensure fresh generation.
+        
+        This method is called when criteria change to prevent stale recommendations.
+        """
+        self._recommendation_state = {
+            'criteria_hash': None,
+            'general_recommendations': [],
+            'network_recommendations': [],
+            'last_processed_at': None
+        }
+        OptimizerConfig.debug("Reset recommendation state", category='recommendation_generation', force=True)
+    
     def analyze_concept(self, criteria: CriteriaDict, integrated_data: IntegratedData) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
         
@@ -395,6 +431,13 @@ class ConceptAnalyzer:
         Returns:
             OptimizationSummary with success probability, recommendations, etc.
         """
+        # Check if criteria have changed and reset recommendation state if needed
+        current_criteria_hash = self._get_criteria_hash(criteria)
+        if self._recommendation_state['criteria_hash'] != current_criteria_hash:
+            OptimizerConfig.debug(f"Criteria changed, resetting recommendation state", category='recommendation_generation', force=True)
+            self.reset_recommendation_state()
+            self._recommendation_state['criteria_hash'] = current_criteria_hash
+            self._recommendation_state['last_processed_at'] = datetime.now()
         try:
             # VERY OBVIOUS UI CHANGE TO CONFIRM CODE UPDATES ARE WORKING
             # Version indicator is now in the sidebar
@@ -899,8 +942,13 @@ class ConceptAnalyzer:
             Dictionary with 'general' and 'network_specific' recommendations
         """
         # Force debug logging for recommendation generation to track issues
-        OptimizerConfig.debug(f"Starting recommendation generation with {len(success_factors)} success factors", 
+        criteria_count = len(criteria) if criteria else 0
+        OptimizerConfig.debug(f"Starting recommendation generation with {len(success_factors)} success factors and {criteria_count} criteria", 
                               category='recommendation_generation', force=True)
+        
+        # Always reset recommendation collections at the start of generation
+        self._recommendation_state['general_recommendations'] = []
+        self._recommendation_state['network_recommendations'] = []
         
         # Add detailed debugging for success factors
         if self.config.DEBUG_MODE:
@@ -994,7 +1042,12 @@ class ConceptAnalyzer:
                         integrated_data=integrated_data,
                         confidence_info=confidence_info
                     )
+                    
+                    # Add to network recommendations for this analysis only
                     network_recommendations.extend(network_specific_recs)
+                    
+                    # Store in recommendation state for tracking
+                    self._recommendation_state['network_recommendations'].extend(network_specific_recs)
                     
                 except Exception as net_error:
                     # Log the error but continue processing other networks
@@ -1032,15 +1085,22 @@ class ConceptAnalyzer:
             self.config.debug(f"Final network recommendations count: {network_count}", 
                              category='recommendation_generation', force=True)
                              
+            # Store general recommendations in state
+            if isinstance(general_recommendations, dict) and "general" in general_recommendations:
+                self._recommendation_state['general_recommendations'] = general_recommendations["general"]
+            
             # Return the recommendations dictionary with the correct structure
-            # The recommendation_engine.generate_recommendations already returns a dict with 'general' key
             result = {
-                "general": general_recommendations["general"] if isinstance(general_recommendations, dict) and "general" in general_recommendations else [],
+                "general": self._recommendation_state['general_recommendations'],
                 "network_specific": network_recommendations
             }
             
             # Final log of what we're returning
             self.config.debug(f"Returning recommendations: {len(result['general'])} general, {len(result['network_specific'])} network-specific", 
+                             category='recommendation_generation', force=True)
+            
+            # Log recommendation state for debugging
+            self.config.debug(f"Current recommendation state: {len(self._recommendation_state['general_recommendations'])} general, {len(self._recommendation_state['network_recommendations'])} network-specific", 
                              category='recommendation_generation', force=True)
             
             return result
