@@ -14,7 +14,7 @@ from collections import defaultdict
 # Local imports
 from .optimizer_config import OptimizerConfig
 from .field_manager import FieldManager, CriteriaDict
-from .optimizer_matcher import OptimizerMatcher, MatchResult, IntegratedData
+from .optimizer_matcher import Matcher, IntegratedData
 
 # Type aliases
 ImpactScores = Dict[str, Dict[Any, Dict[str, Any]]]
@@ -297,8 +297,13 @@ class CriteriaScorer:
             
         if impact > 0:  # Positive impact
             if is_field_selected:
-                # Field is selected - suggest changing it
-                return 'change'
+                # Field is selected
+                if is_option_selected:
+                    # This option is already selected, no need to recommend it
+                    return None
+                else:
+                    # Different option for selected field - suggest changing to this option
+                    return 'change'
             else:
                 # Field is not selected - suggest adding it
                 return 'add'
@@ -327,7 +332,15 @@ class CriteriaScorer:
         if not criteria:
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug("Cannot calculate criteria impact: empty criteria", category='impact')
-            return {}
+            return ImpactAnalysisResult(
+                criteria_impacts={},
+                summary={
+                    'field_count': 0,
+                    'option_count': 0,
+                    'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
+                },
+                error='Cannot calculate criteria impact: empty criteria'
+            )
             
         try:
             # Normalize base criteria once at the beginning
@@ -356,7 +369,15 @@ class CriteriaScorer:
             if not has_valid_criteria:
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug("Cannot calculate criteria impact: criteria contains only empty values", category='impact')
-                return {}
+                return ImpactAnalysisResult(
+                    criteria_impacts={},
+                    summary={
+                        'field_count': 0,
+                        'option_count': 0,
+                        'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
+                    },
+                    error='Cannot calculate criteria impact: criteria contains only empty values'
+                )
         except Exception as e:
             # If we can't check criteria at all, log and continue with processing
             if OptimizerConfig.DEBUG_MODE:
@@ -364,7 +385,15 @@ class CriteriaScorer:
             # We'll continue and let other validation steps catch issues
             
         if matching_shows is None or matching_shows.empty:
-            return {}
+            return ImpactAnalysisResult(
+                criteria_impacts={},
+                summary={
+                    'field_count': 0,
+                    'option_count': 0,
+                    'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
+                },
+                error='Cannot calculate criteria impact: no matching shows'
+            )
             
         # Initialize impact scores dictionary
         # Ensure all keys are strings to prevent 'criteria_type' errors later
@@ -381,7 +410,15 @@ class CriteriaScorer:
             if base_rate is None:
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug("Cannot calculate impact: invalid base success rate", category='impact')
-                return {}
+                return ImpactAnalysisResult(
+                    criteria_impacts={},
+                    summary={
+                        'field_count': 0,
+                        'option_count': 0,
+                        'recommendation_counts': {'add': 0, 'change': 0, 'remove': 0}
+                    },
+                    error='Cannot calculate impact: invalid base success rate'
+                )
                 
             # Get all fields to analyze from the FIELD_CONFIGS dictionary
             all_fields = list(self.field_manager.FIELD_CONFIGS.keys())
