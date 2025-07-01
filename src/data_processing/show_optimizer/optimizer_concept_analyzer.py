@@ -898,6 +898,9 @@ class ConceptAnalyzer:
         Returns:
             Dictionary with 'general' and 'network_specific' recommendations
         """
+        # Force debug logging for recommendation generation to track issues
+        OptimizerConfig.debug(f"Starting recommendation generation with {len(success_factors)} success factors", 
+                              category='recommendation_generation', force=True)
         
         # Add detailed debugging for success factors
         if self.config.DEBUG_MODE:
@@ -929,13 +932,26 @@ class ConceptAnalyzer:
             # If no matching shows, return empty list
             if matching_shows is None or matching_shows.empty:
                 st.warning("No matching shows found for recommendation generation")
-                return []
+                return {
+                    "general": [],
+                    "network_specific": []
+                }
+            
+            # Ensure we have valid success factors - this is critical for general recommendations
+            if not success_factors or len(success_factors) == 0:
+                OptimizerConfig.debug("No success factors provided for recommendation generation. Re-identifying success factors.", 
+                                     category='recommendation_generation', force=True)
+                # Re-identify success factors to ensure we have fresh data for recommendations
+                success_factors = self._identify_success_factors(criteria, matching_shows, integrated_data)
+                OptimizerConfig.debug(f"Re-identified {len(success_factors)} success factors", 
+                                     category='recommendation_generation', force=True)
                 
             # Ensure confidence_info conforms to our ConfidenceInfo contract
             # This enforces the contract rather than adding defensive checks
             confidence_info = update_confidence_info(confidence_info, {})
             
-            # Generate general recommendations
+            # Generate general recommendations with explicit debug logging
+            OptimizerConfig.debug("Generating general recommendations", category='recommendation_generation', force=True)
             general_recommendations = self.recommendation_engine.generate_recommendations(
                 criteria=criteria,
                 matching_shows=matching_shows,
@@ -944,6 +960,14 @@ class ConceptAnalyzer:
                 confidence_info=confidence_info,
                 integrated_data=integrated_data
             )
+            
+            # Debug the general recommendations structure
+            if isinstance(general_recommendations, dict) and "general" in general_recommendations:
+                OptimizerConfig.debug(f"Generated {len(general_recommendations['general'])} general recommendations", 
+                                     category='recommendation_generation', force=True)
+            else:
+                OptimizerConfig.debug(f"Unexpected general_recommendations structure: {type(general_recommendations).__name__}", 
+                                     category='recommendation_generation', force=True)
             
             # Generate network-specific recommendations for top networks
             network_recommendations = []
@@ -981,29 +1005,45 @@ class ConceptAnalyzer:
             if self.config.DEBUG_MODE:
                 OptimizerConfig.debug("Processing recommendations", category='recommendations')
             
-            # Add debug statement to check the final recommendations structure
-            if self.config.DEBUG_MODE:
-                self.config.debug("Recommendations generated successfully", category='recommendation')
-                # Debug the structure of general_recommendations
-                self.config.debug(f"general_recommendations type: {type(general_recommendations).__name__}", category='recommendation')
-                
-                if isinstance(general_recommendations, dict):
-                    self.config.debug(f"general_recommendations keys: {list(general_recommendations.keys())}", category='recommendation')
-                    general_count = len(general_recommendations.get("general", []))
-                    self.config.debug(f"Final general recommendations count: {general_count}", category='recommendation')
-                else:
-                    self.config.debug(f"Error: general_recommendations is not a dictionary", category='error')
-                
-                # Debug the structure of network_recommendations
-                network_count = len(network_recommendations)
-                self.config.debug(f"Final network recommendations count: {network_count}", category='recommendation')
+            # Debug the structure of general_recommendations with forced logging
+            self.config.debug(f"general_recommendations type: {type(general_recommendations).__name__}", 
+                             category='recommendation_generation', force=True)
             
+            if isinstance(general_recommendations, dict):
+                self.config.debug(f"general_recommendations keys: {list(general_recommendations.keys())}", 
+                                 category='recommendation_generation', force=True)
+                general_count = len(general_recommendations.get("general", []))
+                self.config.debug(f"Final general recommendations count: {general_count}", 
+                                 category='recommendation_generation', force=True)
+                
+                # If we have no general recommendations but have success factors, log a warning
+                if general_count == 0 and len(success_factors) > 0:
+                    self.config.debug("WARNING: No general recommendations generated despite having success factors", 
+                                     category='recommendation_generation', force=True)
+                    # Log the first few success factors to help diagnose
+                    for i, factor in enumerate(success_factors[:3]):
+                        self.config.debug(f"Factor {i}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}, rec_type: {factor.recommendation_type}", 
+                                         category='recommendation_generation', force=True)
+            else:
+                self.config.debug(f"Error: general_recommendations is not a dictionary", category='error', force=True)
+            
+            # Debug the structure of network_recommendations
+            network_count = len(network_recommendations)
+            self.config.debug(f"Final network recommendations count: {network_count}", 
+                             category='recommendation_generation', force=True)
+                             
             # Return the recommendations dictionary with the correct structure
             # The recommendation_engine.generate_recommendations already returns a dict with 'general' key
-            return {
+            result = {
                 "general": general_recommendations["general"] if isinstance(general_recommendations, dict) and "general" in general_recommendations else [],
                 "network_specific": network_recommendations
             }
+            
+            # Final log of what we're returning
+            self.config.debug(f"Returning recommendations: {len(result['general'])} general, {len(result['network_specific'])} network-specific", 
+                             category='recommendation_generation', force=True)
+            
+            return result
             
         except Exception as e:
             import traceback
@@ -1018,6 +1058,8 @@ class ConceptAnalyzer:
                         OptimizerConfig.debug(f"Factor {i}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}", category='error', force=True)
             
             # Always return the expected dictionary structure, even on error
+            self.config.debug("Returning empty recommendations due to error", 
+                             category='recommendation_generation', force=True)
             return {
                 'general': [],
                 'network_specific': []
