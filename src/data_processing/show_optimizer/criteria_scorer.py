@@ -89,6 +89,11 @@ class CriteriaScorer:
     specialized calculator classes while providing orchestration and result aggregation.
     """
     
+    # Recommendation type constants for standardization across components
+    REC_TYPE_ADD = 'add'
+    REC_TYPE_CHANGE = 'change'
+    REC_TYPE_REMOVE = 'remove'
+    
     def __init__(self, field_manager: FieldManager, matcher=None):
         """Initialize the criteria scorer.
         
@@ -298,26 +303,38 @@ class CriteriaScorer:
         Returns:
             Recommendation type ('add', 'change', 'remove') or None if no recommendation
         """
-        # Special case for explicit remove option
-        if option_id == 'remove':
-            return 'remove'
+        # Add detailed debug logging to trace recommendation type determination
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(
+                f"Determining recommendation type: option_id={option_id}, impact={impact}, "
+                f"is_field_selected={is_field_selected}, is_option_selected={is_option_selected}",
+                category='recommendation_type',
+                force=True
+            )
             
-        if impact > 0:  # Positive impact
+        if option_id == 'remove':
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Option 'remove': returning {self.REC_TYPE_REMOVE}", category='recommendation_type')
+            return self.REC_TYPE_REMOVE
+            
+        if impact > 0:
             if is_field_selected:
-                # Field is selected
                 if is_option_selected:
-                    # This option is already selected, no need to recommend it
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Positive impact, field selected, option selected: returning None", category='recommendation_type')
                     return None
                 else:
-                    # Different option for selected field - suggest changing to this option
-                    return 'change'
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Positive impact, field selected, option not selected: returning {self.REC_TYPE_CHANGE}", category='recommendation_type')
+                    return self.REC_TYPE_CHANGE
             else:
-                # Field is not selected - suggest adding it
-                return 'add'
-        else:  # Negative impact
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Positive impact, field not selected: returning {self.REC_TYPE_ADD}", category='recommendation_type')
+                return self.REC_TYPE_ADD
+        else:
             # Only recommend removal for selected options with negative impact
             if is_option_selected:
-                return 'remove'
+                return self.REC_TYPE_REMOVE
             else:
                 # No recommendation for unselected options with negative impact
                 return None
@@ -494,7 +511,7 @@ class CriteriaScorer:
                     del remove_criteria[current_field]
                     batch_criteria.append(remove_criteria)
                     option_data.append(('remove', 'Remove ' + current_field))
-                    recommendation_types.append('remove')
+                    recommendation_types.append(self.REC_TYPE_REMOVE)
                     
                     # 2. Then, create "Change" recommendations for each alternative option
                     for option in options:
@@ -510,18 +527,24 @@ class CriteriaScorer:
                         
                         batch_criteria.append(new_criteria)
                         option_data.append((option_key, self.field_manager.get_name(current_field, option.id)))
-                        recommendation_types.append('change')
+                        recommendation_types.append(self.REC_TYPE_CHANGE)
                 else:
                     # For fields not in criteria, create "Add" recommendations for each option
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Creating ADD recommendations for unselected field: {current_field}", category='recommendation', force=True)
                         
                     for option in options:
                         # Create criteria with this option
                         new_criteria = self._create_option_criteria(criteria, current_field, option.id, is_array_field)
                         option_key = int(option.id)
+                        option_name = self.field_manager.get_name(current_field, option.id)
+                        
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Adding batch criteria for ADD recommendation: {current_field}/{option_name}", category='recommendation')
                         
                         batch_criteria.append(new_criteria)
-                        option_data.append((option_key, self.field_manager.get_name(current_field, option.id)))
-                        recommendation_types.append('add')
+                        option_data.append((option_key, option_name))
+                        recommendation_types.append(self.REC_TYPE_ADD)
                 
                 # Process each option using the provided option_matching_shows_map or generate it if not provided
                 field_impact = {}
@@ -616,12 +639,21 @@ class CriteriaScorer:
                         
                         # Store the original impact for reference
                         original_impact = impact
+                        
+                        # Special debug for tracking recommendation flow
+                        rec_type = recommendation_types[i] if i < len(recommendation_types) else "unknown"
+                        if rec_type == self.REC_TYPE_ADD and OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"ADD recommendation for {current_field}/{option_name}: impact={impact}, base_rate={base_rate}, option_rate={option_rate}", 
+                                                  category='recommendation', force=True)
                     
                         # Get minimum impact threshold
                         min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
                         
                         # Skip options with impact below minimum threshold
                         if abs(impact) < min_impact:  # If impact is too small
+                            if rec_type == self.REC_TYPE_ADD and OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Filtering out ADD recommendation for {current_field}/{option_name} due to low impact: {impact} < {min_impact}", 
+                                                      category='recommendation', force=True)
                             continue
                         
                         # Determine recommendation type based on impact and whether this specific option is selected
@@ -771,7 +803,7 @@ class CriteriaScorer:
                                 continue
                                 
                             # For unselected fields with positive impact, always use 'add' recommendation type
-                            recommendation_type = 'add'
+                            recommendation_type = self.REC_TYPE_ADD
                             
                             # Store impact score with all relevant information - ALWAYS as a complete dictionary
                             # This ensures consistent data structure throughout the application
@@ -861,7 +893,7 @@ class CriteriaScorer:
                                 'option_id': option_id,
                                 'impact': float(impact_info) if isinstance(impact_info, (int, float)) else 0.0,
                                 'sample_size': 0,
-                                'recommendation_type': 'add'
+                                'recommendation_type': self.REC_TYPE_ADD
                             }
                             OptimizerConfig.debug(f"Fixed non-dict impact_info for {field}.{option_id}", category='impact')
             

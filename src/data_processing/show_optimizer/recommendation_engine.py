@@ -293,11 +293,11 @@ class RecommendationEngine:
                         
                         # Determine recommendation type based on selection status and impact
                         if not is_field_selected and impact > 0:
-                            recommendation_type = 'add'
+                            recommendation_type = self.REC_TYPE_ADD
                         elif is_field_selected and is_option_selected and impact < 0:
-                            recommendation_type = 'remove'
+                            recommendation_type = self.REC_TYPE_REMOVE
                         elif is_field_selected and not is_option_selected and impact > 0:
-                            recommendation_type = 'change'
+                            recommendation_type = self.REC_TYPE_CHANGE
                         else:
                             # Skip this factor if no valid recommendation type
                             continue
@@ -546,6 +546,16 @@ class RecommendationEngine:
         # - 'change': For suggesting different values for already selected fields
         # - 'remove': For suggesting removal of selected fields with negative impact
         try:
+            # Debug log to check which fields are selected and not selected
+            if OptimizerConfig.DEBUG_MODE:
+                # Get all available field types from the criteria scorer
+                all_fields = self.criteria_scorer.field_manager.get_all_fields()
+                selected_fields = list(criteria.keys())
+                unselected_fields = [field for field in all_fields if field not in selected_fields]
+                
+                OptimizerConfig.debug(f"Selected fields: {selected_fields}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Unselected fields: {unselected_fields}", category='recommendation', force=True)
+            
             recommendations = []
 
             # Process all success factors to create recommendations
@@ -687,6 +697,18 @@ class RecommendationEngine:
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug("Recommendations processing complete", category='recommendation')
                 OptimizerConfig.debug(f"Returning {len(recommendations)} recommendations from _recommend_missing_criteria", category='recommendation')
+                
+                # Log recommendation type counts for debugging
+                rec_type_counts = {}
+                for rec in recommendations:
+                    rec_type = rec['recommendation_type']
+                    rec_type_counts[rec_type] = rec_type_counts.get(rec_type, 0) + 1
+                    
+                OptimizerConfig.debug(
+                    f"Recommendation type counts: {rec_type_counts}",
+                    category='recommendation',
+                    force=True
+                )
                 
                 # Log the top 5 recommendations for debugging
                 for i, rec in enumerate(recommendations[:5], 1):
