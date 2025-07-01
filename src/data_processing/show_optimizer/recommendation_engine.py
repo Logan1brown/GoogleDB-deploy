@@ -730,7 +730,12 @@ class RecommendationEngine:
         except Exception as e:
             # Log the error with more context for debugging
             error_message = f"Error generating recommendations for missing criteria: {str(e)}"
-            st.error(error_message)
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(error_message, category='error', force=True)
+                import traceback
+                OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error', force=True)
+            else:
+                st.error(error_message)
             
             # Return empty list to ensure the UI can still function
             return []
