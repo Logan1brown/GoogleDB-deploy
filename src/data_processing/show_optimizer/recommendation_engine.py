@@ -560,36 +560,26 @@ class RecommendationEngine:
                 selected_fields = list(criteria.keys())
                 unselected_fields = [field for field in all_fields if field not in selected_fields]
                 
-                OptimizerConfig.debug(f"Selected fields: {selected_fields}", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Unselected fields: {unselected_fields}", category='recommendation', force=True)
-            
-            recommendations = []
-
-            # Process all success factors to create recommendations
-            # Get minimum impact threshold from config - this is the SINGLE place where factors are filtered by threshold
-            min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors with minimum impact threshold {min_impact}", category='recommendation')
+                OptimizerConfig.debug(f"Selected fields: {selected_fields}", category='recommendation')
+                OptimizerConfig.debug(f"Unselected fields: {unselected_fields}", category='recommendation')
                 
-                # Log all success factors at the start
-                for i, factor in enumerate(success_factors):
-                    OptimizerConfig.debug(
-                        f"Input success factor {i+1}: {factor.criteria_type}/{factor.criteria_name}, "
-                        f"impact={factor.impact_score}, rec_type={factor.recommendation_type}", 
+                # Debug log the number of success factors
+                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors", 
                         category='recommendation'
                     )
-                
+            
+            # Initialize variables for collecting all potential recommendations
+            potential_recommendations = []
+            min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
+            
+            # First, collect ALL potential recommendations without filtering by recommendation type
+            # We'll only filter by the minimum impact threshold to avoid processing negligible impacts
             for factor in success_factors:
                 # Skip factors with impact below threshold
-                # This is the ONLY place where we filter by threshold
                 if abs(factor.impact_score) < min_impact:
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(f"Skipping factor {factor.criteria_type}/{factor.criteria_name} due to low impact: {factor.impact_score} (threshold: {min_impact})", category='recommendation')
                     continue
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Processing factor: {factor.criteria_type}/{factor.criteria_name} with impact {factor.impact_score}", category='recommendation')
                 
                 # Get information about the selection status for filtering
                 criteria_type = factor.criteria_type
@@ -600,11 +590,6 @@ class RecommendationEngine:
                 # Check if this specific option is selected
                 if is_field_selected:
                     # Handle different criteria field types (array vs. single value)
-                    # This explicit type check is necessary as criteria fields can be either:
-                    # 1. Lists (e.g., character_types, themes) - check if option is in the list
-                    # 2. Single values (e.g., genre, format) - check if option matches exactly
-                    # Access the criteria value directly since we've already verified it exists
-                    # This removes defensive programming (criteria.get) while maintaining the data contract
                     if isinstance(criteria[criteria_type], list):
                         is_option_selected = option_id in criteria[criteria_type]
                     else:
@@ -617,85 +602,92 @@ class RecommendationEngine:
                         if is_field_selected:
                             OptimizerConfig.debug(f"Current genre value: {criteria[criteria_type]}", category='recommendation', force=True)
                 
-                # Use the recommendation type that was already determined by CriteriaScorer
-                # SuccessFactor is a dataclass with attribute-style access (.attribute)
-                rec_type = factor.recommendation_type
+                # Get the recommendation type and impact score
                 impact_score = factor.impact_score
                 criteria_name = factor.criteria_name
                 
-                # Debug logging for recommendation processing
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Processing factor: {criteria_type}/{criteria_name} with type {rec_type} and impact {impact_score}", category='recommendation')
-                
-                # Skip recommendations that don't have a valid recommendation type
-                if rec_type is None:
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Skipping recommendation for {criteria_type}/{criteria_name}: no recommendation type", category='recommendation', force=True)
-                    continue
-                    
-                # The recommendation type was already determined by CriteriaScorer based on selection status
-                # and impact score. We trust that determination and don't need to re-validate it here.
-                # This ensures consistency with the recommendation type rules defined in CriteriaScorer.
-                # 
-                # The previous validation logic here was redundant and caused valid recommendations
-                # to be incorrectly filtered out.
+                # Determine recommendation type based on impact and selection status
+                # This follows the rules from memory f48dc725:
+                # - 'add': For suggesting new unselected fields with positive impact
+                # - 'change': For suggesting different values for already selected fields
+                # - 'remove': For suggesting removal of selected fields with negative impact
+                if option_id == 'remove':
+                    rec_type = self.REC_TYPE_REMOVE
+                elif impact_score > 0:
+                    if is_field_selected:
+                        if is_option_selected:
+                            rec_type = None  # No need to recommend what's already selected
+                        else:
+                            rec_type = self.REC_TYPE_CHANGE
+                    else:
+                        rec_type = self.REC_TYPE_ADD
+                else:  # negative impact
+                    if is_option_selected:
+                        rec_type = self.REC_TYPE_REMOVE
+                    else:
+                        rec_type = None  # No recommendation for unselected options with negative impact
                 
                 # Special debug for important genres
                 if criteria_type == 'genre' and criteria_name in ['Animation', 'Action & Adventure', 'Comedy', 'Family']:
                     OptimizerConfig.debug(f"IMPORTANT GENRE: Processing {criteria_type}/{criteria_name} with type {rec_type} and impact {impact_score}", 
                                         category='recommendation', force=True)
                 
-                # Debug for recommendation processing
-                if OptimizerConfig.DEBUG_MODE and abs(impact_score) >= min_impact:
-                    OptimizerConfig.debug(f"Recommendation will be created for {criteria_type}/{criteria_name}: impact={impact_score}, rec_type={rec_type}", category='recommendation')
-                
                 # Update the recommendation type in the factor object for consistency
                 factor.recommendation_type = rec_type
                 
-                # Note: We've already filtered by minimum impact threshold earlier in this method
-                # No need to re-check or re-apply the threshold here
-                
-                # The impact_score is already validated to be above the minimum threshold
-                # and we're preserving the recommendation type from the CriteriaScorer
-                
-                # Recommendation type and impact score finalized
+                # Create a potential recommendation if we have a valid recommendation type
+                if rec_type is not None:
+                    # Create explanation text based on the recommendation type
+                    explanation_text = ""
                     
-                # Raw data is provided to OptimizerView for formatting
+                    if rec_type == self.REC_TYPE_ADD:
+                        explanation_text = f"Adding {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
+                    elif rec_type == self.REC_TYPE_REMOVE:
+                        explanation_text = f"Removing {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
+                    elif rec_type == self.REC_TYPE_CHANGE:
+                        explanation_text = f"Changing to {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
+                    else:
+                        explanation_text = f"Consider {criteria_name} for potential impact of {abs(impact_score)*100:.1f}%."
+                    
+                    # Create a RecommendationItem dictionary using the TypedDict contract
+                    recommendation: RecommendationItem = {
+                        'recommendation_type': rec_type,
+                        'field': criteria_type,
+                        'current_value': None,
+                        'suggested_value': option_id,
+                        'suggested_name': criteria_name,
+                        'impact': impact_score,
+                        'confidence': factor.confidence,
+                        'explanation': explanation_text,
+                        'metadata': {}
+                    }
+                    
+                    # Add to potential recommendations list
+                    potential_recommendations.append(recommendation)
+                    
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Added potential recommendation for {criteria_type}/{criteria_name} of type {rec_type} with impact {impact_score}", 
+                                             category='recommendation')
+            
+            # Now that we've collected all potential recommendations, sort them by absolute impact (descending)
+            potential_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
+            
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Collected {len(potential_recommendations)} potential recommendations sorted by impact", category='recommendation')
                 
-                # Create explanation text based on the recommendation type
-                explanation_text = ""
+            # Now filter recommendations based on our rules
+            recommendations = []
+            for rec in potential_recommendations:
+                # We've already filtered by minimum impact threshold and recommendation type
+                # So we can add all potential recommendations to the final list
+                recommendations.append(rec)
                 
-                criteria_name = factor.criteria_name
-                if rec_type == self.REC_TYPE_ADD:
-                    explanation_text = f"Adding {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
-                elif rec_type == self.REC_TYPE_REMOVE:
-                    explanation_text = f"Removing {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
-                elif rec_type == self.REC_TYPE_CHANGE:
-                    explanation_text = f"Changing to {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
-                else:
-                    explanation_text = f"Consider {criteria_name} for potential impact of {abs(impact_score)*100:.1f}%."
-                
-                # Create a RecommendationItem dictionary using the TypedDict contract
-                # Note: SuccessFactor uses attribute-style access (.attribute), while RecommendationItem uses dictionary-style access ['key']
-                recommendation: RecommendationItem = {
-                    'recommendation_type': rec_type,
-                    'field': criteria_type,  # Renamed from criteria_type to field per TypedDict contract
-                    'current_value': None,
-                    'suggested_value': option_id,  # Using option_id which was set from factor.criteria_value
-                    'suggested_name': criteria_name,  # Using criteria_name which was set from factor.criteria_name
-                    'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
-                    'confidence': factor.confidence,
-                    'explanation': explanation_text,
-                    'metadata': {}  # Add empty metadata field for consistency with network-specific recommendations
-                }
-                
-                # Add to recommendations list
-                recommendations.append(recommendation)
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Added recommendation for {criteria_type}/{criteria_name} of type {rec_type} with impact {impact_score}", 
-                                         category='recommendation', force=True)
-                 
-                # Recommendation processing complete
+                    OptimizerConfig.debug(f"Final recommendation: {rec['field']}/{rec['suggested_name']} - type: {rec['recommendation_type']}, impact: {rec['impact']:.2f}",
+                                         category='recommendation')
+                                         
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Final recommendation count: {len(recommendations)}", category='recommendation', force=True)
             
             # Sort recommendations by absolute impact (descending)
             recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)

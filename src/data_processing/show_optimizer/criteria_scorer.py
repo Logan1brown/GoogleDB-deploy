@@ -531,7 +531,7 @@ class CriteriaScorer:
                 else:
                     # For fields not in criteria, create "Add" recommendations for each option
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Creating ADD recommendations for unselected field: {current_field}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"Preparing potential ADD recommendations for unselected field: {current_field}", category='recommendation', force=True)
                         
                     for option in options:
                         # Create criteria with this option
@@ -540,10 +540,12 @@ class CriteriaScorer:
                         option_name = self.field_manager.get_name(current_field, option.id)
                         
                         if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Adding batch criteria for ADD recommendation: {current_field}/{option_name}", category='recommendation')
+                            OptimizerConfig.debug(f"Preparing potential ADD recommendation: {current_field}/{option_name}", category='recommendation')
                         
                         batch_criteria.append(new_criteria)
                         option_data.append((option_key, option_name))
+                        # We'll determine the actual recommendation type after calculating impact
+                        # For now, mark these as potential ADD recommendations
                         recommendation_types.append(self.REC_TYPE_ADD)
                 
                 # Process each option using the provided option_matching_shows_map or generate it if not provided
