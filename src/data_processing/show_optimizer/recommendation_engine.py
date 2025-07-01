@@ -230,7 +230,10 @@ class RecommendationEngine:
                     if processed_count >= limit:
                         break
                     
-                    # Extract impact score and sample size
+                    # Extract impact score and sample size with validation
+                    if not isinstance(impact_info, dict):
+                        raise ValueError(f"Expected dict for impact_info, got {type(impact_info).__name__} for {criteria_type}.{value_id}")
+                        
                     impact = impact_info.get('impact', self.config.DEFAULT_VALUES['impact_score'])
                     sample_size = impact_info.get('sample_size', self.config.DEFAULT_VALUES['fallback_sample_size'])
                     
