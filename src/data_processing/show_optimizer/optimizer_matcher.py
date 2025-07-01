@@ -325,7 +325,10 @@ class Matcher:
             
             # Skip if no matches at this level
             if level_matches.empty:
+                OptimizerConfig.debug(f"No matches found at match level {level}", category='matcher')
                 continue
+                
+            OptimizerConfig.debug(f"Found {match_count} matches at match level {level}", category='matcher')
             
             # Always ensure match_level column exists
             level_matches['match_level'] = level
@@ -377,8 +380,10 @@ class Matcher:
             unique_titles.update(new_matches['title'].tolist())
             total_unique_matches += new_unique_count
             
-            # If we've found enough matches, stop looking
-            if total_unique_matches >= target_sample_size:
+            # Only apply early termination for relaxed criteria (level > 1)
+            # This ensures we find ALL exact matches before moving to relaxed criteria
+            if level > 1 and total_unique_matches >= target_sample_size:
+                OptimizerConfig.debug(f"Early termination at match level {level} with {total_unique_matches} total matches", category='matcher')
                 break
         
         # If we still didn't find any matches at any level
@@ -414,6 +419,21 @@ class Matcher:
         if not all_matches.empty:
             # The match_level column is guaranteed to exist since we set it above
             all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
+            
+            # Debug summary of matches by level
+            if OptimizerConfig.DEBUG_MODE:
+                level_counts = all_matches['match_level'].value_counts().to_dict()
+                level_summary = {}
+                for level, count in level_counts.items():
+                    level_desc = self._get_match_level_description(level)
+                    level_summary[level_desc] = count
+                OptimizerConfig.debug(f"Shows by match level: {level_summary}", category='matcher')
+                
+                # List exact matches (level 1) for debugging
+                exact_matches = all_matches[all_matches['match_level'] == 1]
+                if not exact_matches.empty:
+                    exact_titles = exact_matches['title'].tolist()
+                    OptimizerConfig.debug(f"Exact matches: {exact_titles}", category='matcher')
         # Apply prioritized sampling within each match level if we have more than MAX_RESULTS
         if len(all_matches) > OptimizerConfig.MAX_RESULTS:
             # Define a function to prioritize shows with RT and TMDB data
@@ -589,6 +609,19 @@ class Matcher:
                 # For array fields, we need to check if any value matches
                 if isinstance(value, list):
                     value_set = set(value)
+                    # Debug array field matching
+                    if field_name in ['subgenres'] and OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Array field matching for {field_name}: {value_set}", category='matcher')
+                        # Sample a few rows to see what's happening
+                        sample_size = min(5, len(matches))
+                        if sample_size > 0:
+                            sample = matches.sample(sample_size)
+                            for _, row in sample.iterrows():
+                                field_value = row.get(field_column, [])
+                                if isinstance(field_value, list):
+                                    intersection = value_set.intersection(set(field_value))
+                                    OptimizerConfig.debug(f"  Sample {row.get('title', 'Unknown')}: {field_value} -> intersection: {intersection}", category='matcher')
+                    
                     # If the column contains lists, use list intersection
                     mask = matches[field_column].apply(
                         lambda x: isinstance(x, list) and bool(value_set.intersection(set(x) if isinstance(x, list) else set())))
