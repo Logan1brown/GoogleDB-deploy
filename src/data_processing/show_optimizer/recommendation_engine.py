@@ -402,7 +402,7 @@ class RecommendationEngine:
             # Process confidence info if available
             if confidence_info:
                 try:
-                    from .optimizer_data_contracts import update_confidence_info
+                    # update_confidence_info is already imported at the top of the file
                     confidence_info = update_confidence_info(confidence_info, {})
                     match_level = confidence_info.get('match_level', 1)
                     

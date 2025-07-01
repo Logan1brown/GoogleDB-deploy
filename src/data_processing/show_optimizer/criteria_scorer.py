@@ -15,8 +15,15 @@ from collections import defaultdict
 from .optimizer_config import OptimizerConfig
 from .field_manager import FieldManager, CriteriaDict
 from .optimizer_matcher import Matcher
-from .optimizer_data_contracts import IntegratedData
-from .score_calculators import SuccessScoreCalculator
+from .optimizer_data_contracts import (
+    IntegratedData, NetworkMatch, CriteriaDict, 
+    ConfidenceInfo, update_confidence_info
+)
+from .score_calculators import (
+    SuccessScoreCalculator, AudienceScoreCalculator,
+    CriticsScoreCalculator, LongevityScoreCalculator,
+    ComponentScore, ScoreCalculationError, NetworkScoreCalculator
+)
 
 # Type aliases
 ImpactScores = Dict[str, Dict[Any, Dict[str, Any]]]
@@ -61,9 +68,7 @@ class ImpactAnalysisResult:
         error = data.get('_error')
         return cls(criteria_impacts, summary, error)
 
-from .optimizer_data_contracts import NetworkMatch
-from .score_calculators import ComponentScore, ScoreCalculationError, NetworkScoreCalculator
-from .optimizer_data_contracts import CriteriaDict, ConfidenceInfo, IntegratedData, update_confidence_info
+# Score calculator classes mapping
 
 SCORE_CALCULATORS_CLASSES = {
     'success': SuccessScoreCalculator,
@@ -976,7 +981,12 @@ class CriteriaScorer:
         """
         if matching_shows is None or matching_shows.empty:
             # Return an empty dictionary with structured error information
-            return {}
+            return {
+                'success': ComponentScore(score=0.0, sample_size=0, confidence='none', error='No matching shows'),
+                'audience': ComponentScore(score=0.0, sample_size=0, confidence='none', error='No matching shows'),
+                'critics': ComponentScore(score=0.0, sample_size=0, confidence='none', error='No matching shows'),
+                'longevity': ComponentScore(score=0.0, sample_size=0, confidence='none', error='No matching shows')
+            }
             
         try:
             # Check sample size
