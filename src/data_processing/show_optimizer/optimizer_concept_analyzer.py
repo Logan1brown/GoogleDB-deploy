@@ -418,6 +418,7 @@ class ConceptAnalyzer:
     def reset_recommendation_state(self):
         """Reset the recommendation state to empty values."""
         self._recommendation_state = {
+            'criteria_hash': None,
             'general_recommendations': [],
             'network_recommendations': [],
             'last_update_timestamp': datetime.now().isoformat()
