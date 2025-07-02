@@ -1082,15 +1082,21 @@ class RecommendationEngine:
             # Extract field name from key using standard format
             raw_field_name = key.split(':', 1)[0] if ':' in key else key
             
-            # Standardize field name using field manager
-            field_name = self.field_manager.standardize_field_name(raw_field_name)
+            # Map ID column names to criteria field names
+            # For example, map 'tone_id' to 'tone_ids' as used in CriteriaDict
+            if raw_field_name.endswith('_id'):
+                criteria_field = raw_field_name[:-3] + '_ids'
+            else:
+                criteria_field = raw_field_name
             
             # Skip if this field is not in our criteria
-            if field_name not in criteria:
+            if criteria_field not in criteria:
+                if self.config.DEBUG_MODE:
+                    self.config.debug(f"Skipping field {raw_field_name} (mapped to {criteria_field}) - not in criteria", category='recommendations')
                 continue
             
             # Calculate the overall success rate for this criteria
-            single_criteria = {field_name: criteria[field_name]}
+            single_criteria = {criteria_field: criteria[criteria_field]}
             
             # Get matching shows for this single criterion
             if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
@@ -1109,7 +1115,7 @@ class RecommendationEngine:
                     'confidence': 'medium'  # Default confidence level
                 }
                 overall_rates[key] = overall_rate_data
-                overall_rates[field_name] = overall_rate_data
+                overall_rates[criteria_field] = overall_rate_data
         
         recommendations = []
                  
@@ -1124,17 +1130,21 @@ class RecommendationEngine:
             # Extract field name from the key using standard format
             raw_field_name = key.split(':', 1)[0] if ':' in key else key
             
-            # Standardize field name using field manager
-            field_name = self.field_manager.standardize_field_name(raw_field_name)
+            # Map ID column names to criteria field names
+            # For example, map 'tone_id' to 'tone_ids' as used in CriteriaDict
+            if raw_field_name.endswith('_id'):
+                criteria_field = raw_field_name[:-3] + '_ids'
+            else:
+                criteria_field = raw_field_name
             
             # Only process keys that correspond to fields in our criteria
-            if field_name in valid_fields:
+            if criteria_field in valid_fields:
                 
                 valid_network_rates[key] = {
-                    'field_name': field_name,
+                    'field_name': criteria_field,
                     'network_rate_data': network_rate_data,
-                    'current_value': criteria[field_name],
-                    'current_name': self._get_criteria_name(field_name, criteria[field_name])
+                    'current_value': criteria[criteria_field],
+                    'current_name': self._get_criteria_name(criteria_field, criteria[criteria_field])
                 }
         
         # Now process only the valid network rates

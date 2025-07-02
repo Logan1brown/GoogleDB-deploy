@@ -278,44 +278,21 @@ class NetworkAnalyzer:
             # Get unique columns that might represent criteria (exclude standard columns)
             standard_columns = {'network_id', 'match_level', 'success_score', 'title', 'show_id'}
             
-            # Define known criteria fields that the field_manager should handle
-            known_criteria_fields = {
-                'genre', 'subgenres', 'source_type', 'order_type', 'time_setting', 
-                'location_setting', 'tone', 'studios', 'format', 'target_demo'
-            }
-            
             # Calculate success rate for each criteria column
             # Use SUCCESS['threshold'] as the single source of truth for success threshold
             success_threshold = OptimizerConfig.SUCCESS['threshold']
             
-            # Let the field manager be the single source of truth for field names
-            # Only process each standardized field once to prevent duplicates
-            standardized_fields = {}
+            # Only process ID columns for consistency with the rest of the system
+            # This follows the CriteriaDict contract which uses IDs for all fields
+            id_columns = [col for col in network_shows.columns 
+                         if (col.endswith('_id') or col.endswith('_ids')) 
+                         and col not in standard_columns]
             
-            for column in network_shows.columns:
-                # Skip standard columns
-                if column in standard_columns:
-                    continue
-                
-                try:
-                    # Let the field manager standardize the field name
-                    standardized_field = self.field_manager.standardize_field_name(column)
-                    
-                    # Only include known criteria fields
-                    if standardized_field in known_criteria_fields:
-                        # Only process each standardized field once
-                        # If we've seen this field before, prefer name columns over ID columns
-                        if standardized_field not in standardized_fields:
-                            standardized_fields[standardized_field] = column
-                        elif column.endswith('_name') or column.endswith('_names'):
-                            # Prefer name columns over other representations
-                            standardized_fields[standardized_field] = column
-                except Exception:
-                    # Skip columns that can't be standardized
-                    continue
+            # Debug log the columns we're processing
+            if self.config.DEBUG_MODE:
+                self.config.debug(f"Processing ID columns for network {network_id}: {id_columns}", category='network')
             
-            # Use only the standardized fields for processing
-            valid_criteria_columns = list(standardized_fields.values())
+            valid_criteria_columns = id_columns
                     
             # Process each valid criteria column
             for column in valid_criteria_columns:
@@ -415,13 +392,10 @@ class NetworkAnalyzer:
                                 success_rate_data['original_value_name'] = success_rate_data['value_name']
                                 success_rate_data['value_name'] = clean_value_name
                             
-                            # Create a standardized key using our helper function
+                            # Create a key using the original field name (which is already an ID column)
                             try:
-                                # Use the field manager to standardize the field name
-                                standardized_field_name = self.field_manager.standardize_field_name(field_name)
-                                
-                                # Create a standardized key using our helper function with the standardized field name
-                                key = create_field_value_key(standardized_field_name, value)
+                                # Create a key using the original field name without standardization
+                                key = create_field_value_key(field_name, value)
                                 
                                 # Add success rate data to the dictionary
                                 success_rates[key] = success_rate_data
