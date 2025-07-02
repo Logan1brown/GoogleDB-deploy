@@ -256,6 +256,9 @@ class NetworkAnalyzer:
             Dictionary mapping field-value keys to FieldValueSuccessRate dictionaries
         """
         try:
+            # Initialize success rates dictionary
+            success_rates = {}
+            
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
                 return {}
@@ -277,7 +280,7 @@ class NetworkAnalyzer:
             
             if network_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"No shows found for network_id: {network_id}", category='network')
+                    OptimizerConfig.debug(f"No shows found for network_id {network_id}", category='network')
                 return {}
                 
             # Check if success_score column exists
@@ -286,16 +289,11 @@ class NetworkAnalyzer:
                     OptimizerConfig.debug(f"No success_score column in matching shows for network {network_id}", category='network')
                 return {}
             
-            # For network-specific success rates, we analyze the columns in the matching_shows DataFrame
-            # that are relevant for the network's success metrics
-            success_rates = {}
-            
-            # Get unique columns that might represent criteria (exclude standard columns)
-            standard_columns = {'network_id', 'match_level', 'success_score', 'title', 'show_id'}
-            
-            # Calculate success rate for each criteria column
-            # Use SUCCESS['threshold'] as the single source of truth for success threshold
+            # Get success threshold from config
             success_threshold = OptimizerConfig.SUCCESS['threshold']
+            
+            # Define standard columns to exclude
+            standard_columns = ['show_id', 'title', 'success_score', 'match_level', 'network_id', 'network_name']
             
             # Only process ID columns for consistency with the rest of the system
             # This follows the CriteriaDict contract which uses IDs for all fields
@@ -304,26 +302,30 @@ class NetworkAnalyzer:
                          and col not in standard_columns]
             
             # Debug log the columns we're processing
-            if self.config.DEBUG_MODE:
-                self.config.debug(f"Processing ID columns for network {network_id}: {id_columns}", category='network')
-                self.config.debug(f"Network shows count: {len(network_shows)}", category='network')
-                self.config.debug(f"Network shows columns: {network_shows.columns.tolist()}", category='network')
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Processing ID columns for network {network_id}: {id_columns}", category='network')
+                
+                # Sample data for debugging
+                if not network_shows.empty and len(id_columns) > 0:
+                    sample_col = id_columns[0]
+                    sample_data = network_shows[sample_col].head(3).tolist()
+                    OptimizerConfig.debug(f"Sample data for {sample_col}: {sample_data}", category='network')
                 
                 # Check if we have any criteria fields that match our ID columns
-                if hasattr(network_shows, 'criteria') and isinstance(network_shows.criteria, dict):
-                    criteria_keys = list(network_shows.criteria.keys())
+                if hasattr(matching_shows, 'criteria') and isinstance(matching_shows.criteria, dict):
+                    criteria_keys = list(matching_shows.criteria.keys())
                     matching_keys = [col for col in id_columns if col in criteria_keys]
-                    self.config.debug(f"Criteria keys: {criteria_keys}", category='network')
-                    self.config.debug(f"Matching keys between criteria and ID columns: {matching_keys}", category='network')
+                    OptimizerConfig.debug(f"Criteria keys: {criteria_keys}", category='network')
+                    OptimizerConfig.debug(f"Matching keys between criteria and ID columns: {matching_keys}", category='network')
             
-            valid_criteria_columns = id_columns
-                    
-            # Process each valid criteria column
-            for column in valid_criteria_columns:
+            # Process each valid criteria column (ID columns)
+            for column in id_columns:
                 # Get unique values for this column
                 try:
                     # Skip columns with all null values
                     if network_shows[column].isna().all():
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Skipping column {column} - all values are null", category='network')
                         continue
                         
                     # Get unique non-null values
@@ -331,7 +333,13 @@ class NetworkAnalyzer:
                     
                     # Skip if no unique values
                     if len(unique_values) == 0:
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Skipping column {column} - no unique values", category='network')
                         continue
+                        
+                    # Debug unique values
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Column {column} has {len(unique_values)} unique values", category='network')
                         
                     # For each unique value, calculate success rate
                     for value in unique_values:
@@ -351,13 +359,13 @@ class NetworkAnalyzer:
                             elif isinstance(value, str) and column.endswith('_names') and '[' in value:
                                 is_array_field = True
                                 # Skip string representations of arrays as they need special parsing
-                                # Skip string representations of arrays
                                 continue
                             else:
                                 # For scalar fields, use direct comparison
                                 value_shows = network_shows[network_shows[column] == value]
                         except Exception as e:
-                            # Skip this value due to error
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Error processing value {value} for column {column}: {str(e)}", category='network')
                             continue
                         
                         # Skip if no shows
@@ -371,7 +379,7 @@ class NetworkAnalyzer:
                         if total_count > 0:
                             success_rate = success_count / total_count
                             
-                            # Get field name for display
+                            # Use the exact database column name (ID) for field_name
                             field_name = column
                             
                             # Get value name for display
@@ -386,14 +394,11 @@ class NetworkAnalyzer:
                                     end_idx = value_name.find(")")
                                     if start_idx > 0 and end_idx > start_idx:
                                         clean_value = value_name[start_idx:end_idx].strip()
-                                        # Value name cleaned
                                         clean_value_name = clean_value
-                                except Exception as e:
-                                    # Keep original value_name
-                                    # If extraction fails, keep the original value_name
+                                except Exception:
+                                    # Keep original value_name if extraction fails
                                     pass
                             
-                            # Clean value name will be used in the success rate data
                             # Get matching show titles (up to MAX_RESULTS)
                             matching_titles = []
                             if 'title' in value_shows.columns:
@@ -418,14 +423,22 @@ class NetworkAnalyzer:
                             
                             # Create a key using the original field name (which is already an ID column)
                             try:
+                                # Import the key creation function if needed
+                                from ..utils.optimizer_utils import create_field_value_key
+                                
                                 # Create a key using the original field name without standardization
                                 key = create_field_value_key(field_name, value)
+                                
+                                # Debug log the created key
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Created key for network success rate: {key}", category='network')
                                 
                                 # Add success rate data to the dictionary
                                 success_rates[key] = success_rate_data
                             except Exception as e:
                                 # Error adding success rate data
-                                pass
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Error creating key for {field_name}:{value}: {str(e)}", category='network')
                 except Exception as e:
                     # Error processing column
                     continue

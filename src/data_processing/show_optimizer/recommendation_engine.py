@@ -342,59 +342,26 @@ class RecommendationEngine:
                             self.config.debug(f"Error creating success factor: {str(e)}", category='error')
             
             return success_factors
-        except Exception as e:
-            st.error(f"Error identifying success factors: {str(e)}")
-            return []
-    
-    def generate_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, 
-                                 success_factors: List[SuccessFactor], top_networks: List[NetworkMatch] = None,
-                                 confidence_info: Optional[Dict[str, Any]] = None,
-                                 integrated_data: Optional[IntegratedData] = None) -> Dict[str, List[RecommendationItem]]:
-        """Generate recommendations based on success factors.
-        
-        This method processes success factors to create actionable recommendations.
-        It separates recommendations into general and network-specific categories.
-        
-        Args:
-            criteria: Dictionary of criteria key-value pairs from the UI
-            matching_shows: DataFrame of shows matching the criteria
-            success_factors: List of SuccessFactor objects with impact scores
-            top_networks: Optional list of top compatible networks
-            confidence_info: Optional confidence information dictionary
-            integrated_data: Optional integrated data dictionary
-            
-        Returns:
-            Dictionary with two keys:
-            - 'general': List of general recommendations
-            - 'network_specific': List of network-specific recommendations
-        """
-        try:
-            # Initialize empty lists for recommendations
-            recommendations = []
-            general_recommendations = []
-            network_specific_recommendations = []
-            
-            if OptimizerConfig.DEBUG_MODE:
-                # Log criteria count to identify multiple criteria scenarios
-                criteria_count = len(criteria) if criteria else 0
-                OptimizerConfig.debug(f"Starting recommendation generation with {criteria_count} criteria", category='recommendation')
-                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors", category='recommendation')
                 
-                # Log the actual criteria being processed
-                if criteria:
-                    for field, value in criteria.items():
-                        OptimizerConfig.debug(f"Criteria field: {field}, value: {value}", category='recommendation')
-            
-            # Analyze missing high-impact criteria
-            try:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Generating recommendations from missing criteria", category='recommendation')
-                    # Log success factor details to understand what we're working with
-                    for i, factor in enumerate(success_factors[:5]):  # Log first 5 for brevity
-                        OptimizerConfig.debug(f"Success factor {i}: {factor.criteria_type}/{factor.criteria_name}, impact: {factor.impact_score:.3f}, rec_type: {factor.recommendation_type}", 
-                                            category='recommendation')
+                # Skip if we still don't have a valid recommendation type
+                if not recommendation_type:
+                    continue
                 
-                missing_criteria_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
+                # Get matching titles for this criteria
+                matching_titles = []
+                try:
+                    # Convert hashable value back to original form if needed
+                    match_value = list(criteria_value) if isinstance(criteria_value, tuple) else criteria_value
+                    
+                    # Get shows matching just this single criteria
+                    single_criteria = {criteria_type: match_value}
+                    single_matches, single_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                    
+                    if not single_matches.empty and 'title' in single_matches.columns:
+                        matching_titles = single_matches['title'].tolist()[:100]  # Limit to 100 titles
+                except Exception as e:
+                    if self.config.DEBUG_MODE:
+                        self.config.debug(f"Error getting matching titles: {str(e)}", category='error')
                 
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(
