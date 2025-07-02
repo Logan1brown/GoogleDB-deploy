@@ -37,14 +37,15 @@ class SuccessFactor:
 
 
 class RecommendationEngine:
-    # Recommendation type constants for standardization across the class
+    """Engine for generating recommendations based on criteria and matching shows."""
+    
+    # Recommendation type constants
     REC_TYPE_ADD = 'add'
     REC_TYPE_CHANGE = 'change'
     REC_TYPE_REMOVE = 'remove'
-    
-    # Network-specific recommendation types
     REC_TYPE_NETWORK_KEEP = 'network_keep'
     REC_TYPE_NETWORK_CHANGE = 'network_change'
+    
     """Analyzes show data to identify success factors and generate recommendations."""
     
 
@@ -474,20 +475,27 @@ class RecommendationEngine:
                         network_recs = self.generate_network_specific_recommendations(
                             criteria, network, matching_shows, integrated_data, confidence_info
                         )
-                        recommendations.extend(network_recs)
                         
                         if OptimizerConfig.DEBUG_MODE:
-                            network_name = network.get('name', 'unknown')
+                            network_name = network.network_name
                             OptimizerConfig.debug(
                                 f"Added {len(network_recs)} recommendations for network {network_name}", 
                                 category='recommendation'
                             )
+                            
+                        # Directly add to network_specific_recommendations
+                        # This ensures they're properly categorized as network-specific
+                        network_specific_recommendations.extend(network_recs)
                     except Exception as e:
                         error_msg = f"Error generating network recommendations: {str(e)}"
                         if OptimizerConfig.DEBUG_MODE:
                             OptimizerConfig.debug(error_msg, category='error')
             
-            # Process all recommendations to separate general and network-specific
+            # Process general recommendations only
+            # Network-specific recommendations are already added directly to network_specific_recommendations
+            # This ensures proper routing of recommendations to the correct UI tabs:
+            # - Network-specific recommendations -> Network Analysis tab
+            # - General recommendations -> General Recommendations tab
             for rec in recommendations:
                 # Skip recommendations without impact score
                 if 'impact' not in rec:
@@ -498,11 +506,8 @@ class RecommendationEngine:
                         )
                     continue
                 
-                # Check if this is a network-specific recommendation
-                if 'metadata' in rec and isinstance(rec['metadata'], dict) and 'network_name' in rec['metadata']:
-                    network_specific_recommendations.append(rec)
-                else:
-                    general_recommendations.append(rec)
+                # All recommendations in this list are general recommendations
+                general_recommendations.append(rec)
             
             # Sort by absolute impact (descending)
             general_recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
@@ -1043,9 +1048,11 @@ class RecommendationEngine:
         # This enforces the contract rather than adding defensive checks
         if confidence_info is not None:
             confidence_info = update_confidence_info(confidence_info, {})
+            
         # Debug mode check for network-specific recommendations
         if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug("Starting network-specific recommendations generation", category='recommendation')
+            OptimizerConfig.debug(f"Starting network-specific recommendations generation for network {network.network_name} (ID: {network.network_id})", category='recommendation')
+            OptimizerConfig.debug(f"Criteria keys: {list(criteria.keys())}", category='recommendation')
         
         # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
         
@@ -1112,15 +1119,25 @@ class RecommendationEngine:
         
         recommendations = []
                  
+        # DATA CONTRACT: Network rates use database column names (IDs) as field names in keys
+        # These IDs must match exactly with the criteria keys for proper matching
+        # The recommendation engine uses these IDs for all internal processing
+        # Human-readable names are derived only for display purposes using _get_criteria_name
+        
         # First, explicitly determine which fields from network_rates are valid in our criteria
         # This avoids checking field_name in criteria for each iteration
         valid_fields = set(criteria.keys())
         valid_network_rates = {}
         
         # Process network rates for fields in criteria
+        # Network analyzer uses database column names (IDs) for keys
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Network rates keys: {list(network_rates.keys())}", category='recommendation')
+            OptimizerConfig.debug(f"Valid criteria fields: {list(valid_fields)}", category='recommendation')
         
         for key, network_rate_data in network_rates.items():
             # Extract field name from the key using standard format
+            # The field_name is already the database column name (ID)
             field_name = key.split(':', 1)[0] if ':' in key else key
             
             # Use exact field name with no mapping or fallback logic
@@ -1134,10 +1151,13 @@ class RecommendationEngine:
                 }
         
         # Now process only the valid network rates
-
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Processing {len(valid_network_rates)} valid network rates", category='recommendation')
         
         for key, data in valid_network_rates.items():
-            # Debug statements removed to reduce verbosity
+            # Add debug statements to track processing
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Processing network rate for key: {key}", category='recommendation')
             
             field_name = data['field_name']
             network_rate_data = data['network_rate_data']
