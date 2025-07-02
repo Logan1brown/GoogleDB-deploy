@@ -1049,7 +1049,7 @@ class RecommendationEngine:
             confidence_info = update_confidence_info(confidence_info, {})
         # Debug mode check for network-specific recommendations
         if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug("Starting network-specific recommendations generation", category='recommendations')
+            OptimizerConfig.debug("Starting network-specific recommendations generation", category='recommendation')
         
         # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
         
@@ -1082,14 +1082,20 @@ class RecommendationEngine:
             # Extract field name from key using standard format
             raw_field_name = key.split(':', 1)[0] if ':' in key else key
             
-            # Use the field manager to map field names to criteria field names
-            # This ensures consistent field name mapping throughout the system
-            criteria_field = self.field_manager.map_field_name(raw_field_name, list(criteria.keys()))
+            # Use the field manager to get the standardized base name
+            base_name = self.field_manager.standardize_field_name(raw_field_name)
+            
+            # Find the criteria field that matches this base name
+            matching_fields = [field for field in criteria.keys() if 
+                             self.field_manager.standardize_field_name(field) == base_name]
+            
+            # Use the exact field name from criteria if found
+            criteria_field = matching_fields[0] if matching_fields else None
             
             # Skip if this field is not in our criteria
             if criteria_field not in criteria:
                 if self.config.DEBUG_MODE:
-                    self.config.debug(f"Skipping field {raw_field_name} (mapped to {criteria_field}) - not in criteria", category='recommendations')
+                    self.config.debug(f"Skipping field {raw_field_name} (mapped to {criteria_field}) - not in criteria", category='recommendation')
                 continue
             
             # Calculate the overall success rate for this criteria
@@ -1127,9 +1133,15 @@ class RecommendationEngine:
             # Extract field name from the key using standard format
             raw_field_name = key.split(':', 1)[0] if ':' in key else key
             
-            # Use the field manager to map field names to criteria field names
-            # This ensures consistent field name mapping throughout the system
-            criteria_field = self.field_manager.map_field_name(raw_field_name, list(criteria.keys()))
+            # Use the field manager to get the standardized base name
+            base_name = self.field_manager.standardize_field_name(raw_field_name)
+            
+            # Find the criteria field that matches this base name
+            matching_fields = [field for field in valid_fields if 
+                             self.field_manager.standardize_field_name(field) == base_name]
+            
+            # Use the exact field name from criteria if found
+            criteria_field = matching_fields[0] if matching_fields else None
             
             # Only process keys that correspond to fields in our criteria
             if criteria_field in valid_fields:
@@ -1160,8 +1172,8 @@ class RecommendationEngine:
             current_value = data.get('current_value')
             current_name = data.get('current_name')
             
-            # Get the overall success rate using flexible key lookup
-            overall_rate_data = overall_rates.get(key, overall_rates.get(field_name))
+            # Get the overall success rate using the exact key
+            overall_rate_data = overall_rates.get(key)
             
             # Skip debug messages for field extraction - too verbose
             
