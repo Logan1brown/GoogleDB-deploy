@@ -1128,8 +1128,8 @@ class RecommendationEngine:
             
         # Debug mode check for network-specific recommendations
         if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Starting network-specific recommendations generation for network {network.network_name} (ID: {network.network_id})", category='recommendation')
-            OptimizerConfig.debug(f"Criteria keys: {list(criteria.keys())}", category='recommendation')
+            OptimizerConfig.debug(f"Starting network-specific recommendations generation for network {network.network_name} (ID: {network.network_id})", category='recommendation', force=True)
+            OptimizerConfig.debug(f"Criteria keys: {list(criteria.keys())}", category='recommendation', force=True)
         
         # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
         

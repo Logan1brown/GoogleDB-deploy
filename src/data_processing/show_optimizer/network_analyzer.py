@@ -303,20 +303,20 @@ class NetworkAnalyzer:
             
             # Debug log the columns we're processing
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing ID columns for network {network_id}: {id_columns}", category='network')
+                OptimizerConfig.debug(f"Processing ID columns for network {network_id}: {id_columns}", category='network', force=True)
                 
                 # Sample data for debugging
                 if not network_shows.empty and len(id_columns) > 0:
                     sample_col = id_columns[0]
                     sample_data = network_shows[sample_col].head(3).tolist()
-                    OptimizerConfig.debug(f"Sample data for {sample_col}: {sample_data}", category='network')
+                    OptimizerConfig.debug(f"Sample data for {sample_col}: {sample_data}", category='network', force=True)
                 
                 # Check if we have any criteria fields that match our ID columns
                 if hasattr(matching_shows, 'criteria') and isinstance(matching_shows.criteria, dict):
                     criteria_keys = list(matching_shows.criteria.keys())
                     matching_keys = [col for col in id_columns if col in criteria_keys]
-                    OptimizerConfig.debug(f"Criteria keys: {criteria_keys}", category='network')
-                    OptimizerConfig.debug(f"Matching keys between criteria and ID columns: {matching_keys}", category='network')
+                    OptimizerConfig.debug(f"Criteria keys: {criteria_keys}", category='network', force=True)
+                    OptimizerConfig.debug(f"Matching keys between criteria and ID columns: {matching_keys}", category='network', force=True)
             
             # Process each valid criteria column (ID columns)
             for column in id_columns:
