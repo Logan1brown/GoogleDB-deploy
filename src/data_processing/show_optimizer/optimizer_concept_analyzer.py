@@ -967,6 +967,9 @@ class ConceptAnalyzer:
         Returns:
             Dictionary with 'general' and 'network_specific' recommendations
         """
+        # Initialize all variables at the beginning to prevent NameError
+        general_recommendations = {"general": []}
+        network_recommendations = []
         # Force debug logging for recommendation generation to track issues
         criteria_count = len(criteria) if criteria else 0
         OptimizerConfig.debug(f"Starting recommendation generation with {len(success_factors)} success factors and {criteria_count} criteria", 
@@ -1009,6 +1012,10 @@ class ConceptAnalyzer:
                 OptimizerConfig.debug(f"Current genre selection: {criteria['genre']}", category='recommendation', force=True)
             
         try:
+            # Initialize recommendations variables at the beginning to avoid NameError
+            general_recommendations = {"general": []}
+            network_recommendations = []
+            
             # Store matching_shows for later use in get_network_specific_recommendations
             self._last_matching_shows = matching_shows
             
@@ -1045,9 +1052,18 @@ class ConceptAnalyzer:
             
             # Generate network-specific recommendations with explicit debug logging
             OptimizerConfig.debug("Generating network-specific recommendations", category='recommendation_generation', force=True)
+            
+            # Ensure we have network recommendations even if the next steps fail
             network_recommendations = []
+            
             if top_networks and len(top_networks) > 0:
+                # Log the top networks for debugging
+                for i, network in enumerate(top_networks[:3]):
+                    OptimizerConfig.debug(f"Processing network {i+1}: {network.network_name} (ID: {network.network_id})", 
+                                         category='recommendation_generation', force=True)
+                
                 # Generate network-specific recommendations using the top networks
+                # This will use exact database column names (IDs) for field matching
                 network_specific_results = self.recommendation_engine.generate_recommendations(
                     criteria=criteria,
                     matching_shows=matching_shows,
@@ -1055,11 +1071,20 @@ class ConceptAnalyzer:
                     top_networks=top_networks,  # Pass the top networks for network-specific recommendations
                     confidence_info=confidence_info
                 )
+                
                 # Extract network-specific recommendations from the results
                 if isinstance(network_specific_results, dict):
                     network_recommendations = network_specific_results.get('network_specific', [])
                     OptimizerConfig.debug(f"Extracted {len(network_recommendations)} network-specific recommendations from results", 
                                          category='recommendation_generation', force=True)
+                    
+                    # Log the first few network recommendations to help with debugging
+                    for i, rec in enumerate(network_recommendations[:3]):
+                        field = rec.get('field', 'Unknown')
+                        suggested = rec.get('suggested_name', 'Unknown')
+                        network_name = rec.get('network_name', 'Unknown')
+                        OptimizerConfig.debug(f"Network rec {i}: {network_name} - {field}/{suggested}", 
+                                             category='recommendation_generation', force=True)
             
             # Debug the recommendations structure
             OptimizerConfig.debug(f"Generated {len(general_recommendations)} general recommendations", 
