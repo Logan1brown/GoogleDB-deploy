@@ -575,9 +575,7 @@ class CriteriaScorer:
                                 # Use the full dataset from integrated_data for all criteria combinations
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
                                 
-                                # Debug log the number of matches found for this option
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Found {len(option_shows)} matches for {current_field}/{option_name}", category='recommendation', force=True)
+                                # Debug log removed to reduce verbosity
                             elif option_id == 'remove' and matching_shows is not None and not matching_shows.empty:
                                 # Fallback for remove recommendations if integrated data is missing
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
@@ -650,23 +648,14 @@ class CriteriaScorer:
                         
                         # Special debug for tracking recommendation flow
                         rec_type = recommendation_types[i] if i < len(recommendation_types) else "unknown"
-                        if rec_type == self.REC_TYPE_ADD and OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"ADD recommendation for {current_field}/{option_name}: impact={impact}, base_rate={base_rate}, option_rate={option_rate}", 
-                                                  category='recommendation', force=True)
-                            
-                            # Highlight positive impact options for unselected fields - these are potential ADD recommendations
-                            if impact > 0:
-                                OptimizerConfig.debug(f"POTENTIAL ADD RECOMMENDATION: {current_field}/{option_name} has positive impact: {impact}", 
-                                                      category='recommendation', force=True)
+                        # Debug statements for ADD recommendations removed to reduce verbosity
                     
                         # Get minimum impact threshold
                         min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
                         
                         # Skip options with impact below minimum threshold
                         if abs(impact) < min_impact:  # If impact is too small
-                            if rec_type == self.REC_TYPE_ADD and OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Filtering out ADD recommendation for {current_field}/{option_name} due to low impact: {impact} < {min_impact}", 
-                                                      category='recommendation', force=True)
+                            # Debug statement removed to reduce verbosity
                             continue
                         
                         # Determine recommendation type based on impact and whether this specific option is selected

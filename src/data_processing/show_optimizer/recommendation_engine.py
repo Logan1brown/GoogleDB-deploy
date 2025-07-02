@@ -1075,12 +1075,7 @@ class RecommendationEngine:
         # Calculate overall success rates for comparison with network-specific rates
         overall_rates = {}
         
-        # Debug information about network rates
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Network rates keys: {list(network_rates.keys())}", category='recommendation')
-            # Log the first few network rate keys in detail to help diagnose
-            for i, key in enumerate(list(network_rates.keys())[:3]):
-                OptimizerConfig.debug(f"Network rate key {i}: '{key}', value type: {type(network_rates[key])}", category='recommendation')
+        # Debug information about network rates removed to reduce verbosity
         
         # Process each key in network rates to calculate corresponding overall rates
         for key, network_rate_data in network_rates.items():
@@ -1143,18 +1138,10 @@ class RecommendationEngine:
                 }
         
         # Now process only the valid network rates
-        if OptimizerConfig.DEBUG_MODE:
-            # Using global st import
-            st.write(f"DEBUG: Processing {len(valid_network_rates)} valid network rates")
-            st.write(f"DEBUG: Valid network rates keys: {list(valid_network_rates.keys())}")
-            
 
         
         for key, data in valid_network_rates.items():
-            if OptimizerConfig.DEBUG_MODE:
-                # Using global st import
-                st.write(f"DEBUG: Processing valid network rate key: {key}")
-                st.write(f"DEBUG: Data: {data}")
+            # Debug statements removed to reduce verbosity
             
             field_name = data['field_name']
             network_rate_data = data['network_rate_data']
