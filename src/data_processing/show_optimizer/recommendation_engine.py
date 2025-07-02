@@ -1184,15 +1184,20 @@ class RecommendationEngine:
                 overall_rate = all_scores.get('success_rate')
                 overall_details = all_scores.get('success_info', {})
             
-                # Store the overall rate using both key formats for flexible lookup
                 # Create a consistent data structure that matches what we expect for network_rate_data
                 overall_rate_data = {
                     'success_rate': overall_rate,
                     'sample_size': len(single_matches) if single_matches is not None else 0,
                     'confidence': 'medium'  # Default confidence level
                 }
-                # Only store with the exact key format - no fallbacks or duplicates
+                
+                # CRITICAL: Store with the EXACT same key format as used in network_rates
+                # This ensures we can find the overall rate when comparing with network rate
                 overall_rates[key] = overall_rate_data
+                
+                # Debug log the key and rates for verification
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Stored overall rate for key '{key}': {overall_rate}", category='recommendation')
         
         recommendations = []
                  
