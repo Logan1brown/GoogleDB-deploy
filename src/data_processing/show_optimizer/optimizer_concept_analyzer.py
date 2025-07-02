@@ -1043,6 +1043,24 @@ class ConceptAnalyzer:
                 confidence_info=confidence_info
             )
             
+            # Generate network-specific recommendations with explicit debug logging
+            OptimizerConfig.debug("Generating network-specific recommendations", category='recommendation_generation', force=True)
+            network_recommendations = []
+            if top_networks and len(top_networks) > 0:
+                # Generate network-specific recommendations using the top networks
+                network_specific_results = self.recommendation_engine.generate_recommendations(
+                    criteria=criteria,
+                    matching_shows=matching_shows,
+                    integrated_data=integrated_data,
+                    top_networks=top_networks,  # Pass the top networks for network-specific recommendations
+                    confidence_info=confidence_info
+                )
+                # Extract network-specific recommendations from the results
+                if isinstance(network_specific_results, dict):
+                    network_recommendations = network_specific_results.get('network_specific', [])
+                    OptimizerConfig.debug(f"Extracted {len(network_recommendations)} network-specific recommendations from results", 
+                                         category='recommendation_generation', force=True)
+            
             # Debug the recommendations structure
             OptimizerConfig.debug(f"Generated {len(general_recommendations)} general recommendations", 
                                  category='recommendation_generation', force=True)
@@ -1131,11 +1149,11 @@ class ConceptAnalyzer:
                     for i, factor in enumerate(success_factors[:3]):
                         OptimizerConfig.debug(f"Factor {i}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}", category='error', force=True)
             
-            # Always return the expected dictionary structure, even on error
-            self.config.debug("Returning empty recommendations due to error", 
-                             category='recommendation_generation', force=True)
-            return {
-                'general': [],
-                'network_specific': []
-            }
-
+            # Initialize empty recommendation state if it doesn't exist
+            if 'general_recommendations' not in self._recommendation_state:
+                self._recommendation_state['general_recommendations'] = []
+            if 'network_recommendations' not in self._recommendation_state:
+                self._recommendation_state['network_recommendations'] = []
+                
+            OptimizerConfig.debug("Returning empty recommendations due to error", category='recommendation_generation', force=True)
+            return {"general": [], "network_specific": []}
