@@ -533,18 +533,13 @@ class CriteriaScorer:
                         recommendation_types.append(self.REC_TYPE_CHANGE)
                 else:
                     # For fields not in criteria, create "Add" recommendations for each option
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Preparing potential ADD recommendations for unselected field: {current_field}", category='recommendation', force=True)
-                        
                     for option in options:
                         # Create criteria with this option
                         new_criteria = self._create_option_criteria(criteria, current_field, option.id, is_array_field)
                         option_key = int(option.id)
                         option_name = self.field_manager.get_name(current_field, option.id)
                         
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Preparing potential ADD recommendation: {current_field}/{option_name}", category='recommendation')
-                        
+                        # Debug statement removed to reduce verbosity
                         batch_criteria.append(new_criteria)
                         option_data.append((option_key, option_name))
                         # We'll determine the actual recommendation type after calculating impact
@@ -709,27 +704,10 @@ class CriteriaScorer:
             # Check if we have any impact scores after processing all fields
             # Process impact scores
                 
-                # Debug log to verify impact data structure integrity
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Impact scores structure: {impact_scores.keys()}", category='impact')
-                    for field, options in impact_scores.items():
-                        if field == '_summary':
-                            continue
-                        OptimizerConfig.debug(f"Field {field} has {len(options)} options", category='impact')
-                        for option_id, impact_info in options.items():
-                            if not isinstance(impact_info, dict):
-                                OptimizerConfig.debug(f"WARNING: Non-dict impact_info found for {field}.{option_id}: {type(impact_info)}", category='error')
-                            elif 'impact' not in impact_info:
-                                OptimizerConfig.debug(f"WARNING: Missing 'impact' key in impact_info for {field}.{option_id}", category='error')
-                            else:
-                                OptimizerConfig.debug(f"Impact for {field}.{option_id}: {impact_info['impact']:.4f}", category='impact')
+                # Debug statements for impact scores removed to reduce verbosity
             
             # Process unselected fields to generate 'add' recommendations
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Processing unselected fields for 'add' recommendations", category='impact')
-                # Log the final impact_scores structure before returning
-                total_options = sum(len(options) for field, options in impact_scores.items() if field != '_summary')
-                OptimizerConfig.debug(f"Final impact_scores has {len(impact_scores)} fields and {total_options} total options", category='impact')
+            # Debug statements removed to reduce verbosity
             
             # Process fields we haven't already processed
             processed_fields = set(fields_to_process)

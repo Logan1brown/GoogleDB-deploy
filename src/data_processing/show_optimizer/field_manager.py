@@ -670,12 +670,12 @@ class FieldManager:
                         if isinstance(normalized_criteria[key], str) and normalized_criteria[key].isdigit():
                             normalized_criteria[key] = int(normalized_criteria[key])
                     except (ValueError, TypeError) as e:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Error converting {key} value to int: {e}", category='validation')
+                        # Debug statement removed to reduce verbosity
+                        pass
                     except (ValueError, TypeError):
                         # If conversion fails, keep the original value
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Failed to convert {key}={normalized_criteria[key]} to integer", category='field_manager')
+                        # Debug statement removed to reduce verbosity
+                        pass
             
             # Ensure array field values are lists of integers where appropriate
             if field_type == 'array' and isinstance(normalized_criteria[key], list) and key in numeric_id_fields:
@@ -685,11 +685,10 @@ class FieldManager:
                                                for item in normalized_criteria[key]]
                 except (ValueError, TypeError):
                     # If conversion fails, keep the original values
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Failed to convert some items in {key}={normalized_criteria[key]} to integers", category='field_manager')
+                    # Debug statement removed to reduce verbosity
+                    pass
         
-        if OptimizerConfig.DEBUG_MODE and normalized_criteria != criteria:
-            OptimizerConfig.debug(f"Normalized criteria from {criteria} to {normalized_criteria}", category='field_manager')
+        # Debug statement removed to reduce verbosity
             
         return normalized_criteria
     
