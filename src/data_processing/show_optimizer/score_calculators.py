@@ -275,16 +275,11 @@ class SuccessScoreCalculator(ScoreCalculator):
                 level_score = level_shows['success_score'].mean() * weight_factor
                 weighted_scores.append(level_score * level_count)
                 
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Match level {level}: {level_count} shows, weight={weight_factor:.2f}, score={level_score:.4f}", category='scoring')
-            
             # Calculate weighted average
             total_shows = sum(match_level_counts.values())
             if total_shows > 0:
                 avg_score = sum(weighted_scores) / total_shows
                 
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Weighted avg score: {avg_score:.4f} across {total_shows} shows in {len(match_level_counts)} match levels", category='scoring')
             else:
                 avg_score = valid_shows['success_score'].mean()
         else:

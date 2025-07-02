@@ -304,33 +304,17 @@ class CriteriaScorer:
         Returns:
             Recommendation type ('add', 'change', 'remove') or None if no recommendation
         """
-        # Add detailed debug logging to trace recommendation type determination
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(
-                f"Determining recommendation type: option_id={option_id}, impact={impact}, "
-                f"is_field_selected={is_field_selected}, is_option_selected={is_option_selected}",
-                category='recommendation_type',
-                force=True
-            )
             
         if option_id == 'remove':
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Option 'remove': returning {self.REC_TYPE_REMOVE}", category='recommendation_type')
             return self.REC_TYPE_REMOVE
             
         if impact > 0:
             if is_field_selected:
                 if is_option_selected:
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Positive impact, field selected, option selected: returning None", category='recommendation_type')
                     return None
                 else:
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Positive impact, field selected, option not selected: returning {self.REC_TYPE_CHANGE}", category='recommendation_type')
                     return self.REC_TYPE_CHANGE
             else:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Positive impact, field not selected: returning {self.REC_TYPE_ADD}", category='recommendation_type')
                 return self.REC_TYPE_ADD
         else:
             # Only recommend removal for selected options with negative impact
@@ -743,21 +727,15 @@ class CriteriaScorer:
                             if field in criteria:
                                 use_matching_shows = False
                             
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Testing 'add' option {option_name} with criteria: {option_criteria} (using existing matches: {use_matching_shows})", category='impact')
-                            
                             # Always use the integrated data for unselected fields to ensure consistent comparison
                             if integrated_data and 'shows' in integrated_data and not integrated_data['shows'].empty:
                                 # Use the full dataset from integrated_data for testing different criteria
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
-                                
-                                # Debug log the number of matches found for this option
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Found {len(option_shows)} matches for unselected field {field}/{option_name}", category='recommendation', force=True)
                             else:
                                 # Let the matcher use its own data source as fallback
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria)
                             
+                
                             # Skip options with no matching shows
                             if option_shows is None or option_shows.empty:
                                 continue
