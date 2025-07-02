@@ -234,6 +234,13 @@ class RecommendationEngine:
                     f"recommendations: {summary['recommendation_counts']}",
                     category='impact'
                 )
+        except Exception as e:
+            error_msg = f"Error calculating impact data: {str(e)}"
+            if self.config.DEBUG_MODE:
+                self.config.debug(error_msg, category='error')
+                import traceback
+                self.config.debug(f"Traceback: {traceback.format_exc()}", category='error')
+            return []
             
             # Convert to SuccessFactor objects
             success_factors = []
@@ -342,77 +349,102 @@ class RecommendationEngine:
                             self.config.debug(f"Error creating success factor: {str(e)}", category='error')
             
             return success_factors
-                
-                # Skip if we still don't have a valid recommendation type
-                if not recommendation_type:
+            
+    def _recommend_missing_criteria(self, criteria: CriteriaDict, 
+                                   success_factors: List[SuccessFactor],
+                                   matching_shows: pd.DataFrame) -> List[RecommendationItem]:
+        """Generate recommendations for high-impact criteria that are missing from the concept.
+        
+        This method processes success factors to create actionable recommendations of types:
+        - 'add': For unselected criteria with positive impact
+        - 'change': For selected fields but with different options that have positive impact
+        - 'remove': For selected criteria with negative impact
+        
+        Args:
+            criteria: Dictionary of criteria key-value pairs from the UI conforming to CriteriaDict
+            success_factors: List of SuccessFactor objects with impact scores and recommendation types
+            matching_shows: DataFrame of shows matching the current criteria
+            
+        Returns:
+            List of RecommendationItem dictionaries sorted by impact score
+        """
+        recommendations = []
+        
+        try:
+            # Process each success factor to create recommendations
+            missing_criteria_recs = []
+            
+            # Add recommendations from success factors
+            for factor in success_factors:
+                # Skip factors without a recommendation type
+                if not factor.recommendation_type:
                     continue
-                
-                # Get matching titles for this criteria
-                matching_titles = []
-                try:
-                    # Convert hashable value back to original form if needed
-                    match_value = list(criteria_value) if isinstance(criteria_value, tuple) else criteria_value
                     
-                    # Get shows matching just this single criteria
-                    single_criteria = {criteria_type: match_value}
-                    single_matches, single_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
-                    
-                    if not single_matches.empty and 'title' in single_matches.columns:
-                        matching_titles = single_matches['title'].tolist()[:100]  # Limit to 100 titles
-                except Exception as e:
-                    if self.config.DEBUG_MODE:
-                        self.config.debug(f"Error getting matching titles: {str(e)}", category='error')
+                # Create the recommendation
+                recommendation = {
+                    'recommendation_type': factor.recommendation_type,
+                    'field': factor.criteria_type,
+                    'current_value': criteria.get(factor.criteria_type),
+                    'suggested_value': factor.criteria_value,
+                    'suggested_name': factor.criteria_name,
+                    'impact': factor.impact_score,
+                    'confidence': factor.confidence,
+                    'sample_size': factor.sample_size,
+                    'matching_titles': factor.matching_titles[:5] if factor.matching_titles else []
+                }
                 
-                if OptimizerConfig.DEBUG_MODE:
+                missing_criteria_recs.append(recommendation)
+                
+            recommendations.extend(missing_criteria_recs)
+            
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(
+                    f"Generated {len(missing_criteria_recs)} recommendations from missing criteria",
+                    category='recommendation'
+                )
+                
+                # Log the first few recommendations to see what's being generated
+                for i, rec in enumerate(missing_criteria_recs[:3]):  # Log first 3 for brevity
                     OptimizerConfig.debug(
-                        f"Generated {len(missing_criteria_recs)} recommendations from missing criteria",
+                        f"Missing criteria rec {i}: {rec.get('field')}/{rec.get('suggested_name')}, type: {rec.get('recommendation_type')}, impact: {rec.get('impact', 0):.3f}",
                         category='recommendation'
                     )
-                    
-                    # Log the first few recommendations to see what's being generated
-                    for i, rec in enumerate(missing_criteria_recs[:3]):  # Log first 3 for brevity
-                        OptimizerConfig.debug(
-                            f"Missing criteria rec {i}: {rec.get('field')}/{rec.get('suggested_name')}, type: {rec.get('recommendation_type')}, impact: {rec.get('impact', 0):.3f}",
-                            category='recommendation'
+                
+        except Exception as e:
+            error_msg = f"Error in _recommend_missing_criteria: {str(e)}"
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(error_msg, category='error')
+                import traceback
+                OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
+        
+        # Process confidence info if available
+        if 'confidence_info' in locals() and confidence_info:
+            try:
+                # update_confidence_info is already imported at the top of the file
+                confidence_info = update_confidence_info(confidence_info, {})
+                match_level = confidence_info.get('match_level', 1)
+                
+                # Analyze limiting criteria if match level is not perfect
+                if match_level > 1:
+                    try:
+                        limiting_criteria_recs = self._identify_limiting_criteria(
+                            criteria, matching_shows, confidence_info
                         )
-                
-                recommendations.extend(missing_criteria_recs)
-                
-            except Exception as e:
-                error_msg = f"Error in _recommend_missing_criteria: {str(e)}"
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(error_msg, category='error')
-                    import traceback
-                    OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
-            
-            # Process confidence info if available
-            if confidence_info:
-                try:
-                    # update_confidence_info is already imported at the top of the file
-                    confidence_info = update_confidence_info(confidence_info, {})
-                    match_level = confidence_info.get('match_level', 1)
-                    
-                    # Analyze limiting criteria if match level is not perfect
-                    if match_level > 1:
-                        try:
-                            limiting_criteria_recs = self._identify_limiting_criteria(
-                                criteria, matching_shows, confidence_info
+                        recommendations.extend(limiting_criteria_recs)
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(
+                                f"Added {len(limiting_criteria_recs)} recommendations from limiting criteria analysis", 
+                                category='recommendation'
                             )
-                            recommendations.extend(limiting_criteria_recs)
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(
-                                    f"Added {len(limiting_criteria_recs)} recommendations from limiting criteria analysis", 
-                                    category='recommendation'
-                                )
-                        except Exception as e:
-                            error_msg = f"Error in _identify_limiting_criteria: {str(e)}"
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(error_msg, category='error')
-                                import traceback
-                                OptimizerConfig.debug(traceback.format_exc(), category='error')
-                except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Error processing confidence info: {str(e)}", category='error')
+                    except Exception as e:
+                        error_msg = f"Error in _identify_limiting_criteria: {str(e)}"
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(error_msg, category='error')
+                            import traceback
+                            OptimizerConfig.debug(traceback.format_exc(), category='error')
+            except Exception as e:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Error processing confidence info: {str(e)}", category='error')
             
             # Analyze successful patterns in the matched shows if we have data
             if not matching_shows.empty:
