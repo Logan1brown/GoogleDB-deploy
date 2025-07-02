@@ -513,6 +513,8 @@ class CriteriaScorer:
                     option_data.append(('remove', 'Remove ' + current_field))
                     recommendation_types.append(self.REC_TYPE_REMOVE)
                     
+
+                    
                     # 2. Then, create "Change" recommendations for each alternative option
                     for option in options:
                         # Skip the current value

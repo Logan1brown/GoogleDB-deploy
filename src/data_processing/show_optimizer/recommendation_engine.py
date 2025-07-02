@@ -376,36 +376,36 @@ class RecommendationEngine:
             if OptimizerConfig.DEBUG_MODE:
                 # Log criteria count to identify multiple criteria scenarios
                 criteria_count = len(criteria) if criteria else 0
-                OptimizerConfig.debug(f"Starting recommendation generation with {criteria_count} criteria", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Starting recommendation generation with {criteria_count} criteria", category='recommendation')
+                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors", category='recommendation')
                 
                 # Log the actual criteria being processed
                 if criteria:
                     for field, value in criteria.items():
-                        OptimizerConfig.debug(f"Criteria field: {field}, value: {value}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"Criteria field: {field}, value: {value}", category='recommendation')
             
             # Analyze missing high-impact criteria
             try:
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Generating recommendations from missing criteria", category='recommendation', force=True)
+                    OptimizerConfig.debug("Generating recommendations from missing criteria", category='recommendation')
                     # Log success factor details to understand what we're working with
                     for i, factor in enumerate(success_factors[:5]):  # Log first 5 for brevity
                         OptimizerConfig.debug(f"Success factor {i}: {factor.criteria_type}/{factor.criteria_name}, impact: {factor.impact_score:.3f}, rec_type: {factor.recommendation_type}", 
-                                            category='recommendation', force=True)
+                                            category='recommendation')
                 
                 missing_criteria_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
                 
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(
                         f"Generated {len(missing_criteria_recs)} recommendations from missing criteria",
-                        category='recommendation', force=True
+                        category='recommendation'
                     )
                     
                     # Log the first few recommendations to see what's being generated
                     for i, rec in enumerate(missing_criteria_recs[:3]):  # Log first 3 for brevity
                         OptimizerConfig.debug(
                             f"Missing criteria rec {i}: {rec.get('field')}/{rec.get('suggested_name')}, type: {rec.get('recommendation_type')}, impact: {rec.get('impact', 0):.3f}",
-                            category='recommendation', force=True
+                            category='recommendation'
                         )
                 
                 recommendations.extend(missing_criteria_recs)
@@ -517,13 +517,13 @@ class RecommendationEngine:
             if OptimizerConfig.DEBUG_MODE:
                 # Log final recommendation counts with force=True to ensure visibility
                 OptimizerConfig.debug(f"FINAL COUNTS: {len(general_recommendations)} general recommendations, {len(network_specific_recommendations)} network recommendations", 
-                                     category='recommendation', force=True)
+                                     category='recommendation')
                 
                 # Log the actual general recommendations to see what's being returned
-                OptimizerConfig.debug("General recommendations details:", category='recommendation', force=True)
+                OptimizerConfig.debug("General recommendations details:", category='recommendation')
                 for i, rec in enumerate(general_recommendations):
                     OptimizerConfig.debug(f"  General rec {i}: {rec.get('field')}/{rec.get('suggested_name')}, type: {rec.get('recommendation_type')}, impact: {rec.get('impact', 0):.3f}",
-                                        category='recommendation', force=True)
+                                        category='recommendation')
                 
                 self._debug_recommendations(
                     general_recommendations, 
@@ -579,7 +579,7 @@ class RecommendationEngine:
                 # Log entry point with criteria count for multiple criteria scenarios
                 criteria_count = len(criteria) if criteria else 0
                 OptimizerConfig.debug(f"_recommend_missing_criteria called with {criteria_count} criteria and {len(success_factors)} success factors", 
-                                     category='recommendation', force=True)
+                                     category='recommendation')
                 # Get all available field types from the criteria scorer's field manager
                 # Use the FIELD_CONFIGS dictionary to get all field names
                 all_fields = []
@@ -630,9 +630,9 @@ class RecommendationEngine:
                 # Special debug for genre recommendations
                 if criteria_type == 'genre' and factor.criteria_name == 'Animation':
                     if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Animation genre selection status: field_selected={is_field_selected}, option_selected={is_option_selected}", category='recommendation', force=True)
+                        OptimizerConfig.debug(f"Animation genre selection status: field_selected={is_field_selected}, option_selected={is_option_selected}", category='recommendation')
                         if is_field_selected:
-                            OptimizerConfig.debug(f"Current genre value: {criteria[criteria_type]}", category='recommendation', force=True)
+                            OptimizerConfig.debug(f"Current genre value: {criteria[criteria_type]}", category='recommendation')
                 
                 # Get the recommendation type and impact score
                 impact_score = factor.impact_score
@@ -652,12 +652,12 @@ class RecommendationEngine:
                 # Special debug for important criteria types
                 if OptimizerConfig.DEBUG_MODE and factor.criteria_type == 'genre':
                     OptimizerConfig.debug(f"Using recommendation type {rec_type} for {factor.criteria_type}/{factor.criteria_name}", 
-                                        category='recommendation', force=True)
+                                        category='recommendation')
                 
                 # Special debug for important genres
                 if criteria_type == 'genre' and criteria_name in ['Animation', 'Action & Adventure', 'Comedy', 'Family']:
                     OptimizerConfig.debug(f"IMPORTANT GENRE: Processing {criteria_type}/{criteria_name} with type {rec_type} and impact {impact_score}", 
-                                        category='recommendation', force=True)
+                                        category='recommendation')
                 
                 # We're now using the original recommendation type from the factor object
                 # No need to update it here
@@ -700,16 +700,16 @@ class RecommendationEngine:
             potential_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
             
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Collected {len(potential_recommendations)} potential recommendations sorted by impact", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Collected {len(potential_recommendations)} potential recommendations sorted by impact", category='recommendation')
                 
                 # Log the potential recommendations to see what we have before filtering
                 if potential_recommendations:
-                    OptimizerConfig.debug("Top potential recommendations:", category='recommendation', force=True)
+                    OptimizerConfig.debug("Top potential recommendations:", category='recommendation')
                     for i, rec in enumerate(potential_recommendations[:3]):  # Log first 3 for brevity
                         OptimizerConfig.debug(f"  Potential rec {i}: {rec.get('field')}/{rec.get('suggested_name')}, type: {rec.get('recommendation_type')}, impact: {rec.get('impact', 0):.3f}",
-                                            category='recommendation', force=True)
+                                            category='recommendation')
                 else:
-                    OptimizerConfig.debug("WARNING: No potential recommendations collected from success factors", category='recommendation', force=True)
+                    OptimizerConfig.debug("WARNING: No potential recommendations collected from success factors", category='recommendation')
                 
             # Now filter recommendations based on our rules
             recommendations = []
@@ -723,7 +723,7 @@ class RecommendationEngine:
                                          category='recommendation')
                                          
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Final recommendation count in _recommend_missing_criteria: {len(recommendations)}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Final recommendation count in _recommend_missing_criteria: {len(recommendations)}", category='recommendation')
                 
                 # Check if we have any recommendations of each type
                 add_count = sum(1 for r in recommendations if r.get('recommendation_type') == self.REC_TYPE_ADD)
@@ -731,7 +731,7 @@ class RecommendationEngine:
                 remove_count = sum(1 for r in recommendations if r.get('recommendation_type') == self.REC_TYPE_REMOVE)
                 
                 OptimizerConfig.debug(f"Recommendation types: {add_count} add, {change_count} change, {remove_count} remove", 
-                                     category='recommendation', force=True)
+                                     category='recommendation')
             
             # Sort recommendations by absolute impact (descending)
             recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
@@ -767,9 +767,9 @@ class RecommendationEngine:
             # Log the error with more context for debugging
             error_message = f"Error generating recommendations for missing criteria: {str(e)}"
             if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(error_message, category='error', force=True)
+                OptimizerConfig.debug(error_message, category='error')
                 import traceback
-                OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error', force=True)
+                OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
             else:
                 st.error(error_message)
             
