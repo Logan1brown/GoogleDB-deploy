@@ -295,16 +295,33 @@ class ConceptAnalyzer:
     recommendations.
     """
     
-    def __init__(self, shows_analyzer, success_analyzer, field_manager, criteria_scorer):
+    def __init__(self, shows_analyzer=None, success_analyzer=None, field_manager=None, criteria_scorer=None, config=None):
         """Initialize the ConceptAnalyzer.
         
         Args:
+            shows_analyzer: ShowsAnalyzer instance for show data analysis
+            success_analyzer: SuccessAnalyzer instance for success metrics
+            field_manager: FieldManager instance for field mapping
+            criteria_scorer: CriteriaScorer instance for scoring components
             config: Optional configuration object
         """
+        # Core analyzers
+        self.shows_analyzer = shows_analyzer
+        self.success_analyzer = success_analyzer
+        self.field_manager = field_manager
+        self.criteria_scorer = criteria_scorer
         self.config = config or OptimizerConfig()
-        self.recommendation_engine = RecommendationEngine(config=self.config)
-        self.criteria_scorer = CriteriaScorer(config=self.config)
-        self.matcher = ShowMatcher(config=self.config)
+        
+        # Initialize the recommendation engine if not provided through criteria_scorer
+        if criteria_scorer and hasattr(criteria_scorer, 'recommendation_engine'):
+            self.recommendation_engine = criteria_scorer.recommendation_engine
+        else:
+            self.recommendation_engine = RecommendationEngine(
+                shows_analyzer=shows_analyzer,
+                success_analyzer=success_analyzer,
+                field_manager=field_manager,
+                criteria_scorer=criteria_scorer
+            )
         
         # Initialize state tracking for recommendations
         self._recommendation_state = {
@@ -1057,34 +1074,30 @@ class ConceptAnalyzer:
             
             # Debug the structure of general_recommendations with forced logging
             self.config.debug(f"general_recommendations type: {type(general_recommendations).__name__}", 
-                             category='recommendation_generation', force=True)
+                              category='recommendation_generation', force=True)
             
             if isinstance(general_recommendations, dict):
                 self.config.debug(f"general_recommendations keys: {list(general_recommendations.keys())}", 
-                                 category='recommendation_generation', force=True)
+                                  category='recommendation_generation', force=True)
                 general_count = len(general_recommendations.get("general", []))
                 self.config.debug(f"Final general recommendations count: {general_count}", 
-                                 category='recommendation_generation', force=True)
+                                  category='recommendation_generation', force=True)
                 
                 # If we have no general recommendations but have success factors, log a warning
                 if general_count == 0 and len(success_factors) > 0:
                     self.config.debug("WARNING: No general recommendations generated despite having success factors", 
-                                     category='recommendation_generation', force=True)
+                                      category='recommendation_generation', force=True)
                     # Log the first few success factors to help diagnose
                     for i, factor in enumerate(success_factors[:3]):
                         self.config.debug(f"Factor {i}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}, rec_type: {factor.recommendation_type}", 
-                                         category='recommendation_generation', force=True)
+                                          category='recommendation_generation', force=True)
             else:
                 self.config.debug(f"Error: general_recommendations is not a dictionary", category='error', force=True)
             
             # Debug the structure of network_recommendations
             network_count = len(network_recommendations)
             self.config.debug(f"Final network recommendations count: {network_count}", 
-                             category='recommendation_generation', force=True)
-                             
-            # Store general recommendations in state
-            if isinstance(general_recommendations, dict) and "general" in general_recommendations:
-                self._recommendation_state['general_recommendations'] = general_recommendations["general"]
+                              category='recommendation_generation', force=True)
             
             # Store the recommendations in our state dictionary
             if isinstance(general_recommendations, dict) and "general" in general_recommendations:
