@@ -308,6 +308,13 @@ class NetworkAnalyzer:
                 self.config.debug(f"Processing ID columns for network {network_id}: {id_columns}", category='network')
                 self.config.debug(f"Network shows count: {len(network_shows)}", category='network')
                 self.config.debug(f"Network shows columns: {network_shows.columns.tolist()}", category='network')
+                
+                # Check if we have any criteria fields that match our ID columns
+                if hasattr(network_shows, 'criteria') and isinstance(network_shows.criteria, dict):
+                    criteria_keys = list(network_shows.criteria.keys())
+                    matching_keys = [col for col in id_columns if col in criteria_keys]
+                    self.config.debug(f"Criteria keys: {criteria_keys}", category='network')
+                    self.config.debug(f"Matching keys between criteria and ID columns: {matching_keys}", category='network')
             
             valid_criteria_columns = id_columns
                     

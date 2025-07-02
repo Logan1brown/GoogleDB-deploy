@@ -1141,7 +1141,7 @@ class RecommendationEngine:
             field_name = key.split(':', 1)[0] if ':' in key else key
             
             # Use exact field name with no mapping or fallback logic
-            # Only process keys that correspond to exact fields in our criteria
+            # Only process keys that correspond to exact fields in our mapped_criteria
             # This ensures consistency between network analyzer and recommendation engine
             if field_name in valid_fields:
                 # Get the original field name (without _id) for display purposes
