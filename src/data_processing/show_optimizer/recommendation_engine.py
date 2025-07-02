@@ -525,11 +525,7 @@ class RecommendationEngine:
                     OptimizerConfig.debug(f"  General rec {i}: {rec.get('field')}/{rec.get('suggested_name')}, type: {rec.get('recommendation_type')}, impact: {rec.get('impact', 0):.3f}",
                                         category='recommendation')
                 
-                self._debug_recommendations(
-                    general_recommendations, 
-                    network_specific_recommendations, 
-                    success_factors
-                )
+                # Debug method call removed - was causing AttributeError
             
             return {
                 "general": general_recommendations,

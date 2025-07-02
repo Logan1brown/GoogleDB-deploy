@@ -975,9 +975,9 @@ class ConceptAnalyzer:
         # Check if criteria have changed since last run
         current_criteria_hash = self._get_criteria_hash(criteria)
         if current_criteria_hash != self._last_criteria_hash:
-            OptimizerConfig.debug(f"Criteria changed (hash: {current_criteria_hash}), resetting recommendation state", 
-                                 category='recommendation_generation', force=True)
-            self.reset_recommendation_state()
+            # State reset is already handled in analyze_concept, just update the hash here
+            OptimizerConfig.debug(f"Using criteria hash: {current_criteria_hash}", 
+                                  category='recommendation_generation')
             self._last_criteria_hash = current_criteria_hash
         
         # Always reset recommendation collections at the start of generation
