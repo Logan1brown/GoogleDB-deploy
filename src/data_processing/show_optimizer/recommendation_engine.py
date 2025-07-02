@@ -1075,27 +1075,22 @@ class RecommendationEngine:
         # Calculate overall success rates for comparison with network-specific rates
         overall_rates = {}
         
-        # Debug information is handled through OptimizerConfig.debug if needed
+        # Debug information about network rates
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Network rates keys: {list(network_rates.keys())}", category='recommendation')
+            # Log the first few network rate keys in detail to help diagnose
+            for i, key in enumerate(list(network_rates.keys())[:3]):
+                OptimizerConfig.debug(f"Network rate key {i}: '{key}', value type: {type(network_rates[key])}", category='recommendation')
         
         # Process each key in network rates to calculate corresponding overall rates
         for key, network_rate_data in network_rates.items():
             # Extract field name from key using standard format
-            raw_field_name = key.split(':', 1)[0] if ':' in key else key
-            
-            # Use the field manager to get the standardized base name
-            base_name = self.field_manager.standardize_field_name(raw_field_name)
-            
-            # Find the criteria field that matches this base name
-            matching_fields = [field for field in criteria.keys() if 
-                             self.field_manager.standardize_field_name(field) == base_name]
-            
-            # Use the exact field name from criteria if found
-            criteria_field = matching_fields[0] if matching_fields else None
+            criteria_field = key.split(':', 1)[0] if ':' in key else key
             
             # Skip if this field is not in our criteria
             if criteria_field not in criteria:
                 if self.config.DEBUG_MODE:
-                    self.config.debug(f"Skipping field {raw_field_name} (mapped to {criteria_field}) - not in criteria", category='recommendation')
+                    self.config.debug(f"Skipping field {criteria_field} - not in criteria", category='recommendation')
                 continue
             
             # Calculate the overall success rate for this criteria
@@ -1131,21 +1126,10 @@ class RecommendationEngine:
         
         for key, network_rate_data in network_rates.items():
             # Extract field name from the key using standard format
-            raw_field_name = key.split(':', 1)[0] if ':' in key else key
-            
-            # Use the field manager to get the standardized base name
-            base_name = self.field_manager.standardize_field_name(raw_field_name)
-            
-            # Find the criteria field that matches this base name
-            matching_fields = [field for field in valid_fields if 
-                             self.field_manager.standardize_field_name(field) == base_name]
-            
-            # Use the exact field name from criteria if found
-            criteria_field = matching_fields[0] if matching_fields else None
+            criteria_field = key.split(':', 1)[0] if ':' in key else key
             
             # Only process keys that correspond to fields in our criteria
             if criteria_field in valid_fields:
-                
                 valid_network_rates[key] = {
                     'field_name': criteria_field,
                     'network_rate_data': network_rate_data,

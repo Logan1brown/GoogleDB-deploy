@@ -261,8 +261,19 @@ class NetworkAnalyzer:
                 return {}
                 
             # Filter to this network
-            network_shows = matching_shows[matching_shows['network_id'] == network_id] if 'network_id' in matching_shows.columns else pd.DataFrame()
+            if 'network_id' not in matching_shows.columns:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"No network_id column in matching shows", category='network')
+                return {}
+                
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Unique network_id values in matching_shows: {matching_shows['network_id'].unique()}", category='network')
+                OptimizerConfig.debug(f"Looking for network_id: {network_id}", category='network')
+                
+            network_shows = matching_shows[matching_shows['network_id'] == network_id]
             if network_shows.empty:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"No shows found for network_id: {network_id}", category='network')
                 return {}
                 
             # Check if success_score column exists
@@ -291,6 +302,8 @@ class NetworkAnalyzer:
             # Debug log the columns we're processing
             if self.config.DEBUG_MODE:
                 self.config.debug(f"Processing ID columns for network {network_id}: {id_columns}", category='network')
+                self.config.debug(f"Network shows count: {len(network_shows)}", category='network')
+                self.config.debug(f"Network shows columns: {network_shows.columns.tolist()}", category='network')
             
             valid_criteria_columns = id_columns
                     
