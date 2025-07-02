@@ -241,114 +241,112 @@ class RecommendationEngine:
                 import traceback
                 self.config.debug(f"Traceback: {traceback.format_exc()}", category='error')
             return []
-            
-            # Convert to SuccessFactor objects
-            success_factors = []
-            
-            # Process each criteria type in the impact data
-            for criteria_type, values in impact_data.items():
-                # Skip empty values
-                if not values:
-                    continue
-                    
-                # Skip if no values to process
-                if not values:
-                    continue
-                    
-                processed_count = 0
+        
+        # Convert to SuccessFactor objects
+        success_factors = []
+        
+        # Process each criteria type in the impact data
+        for criteria_type, values in impact_data.items():
+            # Skip empty values
+            if not values:
+                continue
                 
-                # Process each value in the impact data
-                for value_id, impact_info in values.items():
-                    # Limit the number of factors per criteria type
-                    if processed_count >= limit:
-                        break
-                    
-                    # Extract impact score and sample size with validation
-                    if not isinstance(impact_info, dict):
-                        raise ValueError(f"Expected dict for impact_info, got {type(impact_info).__name__} for {criteria_type}.{value_id}")
-                        
-                    impact = impact_info.get('impact', self.config.DEFAULT_VALUES['impact_score'])
-                    sample_size = impact_info.get('sample_size', self.config.DEFAULT_VALUES['fallback_sample_size'])
-                    
-                    # Make criteria value hashable
-                    criteria_value = self._make_hashable(value_id)
-                    
-                    # Get the proper display name
-                    if value_id == 'remove':
-                        name = f"Remove {criteria_type}"
-                    else:
-                        name = self._get_criteria_name(criteria_type, value_id)
-                    
-                    # Determine confidence level
-                    confidence = self.config.get_confidence_level(sample_size)
-                    
-                    # Get recommendation type from impact data
-                    recommendation_type = impact_info.get('recommendation_type')
-                    
-                    # If no recommendation_type is specified, use criteria_scorer to determine it properly
-                    if not recommendation_type:
-                        # Check if the field is selected in the criteria
-                        is_field_selected = criteria_type in criteria
-                        is_option_selected = False
-                        
-                        # Check if this specific option is selected
-                        if is_field_selected:
-                            field_value = criteria[criteria_type]
-                            if isinstance(field_value, list):
-                                is_option_selected = value_id in field_value
-                            else:
-                                is_option_selected = value_id == field_value
-                        
-                        # Determine recommendation type based on selection status and impact
-                        if not is_field_selected and impact > 0:
-                            recommendation_type = self.REC_TYPE_ADD
-                        elif is_field_selected and is_option_selected and impact < 0:
-                            recommendation_type = self.REC_TYPE_REMOVE
-                        elif is_field_selected and not is_option_selected and impact > 0:
-                            recommendation_type = self.REC_TYPE_CHANGE
-                        else:
-                            # Skip this factor if no valid recommendation type
-                            continue
-                    
-                    # Skip if we still don't have a valid recommendation type
-                    if not recommendation_type:
-                        continue
-                    
-                    # Get matching titles for this criteria
-                    matching_titles = []
-                    try:
-                        # Convert hashable value back to original form if needed
-                        match_value = list(criteria_value) if isinstance(criteria_value, tuple) else criteria_value
-                        
-                        # Get shows matching just this single criteria
-                        single_criteria = {criteria_type: match_value}
-                        single_matches, single_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
-                        
-                        if not single_matches.empty and 'title' in single_matches.columns:
-                            matching_titles = single_matches['title'].tolist()[:100]  # Limit to 100 titles
-                    except Exception as e:
-                        if self.config.DEBUG_MODE:
-                            self.config.debug(f"Error getting matching titles: {str(e)}", category='error')
-                    
-                    # Create and add the success factor
-                    try:
-                        factor = SuccessFactor(
-                            criteria_type=criteria_type,
-                            criteria_value=criteria_value,
-                            criteria_name=name,
-                            impact_score=impact,
-                            confidence=confidence,
-                            sample_size=sample_size,
-                            matching_titles=matching_titles,
-                            recommendation_type=recommendation_type
-                        )
-                        success_factors.append(factor)
-                        processed_count += 1
-                    except Exception as e:
-                        if self.config.DEBUG_MODE:
-                            self.config.debug(f"Error creating success factor: {str(e)}", category='error')
+            # Skip if no values to process (redundant check removed)
             
-            return success_factors
+            processed_count = 0
+            
+            # Process each value in the impact data
+            for value_id, impact_info in values.items():
+                # Limit the number of factors per criteria type
+                if processed_count >= limit:
+                    break
+                
+                # Extract impact score and sample size with validation
+                if not isinstance(impact_info, dict):
+                    raise ValueError(f"Expected dict for impact_info, got {type(impact_info).__name__} for {criteria_type}.{value_id}")
+                    
+                impact = impact_info.get('impact', self.config.DEFAULT_VALUES['impact_score'])
+                sample_size = impact_info.get('sample_size', self.config.DEFAULT_VALUES['fallback_sample_size'])
+                
+                # Make criteria value hashable
+                criteria_value = self._make_hashable(value_id)
+                
+                # Get the proper display name
+                if value_id == 'remove':
+                    name = f"Remove {criteria_type}"
+                else:
+                    name = self._get_criteria_name(criteria_type, value_id)
+                
+                # Determine confidence level
+                confidence = self.config.get_confidence_level(sample_size)
+                
+                # Get recommendation type from impact data
+                recommendation_type = impact_info.get('recommendation_type')
+                
+                # If no recommendation_type is specified, use criteria_scorer to determine it properly
+                if not recommendation_type:
+                    # Check if the field is selected in the criteria
+                    is_field_selected = criteria_type in criteria
+                    is_option_selected = False
+                    
+                    # Check if this specific option is selected
+                    if is_field_selected:
+                        field_value = criteria[criteria_type]
+                        if isinstance(field_value, list):
+                            is_option_selected = value_id in field_value
+                        else:
+                            is_option_selected = value_id == field_value
+                        
+                    # Determine recommendation type based on selection status and impact
+                    if not is_field_selected and impact > 0:
+                        recommendation_type = self.REC_TYPE_ADD
+                    elif is_field_selected and is_option_selected and impact < 0:
+                        recommendation_type = self.REC_TYPE_REMOVE
+                    elif is_field_selected and not is_option_selected and impact > 0:
+                        recommendation_type = self.REC_TYPE_CHANGE
+                    else:
+                        # Skip this factor if no valid recommendation type
+                        continue
+                
+                # Skip if we still don't have a valid recommendation type
+                if not recommendation_type:
+                    continue
+                
+                # Get matching titles for this criteria
+                matching_titles = []
+                try:
+                    # Convert hashable value back to original form if needed
+                    match_value = list(criteria_value) if isinstance(criteria_value, tuple) else criteria_value
+                    
+                    # Get shows matching just this single criteria
+                    single_criteria = {criteria_type: match_value}
+                    single_matches, single_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                    
+                    if not single_matches.empty and 'title' in single_matches.columns:
+                        matching_titles = single_matches['title'].tolist()[:100]  # Limit to 100 titles
+                except Exception as e:
+                    if self.config.DEBUG_MODE:
+                        self.config.debug(f"Error getting matching titles: {str(e)}", category='error')
+                
+                # Create and add the success factor
+                try:
+                    factor = SuccessFactor(
+                        criteria_type=criteria_type,
+                        criteria_value=criteria_value,
+                        criteria_name=name,
+                        impact_score=impact,
+                        confidence=confidence,
+                        sample_size=sample_size,
+                        matching_titles=matching_titles,
+                        recommendation_type=recommendation_type
+                    )
+                    success_factors.append(factor)
+                    processed_count += 1
+                except Exception as e:
+                    if self.config.DEBUG_MODE:
+                        self.config.debug(f"Error creating success factor: {str(e)}", category='error')
+        
+        return success_factors
             
     def _recommend_missing_criteria(self, criteria: CriteriaDict, 
                                    success_factors: List[SuccessFactor],
