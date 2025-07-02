@@ -50,33 +50,30 @@ class RecommendationEngine:
     
 
     
+    def _parse_key(self, key):
+        """Extract field name and value from a formatted key.
+        
+        Args:
+            key: A key in the format 'field_name:value'
+            
+        Returns:
+            Tuple of (field_name, field_value)
+        """
+        field_name = key.split(':', 1)[0] if ':' in key else key
+        field_value = key.split(':', 1)[1] if ':' in key else None
+        return field_name, field_value
+        
     def _format_key(self, field_name, value_name):
-        """Standardize key formatting for consistent matching between network and overall rates.
+        """Standardize key formatting for consistent matching.
         
         Args:
             field_name: Field name part of the key
             value_name: Value name part of the key
             
         Returns:
-            Tuple of (standard_key, original_key, clean_value_name)
+            Formatted key string
         """
-        # Convert value_name to string
-        value_name = str(value_name)
-        
-        # Clean up value_name if it contains "Unknown" with a number in parentheses
-        clean_value_name = value_name
-        if "Unknown" in value_name and "(" in value_name and ")" in value_name:
-            # Extract the value inside parentheses
-            start_idx = value_name.find("(") + 1
-            end_idx = value_name.find(")")
-            if start_idx > 0 and end_idx > start_idx:
-                clean_value_name = value_name[start_idx:end_idx].strip()
-        
-        # Create keys for this field-value combination
-        standard_key = f"{field_name}:{clean_value_name}"
-        original_key = f"{field_name}:{value_name}"
-        
-        return standard_key, original_key, clean_value_name
+        return f"{field_name}:{str(value_name)}"
         
     def _make_hashable(self, value):
         """Convert a value to a hashable type for dictionary keys.
@@ -218,28 +215,15 @@ class RecommendationEngine:
             
             # Check for errors
             if impact_result.error:
-                if self.config.DEBUG_MODE:
-                    self.config.debug(f"Error in impact analysis: {impact_result.error}", category='error')
+
                 return []
                 
             # Get the impact data from the result
             impact_data = impact_result.criteria_impacts
             
-            # Log summary information for debugging
-            if self.config.DEBUG_MODE:
-                summary = impact_result.summary
-                self.config.debug(
-                    f"Impact analysis complete: {summary['field_count']} fields, "
-                    f"{summary['option_count']} options, "
-                    f"recommendations: {summary['recommendation_counts']}",
-                    category='impact'
-                )
+
         except Exception as e:
             error_msg = f"Error calculating impact data: {str(e)}"
-            if self.config.DEBUG_MODE:
-                self.config.debug(error_msg, category='error')
-                import traceback
-                self.config.debug(f"Traceback: {traceback.format_exc()}", category='error')
             return []
         
         # Convert to SuccessFactor objects
@@ -325,8 +309,7 @@ class RecommendationEngine:
                     if not single_matches.empty and 'title' in single_matches.columns:
                         matching_titles = single_matches['title'].tolist()[:100]  # Limit to 100 titles
                 except Exception as e:
-                    if self.config.DEBUG_MODE:
-                        self.config.debug(f"Error getting matching titles: {str(e)}", category='error')
+                    pass
                 
                 # Create and add the success factor
                 try:
@@ -343,8 +326,7 @@ class RecommendationEngine:
                     success_factors.append(factor)
                     processed_count += 1
                 except Exception as e:
-                    if self.config.DEBUG_MODE:
-                        self.config.debug(f"Error creating success factor: {str(e)}", category='error')
+                    pass
         
         return success_factors
             
@@ -394,26 +376,9 @@ class RecommendationEngine:
                 missing_criteria_recs.append(recommendation)
                 
             recommendations.extend(missing_criteria_recs)
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(
-                    f"Generated {len(missing_criteria_recs)} recommendations from missing criteria",
-                    category='recommendation'
-                )
-                
-                # Log the first few recommendations to see what's being generated
-                for i, rec in enumerate(missing_criteria_recs[:3]):  # Log first 3 for brevity
-                    OptimizerConfig.debug(
-                        f"Missing criteria rec {i}: {rec.get('field')}/{rec.get('suggested_name')}, type: {rec.get('recommendation_type')}, impact: {rec.get('impact', 0):.3f}",
-                        category='recommendation'
-                    )
-                
+                          
         except Exception as e:
             error_msg = f"Error in _recommend_missing_criteria: {str(e)}"
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(error_msg, category='error')
-                import traceback
-                OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
         
         # Process confidence info if available
         if 'confidence_info' in locals() and confidence_info:
@@ -429,64 +394,36 @@ class RecommendationEngine:
                             criteria, matching_shows, confidence_info
                         )
                         recommendations.extend(limiting_criteria_recs)
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(
-                                f"Added {len(limiting_criteria_recs)} recommendations from limiting criteria analysis", 
-                                category='recommendation'
-                            )
                     except Exception as e:
-                        error_msg = f"Error in _identify_limiting_criteria: {str(e)}"
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(error_msg, category='error')
-                            import traceback
-                            OptimizerConfig.debug(traceback.format_exc(), category='error')
+                        pass
             except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Error processing confidence info: {str(e)}", category='error')
+                pass
             
             # Analyze successful patterns in the matched shows if we have data
             if not matching_shows.empty:
                 try:
                     pattern_recs = self._analyze_successful_patterns(criteria, matching_shows)
                     recommendations.extend(pattern_recs)
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(
-                            f"Added {len(pattern_recs)} recommendations from pattern analysis", 
-                            category='recommendation'
-                        )
+
                 except Exception as e:
                     error_msg = f"Error in _analyze_successful_patterns: {str(e)}"
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(error_msg, category='error')
-                        import traceback
-                        OptimizerConfig.debug(traceback.format_exc(), category='error')
             
             # Generate network-specific recommendations if networks are provided
             if top_networks and len(top_networks) > 0:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Generating network-specific recommendations", category='recommendation')
+
                 
                 # Limit to top 3 networks for performance
                 for network in top_networks[:3]:
                     try:
                         network_recs = self.generate_network_specific_recommendations(
                             criteria, network, matching_shows, integrated_data, confidence_info
-                        )
-                        
-                        if OptimizerConfig.DEBUG_MODE:
-                            network_name = network.network_name
-                            OptimizerConfig.debug(
-                                f"Added {len(network_recs)} recommendations for network {network_name}", 
-                                category='recommendation'
-                            )
+                        )                      
                             
                         # Directly add to network_specific_recommendations
                         # This ensures they're properly categorized as network-specific
                         network_specific_recommendations.extend(network_recs)
                     except Exception as e:
                         error_msg = f"Error generating network recommendations: {str(e)}"
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(error_msg, category='error')
             
     def generate_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
                                 integrated_data: IntegratedData = None, 
@@ -538,28 +475,14 @@ class RecommendationEngine:
                 
                 # Check for errors
                 if impact_result.error:
-                    if self.config.DEBUG_MODE:
-                        self.config.debug(f"Error in impact analysis: {impact_result.error}", category='error')
                     return {"general": [], "network_specific": []}
                     
                 # Get the impact data from the result
                 impact_data = impact_result.criteria_impacts
                 
-                # Log summary information for debugging
-                if self.config.DEBUG_MODE:
-                    summary = impact_result.summary
-                    self.config.debug(
-                        f"Impact analysis complete: {summary['field_count']} fields, "
-                        f"{summary['option_count']} options, "
-                        f"recommendations: {summary['recommendation_counts']}",
-                        category='impact'
-                    )
+
             except Exception as e:
                 error_msg = f"Error calculating impact data: {str(e)}"
-                if self.config.DEBUG_MODE:
-                    self.config.debug(error_msg, category='error')
-                    import traceback
-                    self.config.debug(f"Traceback: {traceback.format_exc()}", category='error')
                 return {"general": [], "network_specific": []}
                 
             # Convert to SuccessFactor objects
@@ -576,11 +499,6 @@ class RecommendationEngine:
             for rec in recommendations:
                 # Skip recommendations without impact score
                 if 'impact' not in rec:
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(
-                            f"Skipping recommendation without impact score: {rec.get('field', 'unknown')}",
-                            category='warning'
-                        )
                     continue
                 
                 # All recommendations in this list are general recommendations
@@ -595,17 +513,7 @@ class RecommendationEngine:
             if len(general_recommendations) > max_suggestions:
                 general_recommendations = general_recommendations[:max_suggestions]
             
-            # Debug output
-            if OptimizerConfig.DEBUG_MODE:
-                # Log final recommendation counts with force=True to ensure visibility
-                OptimizerConfig.debug(f"FINAL COUNTS: {len(general_recommendations)} general recommendations, {len(network_specific_recommendations)} network recommendations", 
-                                     category='recommendation')
-                
-                # Log the actual general recommendations to see what's being returned
-                OptimizerConfig.debug("General recommendations details:", category='recommendation')
-                for i, rec in enumerate(general_recommendations):
-                    OptimizerConfig.debug(f"  General rec {i}: {rec.get('field')}/{rec.get('suggested_name')}, type: {rec.get('recommendation_type')}, impact: {rec.get('impact', 0):.3f}",
-                                        category='recommendation')
+
                 
                 # Debug method call removed - was causing AttributeError
             
@@ -616,10 +524,6 @@ class RecommendationEngine:
             
         except Exception as e:
             error_msg = f"Error in generate_recommendations: {str(e)}"
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(error_msg, category='error')
-                import traceback
-                OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
             
             # Always return a dictionary with the expected structure, even on error
             return {
@@ -652,31 +556,7 @@ class RecommendationEngine:
         # - 'change': For suggesting different values for already selected fields
         # - 'remove': For suggesting removal of selected fields with negative impact
         try:
-            # Debug log to check which fields are selected and not selected
-            if OptimizerConfig.DEBUG_MODE:
-                # Log entry point with criteria count for multiple criteria scenarios
-                criteria_count = len(criteria) if criteria else 0
-                OptimizerConfig.debug(f"_recommend_missing_criteria called with {criteria_count} criteria and {len(success_factors)} success factors", 
-                                     category='recommendation')
-                # Get all available field types from the criteria scorer's field manager
-                # Use the FIELD_CONFIGS dictionary to get all field names
-                all_fields = []
-                try:
-                    # Get fields from the FIELD_CONFIGS dictionary
-                    all_fields = list(self.criteria_scorer.field_manager.FIELD_CONFIGS.keys())
-                except Exception as e:
-                    OptimizerConfig.debug(f"Error getting field names: {str(e)}", category='error')
-                
-                selected_fields = list(criteria.keys())
-                unselected_fields = [field for field in all_fields if field not in selected_fields]
-                
-                OptimizerConfig.debug(f"Selected fields: {selected_fields}", category='recommendation')
-                OptimizerConfig.debug(f"Unselected fields: {unselected_fields}", category='recommendation')
-                
-                # Debug log the number of success factors
-                OptimizerConfig.debug(f"Processing {len(success_factors)} success factors", 
-                        category='recommendation'
-                    )
+
             
             # Initialize variables for collecting all potential recommendations
             potential_recommendations = []
@@ -687,8 +567,6 @@ class RecommendationEngine:
             for factor in success_factors:
                 # Skip factors with impact below threshold
                 if abs(factor.impact_score) < min_impact:
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Skipping factor {factor.criteria_type}/{factor.criteria_name} due to low impact: {factor.impact_score} (threshold: {min_impact})", category='recommendation')
                     continue
                 
                 # Get information about the selection status for filtering
@@ -705,12 +583,7 @@ class RecommendationEngine:
                     else:
                         is_option_selected = criteria[criteria_type] == option_id
                         
-                # Special debug for genre recommendations
-                if criteria_type == 'genre' and factor.criteria_name == 'Animation':
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Animation genre selection status: field_selected={is_field_selected}, option_selected={is_option_selected}", category='recommendation')
-                        if is_field_selected:
-                            OptimizerConfig.debug(f"Current genre value: {criteria[criteria_type]}", category='recommendation')
+
                 
                 # Get the recommendation type and impact score
                 impact_score = factor.impact_score
@@ -722,134 +595,45 @@ class RecommendationEngine:
                 
                 # Skip factors without a recommendation type
                 if rec_type is None:
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Skipping factor {factor.criteria_type}/{factor.criteria_name} with no recommendation type", 
-                                            category='recommendation')
                     continue
                     
-                # Special debug for important criteria types
-                if OptimizerConfig.DEBUG_MODE and factor.criteria_type == 'genre':
-                    OptimizerConfig.debug(f"Using recommendation type {rec_type} for {factor.criteria_type}/{factor.criteria_name}", 
-                                        category='recommendation')
+                # Create explanation text based on recommendation type
+                explanation_templates = {
+                    self.REC_TYPE_ADD: "Adding {name} could improve success probability by {impact:.1f}%.",
+                    self.REC_TYPE_REMOVE: "Removing {name} could improve success probability by {impact:.1f}%.",
+                    self.REC_TYPE_CHANGE: "Changing to {name} could improve success probability by {impact:.1f}%."
+                }
                 
-                # Special debug for important genres
-                if criteria_type == 'genre' and criteria_name in ['Animation', 'Action & Adventure', 'Comedy', 'Family']:
-                    OptimizerConfig.debug(f"IMPORTANT GENRE: Processing {criteria_type}/{criteria_name} with type {rec_type} and impact {impact_score}", 
-                                        category='recommendation')
+                template = explanation_templates.get(rec_type, "Consider {name} for potential impact of {impact:.1f}%.")
+                explanation_text = template.format(name=criteria_name, impact=abs(impact_score)*100)
                 
-                # We're now using the original recommendation type from the factor object
-                # No need to update it here
-                
-                # Create a potential recommendation if we have a valid recommendation type
-                if rec_type is not None:
-                    # Create explanation text based on the recommendation type
-                    explanation_text = ""
+                # Create recommendation and add to list
+                potential_recommendations.append({
+                    'recommendation_type': rec_type,
+                    'field': criteria_type,
+                    'current_value': None,
+                    'suggested_value': option_id,
+                    'suggested_name': criteria_name,
+                    'impact': impact_score,
+                    'confidence': factor.confidence,
+                    'explanation': explanation_text,
+                    'metadata': {}
+                })
                     
-                    if rec_type == self.REC_TYPE_ADD:
-                        explanation_text = f"Adding {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
-                    elif rec_type == self.REC_TYPE_REMOVE:
-                        explanation_text = f"Removing {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
-                    elif rec_type == self.REC_TYPE_CHANGE:
-                        explanation_text = f"Changing to {criteria_name} could improve success probability by {abs(impact_score)*100:.1f}%."
-                    else:
-                        explanation_text = f"Consider {criteria_name} for potential impact of {abs(impact_score)*100:.1f}%."
-                    
-                    # Create a RecommendationItem dictionary using the TypedDict contract
-                    recommendation: RecommendationItem = {
-                        'recommendation_type': rec_type,
-                        'field': criteria_type,
-                        'current_value': None,
-                        'suggested_value': option_id,
-                        'suggested_name': criteria_name,
-                        'impact': impact_score,
-                        'confidence': factor.confidence,
-                        'explanation': explanation_text,
-                        'metadata': {}
-                    }
-                    
-                    # Add to potential recommendations list
-                    potential_recommendations.append(recommendation)
-                    
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Added potential recommendation for {criteria_type}/{criteria_name} of type {rec_type} with impact {impact_score}", 
-                                             category='recommendation')
+
             
             # Now that we've collected all potential recommendations, sort them by absolute impact (descending)
             potential_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
             
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Collected {len(potential_recommendations)} potential recommendations sorted by impact", category='recommendation')
-                
-                # Log the potential recommendations to see what we have before filtering
-                if potential_recommendations:
-                    OptimizerConfig.debug("Top potential recommendations:", category='recommendation')
-                    for i, rec in enumerate(potential_recommendations[:3]):  # Log first 3 for brevity
-                        OptimizerConfig.debug(f"  Potential rec {i}: {rec.get('field')}/{rec.get('suggested_name')}, type: {rec.get('recommendation_type')}, impact: {rec.get('impact', 0):.3f}",
-                                            category='recommendation')
-                else:
-                    OptimizerConfig.debug("WARNING: No potential recommendations collected from success factors", category='recommendation')
-                
-            # Now filter recommendations based on our rules
-            recommendations = []
-            for rec in potential_recommendations:
-                # We've already filtered by minimum impact threshold and recommendation type
-                # So we can add all potential recommendations to the final list
-                recommendations.append(rec)
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Final recommendation: {rec['field']}/{rec['suggested_name']} - type: {rec['recommendation_type']}, impact: {rec['impact']:.2f}",
-                                         category='recommendation')
-                                         
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Final recommendation count in _recommend_missing_criteria: {len(recommendations)}", category='recommendation')
-                
-                # Check if we have any recommendations of each type
-                add_count = sum(1 for r in recommendations if r.get('recommendation_type') == self.REC_TYPE_ADD)
-                change_count = sum(1 for r in recommendations if r.get('recommendation_type') == self.REC_TYPE_CHANGE)
-                remove_count = sum(1 for r in recommendations if r.get('recommendation_type') == self.REC_TYPE_REMOVE)
-                
-                OptimizerConfig.debug(f"Recommendation types: {add_count} add, {change_count} change, {remove_count} remove", 
-                                     category='recommendation')
-            
-            # Sort recommendations by absolute impact (descending)
-            recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
-            
-            # Final debug summary
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Recommendations processing complete", category='recommendation')
-                OptimizerConfig.debug(f"Returning {len(recommendations)} recommendations from _recommend_missing_criteria", category='recommendation')
-                
-                # Log recommendation type counts for debugging
-                rec_type_counts = {}
-                for rec in recommendations:
-                    rec_type = rec['recommendation_type']
-                    rec_type_counts[rec_type] = rec_type_counts.get(rec_type, 0) + 1
-                    
-                OptimizerConfig.debug(
-                    f"Recommendation type counts: {rec_type_counts}",
-                    category='recommendation',
-                    force=True
-                )
-                
-                # Log the top 5 recommendations for debugging
-                for i, rec in enumerate(recommendations[:5], 1):
-                    OptimizerConfig.debug(
-                        f"Top {i}: {rec['field']}/{rec.get('suggested_name', 'N/A')} - "
-                        f"impact: {rec['impact']:.2f}, type: {rec['recommendation_type']}", 
-                        category='recommendation',
-                        force=True
-                    )
+            # Use the sorted potential recommendations directly
+            # We've already filtered by minimum impact threshold and recommendation type
+            recommendations = potential_recommendations
             
             return recommendations
         except Exception as e:
             # Log the error with more context for debugging
             error_message = f"Error generating recommendations for missing criteria: {str(e)}"
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(error_message, category='error')
-                import traceback
-                OptimizerConfig.debug(f"Traceback: {traceback.format_exc()}", category='error')
-            else:
-                st.error(error_message)
+            st.error(error_message)
             
             # Return empty list to ensure the UI can still function
             return []
@@ -1126,107 +910,54 @@ class RecommendationEngine:
         if confidence_info is not None:
             confidence_info = update_confidence_info(confidence_info, {})
             
-        # Debug mode check for network-specific recommendations
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Starting network-specific recommendations generation for network {network.network_name} (ID: {network.network_id})", category='recommendation', force=True)
-            OptimizerConfig.debug(f"Criteria keys: {list(criteria.keys())}", category='recommendation', force=True)
-        
         # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
         
         # Check if network_analyzer is available
         if self.network_analyzer is None:
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: No network_analyzer available for network-specific recommendations")
             return []
             
         # Get network-specific success rates
-        try:
-            network_rates = self.network_analyzer.get_network_specific_success_rates(
-                matching_shows=matching_shows,
-                network_id=network.network_id
-            )
-            
-            # Add detailed debug logging for network rates
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network {network.network_name} (ID: {network.network_id}) returned {len(network_rates)} success rates", category='recommendation', force=True)
-                if network_rates:
-                    sample_keys = list(network_rates.keys())[:3]  # Show first 3 keys as sample
-                    OptimizerConfig.debug(f"Sample network rate keys: {sample_keys}", category='recommendation', force=True)
-                    for key in sample_keys:
-                        rate_data = network_rates[key]
-                        OptimizerConfig.debug(f"Network rate for '{key}': {rate_data.get('success_rate')}, sample size: {rate_data.get('sample_size')}", category='recommendation', force=True)
-                else:
-                    OptimizerConfig.debug(f"No network-specific success rates returned for network {network.network_name}", category='recommendation', force=True)
-
-        except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                st.error(f"Error getting network-specific success rates: {str(e)}")
+        network_rates = self.network_analyzer.get_network_specific_success_rates(
+            matching_shows=matching_shows,
+            network_id=network.network_id
+        )
+        
+        if not network_rates:
             return []
         
         # Calculate overall success rates for comparison with network-specific rates
         overall_rates = {}
-        
-        # Debug information about network rates removed to reduce verbosity
-        
+                
         # Process each key in network rates to calculate corresponding overall rates
         for key, network_rate_data in network_rates.items():
-            # Extract field name from key using standard format - this is the database column name (ID)
-            field_name = key.split(':', 1)[0] if ':' in key else key
-            field_value = None
-            
-            # Extract the value part from the key if present
-            if ':' in key:
-                try:
-                    field_value = key.split(':', 1)[1]
-                except IndexError:
-                    pass
-            
-            # Debug log the extracted field name and value
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing network rate key '{key}' -> field_name='{field_name}', field_value='{field_value}'", category='recommendation', force=True)
+            # Extract field name and value from key
+            field_name, field_value = self._parse_key(key)
             
             # Skip if this field is not in our criteria
             if field_name not in criteria:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Skipping field '{field_name}' - not found in criteria keys: {list(criteria.keys())}", category='recommendation', force=True)
                 continue
             
             # Use the exact field name from the key with no mapping or standardization
             # Calculate the overall success rate for this criteria
             single_criteria = {field_name: criteria[field_name]}
             
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Calculating overall success rate for criteria: {single_criteria}", category='recommendation', force=True)
-            
+            # Skip if matcher is not available
+            if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
+                continue
+                
             # Get matching shows for this single criterion
-            if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
-                single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
-                
-                # Calculate all scores including success rate
-                all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
-                overall_rate = all_scores.get('success_rate')
-                overall_details = all_scores.get('success_info', {})
-                
-                # Log the calculation results
-                if OptimizerConfig.DEBUG_MODE:
-                    match_count = len(single_matches) if single_matches is not None else 0
-                    OptimizerConfig.debug(f"Found {match_count} matches for criteria {single_criteria}", category='recommendation', force=True)
-                    OptimizerConfig.debug(f"Calculated overall success rate: {overall_rate}", category='recommendation', force=True)
+            single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
             
-                # Create a consistent data structure that matches what we expect for network_rate_data
-                overall_rate_data = {
-                    'success_rate': overall_rate,
-                    'sample_size': len(single_matches) if single_matches is not None else 0,
-                    'confidence': 'medium'  # Default confidence level
-                }
-                
-                # CRITICAL: Store with the EXACT same key format as used in network_rates
-                # This ensures we can find the overall rate when comparing with network rate
-                overall_rates[key] = overall_rate_data
-                
-                # Debug log the key and rates for verification
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Stored overall rate for key '{key}': {overall_rate}", category='recommendation', force=True)
+            # Calculate all scores including success rate
+            all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
+            overall_rate = all_scores.get('success_rate')
+            
+            # Create a consistent data structure that matches network_rate_data
+            overall_rates[key] = {
+                'success_rate': overall_rate,
+                'sample_size': len(single_matches) if single_matches is not None else 0,
+                'confidence': 'medium'  # Default confidence level
+            }
         
         recommendations = []
                  
@@ -1240,42 +971,24 @@ class RecommendationEngine:
         valid_network_rates = {}
         
         # Process network rates for fields in criteria
-        # Network analyzer uses database column names (IDs) for keys
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Network rates keys: {list(network_rates.keys())}", category='recommendation')
-            OptimizerConfig.debug(f"Valid criteria fields: {list(valid_fields)}", category='recommendation')
-        
         for key, network_rate_data in network_rates.items():
-            # IMPORTANT: Extract field name (ID) from the key using standard format
-            # The field_name from network_rates is always a database column name (ID)
-            # We must use this exact ID without any mapping or standardization
-            field_name = key.split(':', 1)[0] if ':' in key else key
+            field_name, _ = self._parse_key(key)
             
-            # Use exact field name with no mapping or fallback logic
-            # Only process keys that correspond to exact fields in our mapped_criteria
-            # This ensures consistency between network analyzer and recommendation engine
+            # Only process fields that exist in criteria
             if field_name in valid_fields:
-                # Get the original field name (without _id) for display purposes
+                # Get display name for the current value
                 original_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
-                
-                # Use criteria directly since it now uses database column names (IDs)
                 current_value = criteria[field_name]
                 
                 valid_network_rates[key] = {
-                    'field_name': field_name,  # Keep the database column name (ID)
+                    'field_name': field_name,
                     'network_rate_data': network_rate_data,
                     'current_value': current_value,
                     'current_name': self._get_criteria_name(original_field, current_value)
                 }
         
         # Now process only the valid network rates
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Processing {len(valid_network_rates)} valid network rates", category='recommendation')
-        
         for key, data in valid_network_rates.items():
-            # Add debug statements to track processing
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing network rate for key: {key}", category='recommendation')
             
             field_name = data['field_name']
             network_rate_data = data['network_rate_data']
@@ -1285,16 +998,8 @@ class RecommendationEngine:
             # Get the overall success rate using the exact key
             overall_rate_data = overall_rates.get(key)
             
-            # Add detailed debug logging to trace key matching
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Looking up overall rate for key '{key}'", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Available overall rate keys: {list(overall_rates.keys())}", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Overall rate found: {overall_rate_data is not None}", category='recommendation', force=True)
-            
             if overall_rate_data is None:
                 # Skip criteria without overall rates
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Skipping key '{key}' - no matching overall rate found", category='recommendation', force=True)
                 continue
                 
             # Extract the actual success rate value from the overall_rate_data dictionary
@@ -1305,25 +1010,11 @@ class RecommendationEngine:
             # Use the explicit success_rate value
             overall_rate = overall_rate_data['success_rate']
                 
-            # network_rate_data should always be a dictionary from get_network_specific_success_rates
-            # This ensures consistent data structures throughout the application
-            if not isinstance(network_rate_data, dict):
-                # Log error and skip if not a dictionary
-                if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG: Unexpected network_rate_data type: {type(network_rate_data).__name__}")
-                continue
-                
-            # Use the standardized key consistently
-            if 'success_rate' not in network_rate_data:
-                # Skip this criteria if missing success_rate key
-                continue
-                
-            network_rate = network_rate_data['success_rate']
+            network_rate = network_rate_data.get('success_rate')
             sample_size = network_rate_data.get('sample_size', 0)
             
-            # Check for None values before performing arithmetic
+            # Skip if we don't have valid rates to compare
             if network_rate is None or overall_rate is None:
-                # Skip this criteria if rates are None
                 continue
                 
             # Calculate the difference between network and overall rates
@@ -1341,66 +1032,36 @@ class RecommendationEngine:
             condition2 = has_sufficient_data and abs(difference) > network_diff_threshold  # Smaller difference with sufficient data
             should_generate = condition1 or condition2
             
-            # Add detailed debug logging for condition evaluation
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network rate for '{key}': {network_rate}", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Overall rate for '{key}': {overall_rate}", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Difference: {difference}", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Sample size: {sample_size}, Sufficient data: {has_sufficient_data}", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Thresholds - Network diff: {network_diff_threshold}, Significant diff: {significant_diff_threshold}", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Condition1 (large difference): {condition1}", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Condition2 (smaller difference with sufficient data): {condition2}", category='recommendation', force=True)
-                OptimizerConfig.debug(f"Should generate recommendation: {should_generate}", category='recommendation', force=True)
-            
             # Create recommendation if the difference is significant
             if should_generate:
+                # Calculate impact score with minimum threshold from config
+                impact_score = max(abs(difference), OptimizerConfig.THRESHOLDS['significant_difference']) * (1 if difference > 0 else -1)
                 
-                # Store raw data for OptimizerView to format
-                network_rate_value = network_rate
-                overall_rate_value = overall_rate  # This is now correctly extracted from overall_rate_data
-                
-                # Create network-specific reference name with direct attribute access
-                network_name = network.network_name
-                suggested_name = f"{network_name}: {current_name}"
-                
-                # Calculate impact score with minimum threshold to ensure visibility
-                impact_score = max(abs(difference), 0.05) * (1 if difference > 0 else -1)
-                
-                # Store network data for OptimizerView to use when formatting
-                network_data = {
-                    "network_id": network.network_id,
-                    "network_name": network.network_name,
-                    "network_rate": network_rate,
-                    "overall_rate": overall_rate,  # This is now correctly extracted from overall_rate_data
-                    "difference": difference
-                }
-                
-                # Use standardized network recommendation type constants
-                network_rec_type = self.REC_TYPE_NETWORK_KEEP if difference > 0 else self.REC_TYPE_NETWORK_CHANGE
-                
-                # Create explanation text based on the recommendation type
-                explanation_text = ""
-                if network_rec_type == self.REC_TYPE_NETWORK_KEEP:
-                    explanation_text = f"Keep {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% better on {network_name} than average."
+                # Determine recommendation type and create explanation
+                if difference > 0:
+                    rec_type = self.REC_TYPE_NETWORK_KEEP
+                    explanation = f"{network.network_name} shows {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
                 else:
-                    explanation_text = f"Consider changing {current_name} for {network_name}. This element performs {abs(difference)*100:.1f}% worse on {network_name} than average."
+                    rec_type = self.REC_TYPE_NETWORK_CHANGE
+                    explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
                 
-                # Create a RecommendationItem dictionary using the TypedDict contract
-                # network_rate_data is always a dictionary with standardized keys
-                confidence_value = network_rate_data.get('confidence', 'medium')
-                    
-                recommendation: RecommendationItem = {
-                    'recommendation_type': network_rec_type,
-                    'field': field_name,  # Renamed from criteria_type to field per TypedDict contract
-                    'current_value': current_value,
-                    'current_name': current_name,
-                    'suggested_value': current_value,
-                    'suggested_name': suggested_name,
-                    'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
-                    'confidence': confidence_value,
-                    'explanation': explanation_text,
-                    'metadata': network_data
-                }
-                recommendations.append(recommendation)
+                # Create and append recommendation
+                recommendations.append({
+                    "recommendation_type": rec_type,
+                    "field": field_name,
+                    "current_value": current_value,
+                    "suggested_value": None,
+                    "suggested_name": f"{network.network_name}: {current_name}",
+                    "impact": impact_score,
+                    "confidence": network_rate_data.get("confidence", "medium"),
+                    "explanation": explanation,
+                    "metadata": {
+                        "network_id": network.network_id,
+                        "network_name": network.network_name,
+                        "network_rate": network_rate,
+                        "overall_rate": overall_rate,
+                        "difference": difference
+                    }
+                })
         
         return recommendations

@@ -265,28 +265,15 @@ class NetworkAnalyzer:
                 
             # Filter to this network
             if 'network_id' not in matching_shows.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"No network_id column in matching shows", category='network')
                 return {}
                 
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Unique network_id values in matching_shows: {matching_shows['network_id'].unique()}", category='network')
-                OptimizerConfig.debug(f"Looking for network_id: {network_id}", category='network')
-                
             network_shows = matching_shows[matching_shows['network_id'] == network_id]
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network shows count after filtering: {len(network_shows)}", category='network')
-                OptimizerConfig.debug(f"Network shows columns: {network_shows.columns.tolist()}", category='network')
             
             if network_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"No shows found for network_id {network_id}", category='network')
                 return {}
                 
             # Check if success_score column exists
             if 'success_score' not in network_shows.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"No success_score column in matching shows for network {network_id}", category='network')
                 return {}
             
             # Get success threshold from config
@@ -301,22 +288,7 @@ class NetworkAnalyzer:
                          if (col.endswith('_id') or col.endswith('_ids')) 
                          and col not in standard_columns]
             
-            # Debug log the columns we're processing
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing ID columns for network {network_id}: {id_columns}", category='network', force=True)
-                
-                # Sample data for debugging
-                if not network_shows.empty and len(id_columns) > 0:
-                    sample_col = id_columns[0]
-                    sample_data = network_shows[sample_col].head(3).tolist()
-                    OptimizerConfig.debug(f"Sample data for {sample_col}: {sample_data}", category='network', force=True)
-                
-                # Check if we have any criteria fields that match our ID columns
-                if hasattr(matching_shows, 'criteria') and isinstance(matching_shows.criteria, dict):
-                    criteria_keys = list(matching_shows.criteria.keys())
-                    matching_keys = [col for col in id_columns if col in criteria_keys]
-                    OptimizerConfig.debug(f"Criteria keys: {criteria_keys}", category='network', force=True)
-                    OptimizerConfig.debug(f"Matching keys between criteria and ID columns: {matching_keys}", category='network', force=True)
+            # Process ID columns for network-specific success rates
             
             # Process each valid criteria column (ID columns)
             for column in id_columns:
@@ -324,8 +296,7 @@ class NetworkAnalyzer:
                 try:
                     # Skip columns with all null values
                     if network_shows[column].isna().all():
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Skipping column {column} - all values are null", category='network')
+
                         continue
                         
                     # Get unique non-null values
@@ -333,13 +304,10 @@ class NetworkAnalyzer:
                     
                     # Skip if no unique values
                     if len(unique_values) == 0:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Skipping column {column} - no unique values", category='network')
+
                         continue
                         
-                    # Debug unique values
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Column {column} has {len(unique_values)} unique values", category='network')
+
                         
                     # For each unique value, calculate success rate
                     for value in unique_values:
@@ -364,8 +332,6 @@ class NetworkAnalyzer:
                                 # For scalar fields, use direct comparison
                                 value_shows = network_shows[network_shows[column] == value]
                         except Exception as e:
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Error processing value {value} for column {column}: {str(e)}", category='network')
                             continue
                         
                         # Skip if no shows
@@ -429,16 +395,13 @@ class NetworkAnalyzer:
                                 # Create a key using the original field name without standardization
                                 key = create_field_value_key(field_name, value)
                                 
-                                # Debug log the created key
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Created key for network success rate: {key}", category='network')
+
                                 
                                 # Add success rate data to the dictionary
                                 success_rates[key] = success_rate_data
                             except Exception as e:
                                 # Error adding success rate data
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Error creating key for {field_name}:{value}: {str(e)}", category='network')
+                                pass
                 except Exception as e:
                     # Error processing column
                     continue
@@ -490,9 +453,7 @@ class NetworkAnalyzer:
                 # The system should consistently use database column names (IDs) throughout
                 criteria = matching_shows.criteria
                 
-                # Debug log the criteria keys for visibility
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network recommendations criteria keys: {list(criteria.keys())}", category='network')
+
             
             # Get integrated data from concept_analyzer if available
             integrated_data = None
@@ -501,9 +462,7 @@ class NetworkAnalyzer:
             
             # Call the RecommendationEngine with the network-specific shows
             # This will generate recommendations specific to this network
-            # Log the call to recommendation engine
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG: Calling recommendation engine for network {network.network_name} (ID: {network.network_id})")
+
             
             # Call the recommendation engine with the network object
             # Create a default confidence_info dictionary to ensure contract compliance
