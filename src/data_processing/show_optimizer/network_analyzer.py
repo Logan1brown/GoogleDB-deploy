@@ -287,37 +287,34 @@ class NetworkAnalyzer:
             # Calculate success rate for each criteria column
             success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
             
-            # Group columns by their base field name to prioritize name fields over ID fields
-            base_field_columns = {}
+            # Let the field manager be the single source of truth for field names
+            # Only process each standardized field once to prevent duplicates
+            standardized_fields = {}
+            
             for column in network_shows.columns:
                 # Skip standard columns
                 if column in standard_columns:
                     continue
-                    
-                # Extract base field name without suffixes
-                base_field = column
-                if column.endswith('_id') or column.endswith('_ids'):
-                    base_field = column[:-3] if column.endswith('_id') else column[:-4]
-                elif column.endswith('_name') or column.endswith('_names'):
-                    base_field = column[:-5] if column.endswith('_name') else column[:-6]
                 
-                # Only include columns related to our known criteria fields
-                if base_field in known_criteria_fields:
-                    if base_field not in base_field_columns:
-                        base_field_columns[base_field] = []
-                    base_field_columns[base_field].append(column)
+                try:
+                    # Let the field manager standardize the field name
+                    standardized_field = self.field_manager.standardize_field_name(column)
+                    
+                    # Only include known criteria fields
+                    if standardized_field in known_criteria_fields:
+                        # Only process each standardized field once
+                        # If we've seen this field before, prefer name columns over ID columns
+                        if standardized_field not in standardized_fields:
+                            standardized_fields[standardized_field] = column
+                        elif column.endswith('_name') or column.endswith('_names'):
+                            # Prefer name columns over other representations
+                            standardized_fields[standardized_field] = column
+                except Exception:
+                    # Skip columns that can't be standardized
+                    continue
             
-            # For each base field, prioritize name fields over ID fields
-            valid_criteria_columns = []
-            for base_field, columns in base_field_columns.items():
-                # Check if there's a name version of this field
-                name_columns = [c for c in columns if c.endswith('_name') or c.endswith('_names')]
-                if name_columns:
-                    # Use the first name column found
-                    valid_criteria_columns.append(name_columns[0])
-                else:
-                    # If no name version, use the first column (likely an ID version)
-                    valid_criteria_columns.append(columns[0])
+            # Use only the standardized fields for processing
+            valid_criteria_columns = list(standardized_fields.values())
                     
             # Process each valid criteria column
             for column in valid_criteria_columns:

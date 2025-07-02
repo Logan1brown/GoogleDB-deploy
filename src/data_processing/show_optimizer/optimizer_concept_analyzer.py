@@ -1061,8 +1061,47 @@ class ConceptAnalyzer:
                         confidence_info=confidence_info
                     )
                     
-                    # Add to network recommendations for this analysis only
-                    network_recommendations.extend(network_specific_recs)
+                    # Track recommendations by a unique key to prevent duplicates
+                    for rec in network_specific_recs:
+                        # Create a unique key for each recommendation based on network, field, and value
+                        network_name = network.network_name
+                        field_name = rec['field']
+                        current_value = str(rec['current_value'])
+                        rec_type = rec['recommendation_type']
+                        
+                        # Create a unique key to identify this recommendation
+                        unique_key = f"{network_name}_{field_name}_{current_value}_{rec_type}"
+                        
+                        # Check if we already have a recommendation with this key
+                        is_duplicate = False
+                        for existing_rec in network_recommendations:
+                            existing_network = existing_rec.get('metadata', {}).get('network_name', '')
+                            existing_field = existing_rec['field']
+                            existing_value = str(existing_rec['current_value'])
+                            existing_type = existing_rec['recommendation_type']
+                            
+                            existing_key = f"{existing_network}_{existing_field}_{existing_value}_{existing_type}"
+                            
+                            if existing_key == unique_key:
+                                is_duplicate = True
+                                break
+                            
+                            # Also check for contradictory recommendations (same field/value but different rec_type)
+                            contradictory_key = f"{existing_network}_{existing_field}_{existing_value}_"
+                            if unique_key.startswith(contradictory_key) and existing_key.startswith(contradictory_key):
+                                # If we have contradictory recommendations, keep the one with higher impact
+                                if abs(rec['impact']) > abs(existing_rec['impact']):
+                                    # Remove the existing recommendation with lower impact
+                                    network_recommendations.remove(existing_rec)
+                                    is_duplicate = False
+                                else:
+                                    # Skip this recommendation as the existing one has higher impact
+                                    is_duplicate = True
+                                break
+                        
+                        # Only add if not a duplicate
+                        if not is_duplicate:
+                            network_recommendations.append(rec)
                     
                 except Exception as net_error:
                     # Log the error but continue processing other networks
