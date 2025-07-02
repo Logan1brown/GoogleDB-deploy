@@ -1084,17 +1084,21 @@ class RecommendationEngine:
         
         # Process each key in network rates to calculate corresponding overall rates
         for key, network_rate_data in network_rates.items():
-            # Extract field name from key using standard format
-            criteria_field = key.split(':', 1)[0] if ':' in key else key
+            # Extract field name from key using standard format - this is the database column name (ID)
+            field_name = key.split(':', 1)[0] if ':' in key else key
+            
+            # Use exact field name with no mapping or fallback logic
+            # This ensures consistency with the network analyzer which uses database column names
             
             # Skip if this field is not in our criteria
-            if criteria_field not in criteria:
-                if self.config.DEBUG_MODE:
-                    self.config.debug(f"Skipping field {criteria_field} - not in criteria", category='recommendation')
+            if field_name not in criteria:
+                # No match found, skip this field
                 continue
+                
+            # Use the exact field name from the key with no mapping or standardization
             
             # Calculate the overall success rate for this criteria
-            single_criteria = {criteria_field: criteria[criteria_field]}
+            single_criteria = {field_name: criteria[field_name]}
             
             # Get matching shows for this single criterion
             if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
@@ -1112,8 +1116,8 @@ class RecommendationEngine:
                     'sample_size': len(single_matches) if single_matches is not None else 0,
                     'confidence': 'medium'  # Default confidence level
                 }
+                # Only store with the exact key format - no fallbacks or duplicates
                 overall_rates[key] = overall_rate_data
-                overall_rates[criteria_field] = overall_rate_data
         
         recommendations = []
                  
@@ -1126,15 +1130,16 @@ class RecommendationEngine:
         
         for key, network_rate_data in network_rates.items():
             # Extract field name from the key using standard format
-            criteria_field = key.split(':', 1)[0] if ':' in key else key
+            field_name = key.split(':', 1)[0] if ':' in key else key
             
-            # Only process keys that correspond to fields in our criteria
-            if criteria_field in valid_fields:
+            # Use exact field name with no mapping or fallback logic
+            # Only process keys that correspond to exact fields in our criteria
+            if field_name in valid_fields:
                 valid_network_rates[key] = {
-                    'field_name': criteria_field,
+                    'field_name': field_name,
                     'network_rate_data': network_rate_data,
-                    'current_value': criteria[criteria_field],
-                    'current_name': self._get_criteria_name(criteria_field, criteria[criteria_field])
+                    'current_value': criteria[field_name],
+                    'current_name': self._get_criteria_name(field_name, criteria[field_name])
                 }
         
         # Now process only the valid network rates

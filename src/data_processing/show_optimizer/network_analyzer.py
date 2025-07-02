@@ -271,6 +271,10 @@ class NetworkAnalyzer:
                 OptimizerConfig.debug(f"Looking for network_id: {network_id}", category='network')
                 
             network_shows = matching_shows[matching_shows['network_id'] == network_id]
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network shows count after filtering: {len(network_shows)}", category='network')
+                OptimizerConfig.debug(f"Network shows columns: {network_shows.columns.tolist()}", category='network')
+            
             if network_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"No shows found for network_id: {network_id}", category='network')
