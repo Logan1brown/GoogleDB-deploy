@@ -1124,9 +1124,16 @@ class RecommendationEngine:
         # The recommendation engine uses these IDs for all internal processing
         # Human-readable names are derived only for display purposes using _get_criteria_name
         
-        # First, explicitly determine which fields from network_rates are valid in our criteria
-        # This avoids checking field_name in criteria for each iteration
-        valid_fields = set(criteria.keys())
+        # Convert base field names in criteria to database column names (IDs)
+        # This ensures consistency between network analyzer and recommendation engine
+        criteria_with_ids = {}
+        for field, value in criteria.items():
+            # Convert base field name to database column name (ID)
+            field_id = f"{field}_id" if not field.endswith('_id') and not field.endswith('_ids') else field
+            criteria_with_ids[field_id] = value
+        
+        # Use the converted criteria with IDs for field validation
+        valid_fields = set(criteria_with_ids.keys())
         valid_network_rates = {}
         
         # Process network rates for fields in criteria
@@ -1134,20 +1141,29 @@ class RecommendationEngine:
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Network rates keys: {list(network_rates.keys())}", category='recommendation')
             OptimizerConfig.debug(f"Valid criteria fields: {list(valid_fields)}", category='recommendation')
+            OptimizerConfig.debug(f"Original criteria fields: {list(criteria.keys())}", category='recommendation')
         
         for key, network_rate_data in network_rates.items():
-            # Extract field name from the key using standard format
-            # The field_name is already the database column name (ID)
+            # IMPORTANT: Extract field name (ID) from the key using standard format
+            # The field_name from network_rates is always a database column name (ID)
+            # We must use this exact ID without any mapping or standardization
             field_name = key.split(':', 1)[0] if ':' in key else key
             
             # Use exact field name with no mapping or fallback logic
             # Only process keys that correspond to exact fields in our criteria
+            # This ensures consistency between network analyzer and recommendation engine
             if field_name in valid_fields:
+                # Get the original field name (without _id) for display purposes
+                original_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+                
+                # Use criteria_with_ids for the current value
+                current_value = criteria_with_ids[field_name]
+                
                 valid_network_rates[key] = {
-                    'field_name': field_name,
+                    'field_name': field_name,  # Keep the database column name (ID)
                     'network_rate_data': network_rate_data,
-                    'current_value': criteria[field_name],
-                    'current_name': self._get_criteria_name(field_name, criteria[field_name])
+                    'current_value': current_value,
+                    'current_name': self._get_criteria_name(original_field, current_value)
                 }
         
         # Now process only the valid network rates
