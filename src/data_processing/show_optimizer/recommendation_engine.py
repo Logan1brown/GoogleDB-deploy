@@ -490,6 +490,86 @@ class RecommendationEngine:
                         if OptimizerConfig.DEBUG_MODE:
                             OptimizerConfig.debug(error_msg, category='error')
             
+    def generate_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
+                                integrated_data: IntegratedData = None, 
+                                top_networks: List[NetworkMatch] = None,
+                                confidence_info: Optional[ConfidenceInfo] = None) -> Dict[str, List[RecommendationItem]]:
+        """Generate recommendations based on criteria and matching shows.
+        
+        This method orchestrates the recommendation generation process, including:
+        1. Identifying success factors from criteria and matching shows
+        2. Generating general recommendations for missing criteria
+        3. Generating network-specific recommendations if networks are provided
+        
+        Args:
+            criteria: Dictionary of criteria conforming to CriteriaDict
+            matching_shows: DataFrame of shows matching the criteria (optional)
+            integrated_data: Dictionary of integrated data frames (optional)
+            top_networks: List of NetworkMatch objects for network-specific recommendations
+            confidence_info: Optional confidence information dictionary
+            
+        Returns:
+            Dictionary with 'general' and 'network_specific' recommendation lists
+        """
+        # Initialize empty recommendation lists
+        recommendations = []
+        general_recommendations = []
+        network_specific_recommendations = []
+        
+        try:
+            # If matching_shows not provided or empty, get them using the matcher
+            if matching_shows is None or matching_shows.empty:
+                try:
+                    # Use the matcher directly instead of going through criteria_scorer
+                    if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
+                        matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(criteria)
+                        if matching_shows.empty:
+                            st.error("No shows match your criteria. Try adjusting your parameters.")
+                            return {"general": [], "network_specific": []}
+                    else:
+                        st.error("No matcher available. Cannot find matching shows.")
+                        return {"general": [], "network_specific": []}
+                except Exception as e:
+                    st.error(f"Unable to analyze shows matching your criteria: {str(e)}")
+                    return {"general": [], "network_specific": []}
+            
+            try:
+                # Calculate impact data using the criteria scorer
+                # Pass integrated_data to ensure matcher has access to full dataset
+                impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
+                
+                # Check for errors
+                if impact_result.error:
+                    if self.config.DEBUG_MODE:
+                        self.config.debug(f"Error in impact analysis: {impact_result.error}", category='error')
+                    return {"general": [], "network_specific": []}
+                    
+                # Get the impact data from the result
+                impact_data = impact_result.criteria_impacts
+                
+                # Log summary information for debugging
+                if self.config.DEBUG_MODE:
+                    summary = impact_result.summary
+                    self.config.debug(
+                        f"Impact analysis complete: {summary['field_count']} fields, "
+                        f"{summary['option_count']} options, "
+                        f"recommendations: {summary['recommendation_counts']}",
+                        category='impact'
+                    )
+            except Exception as e:
+                error_msg = f"Error calculating impact data: {str(e)}"
+                if self.config.DEBUG_MODE:
+                    self.config.debug(error_msg, category='error')
+                    import traceback
+                    self.config.debug(f"Traceback: {traceback.format_exc()}", category='error')
+                return {"general": [], "network_specific": []}
+                
+            # Convert to SuccessFactor objects
+            success_factors = self.identify_success_factors(criteria, matching_shows, integrated_data)
+            
+            # Generate general recommendations from success factors
+            recommendations = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
+            
             # Process general recommendations only
             # Network-specific recommendations are already added directly to network_specific_recommendations
             # This ensures proper routing of recommendations to the correct UI tabs:
