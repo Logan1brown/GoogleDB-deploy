@@ -466,7 +466,13 @@ class NetworkAnalyzer:
             # This is more reliable than passing potentially stale criteria
             criteria: CriteriaDict = {}
             if hasattr(matching_shows, 'criteria') and isinstance(matching_shows.criteria, dict):
+                # Use the criteria exactly as provided - no conversion needed
+                # The system should consistently use database column names (IDs) throughout
                 criteria = matching_shows.criteria
+                
+                # Debug log the criteria keys for visibility
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network recommendations criteria keys: {list(criteria.keys())}", category='network')
             
             # Get integrated data from concept_analyzer if available
             integrated_data = None

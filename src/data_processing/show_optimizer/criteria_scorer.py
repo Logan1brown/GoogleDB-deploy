@@ -265,7 +265,7 @@ class CriteriaScorer:
         
         Args:
             base_criteria: Base criteria to modify conforming to CriteriaDict
-            field: Field to set or remove
+            field: Field to set or remove (should be a database column name/ID)
             option_id: Option ID to set for the field, or 'remove' to remove the field
             is_array_field: Whether this is an array field (ignored for 'remove')
             
