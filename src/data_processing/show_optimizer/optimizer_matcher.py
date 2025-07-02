@@ -558,8 +558,7 @@ class Matcher:
                         
                         OptimizerConfig.debug(
                             f"Keeping ALL {perfect_count} perfect matches",
-                            category='matcher',
-                            force=True
+                            category='matcher'
                         )
                         result_dfs.append(level_matches)
                         
@@ -643,8 +642,7 @@ class Matcher:
                             
                             OptimizerConfig.debug(
                                 f"Fallback: Keeping ALL {perfect_count} perfect matches",
-                                category='matcher',
-                                force=True
+                                category='matcher'
                             )
                             result_dfs.append(level_matches)
                             

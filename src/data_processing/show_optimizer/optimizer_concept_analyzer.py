@@ -425,7 +425,7 @@ class ConceptAnalyzer:
         }
         # Also reset the last network recommendations for debugging
         self._last_network_recommendations = []
-        OptimizerConfig.debug("Reset recommendation state", category='state', force=True)
+        OptimizerConfig.debug("Reset recommendation state", category='state')
     
     def analyze_concept(self, criteria: CriteriaDict, integrated_data: IntegratedData) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
@@ -443,7 +443,7 @@ class ConceptAnalyzer:
         # Check if criteria have changed and reset recommendation state if needed
         current_criteria_hash = self._get_criteria_hash(criteria)
         if self._recommendation_state['criteria_hash'] != current_criteria_hash:
-            OptimizerConfig.debug(f"Criteria changed, resetting recommendation state", category='recommendation_generation', force=True)
+            OptimizerConfig.debug(f"Criteria changed, resetting recommendation state", category='recommendation_generation')
             self.reset_recommendation_state()
             self._recommendation_state['criteria_hash'] = current_criteria_hash
             self._recommendation_state['last_update_timestamp'] = datetime.now().isoformat()

@@ -1082,12 +1082,9 @@ class RecommendationEngine:
             # Extract field name from key using standard format
             raw_field_name = key.split(':', 1)[0] if ':' in key else key
             
-            # Map ID column names to criteria field names
-            # For example, map 'tone_id' to 'tone_ids' as used in CriteriaDict
-            if raw_field_name.endswith('_id'):
-                criteria_field = raw_field_name[:-3] + '_ids'
-            else:
-                criteria_field = raw_field_name
+            # Use the field manager to map field names to criteria field names
+            # This ensures consistent field name mapping throughout the system
+            criteria_field = self.field_manager.map_field_name(raw_field_name, list(criteria.keys()))
             
             # Skip if this field is not in our criteria
             if criteria_field not in criteria:
@@ -1130,12 +1127,9 @@ class RecommendationEngine:
             # Extract field name from the key using standard format
             raw_field_name = key.split(':', 1)[0] if ':' in key else key
             
-            # Map ID column names to criteria field names
-            # For example, map 'tone_id' to 'tone_ids' as used in CriteriaDict
-            if raw_field_name.endswith('_id'):
-                criteria_field = raw_field_name[:-3] + '_ids'
-            else:
-                criteria_field = raw_field_name
+            # Use the field manager to map field names to criteria field names
+            # This ensures consistent field name mapping throughout the system
+            criteria_field = self.field_manager.map_field_name(raw_field_name, list(criteria.keys()))
             
             # Only process keys that correspond to fields in our criteria
             if criteria_field in valid_fields:

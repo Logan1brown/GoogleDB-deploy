@@ -44,7 +44,7 @@ class OptimizerConfig:
     
     # Debug categories to filter messages
     DEBUG_CATEGORIES = {
-        'matcher': True,
+        'matcher': False,  # Disable matcher debug messages - too verbose
         'analyzer': True,
         'scorer': True,
         'network': False,  # Disable network debug messages - too verbose
