@@ -294,21 +294,6 @@ class OptimizerConfig:
         else:
             return 'high'
     
-    # Performance settings
-    PERFORMANCE = {
-        'success_threshold': 0.6,      # Default threshold for success rate calculation
-        'min_criteria_coverage': 0.5,  # Minimum criteria coverage for valid analysis
-        'min_confidence_score': 0.3,   # Minimum confidence score for valid results
-        'incremental_threshold': 0.7,  # Threshold for incremental vs full recalculation
-        
-        # Cache TTL settings (in seconds)
-        'data_cache_ttl': 3600,        # 1 hour for base data
-        'matcher_cache_ttl': 1800,     # 30 minutes for matching results
-        'analysis_cache_ttl': 1800,    # 30 minutes for analysis results
-        'recommendation_cache_ttl': 900 # 15 minutes for recommendations
-    }
-    
-    
     # Suggestion impact settings
     SUGGESTIONS = {
         'minimum_impact': 0.001,       # Minimum impact score to generate suggestion (0.1%)
@@ -367,7 +352,7 @@ class OptimizerConfig:
         'major_difference': 0.2,        # 20% difference is considered major
         'minimum_compatibility': 0.3,   # Minimum compatibility score for recommendations
         'strong_compatibility': 0.7,    # Strong compatibility threshold
-        'success_threshold': 0.6,       # Threshold for considering a show successful (60%)
+        # Removed duplicate success_threshold - now only in SUCCESS dictionary
         'network_difference': 0.001     # Minimum difference for network-specific recommendations (lowered to 0.1%)
     }
     

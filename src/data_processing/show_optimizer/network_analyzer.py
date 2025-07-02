@@ -285,7 +285,8 @@ class NetworkAnalyzer:
             }
             
             # Calculate success rate for each criteria column
-            success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
+            # Use SUCCESS['threshold'] as the single source of truth for success threshold
+            success_threshold = OptimizerConfig.SUCCESS['threshold']
             
             # Let the field manager be the single source of truth for field names
             # Only process each standardized field once to prevent duplicates
@@ -548,7 +549,8 @@ class NetworkAnalyzer:
                 return None, 'none'
             
             # Calculate success rate
-            success_threshold = OptimizerConfig.THRESHOLDS['success_threshold']
+            # Use SUCCESS['threshold'] as the single source of truth for success threshold
+            success_threshold = OptimizerConfig.SUCCESS['threshold']
             
             # Calculate success rate if success_score column exists
             if 'success_score' in matching_shows.columns:

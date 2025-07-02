@@ -878,7 +878,8 @@ class RecommendationEngine:
             return []
             
         # Get success threshold from config
-        success_threshold = self.config.PERFORMANCE.get('success_threshold', 0.7)
+        # Use SUCCESS['threshold'] as the single source of truth for success threshold
+        success_threshold = self.config.SUCCESS.get('threshold', 0.6)
             
         # Skip if success_score column is missing
         if 'success_score' not in matching_shows.columns:

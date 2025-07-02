@@ -230,7 +230,8 @@ class CriteriaScorer:
         
         results = []
         calculator = SuccessScoreCalculator()
-        threshold = OptimizerConfig.PERFORMANCE.get('success_threshold', None)
+        # Use SUCCESS['threshold'] as the single source of truth for success threshold
+        threshold = OptimizerConfig.SUCCESS.get('threshold', 0.6)
         
         for i, (criteria, matching_shows) in enumerate(zip(criteria_list, matching_shows_list)):
             try:

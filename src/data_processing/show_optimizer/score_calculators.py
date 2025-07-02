@@ -788,7 +788,7 @@ class NetworkScoreCalculator(ScoreCalculator):
         Args:
             shows: DataFrame of shows to calculate success rate for. Must contain 'success_score' column.
             confidence_info: Optional dictionary of confidence information to update conforming to ConfidenceInfo.
-            threshold: Optional success threshold (0-1). Defaults to OptimizerConfig.SUCCESS_THRESHOLD.
+            threshold: Optional success threshold (0-1). Defaults to OptimizerConfig.SUCCESS['threshold'].
             
         Returns:
             Tuple of (success_rate, confidence_info) where:
@@ -810,7 +810,7 @@ class NetworkScoreCalculator(ScoreCalculator):
             return None, confidence_info
             
         # Use provided threshold or default
-        success_threshold = threshold if threshold is not None else OptimizerConfig.SUCCESS_THRESHOLD
+        success_threshold = threshold if threshold is not None else OptimizerConfig.SUCCESS['threshold']
             
         # Calculate success metrics
         total_count = len(shows)

@@ -707,7 +707,24 @@ class ConceptAnalyzer:
             success_rate = all_scores.get('success_rate')
             confidence_info = all_scores.get('success_info', {})
             
+            # Calculate success probability differently from success rate
+            # Success probability should account for confidence level and threshold
             if success_rate is not None:
+                # Get the threshold from config
+                threshold = self.config.SUCCESS.get('threshold', 0.6)
+                
+                # Calculate success probability using a sigmoid function centered at the threshold
+                # This transforms the raw success rate into a probability that accounts for the threshold
+                # When success_rate equals threshold, probability will be 0.5
+                import math
+                # Steepness factor determines how quickly probability changes around threshold
+                steepness = 10.0
+                success_probability = 1.0 / (1.0 + math.exp(-steepness * (success_rate - threshold)))
+                
+                # Now success_rate and success_probability will be different values
+                # Success_rate is the raw average of success scores
+                # Success_probability is the likelihood of success given the threshold
+                # Do NOT overwrite success_rate with success_probability - keep them distinct
                 # Get sample size from confidence info or use the number of matching shows
                 sample_size = confidence_info.get('sample_size', len(matching_shows))
                 
@@ -727,8 +744,8 @@ class ConceptAnalyzer:
                 if 'confidence' in confidence_info:
                     confidence_level = confidence_info['confidence']
                 
-                # Success probability calculated successfully
-                return success_rate, confidence_level
+                # Return the success probability (not the original success rate)
+                return success_probability, confidence_level
             
             self.config.debug("Could not calculate success probability: missing success scores", category='success')
             return None, 'none'
@@ -1061,47 +1078,8 @@ class ConceptAnalyzer:
                         confidence_info=confidence_info
                     )
                     
-                    # Track recommendations by a unique key to prevent duplicates
-                    for rec in network_specific_recs:
-                        # Create a unique key for each recommendation based on network, field, and value
-                        network_name = network.network_name
-                        field_name = rec['field']
-                        current_value = str(rec['current_value'])
-                        rec_type = rec['recommendation_type']
-                        
-                        # Create a unique key to identify this recommendation
-                        unique_key = f"{network_name}_{field_name}_{current_value}_{rec_type}"
-                        
-                        # Check if we already have a recommendation with this key
-                        is_duplicate = False
-                        for existing_rec in network_recommendations:
-                            existing_network = existing_rec.get('metadata', {}).get('network_name', '')
-                            existing_field = existing_rec['field']
-                            existing_value = str(existing_rec['current_value'])
-                            existing_type = existing_rec['recommendation_type']
-                            
-                            existing_key = f"{existing_network}_{existing_field}_{existing_value}_{existing_type}"
-                            
-                            if existing_key == unique_key:
-                                is_duplicate = True
-                                break
-                            
-                            # Also check for contradictory recommendations (same field/value but different rec_type)
-                            contradictory_key = f"{existing_network}_{existing_field}_{existing_value}_"
-                            if unique_key.startswith(contradictory_key) and existing_key.startswith(contradictory_key):
-                                # If we have contradictory recommendations, keep the one with higher impact
-                                if abs(rec['impact']) > abs(existing_rec['impact']):
-                                    # Remove the existing recommendation with lower impact
-                                    network_recommendations.remove(existing_rec)
-                                    is_duplicate = False
-                                else:
-                                    # Skip this recommendation as the existing one has higher impact
-                                    is_duplicate = True
-                                break
-                        
-                        # Only add if not a duplicate
-                        if not is_duplicate:
-                            network_recommendations.append(rec)
+                    # Add to network recommendations for this analysis only
+                    network_recommendations.extend(network_specific_recs)
                     
                 except Exception as net_error:
                     # Log the error but continue processing other networks
