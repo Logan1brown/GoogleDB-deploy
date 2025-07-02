@@ -1146,6 +1146,17 @@ class RecommendationEngine:
                 network_id=network.network_id
             )
             
+            # Add detailed debug logging for network rates
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network {network.network_name} (ID: {network.network_id}) returned {len(network_rates)} success rates", category='recommendation', force=True)
+                if network_rates:
+                    sample_keys = list(network_rates.keys())[:3]  # Show first 3 keys as sample
+                    OptimizerConfig.debug(f"Sample network rate keys: {sample_keys}", category='recommendation', force=True)
+                    for key in sample_keys:
+                        rate_data = network_rates[key]
+                        OptimizerConfig.debug(f"Network rate for '{key}': {rate_data.get('success_rate')}, sample size: {rate_data.get('sample_size')}", category='recommendation', force=True)
+                else:
+                    OptimizerConfig.debug(f"No network-specific success rates returned for network {network.network_name}", category='recommendation', force=True)
 
         except Exception as e:
             if OptimizerConfig.DEBUG_MODE:
@@ -1161,19 +1172,31 @@ class RecommendationEngine:
         for key, network_rate_data in network_rates.items():
             # Extract field name from key using standard format - this is the database column name (ID)
             field_name = key.split(':', 1)[0] if ':' in key else key
+            field_value = None
             
-            # Use exact field name with no mapping or fallback logic
-            # This ensures consistency with the network analyzer which uses database column names
+            # Extract the value part from the key if present
+            if ':' in key:
+                try:
+                    field_value = key.split(':', 1)[1]
+                except IndexError:
+                    pass
+            
+            # Debug log the extracted field name and value
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Processing network rate key '{key}' -> field_name='{field_name}', field_value='{field_value}'", category='recommendation', force=True)
             
             # Skip if this field is not in our criteria
             if field_name not in criteria:
-                # No match found, skip this field
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Skipping field '{field_name}' - not found in criteria keys: {list(criteria.keys())}", category='recommendation', force=True)
                 continue
-                
-            # Use the exact field name from the key with no mapping or standardization
             
+            # Use the exact field name from the key with no mapping or standardization
             # Calculate the overall success rate for this criteria
             single_criteria = {field_name: criteria[field_name]}
+            
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Calculating overall success rate for criteria: {single_criteria}", category='recommendation', force=True)
             
             # Get matching shows for this single criterion
             if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
@@ -1183,6 +1206,12 @@ class RecommendationEngine:
                 all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
                 overall_rate = all_scores.get('success_rate')
                 overall_details = all_scores.get('success_info', {})
+                
+                # Log the calculation results
+                if OptimizerConfig.DEBUG_MODE:
+                    match_count = len(single_matches) if single_matches is not None else 0
+                    OptimizerConfig.debug(f"Found {match_count} matches for criteria {single_criteria}", category='recommendation', force=True)
+                    OptimizerConfig.debug(f"Calculated overall success rate: {overall_rate}", category='recommendation', force=True)
             
                 # Create a consistent data structure that matches what we expect for network_rate_data
                 overall_rate_data = {
@@ -1197,7 +1226,7 @@ class RecommendationEngine:
                 
                 # Debug log the key and rates for verification
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Stored overall rate for key '{key}': {overall_rate}", category='recommendation')
+                    OptimizerConfig.debug(f"Stored overall rate for key '{key}': {overall_rate}", category='recommendation', force=True)
         
         recommendations = []
                  
@@ -1256,10 +1285,16 @@ class RecommendationEngine:
             # Get the overall success rate using the exact key
             overall_rate_data = overall_rates.get(key)
             
-            # Skip debug messages for field extraction - too verbose
+            # Add detailed debug logging to trace key matching
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Looking up overall rate for key '{key}'", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Available overall rate keys: {list(overall_rates.keys())}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Overall rate found: {overall_rate_data is not None}", category='recommendation', force=True)
             
             if overall_rate_data is None:
                 # Skip criteria without overall rates
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Skipping key '{key}' - no matching overall rate found", category='recommendation', force=True)
                 continue
                 
             # Extract the actual success rate value from the overall_rate_data dictionary
@@ -1305,6 +1340,17 @@ class RecommendationEngine:
             condition1 = abs(difference) >= significant_diff_threshold  # Large difference
             condition2 = has_sufficient_data and abs(difference) > network_diff_threshold  # Smaller difference with sufficient data
             should_generate = condition1 or condition2
+            
+            # Add detailed debug logging for condition evaluation
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network rate for '{key}': {network_rate}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Overall rate for '{key}': {overall_rate}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Difference: {difference}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Sample size: {sample_size}, Sufficient data: {has_sufficient_data}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Thresholds - Network diff: {network_diff_threshold}, Significant diff: {significant_diff_threshold}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Condition1 (large difference): {condition1}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Condition2 (smaller difference with sufficient data): {condition2}", category='recommendation', force=True)
+                OptimizerConfig.debug(f"Should generate recommendation: {should_generate}", category='recommendation', force=True)
             
             # Create recommendation if the difference is significant
             if should_generate:
