@@ -1038,53 +1038,25 @@ class ConceptAnalyzer:
             general_recommendations = self.recommendation_engine.generate_recommendations(
                 criteria=criteria,
                 matching_shows=matching_shows,
-                success_factors=success_factors,
+                integrated_data=integrated_data,
                 top_networks=[],  # Empty list for general recommendations
-                confidence_info=confidence_info,
-                integrated_data=integrated_data
+                confidence_info=confidence_info
             )
             
-            # Debug the general recommendations structure
-            if isinstance(general_recommendations, dict) and "general" in general_recommendations:
-                OptimizerConfig.debug(f"Generated {len(general_recommendations['general'])} general recommendations", 
-                                     category='recommendation_generation', force=True)
-            else:
-                OptimizerConfig.debug(f"Unexpected general_recommendations structure: {type(general_recommendations).__name__}", 
-                                     category='recommendation_generation', force=True)
+            # Debug the recommendations structure
+            OptimizerConfig.debug(f"Generated {len(general_recommendations)} general recommendations", 
+                                 category='recommendation_generation', force=True)
+            OptimizerConfig.debug(f"Generated {len(network_recommendations)} network-specific recommendations", 
+                                 category='recommendation_generation', force=True)
             
-            # Generate network-specific recommendations for top networks
-            network_recommendations = []
-            
-            # Limit to top 3 networks to avoid overwhelming the user
-            for i, network in enumerate(top_networks[:3]):
-                # Add detailed debugging for NetworkMatch objects
-                if self.config.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Processing network: {network.network_name} (ID: {network.network_id})", category='network')
-                
-                network_id = network.network_id
-                network_name = network.network_name
-                network_shows = matching_shows[matching_shows['network_id'] == network_id]
-                show_count = len(network_shows)
-                self.config.debug(f"Analyzing network {network_name} with {show_count} matching shows", category='network')
-                
-                try:
-                    # Wrap the call in a try-except to catch any errors specific to this network
-                    # Ensure confidence_info is passed to avoid attribute errors
-                    network_specific_recs = self.recommendation_engine.generate_network_specific_recommendations(
-                        criteria=criteria,
-                        network=network,
-                        matching_shows=matching_shows,
-                        integrated_data=integrated_data,
-                        confidence_info=confidence_info
-                    )
-                    
-                    # Add to network recommendations for this analysis only
-                    network_recommendations.extend(network_specific_recs)
-                    
-                except Exception as net_error:
-                    # Log the error but continue processing other networks
-                    if self.config.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Error generating recommendations for {network_name}: {str(net_error)}", category='error')
+            # Add detailed debugging for network recommendations
+            if network_recommendations and self.config.DEBUG_MODE:
+                for i, rec in enumerate(network_recommendations[:3]):
+                    network_name = rec.get('network_name', 'Unknown')
+                    field = rec.get('field', 'Unknown')
+                    suggested = rec.get('suggested_name', 'Unknown')
+                    OptimizerConfig.debug(f"Network rec {i}: {network_name} - {field}/{suggested}", 
+                                         category='network', force=True)
             
             # Add explicit debug logging to identify the exact structure of recommendations
             if self.config.DEBUG_MODE:
