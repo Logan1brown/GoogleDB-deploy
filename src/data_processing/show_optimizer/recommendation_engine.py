@@ -935,6 +935,10 @@ class RecommendationEngine:
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Cannot generate network-specific recommendations: network_analyzer is None", category='recommendation')
             return []
+            
+        # Check if matching_shows has network_id column
+        if OptimizerConfig.DEBUG_MODE and matching_shows is not None and not matching_shows.empty:
+            OptimizerConfig.debug(f"Columns in matching_shows for network {network.network_name}: {list(matching_shows.columns)}", category='recommendation')
         
         # Get network-specific success rates
         if OptimizerConfig.DEBUG_MODE:
