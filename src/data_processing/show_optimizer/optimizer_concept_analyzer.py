@@ -990,6 +990,13 @@ class ConceptAnalyzer:
                     network_names = [n.network_name for n in top_networks]
                     OptimizerConfig.debug(f"Processing {len(top_networks)} networks for specific recommendations: {', '.join(network_names)}", category='recommendation')
                 
+                # Check if matching_shows has network_id column before generating network-specific recommendations
+                if self.config.DEBUG_MODE:
+                    if matching_shows is not None and not matching_shows.empty:
+                        OptimizerConfig.debug(f"Matching shows columns before network-specific recommendations: {list(matching_shows.columns)}", category='recommendation')
+                        if 'network_id' not in matching_shows.columns:
+                            OptimizerConfig.debug("CRITICAL: network_id column missing from matching_shows DataFrame", category='recommendation')
+                
                 # Generate network-specific recommendations using the top networks
                 # This will use exact database column names (IDs) for field matching
                 network_specific_results = self.recommendation_engine.generate_recommendations(
