@@ -288,6 +288,9 @@ class NetworkAnalyzer:
                          if (col.endswith('_id') or col.endswith('_ids')) 
                          and col not in standard_columns]
             
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network {network_id} analysis: Found {len(id_columns)} ID columns to analyze", category='recommendation')
+            
             # Process ID columns for network-specific success rates
             
             # Process each valid criteria column (ID columns)

@@ -410,9 +410,6 @@ class RecommendationEngine:
             
             # Generate network-specific recommendations if networks are provided
             if top_networks and len(top_networks) > 0:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Generating network-specific recommendations for {len(top_networks)} networks", category='recommendation')
-                
                 # Limit to top 3 networks for performance
                 for network in top_networks[:3]:
                     try:
@@ -420,16 +417,11 @@ class RecommendationEngine:
                             criteria, network, matching_shows, integrated_data, confidence_info
                         )
                         
-                        if OptimizerConfig.DEBUG_MODE and network_recs:
-                            OptimizerConfig.debug(f"Generated {len(network_recs)} recommendations for network {network.network_name}", category='recommendation')
-                            
                         # Directly add to network_specific_recommendations
                         # This ensures they're properly categorized as network-specific
                         network_specific_recommendations.extend(network_recs)
                     except Exception as e:
                         error_msg = f"Error generating network recommendations: {str(e)}"
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Error generating network recommendations: {str(e)}", category='recommendation')
             
     def generate_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
                                 integrated_data: IntegratedData = None, 
@@ -928,6 +920,9 @@ class RecommendationEngine:
             network_id=network.network_id
         )
         
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Network {network.network_name} (ID: {network.network_id}) rates: {len(network_rates) if network_rates else 0} items", category='recommendation')
+        
         if not network_rates:
             return []
         
@@ -977,6 +972,9 @@ class RecommendationEngine:
         valid_network_rates = {}
         
         # Process network rates for fields in criteria
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Processing {len(network_rates)} network rates for {network.network_name} against {len(valid_fields)} valid fields", category='recommendation')
+            
         for key, network_rate_data in network_rates.items():
             field_name, _ = self._parse_key(key)
             
@@ -1037,6 +1035,9 @@ class RecommendationEngine:
             condition1 = abs(difference) >= significant_diff_threshold  # Large difference
             condition2 = has_sufficient_data and abs(difference) > network_diff_threshold  # Smaller difference with sufficient data
             should_generate = condition1 or condition2
+            
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network {network.network_name} field {field_name}: network_rate={network_rate:.3f}, overall_rate={overall_rate:.3f}, diff={difference:.3f}, significant={should_generate}", category='recommendation')
             
             # Create recommendation if the difference is significant
             if should_generate:
