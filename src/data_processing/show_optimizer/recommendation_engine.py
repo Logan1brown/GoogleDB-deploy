@@ -416,6 +416,11 @@ class RecommendationEngine:
             if top_networks and len(top_networks) > 0:
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Starting network-specific recommendations generation for {len(top_networks)} networks", category='recommendation')
+                    # Check if network_analyzer is available
+                    if self.network_analyzer is None:
+                        OptimizerConfig.debug("Cannot generate network-specific recommendations: network_analyzer is None in generate_recommendations", category='recommendation')
+                    else:
+                        OptimizerConfig.debug("Network analyzer is available in generate_recommendations", category='recommendation')
                 
                 # Limit to top 3 networks for performance
                 for network in top_networks[:3]:
