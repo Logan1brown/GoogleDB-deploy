@@ -985,6 +985,11 @@ class ConceptAnalyzer:
             network_recommendations = []
             
             if top_networks and len(top_networks) > 0:
+                # Debug log the top networks being processed
+                if self.config.DEBUG_MODE:
+                    network_names = [n.network_name for n in top_networks]
+                    OptimizerConfig.debug(f"Processing {len(top_networks)} networks for specific recommendations: {', '.join(network_names)}", category='recommendation')
+                
                 # Generate network-specific recommendations using the top networks
                 # This will use exact database column names (IDs) for field matching
                 network_specific_results = self.recommendation_engine.generate_recommendations(
@@ -998,6 +1003,12 @@ class ConceptAnalyzer:
                 # Extract network-specific recommendations from the results
                 if isinstance(network_specific_results, dict):
                     network_recommendations = network_specific_results.get('network_specific', [])
+                    if self.config.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Extracted {len(network_recommendations)} network-specific recommendations from results", category='recommendation')
+                        if 'network_specific' not in network_specific_results:
+                            OptimizerConfig.debug("'network_specific' key missing from recommendation results", category='recommendation')
+                        elif not network_recommendations:
+                            OptimizerConfig.debug("'network_specific' key exists but contains empty list", category='recommendation')
       
             if isinstance(general_recommendations, dict):
                 general_count = len(general_recommendations.get("general", []))

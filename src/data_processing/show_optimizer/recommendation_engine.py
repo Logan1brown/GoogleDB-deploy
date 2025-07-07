@@ -414,18 +414,29 @@ class RecommendationEngine:
             
             # Generate network-specific recommendations if networks are provided
             if top_networks and len(top_networks) > 0:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Starting network-specific recommendations generation for {len(top_networks)} networks", category='recommendation')
+                
                 # Limit to top 3 networks for performance
                 for network in top_networks[:3]:
                     try:
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Generating recommendations for network: {network.network_name}", category='recommendation')
+                        
                         network_recs = self.generate_network_specific_recommendations(
                             criteria, network, matching_shows, integrated_data, confidence_info
                         )
+                        
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Generated {len(network_recs)} recommendations for network {network.network_name}", category='recommendation')
                         
                         # Directly add to network_specific_recommendations
                         # This ensures they're properly categorized as network-specific
                         network_specific_recommendations.extend(network_recs)
                     except Exception as e:
                         error_msg = f"Error generating network recommendations: {str(e)}"
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Error generating network recommendations: {str(e)}", category='recommendation')
             
     def generate_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
                                 integrated_data: IntegratedData = None, 
