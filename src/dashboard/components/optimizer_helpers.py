@@ -350,9 +350,6 @@ def render_success_metrics(summary: Any):
         # Show the actual error message to help with debugging
         error_msg = str(e)
         st.error(f"Error rendering success metrics: {error_msg}")
-        OptimizerConfig.debug(f"Error rendering success metrics: {error_msg}", category='recommendation')
-        OptimizerConfig.debug(traceback.format_exc(), category='recommendation')
-
 
 def render_success_factors(formatted_factors: List[Dict[str, Union[str, float, int]]]):
     """Render success factors chart using pre-formatted data from OptimizerView.
@@ -454,16 +451,16 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                 rec_type = rec.get('recommendation_type', 'add')  # Default to 'add' if not specified
                 if rec_type in rec_type_counts:
                     rec_type_counts[rec_type] += 1
-                elif OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Unknown recommendation_type in general: {rec_type}", category='recommendation')
+                else:
+                    pass
             
             # Count recommendation types from network-specific recommendations
             for rec in network_specific:
                 rec_type = rec.get('recommendation_type', 'add')  # Default to 'add' if not specified
                 if rec_type in rec_type_counts:
                     rec_type_counts[rec_type] += 1
-                elif OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Unknown recommendation_type in network-specific: {rec_type}", category='recommendation')
+                else:
+                    pass
                     
             OptimizerConfig.debug(f"Recommendation type counts: {rec_type_counts} (general: {len(general)}, network-specific: {len(network_specific)})", category='recommendation')
                 
@@ -471,8 +468,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
         has_recommendations = any(group_data['items'] for group_data in grouped.values())
                 
         if not has_recommendations:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("No recommendations found in any group", category='recommendation')
+
             st.info("No recommendations available for your current criteria.")
             return
             
@@ -482,13 +478,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
         # Extract general recommendations directly from the input
         general_recommendations = general
         
-        # Debug output to understand what's happening
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Direct general recommendations count: {len(general_recommendations)}", category='recommendation', force=True)
-            if general_recommendations:
-                OptimizerConfig.debug(f"First general recommendation title: {general_recommendations[0].get('title', 'No title')}", category='recommendation')
-                OptimizerConfig.debug(f"First general recommendation keys: {list(general_recommendations[0].keys())}", category='recommendation')
-                
+
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Found {len(general_recommendations)} general recommendations", category='recommendation')
                 
@@ -508,8 +498,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                 criteria_type = rec.get('criteria_type', rec.get('field', 'Other'))
                 
                 # Debug output for criteria_type
-                if OptimizerConfig.DEBUG_MODE and criteria_type == 'Other':
-                    OptimizerConfig.debug(f"Using fallback 'Other' for recommendation with keys: {list(rec.keys())}", category='recommendation')
+
                 
                 # Initialize this criteria type group if needed
                 if criteria_type not in by_criteria_type:
@@ -522,8 +511,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                 criteria_recs.sort(key=lambda x: abs(x['_impact_raw']), reverse=True)
                 
                 # Debug output only for recommendations
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Rendering {len(criteria_recs)} recommendations for criteria type: {criteria_type}", category='recommendation')
+
                                         
                 # Render each recommendation (limit to top 20 per criteria type)
                 for rec in criteria_recs[:20]:
@@ -533,9 +521,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                     # Get the content - could be 'explanation' or 'description' depending on where it was formatted
                     content = rec.get('explanation', rec.get('description', 'No details available.'))
                     
-                    # Debug the keys in this recommendation
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Recommendation keys: {list(rec.keys())}", category='recommendation')
+
                     
                     # Use info card style for all recommendations
                     render_info_card(title, content)

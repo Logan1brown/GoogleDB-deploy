@@ -57,14 +57,7 @@ class OptimizationSummary:
     
     def __post_init__(self):
         """Post-initialization validation and logging."""
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"OptimizationSummary created with success probability: {self.overall_success_probability}", category='components')
-            
-            if self.component_scores:
-                OptimizerConfig.debug(f"Component scores: {list(self.component_scores.keys())}", category='components')
-                if 'success' in self.component_scores:
-                    success_score = self.component_scores['success']
-                    OptimizerConfig.debug(f"Success component score: {success_score.score}, confidence: {success_score.confidence}", category='components')
+        pass  # Debug statements removed
     
     @property
     def network_compatibility(self) -> List[NetworkMatch]:
@@ -92,13 +85,7 @@ class OptimizationSummary:
         # Component scores should always be present, but return empty dict if not
         # This maintains the contract with the UI layer
         if not self.component_scores:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("No component scores available to format", category='components')
             return {}
-            
-        # Debug log the component scores before formatting
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Formatting {len(self.component_scores)} component scores: {list(self.component_scores.keys())}", category='components')
             
         # Format each ComponentScore object into a dictionary
         formatted_scores = {}
@@ -113,10 +100,6 @@ class OptimizationSummary:
             # Add error information if present in details
             if component_score.details and 'error' in component_score.details:
                 score_dict['error'] = component_score.details['error']
-                
-            # Debug log each component score
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Component {component_name}: score={score_dict['score']}, sample_size={score_dict['sample_size']}, confidence={score_dict['confidence']}", category='components')
                 
             formatted_scores[component_name] = score_dict
             
@@ -137,8 +120,7 @@ class OptimizationSummary:
             
         # Format success probability for display
         if not hasattr(self, 'overall_success_probability') or self.overall_success_probability is None:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Success probability not available in OptimizationSummary", category='components')
+
             return {
                 'display': 'N/A',
                 'subtitle': 'Success probability not available'
@@ -267,12 +249,7 @@ class OptimizationSummary:
             formatted['component_scores'] = component_scores
             
         # Debug log the formatted data structure
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Formatted data structure: {formatted.keys()}", category='format')
-            if 'component_scores' in formatted:
-                OptimizerConfig.debug(f"Component scores keys: {formatted['component_scores'].keys()}", category='format')
-            if 'success_probability' in formatted:
-                OptimizerConfig.debug(f"Success probability: {formatted['success_probability']}", category='format')
+
             
         return formatted
         
@@ -425,7 +402,7 @@ class ConceptAnalyzer:
         }
         # Also reset the last network recommendations for debugging
         self._last_network_recommendations = []
-        OptimizerConfig.debug("Reset recommendation state", category='state')
+
     
     def analyze_concept(self, criteria: CriteriaDict, integrated_data: IntegratedData) -> OptimizationSummary:
         """Analyze a show concept and generate optimization recommendations.
@@ -443,15 +420,13 @@ class ConceptAnalyzer:
         # Check if criteria have changed and reset recommendation state if needed
         current_criteria_hash = self._get_criteria_hash(criteria)
         if self._recommendation_state['criteria_hash'] != current_criteria_hash:
-            OptimizerConfig.debug(f"Criteria changed, resetting recommendation state", category='recommendation_generation')
+
             self.reset_recommendation_state()
             self._recommendation_state['criteria_hash'] = current_criteria_hash
             self._recommendation_state['last_update_timestamp'] = datetime.now().isoformat()
         try:
             # VERY OBVIOUS UI CHANGE TO CONFIRM CODE UPDATES ARE WORKING
             # Version indicator is now in the sidebar
-            
-
             
             # Step 1: Find matching shows using integrated data
 
@@ -482,39 +457,31 @@ class ConceptAnalyzer:
                         match_counts_by_level[level] = count
             
             # Step 2: Calculate success probability
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Calculating success probability", category='analysis')
+
             success_probability, confidence = self._calculate_success_probability(criteria, matching_shows)
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Success probability: {success_probability}, confidence: {confidence}", category='analysis')
             
             # Step 3: Find top networks - pass the existing matching_shows and confidence_info to avoid redundant matching
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Finding top networks", category='analysis')
+
             top_networks = self._find_top_networks(criteria, integrated_data=integrated_data, matching_shows=matching_shows, confidence_info=confidence_info)
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Found {len(top_networks)} top networks", category='analysis')
-                for i, network in enumerate(top_networks):
-                    OptimizerConfig.debug(f"Network {i+1}: {network.network_name} (ID: {network.network_id})", category='networks')
-                    OptimizerConfig.debug(f"Network {i+1} type: {type(network).__name__}", category='networks')
+    
             
             # Step 4: Calculate component scores
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Calculating component scores", category='analysis')
+
             component_scores = self._get_component_scores(criteria, matching_shows, integrated_data)
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Component scores: {component_scores}", category='analysis')
+
             
             # Step 5: Identify success factors
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Identifying success factors", category='analysis')
+
             success_factors = self._identify_success_factors(criteria, matching_shows, integrated_data)
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Found {len(success_factors)} success factors", category='analysis')
             
             # Step 6: Generate recommendations
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Generating recommendations", category='analysis')
+
             recommendations = self._generate_recommendations(
                 criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
             )
@@ -565,14 +532,6 @@ class ConceptAnalyzer:
                     confidence_info=confidence_info
                 )
             except Exception as e:
-                # Debug the error
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Error creating OptimizationSummary: {str(e)}", category='error')
-                    OptimizerConfig.debug(f"success_factors type: {type(success_factors)}", category='error')
-                    if success_factors:
-                        for i, factor in enumerate(success_factors):
-                            OptimizerConfig.debug(f"Factor {i} type: {type(factor)}", category='error')
-                    
                 # Create a minimal summary with empty values
                 summary = OptimizationSummary(
                     overall_success_probability=None,
@@ -604,7 +563,7 @@ class ConceptAnalyzer:
         except Exception as e:
             error_msg = f"Error in analyze_concept: {str(e)}"
             trace = traceback.format_exc()
-            OptimizerConfig.debug("Analysis error occurred", category='analyzer')
+
             st.error(error_msg)
 
             return self._handle_analysis_error(f"Analysis error: {str(e)}")
@@ -650,11 +609,7 @@ class ConceptAnalyzer:
                 # Update match count in confidence info
                 confidence_info = update_confidence_info(confidence_info, {'match_count': match_count})
                 
-                # Log match results through config debug
-                self.config.debug(
-                    f"Found {match_count} matching shows with confidence level: {confidence_info['level']}", 
-                    category='matching'
-                )
+
                 
                 return matching_shows, confidence_info
             else:
@@ -693,7 +648,7 @@ class ConceptAnalyzer:
         try:
             # If no matching shows, return None with appropriate logging
             if matching_shows.empty:
-                self.config.debug("No matching shows found for success probability calculation", category='success')
+
                 return None, 'none'
             
             # Use CriteriaScorer to calculate all scores including success rate
@@ -747,7 +702,6 @@ class ConceptAnalyzer:
                 # Return the success probability (not the original success rate)
                 return success_probability, confidence_level
             
-            self.config.debug("Could not calculate success probability: missing success scores", category='success')
             return None, 'none'
             
         except Exception as e:
@@ -970,17 +924,11 @@ class ConceptAnalyzer:
         # Initialize all variables at the beginning to prevent NameError
         general_recommendations = {"general": []}
         network_recommendations = []
-        # Force debug logging for recommendation generation to track issues
-        criteria_count = len(criteria) if criteria else 0
-        OptimizerConfig.debug(f"Starting recommendation generation with {len(success_factors)} success factors and {criteria_count} criteria", 
-                              category='recommendation_generation', force=True)
         
         # Check if criteria have changed since last run
         current_criteria_hash = self._get_criteria_hash(criteria)
         if current_criteria_hash != self._last_criteria_hash:
             # State reset is already handled in analyze_concept, just update the hash here
-            OptimizerConfig.debug(f"Using criteria hash: {current_criteria_hash}", 
-                                  category='recommendation_generation')
             self._last_criteria_hash = current_criteria_hash
         
         # Always reset recommendation collections at the start of generation
@@ -990,27 +938,11 @@ class ConceptAnalyzer:
         
         # Add detailed debugging for success factors
         if self.config.DEBUG_MODE:
-            OptimizerConfig.debug(f"_generate_recommendations received {len(success_factors)} success factors", category='recommendation')
+
             high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
             OptimizerConfig.debug(f"Found {len(high_impact_factors)} high impact success factors", category='recommendation')
             # Do not filter by threshold here - let RecommendationEngine handle it once
-            
-            # Debug the first few success factors to understand what's being passed
-            for i, factor in enumerate(success_factors[:5]):
-                OptimizerConfig.debug(f"Success factor {i+1}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}", category='recommendation')
-                
-            # Debug any Animation genre factor specifically
-            animation_factors = [f for f in success_factors if f.criteria_type == 'genre' and f.criteria_name == 'Animation']
-            if animation_factors:
-                for af in animation_factors:
-                    OptimizerConfig.debug(f"Animation factor details: impact={af.impact_score}, rec_type={af.recommendation_type}", category='recommendation', force=True)
-            else:
-                OptimizerConfig.debug("No Animation genre factor found in success factors", category='recommendation', force=True)
-                
-            # Debug the criteria to understand what's currently selected
-            if 'genre' in criteria:
-                OptimizerConfig.debug(f"Current genre selection: {criteria['genre']}", category='recommendation', force=True)
-            
+                    
         try:
             # Initialize recommendations variables at the beginning to avoid NameError
             general_recommendations = {"general": []}
@@ -1029,19 +961,16 @@ class ConceptAnalyzer:
             
             # Ensure we have valid success factors - this is critical for general recommendations
             if not success_factors or len(success_factors) == 0:
-                OptimizerConfig.debug("No success factors provided for recommendation generation. Re-identifying success factors.", 
-                                     category='recommendation_generation', force=True)
+
                 # Re-identify success factors to ensure we have fresh data for recommendations
                 success_factors = self._identify_success_factors(criteria, matching_shows, integrated_data)
-                OptimizerConfig.debug(f"Re-identified {len(success_factors)} success factors", 
-                                     category='recommendation_generation', force=True)
-                
+  
             # Ensure confidence_info conforms to our ConfidenceInfo contract
             # This enforces the contract rather than adding defensive checks
             confidence_info = update_confidence_info(confidence_info, {})
             
             # Generate general recommendations with explicit debug logging
-            OptimizerConfig.debug("Generating general recommendations", category='recommendation_generation', force=True)
+
             general_recommendations = self.recommendation_engine.generate_recommendations(
                 criteria=criteria,
                 matching_shows=matching_shows,
@@ -1051,17 +980,11 @@ class ConceptAnalyzer:
             )
             
             # Generate network-specific recommendations with explicit debug logging
-            OptimizerConfig.debug("Generating network-specific recommendations", category='recommendation_generation', force=True)
-            
+ 
             # Ensure we have network recommendations even if the next steps fail
             network_recommendations = []
             
             if top_networks and len(top_networks) > 0:
-                # Log the top networks for debugging
-                for i, network in enumerate(top_networks[:3]):
-                    OptimizerConfig.debug(f"Processing network {i+1}: {network.network_name} (ID: {network.network_id})", 
-                                         category='recommendation_generation', force=True)
-                
                 # Generate network-specific recommendations using the top networks
                 # This will use exact database column names (IDs) for field matching
                 network_specific_results = self.recommendation_engine.generate_recommendations(
@@ -1075,104 +998,40 @@ class ConceptAnalyzer:
                 # Extract network-specific recommendations from the results
                 if isinstance(network_specific_results, dict):
                     network_recommendations = network_specific_results.get('network_specific', [])
-                    OptimizerConfig.debug(f"Extracted {len(network_recommendations)} network-specific recommendations from results", 
-                                         category='recommendation_generation', force=True)
-                    
-                    # Log the first few network recommendations to help with debugging
-                    for i, rec in enumerate(network_recommendations[:3]):
-                        field = rec.get('field', 'Unknown')
-                        suggested = rec.get('suggested_name', 'Unknown')
-                        network_name = rec.get('network_name', 'Unknown')
-                        OptimizerConfig.debug(f"Network rec {i}: {network_name} - {field}/{suggested}", 
-                                             category='recommendation_generation', force=True)
-            
-            # Debug the recommendations structure
-            OptimizerConfig.debug(f"Generated {len(general_recommendations)} general recommendations", 
-                                 category='recommendation_generation', force=True)
-            OptimizerConfig.debug(f"Generated {len(network_recommendations)} network-specific recommendations", 
-                                 category='recommendation_generation', force=True)
-            
-            # Add detailed debugging for network recommendations
-            if network_recommendations and self.config.DEBUG_MODE:
-                for i, rec in enumerate(network_recommendations[:3]):
-                    network_name = rec.get('network_name', 'Unknown')
-                    field = rec.get('field', 'Unknown')
-                    suggested = rec.get('suggested_name', 'Unknown')
-                    OptimizerConfig.debug(f"Network rec {i}: {network_name} - {field}/{suggested}", 
-                                         category='network', force=True)
-            
-            # Add explicit debug logging to identify the exact structure of recommendations
-            if self.config.DEBUG_MODE:
-                OptimizerConfig.debug("Processing recommendations", category='recommendations')
-            
-            # Debug the structure of general_recommendations with forced logging
-            self.config.debug(f"general_recommendations type: {type(general_recommendations).__name__}", 
-                              category='recommendation_generation', force=True)
-            
+      
             if isinstance(general_recommendations, dict):
-                self.config.debug(f"general_recommendations keys: {list(general_recommendations.keys())}", 
-                                  category='recommendation_generation', force=True)
                 general_count = len(general_recommendations.get("general", []))
-                self.config.debug(f"Final general recommendations count: {general_count}", 
-                                  category='recommendation_generation', force=True)
                 
-                # If we have no general recommendations but have success factors, log a warning
-                if general_count == 0 and len(success_factors) > 0:
-                    self.config.debug("WARNING: No general recommendations generated despite having success factors", 
-                                      category='recommendation_generation', force=True)
-                    # Log the first few success factors to help diagnose
-                    for i, factor in enumerate(success_factors[:3]):
-                        self.config.debug(f"Factor {i}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}, rec_type: {factor.recommendation_type}", 
-                                          category='recommendation_generation', force=True)
+
             else:
-                self.config.debug(f"Error: general_recommendations is not a dictionary", category='error', force=True)
+                pass
             
-            # Debug the structure of network_recommendations
             network_count = len(network_recommendations)
-            self.config.debug(f"Final network recommendations count: {network_count}", 
-                              category='recommendation_generation', force=True)
             
             # Store the recommendations in our state dictionary
             if isinstance(general_recommendations, dict) and "general" in general_recommendations:
                 self._recommendation_state['general_recommendations'] = general_recommendations["general"]
-                OptimizerConfig.debug(f"Stored {len(self._recommendation_state['general_recommendations'])} general recommendations in state", 
-                                     category='recommendation_generation', force=True)
+
             else:
-                OptimizerConfig.debug("WARNING: No general recommendations found in recommendation engine output", 
-                                     category='recommendation_generation', force=True)
+                pass
             
             # Store network recommendations in state
             self._recommendation_state['network_recommendations'] = network_recommendations.copy()
-            OptimizerConfig.debug(f"Stored {len(self._recommendation_state['network_recommendations'])} network recommendations in state", 
-                                 category='recommendation_generation', force=True)
+
             
             # Return the recommendations dictionary with the correct structure
             result = {
                 "general": self._recommendation_state['general_recommendations'],
                 "network_specific": network_recommendations
             }
-            
-            # Final log of what we're returning
-            self.config.debug(f"Returning recommendations: {len(result['general'])} general, {len(result['network_specific'])} network-specific", 
-                             category='recommendation_generation', force=True)
-            
-            # Log recommendation state for debugging
-            self.config.debug(f"Current recommendation state: {len(self._recommendation_state['general_recommendations'])} general, {len(self._recommendation_state['network_recommendations'])} network-specific", 
-                             category='recommendation_generation', force=True)
-            
+              
             return result
             
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
             st.error(f"Error generating recommendations: {str(e)}")
-            if self.config.DEBUG_MODE:
-                OptimizerConfig.debug(f"Recommendation generation error details: {error_details}", category='error', force=True)
-                # Debug the success factors to see if they're valid
-                OptimizerConfig.debug(f"Success factors count: {len(success_factors)}", category='error', force=True)
-                if success_factors:
-                    for i, factor in enumerate(success_factors[:3]):
-                        OptimizerConfig.debug(f"Factor {i}: {factor.criteria_type}/{factor.criteria_name} - impact: {factor.impact_score}", category='error', force=True)
+
             
             # Initialize empty recommendation state if it doesn't exist
             if 'general_recommendations' not in self._recommendation_state:
@@ -1180,5 +1039,5 @@ class ConceptAnalyzer:
             if 'network_recommendations' not in self._recommendation_state:
                 self._recommendation_state['network_recommendations'] = []
                 
-            OptimizerConfig.debug("Returning empty recommendations due to error", category='recommendation_generation', force=True)
+
             return {"general": [], "network_specific": []}
