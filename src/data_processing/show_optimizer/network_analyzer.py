@@ -261,15 +261,21 @@ class NetworkAnalyzer:
             
             # Validate inputs
             if matching_shows is None or matching_shows.empty:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network {network_id} analysis: No matching shows provided", category='recommendation')
                 return {}
                 
             # Filter to this network
             if 'network_id' not in matching_shows.columns:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network {network_id} analysis: No network_id column in matching shows", category='recommendation')
                 return {}
                 
             network_shows = matching_shows[matching_shows['network_id'] == network_id]
             
             if network_shows.empty:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network {network_id} analysis: No shows found for this network", category='recommendation')
                 return {}
                 
             # Check if success_score column exists

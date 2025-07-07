@@ -124,10 +124,14 @@ class RecommendationEngine:
         self.network_analyzer = None
         if hasattr(success_analyzer, 'network_analyzer'):
             self.network_analyzer = success_analyzer.network_analyzer
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network analyzer initialized from success_analyzer", category='recommendation')
         elif self.criteria_scorer is not None:
             # Import here to avoid circular imports
             from .network_analyzer import NetworkAnalyzer
             self.network_analyzer = NetworkAnalyzer(self.criteria_scorer, self.field_manager)
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network analyzer created with criteria_scorer and field_manager", category='recommendation')
         
         # Try to get criteria_scorer from success_analyzer if not provided
         if self.criteria_scorer is None and hasattr(success_analyzer, 'criteria_scorer'):
@@ -912,6 +916,8 @@ class RecommendationEngine:
         
         # Check if network_analyzer is available
         if self.network_analyzer is None:
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Cannot generate network-specific recommendations: network_analyzer is None", category='recommendation')
             return []
             
         # Get network-specific success rates
