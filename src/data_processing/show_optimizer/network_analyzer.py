@@ -269,6 +269,8 @@ class NetworkAnalyzer:
             if 'network_id' not in matching_shows.columns:
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Network {network_id} analysis: No network_id column in matching shows", category='recommendation')
+                    # Print available columns for debugging
+                    OptimizerConfig.debug(f"Available columns: {list(matching_shows.columns)}", category='recommendation')
                 return {}
                 
             network_shows = matching_shows[matching_shows['network_id'] == network_id]

@@ -930,19 +930,30 @@ class RecommendationEngine:
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Cannot generate network-specific recommendations: network_analyzer is None", category='recommendation')
             return []
-            
+        
         # Get network-specific success rates
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Getting network-specific success rates for network {network.network_name} (ID: {network.network_id})", category='recommendation')
+            # Check if matching_shows has network_id column
+            if matching_shows is not None and not matching_shows.empty:
+                OptimizerConfig.debug(f"Matching shows columns before network analysis: {list(matching_shows.columns)}", category='recommendation')
+                if 'network_id' in matching_shows.columns:
+                    unique_networks = matching_shows['network_id'].unique()
+                    OptimizerConfig.debug(f"Unique network IDs in matching shows: {list(unique_networks)}", category='recommendation')
+        
         network_rates = self.network_analyzer.get_network_specific_success_rates(
             matching_shows=matching_shows,
             network_id=network.network_id
         )
         
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Network {network.network_name} (ID: {network.network_id}) rates: {len(network_rates) if network_rates else 0} items", category='recommendation')
-        
         if not network_rates:
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"No network-specific success rates found for network {network.network_name}", category='recommendation')
             return []
         
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Network {network.network_name} (ID: {network.network_id}) rates: {len(network_rates) if network_rates else 0} items", category='recommendation')
+    
         # Calculate overall success rates for comparison with network-specific rates
         overall_rates = {}
                 
