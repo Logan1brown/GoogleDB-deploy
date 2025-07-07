@@ -640,7 +640,7 @@ class OptimizerView:
                             
                             # Debug output for network recommendation formatting
                             if OptimizerConfig.DEBUG_MODE:
-                                pass
+                                OptimizerConfig.debug(f"Moving network recommendation to network-specific section: {network_name}", category='recommendation')
                         
                         # Add to network_specific_formatted but NOT to general_flattened
                         network_specific_formatted.append(network_rec)
