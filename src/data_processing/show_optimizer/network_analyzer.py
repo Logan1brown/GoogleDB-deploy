@@ -338,10 +338,17 @@ class NetworkAnalyzer:
                         criteria_fields.add(field[:-3])
                 
                 # Filter id_columns to only those related to criteria fields
-                columns_to_process = [col for col in id_columns if col in criteria_fields or col[:-3] in criteria_fields if col.endswith('_id')]
+                filtered_columns = [col for col in id_columns if col in criteria_fields or (col.endswith('_id') and col[:-3] in criteria_fields)]
                 
+                # Only use filtered columns if we actually found some, otherwise use all columns
+                # This ensures we always have some data to work with
+                if filtered_columns:
+                    columns_to_process = filtered_columns
+                    
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Network {network_id} analysis: Filtered from {len(id_columns)} to {len(columns_to_process)} columns based on criteria", category='recommendation')
+                    if not filtered_columns:
+                        OptimizerConfig.debug(f"Network {network_id} analysis: No columns matched criteria, using all columns", category='recommendation')
             
             # Process each valid criteria column (ID columns)
             for column in columns_to_process:
