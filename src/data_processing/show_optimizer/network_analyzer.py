@@ -24,7 +24,7 @@ from .criteria_scorer import CriteriaScorer
 from .optimizer_data_contracts import (
     CriteriaDict, ConfidenceInfo, IntegratedData, 
     FieldValueSuccessRate, RecommendationItem,
-    create_field_value_key, create_success_rate
+    create_field_value_key, create_success_rate_data
 )
 # Import NetworkMatch from optimizer_data_contracts instead of score_calculators
 # to avoid circular imports
@@ -321,14 +321,14 @@ class NetworkAnalyzer:
             if baseline_total_count > 0:
                 baseline_success_rate = baseline_success_count / baseline_total_count
                 
-                # Add baseline success rate to the dictionary
-                success_rates['network_baseline'] = {
-                    'field_name': 'network',
-                    'value': network_id,
-                    'value_name': f'Network {network_id}',
-                    'rate': baseline_success_rate,
-                    'sample_size': baseline_total_count
-                }
+                # Add baseline success rate to the dictionary using the centralized function
+                success_rates['network_baseline'] = create_success_rate_data(
+                    field_name='network',
+                    value=network_id,
+                    rate=baseline_success_rate,
+                    sample_size=baseline_total_count,
+                    value_name=f'Network {network_id}'
+                )
                 
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Network {network_id} baseline success rate: {baseline_success_rate:.2f} ({baseline_success_count}/{baseline_total_count})", category='recommendation')
@@ -459,29 +459,26 @@ class NetworkAnalyzer:
                                 if len(matching_titles) > OptimizerConfig.MAX_RESULTS:
                                     matching_titles = matching_titles[:OptimizerConfig.MAX_RESULTS]
                             
-                            # Use the field manager to create standardized success rate data
-                            # This ensures consistent handling of field values, especially list-type fields
-                            success_rate_data = self.field_manager.create_success_rate_data(
+                            # Use the centralized create_success_rate_data function for consistent data structure
+                            # This ensures consistent data structure between network-specific and overall success rates
+                            success_rate_data = create_success_rate_data(
                                 field_name=field_name,
                                 value=value,
                                 rate=success_rate,
                                 sample_size=total_count,
-                                matching_shows=matching_titles
+                                value_name=clean_value_name
                             )
                             
-                            # The recommendation engine expects 'rate' key but field_manager returns 'success_rate'
-                            # Add 'rate' key with the same value for consistency
-                            success_rate_data['rate'] = success_rate_data['success_rate']
+                            # Add matching shows to the data
+                            success_rate_data['matching_shows'] = matching_titles
                             
                             # Add cleaned value name if different from the generated one
                             if clean_value_name != success_rate_data['value_name']:
                                 success_rate_data['original_value_name'] = success_rate_data['value_name']
                                 success_rate_data['value_name'] = clean_value_name
                             
-                            # Use the create_field_value_key function from optimizer_data_contracts
-                            from .optimizer_data_contracts import create_field_value_key
-                            
                             # Create a key using the exact database column name
+                            # Using the imported create_field_value_key function from optimizer_data_contracts
                             key = create_field_value_key(field_name, value)
                             
                             if OptimizerConfig.DEBUG_MODE:
@@ -502,13 +499,14 @@ class NetworkAnalyzer:
             # Add network baseline success rate to the results
             if network_shows is not None and not network_shows.empty and 'success_score' in network_shows.columns:
                 network_baseline = network_shows[network_shows['success_score'] >= success_threshold].shape[0] / network_shows.shape[0]
-                success_rates['network_baseline'] = {
-                    'field_name': 'network_id',
-                    'value': network_id,
-                    'value_name': f'Network {network_id}',
-                    'rate': network_baseline,
-                    'sample_size': network_shows.shape[0]
-                }
+                # Use the centralized function for consistent data structure
+                success_rates['network_baseline'] = create_success_rate_data(
+                    field_name='network_id',
+                    value=network_id,
+                    rate=network_baseline,
+                    sample_size=network_shows.shape[0],
+                    value_name=f'Network {network_id}'
+                )
                 
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Network {network_id} analysis: Added network baseline success rate: {network_baseline}", category='recommendation')

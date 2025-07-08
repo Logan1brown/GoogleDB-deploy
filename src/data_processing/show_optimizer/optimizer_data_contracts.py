@@ -269,6 +269,29 @@ class RecommendationItem(TypedDict):
 
 # Helper functions for working with field values
 
+def create_success_rate_data(field_name: str, value: Any, rate: float, sample_size: int, value_name: Optional[str] = None) -> Dict[str, Any]:
+    """Create a standardized success rate data structure.
+    
+    This ensures consistent data structure between network-specific and overall success rates.
+    
+    Args:
+        field_name: Name of the field (e.g., 'genre_id', 'tone_id')
+        value: The field value
+        rate: Success rate as a float between 0 and 1
+        sample_size: Number of samples used to calculate the rate
+        value_name: Optional human-readable name for the value
+        
+    Returns:
+        A dictionary with standardized structure for success rate data
+    """
+    return {
+        'field_name': field_name,
+        'value': value,
+        'value_name': value_name if value_name is not None else str(value),
+        'rate': rate,
+        'sample_size': sample_size
+    }
+
 def create_field_value_key(field_name: str, value: Any) -> str:
     """Create a standardized dictionary key for field value success rates.
     

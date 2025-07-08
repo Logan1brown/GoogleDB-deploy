@@ -16,7 +16,7 @@ from .criteria_scorer import ImpactAnalysisResult, ImpactAnalysisSummary
 from .optimizer_data_contracts import (
     CriteriaDict, ConfidenceInfo, IntegratedData,
     NetworkMatch, RecommendationItem, FieldValueData, FieldValueSuccessRate,
-    update_confidence_info
+    update_confidence_info, create_success_rate_data, create_field_value_key
 )
 
 
@@ -74,6 +74,30 @@ class RecommendationEngine:
             Formatted key string
         """
         return f"{field_name}:{str(value_name)}"
+        
+    def _create_success_rate_entry(self, field_name, field_value, success_rate, sample_size):
+        """Create a standardized success rate entry for consistent data structure.
+        
+        DATA CONTRACT: This method ensures consistent data structure between network-specific
+        and overall success rates by using the create_success_rate_data function from
+        optimizer_data_contracts.
+        
+        Args:
+            field_name: Name of the field (e.g., 'genre_id', 'tone_id')
+            field_value: The field value
+            success_rate: Success rate as a float
+            sample_size: Number of samples used to calculate the rate
+            
+        Returns:
+            A dictionary with standardized structure for success rate data
+        """
+        return create_success_rate_data(
+            field_name=field_name,
+            value=field_value,
+            rate=success_rate,
+            sample_size=sample_size,
+            value_name=self._get_criteria_name(field_name, field_value)
+        )
         
     def _make_hashable(self, value):
         """Convert a value to a hashable type for dictionary keys.
@@ -348,155 +372,6 @@ class RecommendationEngine:
         
         return success_factors
             
-    def _recommend_missing_criteria(self, criteria: CriteriaDict, 
-                                   success_factors: List[SuccessFactor],
-                                   matching_shows: pd.DataFrame) -> List[RecommendationItem]:
-        """Generate recommendations for high-impact criteria that are missing from the concept.
-        
-        This method processes success factors to create actionable recommendations of types:
-        - 'add': For unselected criteria with positive impact
-        - 'change': For selected fields but with different options that have positive impact
-        - 'remove': For selected criteria with negative impact
-        
-        Args:
-            criteria: Dictionary of criteria key-value pairs from the UI conforming to CriteriaDict
-            success_factors: List of SuccessFactor objects with impact scores and recommendation types
-            matching_shows: DataFrame of shows matching the current criteria
-            
-        Returns:
-            List of RecommendationItem dictionaries sorted by impact score
-        """
-        recommendations = []
-        
-        try:
-            # Process each success factor to create recommendations
-            missing_criteria_recs = []
-            
-            # Add recommendations from success factors
-            for factor in success_factors:
-                # Skip factors without a recommendation type
-                if not factor.recommendation_type:
-                    continue
-                    
-                # Create the recommendation
-                recommendation = {
-                    'recommendation_type': factor.recommendation_type,
-                    'field': factor.criteria_type,
-                    'current_value': criteria.get(factor.criteria_type),
-                    'suggested_value': factor.criteria_value,
-                    'suggested_name': factor.criteria_name,
-                    'impact': factor.impact_score,
-                    'confidence': factor.confidence,
-                    'sample_size': factor.sample_size,
-                    'matching_titles': factor.matching_titles[:5] if factor.matching_titles else []
-                }
-                
-                missing_criteria_recs.append(recommendation)
-                
-            recommendations.extend(missing_criteria_recs)
-                          
-        except Exception as e:
-            error_msg = f"Error in _recommend_missing_criteria: {str(e)}"
-        
-        # Process confidence info if available
-        if 'confidence_info' in locals() and confidence_info:
-            try:
-                # update_confidence_info is already imported at the top of the file
-                confidence_info = update_confidence_info(confidence_info, {})
-                match_level = confidence_info.get('match_level', 1)
-                
-                # Analyze limiting criteria if match level is not perfect
-                if match_level > 1:
-                    try:
-                        limiting_criteria_recs = self._identify_limiting_criteria(
-                            criteria, matching_shows, confidence_info
-                        )
-                        recommendations.extend(limiting_criteria_recs)
-                    except Exception as e:
-                        pass
-            except Exception as e:
-                pass
-            
-            # Analyze successful patterns in the matched shows if we have data
-            if not matching_shows.empty:
-                try:
-                    pattern_recs = self._analyze_successful_patterns(criteria, matching_shows)
-                    recommendations.extend(pattern_recs)
-
-                except Exception as e:
-                    error_msg = f"Error in _analyze_successful_patterns: {str(e)}"
-            
-            # Generate network-specific recommendations if networks are provided
-            if top_networks and len(top_networks) > 0:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Starting network-specific recommendations generation for {len(top_networks)} networks", category='recommendation')
-                    # Check if network_analyzer is available
-                    if self.network_analyzer is None:
-                        OptimizerConfig.debug("Cannot generate network-specific recommendations: network_analyzer is None in generate_recommendations", category='recommendation')
-                    else:
-                        OptimizerConfig.debug("Network analyzer is available in generate_recommendations", category='recommendation')
-                
-                # Pre-calculate overall success rates for network-specific recommendations
-                overall_rates = {}
-                
-                # Extract overall success rates from the impact_result
-                if impact_result and hasattr(impact_result, 'criteria_impacts'):
-                    for field, impacts in impact_result.criteria_impacts.items():
-                        for option_id, impact_data in impacts.items():
-                            # Use the create_field_value_key function for consistent key generation
-                            from .optimizer_data_contracts import create_field_value_key
-                            
-                            # Create key using the database column name format (with _id suffix)
-                            db_field = f"{field}_id" if not field.endswith('_id') else field
-                            
-                            # Convert option_id to float if it's numeric to match network analyzer key format
-                            try:
-                                if isinstance(option_id, (int, float)) or (isinstance(option_id, str) and option_id.isdigit()):
-                                    option_id = float(option_id)
-                            except (ValueError, TypeError):
-                                pass  # Keep original if conversion fails
-                                
-                            key = create_field_value_key(db_field, option_id)
-                            
-                            # Get the success rate from the impact data
-                            success_rate = impact_data.get('success_rate')
-                            if success_rate is not None:
-                                overall_rates[key] = {
-                                    'rate': success_rate,
-                                    'sample_size': impact_data.get('sample_size', 0),
-                                    'confidence': impact_data.get('confidence', 'medium')
-                                }
-                
-                # Limit to top 3 networks for performance
-                for network in top_networks[:3]:
-                    try:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Generating recommendations for network: {network.network_name}", category='recommendation')
-                        
-                        # Get network-specific success rates
-                        network_rates = self.network_analyzer.get_network_specific_success_rates(
-                            matching_shows=matching_shows,
-                            network_id=network.network_id,
-                            criteria=criteria
-                        )
-                        
-                        network_recs = self.generate_network_specific_recommendations(
-                            criteria, network, matching_shows, integrated_data, confidence_info,
-                            network_rates=network_rates,
-                            overall_rates=overall_rates
-                        )
-                        
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Generated {len(network_recs)} recommendations for network {network.network_name}", category='recommendation')
-                        
-                        # Directly add to network_specific_recommendations
-                        # This ensures they're properly categorized as network-specific
-                        network_specific_recommendations.extend(network_recs)
-                    except Exception as e:
-                        error_msg = f"Error generating network recommendations: {str(e)}"
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Error generating network recommendations: {str(e)}", category='recommendation')
-            
     def generate_all_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
                                integrated_data: IntegratedData = None, 
                                top_networks: List[NetworkMatch] = None,
@@ -552,6 +427,13 @@ class RecommendationEngine:
                 # This limits the expensive calculations to only fields that are already selected
                 fields_to_analyze = list(criteria.keys())
                 
+                # Always include 'network' in fields_to_analyze to ensure network-specific recommendations work
+                if 'network' not in fields_to_analyze:
+                    fields_to_analyze.append('network')
+                    
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Fields to analyze for impact: {fields_to_analyze}", category='recommendation')
+                
                 impact_result = self.criteria_scorer.calculate_criteria_impact(
                     criteria, 
                     matching_shows, 
@@ -577,6 +459,7 @@ class RecommendationEngine:
             success_factors = self.identify_success_factors(criteria, matching_shows, integrated_data)
             
             # Generate general recommendations from success factors
+            # Use the more comprehensive implementation of _recommend_missing_criteria
             general_recommendations = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
             
             # Sort by absolute impact (descending)
@@ -611,9 +494,6 @@ class RecommendationEngine:
                 if impact_result and hasattr(impact_result, 'criteria_impacts'):
                     for field, impacts in impact_result.criteria_impacts.items():
                         for option_id, impact_data in impacts.items():
-                            # Use the create_field_value_key function for consistent key generation
-                            from .optimizer_data_contracts import create_field_value_key
-                            
                             # Create key using the database column name format (with _id suffix)
                             # This ensures compatibility with network analyzer keys
                             db_field = f"{field}_id" if not field.endswith('_id') else field
@@ -631,11 +511,13 @@ class RecommendationEngine:
                             # Get the success rate from the impact data
                             success_rate = impact_data.get('success_rate')
                             if success_rate is not None:
-                                overall_rates[key] = {
-                                    'rate': success_rate,
-                                    'sample_size': impact_data.get('sample_size', 0),
-                                    'confidence': impact_data.get('confidence', 'medium')
-                                }
+                                # Use the helper method for consistent data structure
+                                overall_rates[key] = self._create_success_rate_entry(
+                                    field_name=db_field,
+                                    field_value=option_id,
+                                    success_rate=success_rate,
+                                    sample_size=impact_data.get('sample_size', 0)
+                                )
                                 
                                 if OptimizerConfig.DEBUG_MODE:
                                     OptimizerConfig.debug(f"Added overall rate for key {key}: {success_rate}", category='recommendation')
@@ -737,8 +619,6 @@ class RecommendationEngine:
                             except (ValueError, TypeError):
                                 pass
                                 
-                            # Use the create_field_value_key function for consistent key generation
-                            from .optimizer_data_contracts import create_field_value_key
                             key = create_field_value_key(db_field, option_id)
                             
                             # Skip if we already have this key
@@ -763,11 +643,13 @@ class RecommendationEngine:
                                     
                                     if overall_rate is not None:
                                         # Create a consistent data structure
-                                        overall_rates[key] = {
-                                            'rate': overall_rate,  # Use 'rate' key for consistency
-                                            'sample_size': len(single_matches),
-                                            'confidence': 'medium'  # Default confidence level
-                                        }
+                                        # Use the helper method for consistent data structure
+                                        overall_rates[key] = self._create_success_rate_entry(
+                                            field_name=field_name,
+                                            field_value=field_value,
+                                            success_rate=overall_rate,
+                                            sample_size=len(single_matches)
+                                        )
                                         
                                         if OptimizerConfig.DEBUG_MODE:
                                             OptimizerConfig.debug(f"Added calculated overall rate for key {key}: {overall_rate}", category='recommendation')
@@ -796,13 +678,13 @@ class RecommendationEngine:
                     if overall_rate is not None:
                         # Create a data structure that exactly matches the network_rate_data structure
                         # This ensures consistent key matching between network and overall rates
-                        overall_rates[key] = {
-                            'field_name': field_name,
-                            'value': field_value,
-                            'value_name': self._get_criteria_name(field_name, field_value),
-                            'rate': overall_rate,
-                            'sample_size': len(matching_shows) if matching_shows is not None else 0
-                        }
+                        # Use the helper method for consistent data structure
+                        overall_rates[key] = self._create_success_rate_entry(
+                            field_name=field_name,
+                            field_value=field_value,
+                            success_rate=overall_rate,
+                            sample_size=len(matching_shows) if matching_shows is not None else 0
+                        )
                         
                         if OptimizerConfig.DEBUG_MODE:
                             OptimizerConfig.debug(f"Added calculated overall rate for key {key}: {overall_rate}", category='recommendation')
@@ -848,104 +730,7 @@ class RecommendationEngine:
                 "general": [],
                 "network_specific": []
             }
-    
-    def generate_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
-                                integrated_data: IntegratedData = None, 
-                                top_networks: List[NetworkMatch] = None,
-                                confidence_info: Optional[ConfidenceInfo] = None) -> Dict[str, List[RecommendationItem]]:
-        """Generate recommendations based on criteria and matching shows.
-        
-        This method orchestrates the recommendation generation process, including:
-        1. Identifying success factors from criteria and matching shows
-        2. Generating general recommendations for missing criteria
-        3. Generating network-specific recommendations if networks are provided
-        
-        Args:
-            criteria: Dictionary of criteria conforming to CriteriaDict
-            matching_shows: DataFrame of shows matching the criteria (optional)
-            integrated_data: Dictionary of integrated data frames (optional)
-            top_networks: List of NetworkMatch objects for network-specific recommendations
-            confidence_info: Optional confidence information dictionary
-            
-        Returns:
-            Dictionary with 'general' and 'network_specific' recommendation lists
-        """
-        # Initialize empty recommendation lists
-        recommendations = []
-        general_recommendations = []
-        network_specific_recommendations = []
-        
-        try:
-            # If matching_shows not provided or empty, get them using the matcher
-            if matching_shows is None or matching_shows.empty:
-                try:
-                    # Use the matcher directly instead of going through criteria_scorer
-                    if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
-                        matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(criteria)
-                        if matching_shows.empty:
-                            st.error("No shows match your criteria. Try adjusting your parameters.")
-                            return {"general": [], "network_specific": []}
-                    else:
-                        st.error("No matcher available. Cannot find matching shows.")
-                        return {"general": [], "network_specific": []}
-                except Exception as e:
-                    st.error(f"Unable to analyze shows matching your criteria: {str(e)}")
-                    return {"general": [], "network_specific": []}
-            
-            try:
-                # Calculate impact data using the criteria scorer
-                # Pass integrated_data to ensure matcher has access to full dataset
-                impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
                 
-                # Check for errors
-                if impact_result.error:
-                    return {"general": [], "network_specific": []}
-                    
-                # Get the impact data from the result
-                impact_data = impact_result.criteria_impacts
-                
-
-            except Exception as e:
-                error_msg = f"Error calculating impact data: {str(e)}"
-                return {"general": [], "network_specific": []}
-                
-            # Convert to SuccessFactor objects
-            success_factors = self.identify_success_factors(criteria, matching_shows, integrated_data)
-            
-            # Generate general recommendations from success factors
-            recommendations = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
-            
-            # Process general recommendations only
-            # Network-specific recommendations are already added directly to network_specific_recommendations
-            # This ensures proper routing of recommendations to the correct UI tabs:
-            # - Network-specific recommendations -> Network Analysis tab
-            # - General recommendations -> General Recommendations tab
-            for rec in recommendations:
-                # Skip recommendations without impact score
-                if 'impact' not in rec:
-                    continue
-                
-                # All recommendations in this list are general recommendations
-                general_recommendations.append(rec)
-            
-            # Sort by absolute impact (descending)
-            general_recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
-            network_specific_recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
-            
-            # Apply max suggestions limit to general recommendations
-            max_suggestions = self.config.SUGGESTIONS.get('max_suggestions', 5)
-            if len(general_recommendations) > max_suggestions:
-                general_recommendations = general_recommendations[:max_suggestions]
-            
-
-                
-                # Debug method call removed - was causing AttributeError
-            
-            return {
-                "general": general_recommendations,
-                "network_specific": network_specific_recommendations
-            }
-            
         except Exception as e:
             error_msg = f"Error in generate_recommendations: {str(e)}"
             
@@ -1021,15 +806,8 @@ class RecommendationEngine:
                 if rec_type is None:
                     continue
                     
-                # Create explanation text based on recommendation type
-                explanation_templates = {
-                    self.REC_TYPE_ADD: "Adding {name} could improve success probability by {impact:.1f}%.",
-                    self.REC_TYPE_REMOVE: "Removing {name} could improve success probability by {impact:.1f}%.",
-                    self.REC_TYPE_CHANGE: "Changing to {name} could improve success probability by {impact:.1f}%."
-                }
-                
-                template = explanation_templates.get(rec_type, "Consider {name} for potential impact of {impact:.1f}%.")
-                explanation_text = template.format(name=criteria_name, impact=abs(impact_score)*100)
+                # Explanation text is handled by the view layer (OptimizerView._generate_explanation_text)
+                # We only need to provide the necessary data for the view to generate explanations
                 
                 # Create recommendation and add to list
                 potential_recommendations.append({
@@ -1040,8 +818,6 @@ class RecommendationEngine:
                     'suggested_name': criteria_name,
                     'impact': impact_score,
                     'confidence': factor.confidence,
-                    'explanation': explanation_text,
-                    'metadata': {}
                 })
                     
 
@@ -1464,6 +1240,8 @@ class RecommendationEngine:
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Network {network.network_name} field {field_name}: network_rate={network_rate:.3f}, overall_rate={overall_rate:.3f}, diff={difference:.3f}, significant={should_generate}", category='recommendation')
                 OptimizerConfig.debug(f"Thresholds: network_diff={network_diff_threshold}, significant_diff={significant_diff_threshold}, sample_size={sample_size}, sufficient_data={has_sufficient_data}", category='recommendation')
+                OptimizerConfig.debug(f"Condition1 (large diff): {condition1} (abs({difference:.3f}) >= {significant_diff_threshold})", category='recommendation')
+                OptimizerConfig.debug(f"Condition2 (smaller diff with data): {condition2} (has_sufficient_data={has_sufficient_data} and abs({difference:.3f}) > {network_diff_threshold})", category='recommendation')
             
             # Create recommendation if the difference is significant
             if should_generate:
