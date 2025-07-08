@@ -398,15 +398,19 @@ class NetworkAnalyzer:
                                 success_rate_data['original_value_name'] = success_rate_data['value_name']
                                 success_rate_data['value_name'] = clean_value_name
                             
-                            # Create a key using the original field name (which is already an ID column)
+                            # Use the column name directly as the field_name without any transformation
+                            # This matches the RecommendationEngine pattern of using original column names
+                            field_name = column
+                            
                             try:
-                                # Import the key creation function if needed
-                                from ..utils.optimizer_utils import create_field_value_key
+                                # Use the create_field_value_key function from optimizer_data_contracts
+                                from .optimizer_data_contracts import create_field_value_key
                                 
-                                # Create a key using the original field name without standardization
+                                # Create a key using the original column name without any transformation
                                 key = create_field_value_key(field_name, value)
                                 
-
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Network {network_id} analysis: Created key {key} for field {field_name}", category='recommendation')
                                 
                                 # Add success rate data to the dictionary
                                 success_rates[key] = success_rate_data
