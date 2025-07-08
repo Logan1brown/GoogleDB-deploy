@@ -245,15 +245,18 @@ class NetworkAnalyzer:
             st.error(f"Error getting network tiers: {str(e)}")
             return {}
     
-    def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: int) -> Dict[str, FieldValueSuccessRate]:
-        """Get success rates for specific criteria for a given network using matching shows.
+    def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: str, criteria: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
+        """Calculate success rates for specific field-value pairs within a network.
         
         Args:
-            matching_shows: DataFrame of shows matching the criteria with match_level and success_score columns
+            matching_shows: DataFrame of shows matching the criteria
             network_id: ID of the network to analyze
+            criteria: Optional dictionary of criteria to filter which fields to analyze.
+                      If provided, only fields in this criteria will be analyzed.
             
         Returns:
-            Dictionary mapping field-value keys to FieldValueSuccessRate dictionaries
+            Dictionary of success rates by field-value key, including a 'network_baseline'
+            key with the overall success rate for this network.
         """
         try:
             # Initialize success rates dictionary
@@ -299,10 +302,49 @@ class NetworkAnalyzer:
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Network {network_id} analysis: Found {len(id_columns)} ID columns to analyze", category='recommendation')
             
-            # Process ID columns for network-specific success rates
+            # Calculate baseline success rate for this network
+            success_threshold = OptimizerConfig.SUCCESS_THRESHOLD
+            baseline_success_count = network_shows[network_shows['success_score'] >= success_threshold].shape[0]
+            baseline_total_count = network_shows.shape[0]
+            
+            if baseline_total_count > 0:
+                baseline_success_rate = baseline_success_count / baseline_total_count
+                
+                # Add baseline success rate to the dictionary
+                success_rates['network_baseline'] = {
+                    'field_name': 'network',
+                    'value': network_id,
+                    'value_name': f'Network {network_id}',
+                    'rate': baseline_success_rate,
+                    'sample_size': baseline_total_count
+                }
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network {network_id} baseline success rate: {baseline_success_rate:.2f} ({baseline_success_count}/{baseline_total_count})", category='recommendation')
+            
+            # Filter columns to only those in criteria if criteria is provided
+            columns_to_process = id_columns
+            if criteria:
+                # Map database field names to criteria keys
+                criteria_fields = set()
+                for field in criteria.keys():
+                    # Add the original field name
+                    criteria_fields.add(field)
+                    # Add the field name with '_id' suffix if it doesn't already end with '_id'
+                    if not field.endswith('_id') and not field.endswith('_ids'):
+                        criteria_fields.add(f"{field}_id")
+                    # Add the field name without '_id' suffix if it ends with '_id'
+                    if field.endswith('_id'):
+                        criteria_fields.add(field[:-3])
+                
+                # Filter id_columns to only those related to criteria fields
+                columns_to_process = [col for col in id_columns if col in criteria_fields or col[:-3] in criteria_fields if col.endswith('_id')]
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network {network_id} analysis: Filtered from {len(id_columns)} to {len(columns_to_process)} columns based on criteria", category='recommendation')
             
             # Process each valid criteria column (ID columns)
-            for column in id_columns:
+            for column in columns_to_process:
                 # Get unique values for this column
                 try:
                     # Skip columns with all null values

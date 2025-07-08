@@ -1112,50 +1112,78 @@ class RecommendationEngine:
         if network_rates is None:
             network_rates = self.network_analyzer.get_network_specific_success_rates(
                 matching_shows=matching_shows,
-                network_id=network.network_id
+                network_id=network.network_id,
+                criteria=criteria
             )
         
         if not network_rates:
             return []
     
+        # Get network baseline success rate if available
+        network_baseline_rate = None
+        if 'network_baseline' in network_rates:
+            network_baseline_rate = network_rates['network_baseline'].get('rate', None)
+            
+            if OptimizerConfig.debug():
+                OptimizerConfig.debug(f"Using network baseline rate: {network_baseline_rate}", category='recommendation')
+        
         # Calculate overall success rates if not provided
         if overall_rates is None:
             overall_rates = {}
-            # Process each key in network rates to calculate corresponding overall rates
-            for key, network_rate_data in network_rates.items():
-                # Extract field name and value from key
-                field_name, field_value = self._parse_key(key)
-                
-                # Map database field name to criteria key with direct mapping for performance
-                criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
-                
-                # Skip if neither the original field name nor the mapped field name is in criteria
-                if field_name not in criteria and criteria_field not in criteria:
-                    continue
+            
+            # If we have a network baseline rate, use it for all keys
+            if network_baseline_rate is not None:
+                # Use the network baseline rate for all keys
+                for key in network_rates.keys():
+                    if key != 'network_baseline':  # Skip the baseline key itself
+                        # Create a consistent data structure for the overall rate
+                        overall_rates[key] = {
+                            'success_rate': network_baseline_rate,
+                            'sample_size': network_rates['network_baseline'].get('sample_size', 0),
+                            'confidence': 'medium'  # Default confidence level
+                        }
+            else:
+                # Fallback to the old approach if no baseline rate is available
+                # Process each key in network rates to calculate corresponding overall rates
+                for key, network_rate_data in network_rates.items():
+                    if key == 'network_baseline':
+                        continue  # Skip the baseline key
+                        
+                    # Extract field name and value from key
+                    field_name, field_value = self._parse_key(key)
                     
-                # Use the field name that exists in criteria
-                used_field = field_name if field_name in criteria else criteria_field
-                
-                # Calculate the overall success rate for this criteria
-                single_criteria = {used_field: criteria[used_field]}
-                
-                # Skip if matcher is not available
-                if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
-                    continue
+                    # Map database field name to criteria key with direct mapping for performance
+                    criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
                     
-                # Get matching shows for this single criterion
-                single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
-                
-                # Calculate all scores including success rate
-                all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
-                overall_rate = all_scores.get('success_rate')
-                
-                # Create a consistent data structure that matches network_rate_data
-                overall_rates[key] = {
-                    'success_rate': overall_rate,
-                    'sample_size': len(single_matches) if single_matches is not None else 0,
-                    'confidence': 'medium'  # Default confidence level
-                }
+                    # Skip if neither the original field name nor the mapped field name is in criteria
+                    if field_name not in criteria and criteria_field not in criteria:
+                        continue
+                        
+                    # Use the field name that exists in criteria
+                    used_field = field_name if field_name in criteria else criteria_field
+                    
+                    # Calculate the overall success rate for this criteria
+                    single_criteria = {used_field: criteria[used_field]}
+                    
+                    # Skip if matcher is not available
+                    if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
+                        continue
+                        
+                    # Get matching shows for this single criterion
+                    single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                    
+                    # Calculate all scores including success rate
+                    all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
+                    
+                    # Get the overall success rate
+                    overall_rate = all_scores.get('success_rate', 0)
+                    
+                    # Store the overall success rate for this key with a consistent data structure
+                    overall_rates[key] = {
+                        'success_rate': overall_rate,
+                        'sample_size': len(single_matches) if single_matches is not None else 0,
+                        'confidence': 'medium'  # Default confidence level
+                    }
         
         recommendations = []
                  
