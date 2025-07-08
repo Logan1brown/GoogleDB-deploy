@@ -207,6 +207,18 @@ class ShowOptimizer:
             # Set the network_analyzer in the criteria_scorer
             self.criteria_scorer.network_analyzer = self.network_analyzer
             
+            # Debug network_analyzer initialization
+            if OptimizerConfig.DEBUG_MODE:
+                if self.network_analyzer is None:
+                    OptimizerConfig.debug("CRITICAL: network_analyzer is None after initialization in ShowOptimizer", category='recommendation')
+                else:
+                    OptimizerConfig.debug("Successfully initialized network_analyzer in ShowOptimizer", category='recommendation')
+                    
+                if self.criteria_scorer.network_analyzer is None:
+                    OptimizerConfig.debug("CRITICAL: network_analyzer is None in criteria_scorer after assignment", category='recommendation')
+                else:
+                    OptimizerConfig.debug("Successfully assigned network_analyzer to criteria_scorer", category='recommendation')
+            
             # Initialize recommendation engine
             self.recommendation_engine = RecommendationEngine(
                 shows_analyzer=self.shows_analyzer,
