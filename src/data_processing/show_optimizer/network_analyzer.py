@@ -351,12 +351,16 @@ class NetworkAnalyzer:
                         OptimizerConfig.debug(f"Network {network_id} analysis: No columns matched criteria, using all columns", category='recommendation')
             
             # Process each valid criteria column (ID columns)
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network {network_id} analysis: Processing {len(columns_to_process)} columns: {columns_to_process}", category='recommendation')
+                
             for column in columns_to_process:
                 # Get unique values for this column
                 try:
                     # Skip columns with all null values
                     if network_shows[column].isna().all():
-
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Network {network_id} analysis: Skipping column {column} - all values are null", category='recommendation')
                         continue
                         
                     # Get unique non-null values
@@ -364,8 +368,12 @@ class NetworkAnalyzer:
                     
                     # Skip if no unique values
                     if len(unique_values) == 0:
-
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Network {network_id} analysis: No unique values for column {column}", category='recommendation')
                         continue
+                        
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Network {network_id} analysis: Found {len(unique_values)} unique values for column {column}", category='recommendation')
                         
 
                         
@@ -399,9 +407,17 @@ class NetworkAnalyzer:
                             continue
                             
                         # Calculate success rate if we have data
+                        if 'success_score' not in value_shows.columns:
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Network {network_id} analysis: Missing success_score column for {column}", category='recommendation')
+                            continue
+                            
                         success_count = value_shows[value_shows['success_score'] >= success_threshold].shape[0]
                         total_count = value_shows.shape[0]
                         
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Network {network_id} analysis: Column {column}, Value {value}, Success count {success_count}, Total count {total_count}", category='recommendation')
+                            
                         if total_count > 0:
                             success_rate = success_count / total_count
                             
@@ -460,12 +476,31 @@ class NetworkAnalyzer:
                                 # Only add if this key doesn't already exist in success_rates
                                 if key not in success_rates:
                                     success_rates[key] = success_rate_data
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        OptimizerConfig.debug(f"Network {network_id} analysis: Added key {key} to success_rates", category='recommendation')
+                                else:
+                                    if OptimizerConfig.DEBUG_MODE:
+                                        OptimizerConfig.debug(f"Network {network_id} analysis: Key {key} already exists in success_rates", category='recommendation')
                             except Exception as e:
                                 # Error adding success rate data
                                 pass
                 except Exception as e:
                     # Error processing column
                     continue
+            
+            # Add network baseline success rate to the results
+            if network_shows is not None and not network_shows.empty and 'success_score' in network_shows.columns:
+                network_baseline = network_shows[network_shows['success_score'] >= success_threshold].shape[0] / network_shows.shape[0]
+                success_rates['network_baseline'] = {'rate': network_baseline, 'sample_size': network_shows.shape[0]}
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network {network_id} analysis: Added network baseline success rate: {network_baseline}", category='recommendation')
+            
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network {network_id} analysis: Returning {len(success_rates)} success rates", category='recommendation')
+                if len(success_rates) > 0:
+                    sample_keys = list(success_rates.keys())[:3] if len(success_rates) > 3 else list(success_rates.keys())
+                    OptimizerConfig.debug(f"Network {network_id} analysis: Sample keys: {sample_keys}", category='recommendation')
             
             return success_rates
         except Exception as e:

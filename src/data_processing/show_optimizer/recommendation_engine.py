@@ -481,7 +481,16 @@ class RecommendationEngine:
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug("Calculating criteria impact once for both general and network recommendations", category='recommendation')
                 
-                impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
+                # For general recommendations, we need to analyze all fields that are already in criteria
+                # This limits the expensive calculations to only fields that are already selected
+                fields_to_analyze = list(criteria.keys())
+                
+                impact_result = self.criteria_scorer.calculate_criteria_impact(
+                    criteria, 
+                    matching_shows, 
+                    integrated_data=integrated_data,
+                    fields_to_analyze=fields_to_analyze
+                )
                 
                 # Check for errors
                 if impact_result.error:

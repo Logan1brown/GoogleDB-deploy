@@ -454,6 +454,15 @@ class CriteriaScorer:
             max_unselected = OptimizerConfig.SUGGESTIONS.get('max_unselected_fields', 7)
             prioritized_unselected = prioritized_unselected[:max_unselected]
             
+            # If fields_to_analyze is provided, use it to filter the selected fields
+            # This allows us to limit expensive calculations for change/remove recommendations
+            # while still calculating all add recommendations
+            if fields_to_analyze:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Limiting analysis to {len(fields_to_analyze)} specified fields", category='impact')
+                # Only limit selected fields (for change/remove), not unselected fields (for add)
+                selected_fields = [field for field in selected_fields if field in fields_to_analyze]
+                
             # Combine selected and prioritized unselected fields
             fields_to_process = selected_fields + prioritized_unselected
             
