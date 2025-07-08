@@ -431,13 +431,16 @@ class RecommendationEngine:
                             OptimizerConfig.debug(f"Error generating network recommendations: {str(e)}", category='recommendation')
             
     def generate_all_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
-                                   integrated_data: IntegratedData = None, 
-                                   top_networks: List[NetworkMatch] = None,
-                                   confidence_info: Optional[ConfidenceInfo] = None) -> Dict[str, List[RecommendationItem]]:
-        """Generate both general and network-specific recommendations in a single call.
+                               integrated_data: IntegratedData = None, 
+                               top_networks: List[NetworkMatch] = None,
+                               confidence_info: Optional[ConfidenceInfo] = None) -> Dict[str, List[RecommendationItem]]:
+        """Generate both general and network-specific recommendations.
         
-        This method calculates criteria impact and success factors once, then uses them
-        to generate both general and network-specific recommendations, avoiding redundant calculations.
+        This method orchestrates the recommendation generation process, including:
+        1. Calculating impact data once for all recommendations
+        2. Identifying success factors from criteria and matching shows
+        3. Generating general recommendations for missing criteria
+        4. Generating network-specific recommendations if networks are provided
         
         Args:
             criteria: Dictionary of criteria conforming to CriteriaDict
@@ -524,14 +527,70 @@ class RecommendationEngine:
                                 unique_networks = matching_shows['network_id'].unique()
                                 OptimizerConfig.debug(f"Unique network IDs in matching shows: {list(unique_networks)}", category='recommendation')
                 
-                # Process all networks without arbitrary limit
+                # Pre-calculate all overall success rates once for all networks
+                overall_rates = {}
+                
+                # Get all network-specific success rates first to know which fields we need to calculate overall rates for
+                all_network_rates = {}
+                all_keys = set()
+                
+                for network in top_networks:
+                    network_rates = self.network_analyzer.get_network_specific_success_rates(
+                        matching_shows=matching_shows,
+                        network_id=network.network_id
+                    )
+                    all_network_rates[network.network_id] = network_rates
+                    all_keys.update(network_rates.keys())
+                
+                # Calculate overall success rates once for all keys
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Pre-calculating {len(all_keys)} overall success rates", category='recommendation')
+                    
+                for key in all_keys:
+                    # Extract field name and value from key
+                    field_name, field_value = self._parse_key(key)
+                    
+                    # Map database field name to criteria key with direct mapping for performance
+                    criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+                    
+                    # Skip if neither the original field name nor the mapped field name is in criteria
+                    if field_name not in criteria and criteria_field not in criteria:
+                        continue
+                        
+                    # Use the field name that exists in criteria
+                    used_field = field_name if field_name in criteria else criteria_field
+                    
+                    # Calculate the overall success rate for this criteria using the field name that exists in criteria
+                    single_criteria = {used_field: criteria[used_field]}
+                    
+                    # Skip if matcher is not available
+                    if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
+                        continue
+                        
+                    # Get matching shows for this single criterion
+                    single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                    
+                    # Calculate all scores including success rate
+                    all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
+                    overall_rate = all_scores.get('success_rate')
+                    
+                    # Create a consistent data structure that matches network_rate_data
+                    overall_rates[key] = {
+                        'success_rate': overall_rate,
+                        'sample_size': len(single_matches) if single_matches is not None else 0,
+                        'confidence': 'medium'  # Default confidence level
+                    }
+                
+                # Process all networks using pre-calculated overall rates
                 for network in top_networks:
                     try:
                         if OptimizerConfig.DEBUG_MODE:
                             OptimizerConfig.debug(f"Generating recommendations for network: {network.network_name}", category='recommendation')
                         
                         network_recs = self.generate_network_specific_recommendations(
-                            criteria, network, matching_shows, integrated_data, confidence_info
+                            criteria, network, matching_shows, integrated_data, confidence_info,
+                            network_rates=all_network_rates.get(network.network_id, {}),
+                            overall_rates=overall_rates
                         )
                         
                         if OptimizerConfig.DEBUG_MODE:
@@ -1027,7 +1086,9 @@ class RecommendationEngine:
                                                network: NetworkMatch,
                                                matching_shows: pd.DataFrame,
                                                integrated_data: IntegratedData,
-                                               confidence_info: Optional[ConfidenceInfo] = None) -> List[RecommendationItem]:
+                                               confidence_info: Optional[ConfidenceInfo] = None,
+                                               network_rates: Dict = None,
+                                               overall_rates: Dict = None) -> List[RecommendationItem]:
         """
         Generate network-specific recommendations.
 
@@ -1037,87 +1098,64 @@ class RecommendationEngine:
             matching_shows: DataFrame of shows matching the criteria
             integrated_data: Integrated data for additional context
             confidence_info: Optional confidence information dictionary
+            network_rates: Pre-calculated network-specific success rates (optional)
+            overall_rates: Pre-calculated overall success rates (optional)
 
         Returns:
             List of network-specific recommendations
         """
         # Ensure confidence_info conforms to our ConfidenceInfo contract
-        # This enforces the contract rather than adding defensive checks
         if confidence_info is not None:
             confidence_info = update_confidence_info(confidence_info, {})
             
-        # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
-        
-        # Network analyzer is always available from criteria_scorer as per architecture flow
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Generating network-specific recommendations for network {network.network_name}", category='recommendation')
-            
-        # Check if matching_shows has network_id column
-        if OptimizerConfig.DEBUG_MODE and matching_shows is not None and not matching_shows.empty:
-            OptimizerConfig.debug(f"Columns in matching_shows for network {network.network_name}: {list(matching_shows.columns)}", category='recommendation')
-        
-        # Get network-specific success rates
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Getting network-specific success rates for network {network.network_name} (ID: {network.network_id})", category='recommendation')
-            # Check if matching_shows has network_id column
-            if matching_shows is not None and not matching_shows.empty:
-                OptimizerConfig.debug(f"Matching shows columns before network analysis: {list(matching_shows.columns)}", category='recommendation')
-                if 'network_id' in matching_shows.columns:
-                    unique_networks = matching_shows['network_id'].unique()
-                    OptimizerConfig.debug(f"Unique network IDs in matching shows: {list(unique_networks)}", category='recommendation')
-        
-        network_rates = self.network_analyzer.get_network_specific_success_rates(
-            matching_shows=matching_shows,
-            network_id=network.network_id
-        )
+        # Get network-specific success rates if not provided
+        if network_rates is None:
+            network_rates = self.network_analyzer.get_network_specific_success_rates(
+                matching_shows=matching_shows,
+                network_id=network.network_id
+            )
         
         if not network_rates:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"No network-specific success rates found for network {network.network_name}", category='recommendation')
             return []
-        
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Network {network.network_name} (ID: {network.network_id}) rates: {len(network_rates) if network_rates else 0} items", category='recommendation')
     
-        # Calculate overall success rates for comparison with network-specific rates
-        overall_rates = {}
+        # Calculate overall success rates if not provided
+        if overall_rates is None:
+            overall_rates = {}
+            # Process each key in network rates to calculate corresponding overall rates
+            for key, network_rate_data in network_rates.items():
+                # Extract field name and value from key
+                field_name, field_value = self._parse_key(key)
                 
-        # Process each key in network rates to calculate corresponding overall rates
-        for key, network_rate_data in network_rates.items():
-            # Extract field name and value from key
-            field_name, field_value = self._parse_key(key)
-            
-            # Map database field name to criteria key with direct mapping for performance
-            # This handles cases where database uses field_id but criteria uses field
-            criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
-            
-            # Skip if neither the original field name nor the mapped field name is in criteria
-            if field_name not in criteria and criteria_field not in criteria:
-                continue
+                # Map database field name to criteria key with direct mapping for performance
+                criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
                 
-            # Use the field name that exists in criteria
-            used_field = field_name if field_name in criteria else criteria_field
-            
-            # Calculate the overall success rate for this criteria using the field name that exists in criteria
-            single_criteria = {used_field: criteria[used_field]}
-            
-            # Skip if matcher is not available
-            if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
-                continue
+                # Skip if neither the original field name nor the mapped field name is in criteria
+                if field_name not in criteria and criteria_field not in criteria:
+                    continue
+                    
+                # Use the field name that exists in criteria
+                used_field = field_name if field_name in criteria else criteria_field
                 
-            # Get matching shows for this single criterion
-            single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
-            
-            # Calculate all scores including success rate
-            all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
-            overall_rate = all_scores.get('success_rate')
-            
-            # Create a consistent data structure that matches network_rate_data
-            overall_rates[key] = {
-                'success_rate': overall_rate,
-                'sample_size': len(single_matches) if single_matches is not None else 0,
-                'confidence': 'medium'  # Default confidence level
-            }
+                # Calculate the overall success rate for this criteria
+                single_criteria = {used_field: criteria[used_field]}
+                
+                # Skip if matcher is not available
+                if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
+                    continue
+                    
+                # Get matching shows for this single criterion
+                single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                
+                # Calculate all scores including success rate
+                all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
+                overall_rate = all_scores.get('success_rate')
+                
+                # Create a consistent data structure that matches network_rate_data
+                overall_rates[key] = {
+                    'success_rate': overall_rate,
+                    'sample_size': len(single_matches) if single_matches is not None else 0,
+                    'confidence': 'medium'  # Default confidence level
+                }
         
         recommendations = []
                  
@@ -1130,9 +1168,7 @@ class RecommendationEngine:
         valid_fields = set(criteria.keys())
         valid_network_rates = {}
         
-        # Process network rates for fields in criteria
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Processing {len(network_rates)} network rates for {network.network_name} against {len(valid_fields)} valid fields", category='recommendation')
+        # Process network rates for fields in criteria without excessive debug logging
             
         for key, network_rate_data in network_rates.items():
             field_name, _ = self._parse_key(key)
@@ -1157,7 +1193,6 @@ class RecommendationEngine:
         
         # Now process only the valid network rates
         for key, data in valid_network_rates.items():
-            
             field_name = data['field_name']
             network_rate_data = data['network_rate_data']
             current_value = data.get('current_value')
@@ -1166,18 +1201,12 @@ class RecommendationEngine:
             # Get the overall success rate using the exact key
             overall_rate_data = overall_rates.get(key)
             
-            if overall_rate_data is None:
-                # Skip criteria without overall rates
-                continue
-                
-            # Extract the actual success rate value from the overall_rate_data dictionary
-            if 'success_rate' not in overall_rate_data or overall_rate_data['success_rate'] is None:
-                # Skip criteria without valid success rates
+            if overall_rate_data is None or 'success_rate' not in overall_rate_data or overall_rate_data['success_rate'] is None:
+                # Skip criteria without overall rates or valid success rates
                 continue
                 
             # Use the explicit success_rate value
             overall_rate = overall_rate_data['success_rate']
-                
             network_rate = network_rate_data.get('success_rate')
             sample_size = network_rate_data.get('sample_size', 0)
             
