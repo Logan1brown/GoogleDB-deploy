@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import traceback
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Tuple, Optional, Set, Union
+from typing import Dict, List, Tuple, Any, Optional, Set, Union
 
 from .optimizer_config import OptimizerConfig
 from .criteria_scorer import ImpactAnalysisResult, ImpactAnalysisSummary
@@ -127,11 +127,12 @@ class RecommendationEngine:
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Using network_analyzer from criteria_scorer as per architecture flow", category='recommendation')
     
-    def calculate_overall_success_rate(self, criteria: CriteriaDict) -> Tuple[float, str]:
+    def calculate_overall_success_rate(self, criteria: CriteriaDict, matching_shows=None) -> Tuple[float, str]:
         """Calculate the overall success rate for the given criteria.
         
         Args:
             criteria: Dictionary of criteria conforming to CriteriaDict
+            matching_shows: Optional pre-filtered shows to use (optimization)
             
         Returns:
             Tuple of (success_rate, confidence_level)
@@ -146,7 +147,15 @@ class RecommendationEngine:
             return None, self.config.CONFIDENCE_LEVELS.get('none', 'none')
             
         try:
-            # Get matching shows using the matcher directly
+            # If we already have matching shows, use them directly
+            if matching_shows is not None and not matching_shows.empty:
+                # Calculate all scores including success rate
+                all_scores = self.criteria_scorer.calculate_scores(criteria, matching_shows)
+                success_rate = all_scores.get('success_rate')
+                # Use medium confidence when using pre-filtered shows
+                return success_rate, 'medium'
+            
+            # Otherwise, get matching shows using the matcher directly
             matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(criteria)
             
             # Get match count from confidence_info
@@ -157,7 +166,7 @@ class RecommendationEngine:
                 return None, 'none'
             
             # Calculate all scores including success rate
-            all_scores = self.criteria_scorer.calculate_scores({}, matching_shows)
+            all_scores = self.criteria_scorer.calculate_scores(criteria, matching_shows)
             success_rate = all_scores.get('success_rate')
             
             # Determine confidence level
@@ -168,8 +177,35 @@ class RecommendationEngine:
             # Keep a single top-level try-except for critical errors
             st.error(f"Error calculating success rate: {str(e)}")
             # Log the error but don't stop execution
-
             return None, 'none'
+            
+    def create_field_value_criteria(self, field_name: str, field_value: Any) -> CriteriaDict:
+        """Create a criteria dictionary for a single field value.
+        
+        This helper method ensures proper field name mapping between database column names
+        and criteria field names. It's used for network-specific recommendation generation.
+        
+        Args:
+            field_name: The field name (e.g., 'genre_id', 'tone_id')
+            field_value: The value to filter by
+            
+        Returns:
+            A criteria dictionary with just the specified field and value
+        """
+        # Map between database column names and criteria field names
+        field_in_criteria = field_name
+        
+        # Handle ID fields - strip _id suffix if needed
+        if field_name.endswith('_id') and hasattr(self.criteria_scorer, 'reference_data'):
+            if self.criteria_scorer.reference_data and field_name[:-3] in self.criteria_scorer.reference_data.field_options:
+                field_in_criteria = field_name[:-3]
+        # Handle non-ID fields - add _id suffix if needed
+        elif not field_name.endswith('_id') and hasattr(self.criteria_scorer, 'reference_data'):
+            if self.criteria_scorer.reference_data and f"{field_name}_id" in self.criteria_scorer.reference_data.field_options:
+                field_in_criteria = f"{field_name}_id"
+                
+        # Create and return the criteria dictionary
+        return {field_in_criteria: field_value}
     
     def identify_success_factors(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, integrated_data: IntegratedData = None, limit: int = 5) -> List[SuccessFactor]:
         """Identify success factors from the given criteria and matching shows.
@@ -713,8 +749,11 @@ class RecommendationEngine:
                     if OptimizerConfig.DEBUG_MODE:
                         OptimizerConfig.debug(f"Calculating overall rate for key {key} (field={field_name}, value={field_value})", category='recommendation')
                     
+                    # Create a criteria dict with just this field and value
+                    field_criteria = self.create_field_value_criteria(field_name, field_value)
+                    
                     # Calculate the overall success rate for this specific field value
-                    overall_rate = self.calculate_overall_success_rate(field_name, field_value, matching_shows)
+                    overall_rate, _ = self.calculate_overall_success_rate(field_criteria, matching_shows)
                     
                     if overall_rate is not None:
                         # Create a consistent data structure that matches network_rate_data
