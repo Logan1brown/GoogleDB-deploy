@@ -550,6 +550,15 @@ class RecommendationEngine:
                             # Create key using the database column name format (with _id suffix)
                             # This ensures compatibility with network analyzer keys
                             db_field = f"{field}_id" if not field.endswith('_id') else field
+                            
+                            # Convert option_id to float if it's numeric to match network analyzer key format
+                            # Network analyzer uses numpy float64 values which are serialized as '3.0' not '3'
+                            try:
+                                if isinstance(option_id, (int, float)) or (isinstance(option_id, str) and option_id.isdigit()):
+                                    option_id = float(option_id)
+                            except (ValueError, TypeError):
+                                pass  # Keep original if conversion fails
+                                
                             key = create_field_value_key(db_field, option_id)
                             
                             # Get the success rate from the impact data
@@ -563,6 +572,10 @@ class RecommendationEngine:
                                 
                                 if OptimizerConfig.DEBUG_MODE:
                                     OptimizerConfig.debug(f"Added overall rate for key {key}: {success_rate}", category='recommendation')
+                
+                # Debug the overall rates keys to help diagnose matching issues
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Overall rates keys: {list(overall_rates.keys())}", category='recommendation')
                 
                 # Get all network-specific success rates first to know which fields we need to calculate overall rates for
                 all_network_rates = {}
@@ -1291,7 +1304,7 @@ class RecommendationEngine:
                     OptimizerConfig.debug(f"Skipping key {key}: Missing overall rate data", category='recommendation')
                 continue
                 
-            # Use the explicit rate values - both network_analyzer and impact_result use the 'rate' key
+            # Use the explicit rate value
             overall_rate = overall_rate_data['rate']
             network_rate = network_rate_data['rate']
             sample_size = network_rate_data['sample_size']
