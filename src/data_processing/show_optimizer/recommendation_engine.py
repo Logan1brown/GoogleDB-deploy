@@ -580,6 +580,7 @@ class RecommendationEngine:
                 # Get all network-specific success rates first to know which fields we need to calculate overall rates for
                 all_network_rates = {}
                 all_keys = set()
+                all_fields_in_network_rates = set()
                 
                 for network in top_networks:
                     network_rates = self.network_analyzer.get_network_specific_success_rates(
@@ -589,22 +590,118 @@ class RecommendationEngine:
                     )
                     all_network_rates[network.network_id] = network_rates
                     all_keys.update(network_rates.keys())
+                    
+                    # Extract field names from keys to know which fields to calculate all options for
+                    for key in network_rates.keys():
+                        if key == 'network_baseline':
+                            continue
+                        field_name, _ = self._parse_key(key)
+                        if field_name:
+                            all_fields_in_network_rates.add(field_name)
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Found {len(all_fields_in_network_rates)} fields in network rates: {list(all_fields_in_network_rates)}", category='recommendation')
                 
                 # Calculate overall success rates once for all keys
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Pre-calculating {len(all_keys)} overall success rates", category='recommendation')
+                    OptimizerConfig.debug(f"Pre-calculating {len(all_keys)} overall success rates from network keys", category='recommendation')
                     # Log the keys we found to help diagnose issues
                     if len(all_keys) > 0:
                         sample_keys = list(all_keys)[:5] if len(all_keys) > 5 else list(all_keys)
-                        OptimizerConfig.debug(f"Sample keys: {sample_keys}", category='recommendation')
+                        OptimizerConfig.debug(f"Sample keys from networks: {sample_keys}", category='recommendation')
                     else:
                         OptimizerConfig.debug("WARNING: No keys found in network rates", category='recommendation')
                     
-                # Calculate overall rates for all keys found in network rates
-                # This ensures we have overall rates for every option that appears in network-specific rates
+                # Extract fields from network rates to know which fields to calculate all options for
+                fields_in_network_rates = set()
                 for key in all_keys:
-                    # Skip if we already have this key from the impact_result
-                    if key in overall_rates:
+                    if key == 'network_baseline':
+                        continue
+                    field_name, _ = self._parse_key(key)
+                    if field_name:
+                        fields_in_network_rates.add(field_name)
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Found {len(fields_in_network_rates)} fields in network rates: {list(fields_in_network_rates)}", category='recommendation')
+                
+                # For each field found in network rates, calculate overall rates for ALL options
+                for field_name in fields_in_network_rates:
+                    # Skip if this field is not in the criteria (shouldn't happen, but just in case)
+                    field_in_criteria = field_name
+                    if field_name.endswith('_id') and field_name[:-3] in criteria:
+                        field_in_criteria = field_name[:-3]
+                    elif not field_name.endswith('_id') and f"{field_name}_id" in criteria:
+                        field_in_criteria = f"{field_name}_id"
+                        
+                    if field_in_criteria not in criteria:
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Field {field_name} not found in criteria, skipping", category='recommendation')
+                        continue
+                    
+                    # Get all possible options for this field from the reference data
+                    if hasattr(self.criteria_scorer, 'reference_data') and self.criteria_scorer.reference_data is not None:
+                        field_options = self.criteria_scorer.reference_data.get_field_options(field_in_criteria)
+                        
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Calculating overall rates for all {len(field_options)} options of field {field_name}", category='recommendation')
+                        
+                        # Calculate overall rate for each option
+                        for option in field_options:
+                            option_id = option.get('id')
+                            if option_id is None:
+                                continue
+                                
+                            # Create key using the database column name format
+                            db_field = field_name
+                            if not db_field.endswith('_id'):
+                                db_field = f"{db_field}_id"
+                                
+                            # Convert option_id to float to match network analyzer key format
+                            try:
+                                if isinstance(option_id, (int, float)) or (isinstance(option_id, str) and option_id.isdigit()):
+                                    option_id = float(option_id)
+                            except (ValueError, TypeError):
+                                pass
+                                
+                            # Use the create_field_value_key function for consistent key generation
+                            from .optimizer_data_contracts import create_field_value_key
+                            key = create_field_value_key(db_field, option_id)
+                            
+                            # Skip if we already have this key
+                            if key in overall_rates:
+                                continue
+                                
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Calculating overall rate for option {option_id} of field {field_name}", category='recommendation')
+                            
+                            # Calculate overall success rate for this option
+                            # Create a criteria dict with just this field and value
+                            single_criteria = {field_in_criteria: option_id}
+                            
+                            # Get matching shows for this single criterion
+                            if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
+                                single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                                
+                                # Calculate success rate
+                                if single_matches is not None and not single_matches.empty:
+                                    all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
+                                    overall_rate = all_scores.get('success_rate')
+                                    
+                                    if overall_rate is not None:
+                                        # Create a consistent data structure
+                                        overall_rates[key] = {
+                                            'rate': overall_rate,  # Use 'rate' key for consistency
+                                            'sample_size': len(single_matches),
+                                            'confidence': 'medium'  # Default confidence level
+                                        }
+                                        
+                                        if OptimizerConfig.DEBUG_MODE:
+                                            OptimizerConfig.debug(f"Added calculated overall rate for key {key}: {overall_rate}", category='recommendation')
+                
+                # Also calculate overall rates for any keys in network rates that we still don't have
+                for key in all_keys:
+                    # Skip if we already have this key
+                    if key in overall_rates or key == 'network_baseline':
                         continue
                         
                     # Extract field name and value from key
@@ -617,7 +714,6 @@ class RecommendationEngine:
                         OptimizerConfig.debug(f"Calculating overall rate for key {key} (field={field_name}, value={field_value})", category='recommendation')
                     
                     # Calculate the overall success rate for this specific field value
-                    # This ensures we have an exact match for comparison with network-specific rates
                     overall_rate = self.calculate_overall_success_rate(field_name, field_value, matching_shows)
                     
                     if overall_rate is not None:
