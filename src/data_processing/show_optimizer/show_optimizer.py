@@ -219,13 +219,21 @@ class ShowOptimizer:
                 else:
                     OptimizerConfig.debug("Successfully assigned network_analyzer to criteria_scorer", category='recommendation')
             
-            # Initialize recommendation engine
+            # Initialize recommendation engine with direct reference to network_analyzer
             self.recommendation_engine = RecommendationEngine(
                 shows_analyzer=self.shows_analyzer,
                 success_analyzer=self.success_analyzer,
                 field_manager=self.field_manager,
-                criteria_scorer=self.criteria_scorer
+                criteria_scorer=self.criteria_scorer,
+                network_analyzer=self.network_analyzer  # Pass network_analyzer directly
             )
+            
+            # Debug RecommendationEngine initialization
+            if OptimizerConfig.DEBUG_MODE:
+                if hasattr(self.recommendation_engine, 'network_analyzer') and self.recommendation_engine.network_analyzer is not None:
+                    OptimizerConfig.debug("Successfully passed network_analyzer to recommendation_engine", category='recommendation')
+                else:
+                    OptimizerConfig.debug("CRITICAL: network_analyzer is None in recommendation_engine after initialization", category='recommendation')
             
             # Initialize concept analyzer with all required components
             self.concept_analyzer = ConceptAnalyzer(

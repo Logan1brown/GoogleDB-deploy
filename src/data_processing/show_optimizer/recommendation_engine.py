@@ -120,10 +120,13 @@ class RecommendationEngine:
         self.criteria_scorer = criteria_scorer
         self.config = OptimizerConfig
         
-        # Use network_analyzer from criteria_scorer as per the architecture flow
-        # NetworkAnalyzer.analyze_network_compatibility (step 3.4) comes before 
-        # RecommendationEngine.generate_recommendations (step 3.5)
-        self.network_analyzer = self.criteria_scorer.network_analyzer
+        # Use provided network_analyzer if available, otherwise try to get from criteria_scorer
+        # This ensures we have a direct reference to the network_analyzer
+        if network_analyzer is not None:
+            self.network_analyzer = network_analyzer
+        else:
+            self.network_analyzer = getattr(self.criteria_scorer, 'network_analyzer', None)
+            
         if OptimizerConfig.DEBUG_MODE:
             if self.network_analyzer is None:
                 OptimizerConfig.debug(f"CRITICAL: network_analyzer is None in RecommendationEngine constructor", category='recommendation')
