@@ -120,25 +120,12 @@ class RecommendationEngine:
         self.criteria_scorer = criteria_scorer
         self.config = OptimizerConfig
         
-        # Initialize network_analyzer directly if not available from success_analyzer
-        self.network_analyzer = None
-        if hasattr(success_analyzer, 'network_analyzer'):
-            self.network_analyzer = success_analyzer.network_analyzer
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network analyzer initialized from success_analyzer", category='recommendation')
-        elif self.criteria_scorer is not None:
-            # Import here to avoid circular imports
-            from .network_analyzer import NetworkAnalyzer
-            self.network_analyzer = NetworkAnalyzer(self.criteria_scorer, self.field_manager)
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network analyzer created with criteria_scorer and field_manager", category='recommendation')
-        
-        # Try to get criteria_scorer from success_analyzer if not provided
-        if self.criteria_scorer is None and hasattr(success_analyzer, 'criteria_scorer'):
-            self.criteria_scorer = success_analyzer.criteria_scorer
-            
-        if self.criteria_scorer is None:
-            st.error("Some recommendation features may be limited due to missing components.")
+        # Use network_analyzer from criteria_scorer as per the architecture flow
+        # NetworkAnalyzer.analyze_network_compatibility (step 3.4) comes before 
+        # RecommendationEngine.generate_recommendations (step 3.5)
+        self.network_analyzer = self.criteria_scorer.network_analyzer
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Using network_analyzer from criteria_scorer as per architecture flow", category='recommendation')
     
     def calculate_overall_success_rate(self, criteria: CriteriaDict) -> Tuple[float, str]:
         """Calculate the overall success rate for the given criteria.
@@ -930,11 +917,9 @@ class RecommendationEngine:
             
         # Network object is a NetworkMatch dataclass with attributes like network_id, network_name, etc.
         
-        # Check if network_analyzer is available
-        if self.network_analyzer is None:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Cannot generate network-specific recommendations: network_analyzer is None", category='recommendation')
-            return []
+        # Network analyzer is always available from criteria_scorer as per architecture flow
+        if OptimizerConfig.DEBUG_MODE:
+            OptimizerConfig.debug(f"Generating network-specific recommendations for network {network.network_name}", category='recommendation')
             
         # Check if matching_shows has network_id column
         if OptimizerConfig.DEBUG_MODE and matching_shows is not None and not matching_shows.empty:
