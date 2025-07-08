@@ -595,8 +595,9 @@ class RecommendationEngine:
                     # Extract field name and value from key
                     field_name, field_value = self._parse_key(key)
                     
-                    # Map database field name to criteria key with direct mapping for performance
-                    criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+                    # Keep using exact database column names for consistency with overall_rates keys
+                    # This ensures the same keys are used throughout the system
+                    criteria_field = field_name
                     
                     # Skip if neither the original field name nor the mapped field name is in criteria
                     if field_name not in criteria and criteria_field not in criteria:
@@ -1199,8 +1200,9 @@ class RecommendationEngine:
                     # Extract field name and value from key
                     field_name, field_value = self._parse_key(key)
                     
-                    # Map database field name to criteria key with direct mapping for performance
-                    criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+                    # Keep using exact database column names for consistency with overall_rates keys
+                    # This ensures the same keys are used throughout the system
+                    criteria_field = field_name
                     
                     # Skip if neither the original field name nor the mapped field name is in criteria
                     if field_name not in criteria and criteria_field not in criteria:
@@ -1248,22 +1250,25 @@ class RecommendationEngine:
         for key, network_rate_data in network_rates.items():
             field_name, _ = self._parse_key(key)
             
-            # Map database field name to criteria key with direct mapping for performance
-            criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+            # Keep using exact database column names for consistency with overall_rates keys
+            # This ensures the same keys are used throughout the system
+            criteria_field = field_name
             
             # Only process fields that exist in criteria (either with original name or mapped name)
             if field_name in valid_fields or criteria_field in valid_fields:
                 # Use the field name that exists in criteria
                 used_field = field_name if field_name in valid_fields else criteria_field
                 # Get display name for the current value
-                original_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+                # For UI display only - use field name without _id suffix
+                # This doesn't affect the key matching which uses exact database column names
+                display_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
                 current_value = criteria[used_field]
                 
                 valid_network_rates[key] = {
                     'field_name': field_name,
                     'network_rate_data': network_rate_data,
                     'current_value': current_value,
-                    'current_name': self._get_criteria_name(original_field, current_value)
+                    'current_name': self._get_criteria_name(display_field, current_value)
                 }
         
         # Now process only the valid network rates
