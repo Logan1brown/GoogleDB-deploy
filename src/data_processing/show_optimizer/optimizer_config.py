@@ -30,8 +30,8 @@ from typing import Dict, Any
 class OptimizerConfig:
     """Configuration for Show Optimizer scoring and analysis."""
     
-    # Version information
-    VERSION = "1.0.50"
+    # Version tracking
+    VERSION = '1.0.52'
     
     # Debug message counter to limit output volume
     _debug_message_count = 0

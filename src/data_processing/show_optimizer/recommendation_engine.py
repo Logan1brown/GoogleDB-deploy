@@ -539,6 +539,27 @@ class RecommendationEngine:
                 # Pre-calculate all overall success rates once for all networks
                 overall_rates = {}
                 
+                # Extract overall success rates from the impact_result
+                # This avoids redundant calculations and ensures consistency
+                if impact_result and hasattr(impact_result, 'criteria_impacts'):
+                    for field, impacts in impact_result.criteria_impacts.items():
+                        for option_id, impact_data in impacts.items():
+                            # Use the create_field_value_key function for consistent key generation
+                            from .optimizer_data_contracts import create_field_value_key
+                            key = create_field_value_key(field, option_id)
+                            
+                            # Get the success rate from the impact data
+                            success_rate = impact_data.get('success_rate')
+                            if success_rate is not None:
+                                overall_rates[key] = {
+                                    'rate': success_rate,
+                                    'sample_size': impact_data.get('sample_size', 0),
+                                    'confidence': impact_data.get('confidence', 'medium')
+                                }
+                                
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Added overall rate for key {key}: {success_rate}", category='recommendation')
+                
                 # Get all network-specific success rates first to know which fields we need to calculate overall rates for
                 all_network_rates = {}
                 all_keys = set()
@@ -562,7 +583,11 @@ class RecommendationEngine:
                     else:
                         OptimizerConfig.debug("WARNING: No keys found in network rates", category='recommendation')
                     
+                # Calculate any missing overall rates that weren't in the impact_result
                 for key in all_keys:
+                    # Skip if we already have this key from the impact_result
+                    if key in overall_rates:
+                        continue
                     # Extract field name and value from key
                     field_name, field_value = self._parse_key(key)
                     
@@ -1247,16 +1272,20 @@ class RecommendationEngine:
             # Get the overall success rate using the exact key
             overall_rate_data = overall_rates.get(key)
             
-            if overall_rate_data is None or 'rate' not in overall_rate_data or overall_rate_data['rate'] is None:
-                # Skip criteria without overall rates or valid success rates
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Processing key {key}: network_rate_data={network_rate_data}", category='recommendation')
+                OptimizerConfig.debug(f"Processing key {key}: overall_rate_data={overall_rate_data}", category='recommendation')
+            
+            if overall_rate_data is None or 'rate' not in overall_rate_data:
+                # Skip criteria without overall rates
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Skipping key {key}: Missing overall rate data", category='recommendation')
                 continue
                 
-            # Use the explicit rate value
+            # Use the explicit rate values - both network_analyzer and impact_result use the 'rate' key
             overall_rate = overall_rate_data['rate']
-            network_rate = network_rate_data.get('rate')
-            sample_size = network_rate_data.get('sample_size', 0)
+            network_rate = network_rate_data['rate']
+            sample_size = network_rate_data['sample_size']
             
             # Skip if we don't have valid rates to compare
             if network_rate is None or overall_rate is None:

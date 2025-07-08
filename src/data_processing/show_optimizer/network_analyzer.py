@@ -268,25 +268,31 @@ class NetworkAnalyzer:
                     OptimizerConfig.debug(f"Network {network_id} analysis: No matching shows provided", category='recommendation')
                 return {}
                 
-            # Filter to this network
+            # Check if network_id column exists
             if 'network_id' not in matching_shows.columns:
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Network {network_id} analysis: No network_id column in matching shows", category='recommendation')
-                    # Print available columns for debugging
                     OptimizerConfig.debug(f"Available columns: {list(matching_shows.columns)}", category='recommendation')
                 return {}
-                
-            network_shows = matching_shows[matching_shows['network_id'] == network_id]
             
+            # Filter shows to only those from this network
+            network_shows = matching_shows[matching_shows['network_id'] == network_id].copy()
+            
+            # Skip if no shows for this network
             if network_shows.empty:
                 if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network {network_id} analysis: No shows found for this network", category='recommendation')
+                    OptimizerConfig.debug(f"Network {network_id} analysis: No shows for this network", category='recommendation')
                 return {}
+                
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Network {network_id} analysis: Found {len(network_shows)} shows for this network", category='recommendation')
                 
             # Check if success_score column exists
             if 'success_score' not in network_shows.columns:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Network {network_id} analysis: No success_score column in network shows", category='recommendation')
                 return {}
-            
+                
             # Get success threshold from config
             success_threshold = OptimizerConfig.SUCCESS['threshold']
             
@@ -296,14 +302,19 @@ class NetworkAnalyzer:
             # Only process ID columns for consistency with the rest of the system
             # This follows the CriteriaDict contract which uses IDs for all fields
             id_columns = [col for col in network_shows.columns 
-                         if (col.endswith('_id') or col.endswith('_ids')) 
-                         and col not in standard_columns]
+                          if (col.endswith('_id') or col.endswith('_ids')) 
+                          and col not in standard_columns]
             
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Network {network_id} analysis: Found {len(id_columns)} ID columns to analyze", category='recommendation')
+                # Show sample values for each ID column to help diagnose issues
+                for col in id_columns[:3]:  # Limit to first 3 columns to avoid excessive output
+                    unique_vals = network_shows[col].dropna().unique()
+                    if len(unique_vals) > 0:
+                        sample_vals = unique_vals[:3] if len(unique_vals) > 3 else unique_vals
+                        OptimizerConfig.debug(f"Network {network_id} analysis: Column {col} sample values: {sample_vals}", category='recommendation')
             
             # Calculate baseline success rate for this network
-            success_threshold = OptimizerConfig.SUCCESS_THRESHOLD
             baseline_success_count = network_shows[network_shows['success_score'] >= success_threshold].shape[0]
             baseline_total_count = network_shows.shape[0]
             
@@ -458,32 +469,32 @@ class NetworkAnalyzer:
                                 matching_shows=matching_titles
                             )
                             
+                            # The recommendation engine expects 'rate' key but field_manager returns 'success_rate'
+                            # Add 'rate' key with the same value for consistency
+                            success_rate_data['rate'] = success_rate_data['success_rate']
+                            
                             # Add cleaned value name if different from the generated one
                             if clean_value_name != success_rate_data['value_name']:
                                 success_rate_data['original_value_name'] = success_rate_data['value_name']
                                 success_rate_data['value_name'] = clean_value_name
                             
-                            try:
-                                # Use the create_field_value_key function from optimizer_data_contracts
-                                from .optimizer_data_contracts import create_field_value_key
-                                
-                                # Create a key using the field_name and value
-                                key = create_field_value_key(field_name, value)
-                                
+                            # Use the create_field_value_key function from optimizer_data_contracts
+                            from .optimizer_data_contracts import create_field_value_key
+                            
+                            # Create a key using the field_name and value
+                            key = create_field_value_key(field_name, value)
+                            
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug(f"Network {network_id} analysis: Created key {key} for field {field_name}", category='recommendation')
+                            
+                            # Only add if this key doesn't already exist in success_rates
+                            if key not in success_rates:
+                                success_rates[key] = success_rate_data
                                 if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Network {network_id} analysis: Created key {key} for field {field_name}", category='recommendation')
-                                
-                                # Only add if this key doesn't already exist in success_rates
-                                if key not in success_rates:
-                                    success_rates[key] = success_rate_data
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        OptimizerConfig.debug(f"Network {network_id} analysis: Added key {key} to success_rates", category='recommendation')
-                                else:
-                                    if OptimizerConfig.DEBUG_MODE:
-                                        OptimizerConfig.debug(f"Network {network_id} analysis: Key {key} already exists in success_rates", category='recommendation')
-                            except Exception as e:
-                                # Error adding success rate data
-                                pass
+                                    OptimizerConfig.debug(f"Network {network_id} analysis: Added key {key} to success_rates", category='recommendation')
+                            else:
+                                if OptimizerConfig.DEBUG_MODE:
+                                    OptimizerConfig.debug(f"Network {network_id} analysis: Key {key} already exists in success_rates", category='recommendation')
                 except Exception as e:
                     # Error processing column
                     continue
@@ -491,10 +502,17 @@ class NetworkAnalyzer:
             # Add network baseline success rate to the results
             if network_shows is not None and not network_shows.empty and 'success_score' in network_shows.columns:
                 network_baseline = network_shows[network_shows['success_score'] >= success_threshold].shape[0] / network_shows.shape[0]
-                success_rates['network_baseline'] = {'rate': network_baseline, 'sample_size': network_shows.shape[0]}
+                success_rates['network_baseline'] = {
+                    'field_name': 'network_id',
+                    'value': network_id,
+                    'value_name': f'Network {network_id}',
+                    'rate': network_baseline,
+                    'sample_size': network_shows.shape[0]
+                }
                 
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Network {network_id} analysis: Added network baseline success rate: {network_baseline}", category='recommendation')
+                    OptimizerConfig.debug(f"Network {network_id} analysis: Network baseline data: {success_rates['network_baseline']}", category='recommendation')
             
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Network {network_id} analysis: Returning {len(success_rates)} success rates", category='recommendation')
