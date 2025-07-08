@@ -31,7 +31,7 @@ class OptimizerConfig:
     """Configuration for Show Optimizer scoring and analysis."""
     
     # Version tracking
-    VERSION = '1.0.60'
+    VERSION = '1.0.61'
     
     # Debug message counter to limit output volume
     _debug_message_count = 0

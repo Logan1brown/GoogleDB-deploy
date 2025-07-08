@@ -445,14 +445,54 @@ class RecommendationEngine:
                     else:
                         OptimizerConfig.debug("Network analyzer is available in generate_recommendations", category='recommendation')
                 
+                # Pre-calculate overall success rates for network-specific recommendations
+                overall_rates = {}
+                
+                # Extract overall success rates from the impact_result
+                if impact_result and hasattr(impact_result, 'criteria_impacts'):
+                    for field, impacts in impact_result.criteria_impacts.items():
+                        for option_id, impact_data in impacts.items():
+                            # Use the create_field_value_key function for consistent key generation
+                            from .optimizer_data_contracts import create_field_value_key
+                            
+                            # Create key using the database column name format (with _id suffix)
+                            db_field = f"{field}_id" if not field.endswith('_id') else field
+                            
+                            # Convert option_id to float if it's numeric to match network analyzer key format
+                            try:
+                                if isinstance(option_id, (int, float)) or (isinstance(option_id, str) and option_id.isdigit()):
+                                    option_id = float(option_id)
+                            except (ValueError, TypeError):
+                                pass  # Keep original if conversion fails
+                                
+                            key = create_field_value_key(db_field, option_id)
+                            
+                            # Get the success rate from the impact data
+                            success_rate = impact_data.get('success_rate')
+                            if success_rate is not None:
+                                overall_rates[key] = {
+                                    'rate': success_rate,
+                                    'sample_size': impact_data.get('sample_size', 0),
+                                    'confidence': impact_data.get('confidence', 'medium')
+                                }
+                
                 # Limit to top 3 networks for performance
                 for network in top_networks[:3]:
                     try:
                         if OptimizerConfig.DEBUG_MODE:
                             OptimizerConfig.debug(f"Generating recommendations for network: {network.network_name}", category='recommendation')
                         
+                        # Get network-specific success rates
+                        network_rates = self.network_analyzer.get_network_specific_success_rates(
+                            matching_shows=matching_shows,
+                            network_id=network.network_id,
+                            criteria=criteria
+                        )
+                        
                         network_recs = self.generate_network_specific_recommendations(
-                            criteria, network, matching_shows, integrated_data, confidence_info
+                            criteria, network, matching_shows, integrated_data, confidence_info,
+                            network_rates=network_rates,
+                            overall_rates=overall_rates
                         )
                         
                         if OptimizerConfig.DEBUG_MODE:
