@@ -907,26 +907,26 @@ class ConceptAnalyzer:
             st.error(f"Error identifying success factors: {str(e)}")
             return []
 
-    def _generate_recommendations(self, criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data):
-        """Generate recommendations based on success factors.
+    def _generate_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, 
+                                success_factors: List[SuccessFactor], top_networks: List[NetworkMatch],
+                                confidence_info: ConfidenceInfo, integrated_data: IntegratedData) -> Dict[str, List[RecommendationItem]]:
+        """Generate recommendations based on criteria and matching shows.
         
         Args:
             criteria: Dictionary of criteria key-value pairs
-            matching_shows: DataFrame of matching shows
+            matching_shows: DataFrame of shows matching the criteria
             success_factors: List of SuccessFactor objects
-            top_networks: List of top networks
-            confidence_info: Dictionary with confidence metrics
+            top_networks: List of NetworkMatch objects for network-specific recommendations
+            confidence_info: Dictionary with confidence information
             integrated_data: Dictionary of integrated data frames
             
         Returns:
-            Dictionary with 'general' and 'network_specific' recommendations
+            Dictionary with 'general' and 'network_specific' recommendation lists
         """
-        # Initialize all variables at the beginning to prevent NameError
-        general_recommendations = {"general": []}
-        network_recommendations = []
-        
-        # Check if criteria have changed since last run
+        # Calculate a hash of the current criteria to detect changes
         current_criteria_hash = self._get_criteria_hash(criteria)
+        
+        # Reset recommendation state if criteria have changed
         if current_criteria_hash != self._last_criteria_hash:
             # State reset is already handled in analyze_concept, just update the hash here
             self._last_criteria_hash = current_criteria_hash
@@ -938,17 +938,11 @@ class ConceptAnalyzer:
         
         # Add detailed debugging for success factors
         if self.config.DEBUG_MODE:
-
             high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
             OptimizerConfig.debug(f"Found {len(high_impact_factors)} high impact success factors", category='recommendation')
-            # Do not filter by threshold here - let RecommendationEngine handle it once
-                    
+        
         try:
-            # Initialize recommendations variables at the beginning to avoid NameError
-            general_recommendations = {"general": []}
-            network_recommendations = []
-            
-            # Store matching_shows for later use in get_network_specific_recommendations
+            # Store matching_shows for later use
             self._last_matching_shows = matching_shows
             
             # If no matching shows, return empty list
@@ -959,103 +953,70 @@ class ConceptAnalyzer:
                     "network_specific": []
                 }
             
-            # Ensure we have valid success factors - this is critical for general recommendations
+            # Ensure we have valid success factors
             if not success_factors or len(success_factors) == 0:
-
-                # Re-identify success factors to ensure we have fresh data for recommendations
                 success_factors = self._identify_success_factors(criteria, matching_shows, integrated_data)
-  
+            
             # Ensure confidence_info conforms to our ConfidenceInfo contract
-            # This enforces the contract rather than adding defensive checks
             confidence_info = update_confidence_info(confidence_info, {})
             
-            # Generate general recommendations with explicit debug logging
-
-            general_recommendations = self.recommendation_engine.generate_recommendations(
+            if self.config.DEBUG_MODE:
+                OptimizerConfig.debug("Using generate_all_recommendations to avoid redundant calculations", category='recommendation')
+                if top_networks and len(top_networks) > 0:
+                    network_names = [n.network_name for n in top_networks]
+                    OptimizerConfig.debug(f"Processing {len(top_networks)} networks: {', '.join(network_names)}", category='recommendation')
+                
+                # Check if matching_shows has network_id column
+                if matching_shows is not None and not matching_shows.empty:
+                    OptimizerConfig.debug(f"Matching shows columns: {list(matching_shows.columns)}", category='recommendation')
+                    if 'network_id' not in matching_shows.columns:
+                        OptimizerConfig.debug("CRITICAL: network_id column missing from matching_shows DataFrame", category='recommendation')
+            
+            # Generate both general and network-specific recommendations in a single call
+            # This avoids redundant calculations of criteria impact and success factors
+            all_recommendations = self.recommendation_engine.generate_all_recommendations(
                 criteria=criteria,
                 matching_shows=matching_shows,
                 integrated_data=integrated_data,
-                top_networks=[],  # Empty list for general recommendations
+                top_networks=top_networks,
                 confidence_info=confidence_info
             )
             
-            # Generate network-specific recommendations with explicit debug logging
- 
-            # Ensure we have network recommendations even if the next steps fail
-            network_recommendations = []
+            # Extract general and network-specific recommendations
+            general_recommendations = all_recommendations.get("general", [])
+            network_recommendations = all_recommendations.get("network_specific", [])
             
-            if top_networks and len(top_networks) > 0:
-                # Debug log the top networks being processed
-                if self.config.DEBUG_MODE:
-                    network_names = [n.network_name for n in top_networks]
-                    OptimizerConfig.debug(f"Processing {len(top_networks)} networks for specific recommendations: {', '.join(network_names)}", category='recommendation')
-                
-                # Check if matching_shows has network_id column before generating network-specific recommendations
-                if self.config.DEBUG_MODE:
-                    if matching_shows is not None and not matching_shows.empty:
-                        OptimizerConfig.debug(f"Matching shows columns before network-specific recommendations: {list(matching_shows.columns)}", category='recommendation')
-                        if 'network_id' not in matching_shows.columns:
-                            OptimizerConfig.debug("CRITICAL: network_id column missing from matching_shows DataFrame", category='recommendation')
-                
-                # Generate network-specific recommendations using the top networks
-                # This will use exact database column names (IDs) for field matching
-                network_specific_results = self.recommendation_engine.generate_recommendations(
-                    criteria=criteria,
-                    matching_shows=matching_shows,
-                    integrated_data=integrated_data,
-                    top_networks=top_networks,  # Pass the top networks for network-specific recommendations
-                    confidence_info=confidence_info
-                )
-                
-                # Extract network-specific recommendations from the results
-                if isinstance(network_specific_results, dict):
-                    network_recommendations = network_specific_results.get('network_specific', [])
-                    if self.config.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Extracted {len(network_recommendations)} network-specific recommendations from results", category='recommendation')
-                        if 'network_specific' not in network_specific_results:
-                            OptimizerConfig.debug("'network_specific' key missing from recommendation results", category='recommendation')
-                        elif not network_recommendations:
-                            OptimizerConfig.debug("'network_specific' key exists but contains empty list", category='recommendation')
-      
-            if isinstance(general_recommendations, dict):
-                general_count = len(general_recommendations.get("general", []))
-                
-
-            else:
-                pass
-            
-            network_count = len(network_recommendations)
-            
+            if self.config.DEBUG_MODE:
+                OptimizerConfig.debug(f"Generated {len(general_recommendations)} general recommendations", category='recommendation')
+                OptimizerConfig.debug(f"Generated {len(network_recommendations)} network-specific recommendations", category='recommendation')
             # Store the recommendations in our state dictionary
-            if isinstance(general_recommendations, dict) and "general" in general_recommendations:
-                self._recommendation_state['general_recommendations'] = general_recommendations["general"]
-
-            else:
-                pass
-            
-            # Store network recommendations in state
-            self._recommendation_state['network_recommendations'] = network_recommendations.copy()
-
+            self._recommendation_state['general_recommendations'] = general_recommendations
+            self._recommendation_state['network_recommendations'] = network_recommendations
             
             # Return the recommendations dictionary with the correct structure
             result = {
-                "general": self._recommendation_state['general_recommendations'],
+                "general": general_recommendations,
                 "network_specific": network_recommendations
             }
-              
+            
+            if self.config.DEBUG_MODE:
+                OptimizerConfig.debug(f"Returning {len(result['general'])} general and {len(result['network_specific'])} network-specific recommendations", category='recommendation')
+                
             return result
             
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
             st.error(f"Error generating recommendations: {str(e)}")
-
+            
+            if self.config.DEBUG_MODE:
+                OptimizerConfig.debug(f"Exception in _generate_recommendations: {str(e)}", category='recommendation')
+                OptimizerConfig.debug(f"Traceback: {error_details[:500]}...", category='recommendation')
             
             # Initialize empty recommendation state if it doesn't exist
             if 'general_recommendations' not in self._recommendation_state:
                 self._recommendation_state['general_recommendations'] = []
             if 'network_recommendations' not in self._recommendation_state:
                 self._recommendation_state['network_recommendations'] = []
-                
-
+            
             return {"general": [], "network_specific": []}

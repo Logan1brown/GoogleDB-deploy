@@ -430,6 +430,137 @@ class RecommendationEngine:
                         if OptimizerConfig.DEBUG_MODE:
                             OptimizerConfig.debug(f"Error generating network recommendations: {str(e)}", category='recommendation')
             
+    def generate_all_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
+                                   integrated_data: IntegratedData = None, 
+                                   top_networks: List[NetworkMatch] = None,
+                                   confidence_info: Optional[ConfidenceInfo] = None) -> Dict[str, List[RecommendationItem]]:
+        """Generate both general and network-specific recommendations in a single call.
+        
+        This method calculates criteria impact and success factors once, then uses them
+        to generate both general and network-specific recommendations, avoiding redundant calculations.
+        
+        Args:
+            criteria: Dictionary of criteria conforming to CriteriaDict
+            matching_shows: DataFrame of shows matching the criteria (optional)
+            integrated_data: Dictionary of integrated data frames (optional)
+            top_networks: List of NetworkMatch objects for network-specific recommendations
+            confidence_info: Optional confidence information dictionary
+            
+        Returns:
+            Dictionary with 'general' and 'network_specific' recommendation lists
+        """
+        # Initialize empty recommendation lists
+        general_recommendations = []
+        network_specific_recommendations = []
+        
+        try:
+            # If matching_shows not provided or empty, get them using the matcher
+            if matching_shows is None or matching_shows.empty:
+                try:
+                    # Use the matcher directly instead of going through criteria_scorer
+                    if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
+                        matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(criteria)
+                        if matching_shows.empty:
+                            if OptimizerConfig.DEBUG_MODE:
+                                OptimizerConfig.debug("No shows match criteria in generate_all_recommendations", category='recommendation')
+                            return {"general": [], "network_specific": []}
+                    else:
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug("No matcher available in generate_all_recommendations", category='recommendation')
+                        return {"general": [], "network_specific": []}
+                except Exception as e:
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Error finding matches in generate_all_recommendations: {str(e)}", category='recommendation')
+                    return {"general": [], "network_specific": []}
+            
+            # Calculate impact data once - this is the expensive operation we want to avoid duplicating
+            try:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug("Calculating criteria impact once for both general and network recommendations", category='recommendation')
+                
+                impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
+                
+                # Check for errors
+                if impact_result.error:
+                    if OptimizerConfig.DEBUG_MODE:
+                        OptimizerConfig.debug(f"Error in impact calculation: {impact_result.error_message}", category='recommendation')
+                    return {"general": [], "network_specific": []}
+                    
+                # Get the impact data from the result
+                impact_data = impact_result.criteria_impacts
+                
+            except Exception as e:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Error calculating impact data: {str(e)}", category='recommendation')
+                return {"general": [], "network_specific": []}
+                
+            # Convert to SuccessFactor objects once - reuse for both general and network recommendations
+            success_factors = self.identify_success_factors(criteria, matching_shows, integrated_data)
+            
+            # Generate general recommendations from success factors
+            general_recommendations = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
+            
+            # Sort by absolute impact (descending)
+            general_recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
+            
+            # Apply max suggestions limit to general recommendations
+            max_suggestions = self.config.SUGGESTIONS.get('max_suggestions', 5)
+            if len(general_recommendations) > max_suggestions:
+                general_recommendations = general_recommendations[:max_suggestions]
+            
+            # Generate network-specific recommendations if networks are provided
+            if top_networks and len(top_networks) > 0:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Starting network-specific recommendations generation for {len(top_networks)} networks", category='recommendation')
+                    # Check if network_analyzer is available
+                    if self.network_analyzer is None:
+                        OptimizerConfig.debug("Cannot generate network-specific recommendations: network_analyzer is None", category='recommendation')
+                    else:
+                        OptimizerConfig.debug("Network analyzer is available for network-specific recommendations", category='recommendation')
+                        # Check if matching_shows has network_id column
+                        if matching_shows is not None and not matching_shows.empty:
+                            OptimizerConfig.debug(f"Columns in matching_shows: {list(matching_shows.columns)}", category='recommendation')
+                            if 'network_id' in matching_shows.columns:
+                                unique_networks = matching_shows['network_id'].unique()
+                                OptimizerConfig.debug(f"Unique network IDs in matching shows: {list(unique_networks)}", category='recommendation')
+                
+                # Process all networks without arbitrary limit
+                for network in top_networks:
+                    try:
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Generating recommendations for network: {network.network_name}", category='recommendation')
+                        
+                        network_recs = self.generate_network_specific_recommendations(
+                            criteria, network, matching_shows, integrated_data, confidence_info
+                        )
+                        
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Generated {len(network_recs)} recommendations for network {network.network_name}", category='recommendation')
+                        
+                        # Add to network_specific_recommendations
+                        network_specific_recommendations.extend(network_recs)
+                    except Exception as e:
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Error generating network recommendations for {network.network_name}: {str(e)}", category='recommendation')
+            
+            # Sort network-specific recommendations by impact
+            network_specific_recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
+            
+            return {
+                "general": general_recommendations,
+                "network_specific": network_specific_recommendations
+            }
+            
+        except Exception as e:
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Error in generate_all_recommendations: {str(e)}", category='recommendation')
+            
+            # Always return a dictionary with the expected structure, even on error
+            return {
+                "general": [],
+                "network_specific": []
+            }
+    
     def generate_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
                                 integrated_data: IntegratedData = None, 
                                 top_networks: List[NetworkMatch] = None,
