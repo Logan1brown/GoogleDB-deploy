@@ -1087,13 +1087,21 @@ class RecommendationEngine:
             # Extract field name and value from key
             field_name, field_value = self._parse_key(key)
             
-            # Skip if this field is not in our criteria
-            if field_name not in criteria:
-                continue
+            # Map database field name to criteria key if needed
+            # This handles cases where database uses field_id but criteria uses field
+            criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
             
-            # Use the exact field name from the key with no mapping or standardization
-            # Calculate the overall success rate for this criteria
-            single_criteria = {field_name: criteria[field_name]}
+            # Skip if neither the original field name nor the mapped field name is in criteria
+            if field_name not in criteria and criteria_field not in criteria:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Skipping field {field_name} (mapped to {criteria_field}) - not in criteria keys: {list(criteria.keys())}", category='recommendation')
+                continue
+                
+            # Use the field name that exists in criteria
+            used_field = field_name if field_name in criteria else criteria_field
+            
+            # Calculate the overall success rate for this criteria using the field name that exists in criteria
+            single_criteria = {used_field: criteria[used_field]}
             
             # Skip if matcher is not available
             if not hasattr(self.criteria_scorer, 'matcher') or self.criteria_scorer.matcher is None:
@@ -1120,7 +1128,7 @@ class RecommendationEngine:
         # The recommendation engine uses these IDs for all internal processing
         # Human-readable names are derived only for display purposes using _get_criteria_name
         
-        # The criteria dictionary must use database column names (IDs) consistently
+        # The criteria dictionary may use field names without _id suffix
         valid_fields = set(criteria.keys())
         valid_network_rates = {}
         
@@ -1131,11 +1139,16 @@ class RecommendationEngine:
         for key, network_rate_data in network_rates.items():
             field_name, _ = self._parse_key(key)
             
-            # Only process fields that exist in criteria
-            if field_name in valid_fields:
+            # Map database field name to criteria key if needed
+            criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+            
+            # Only process fields that exist in criteria (either with original name or mapped name)
+            if field_name in valid_fields or criteria_field in valid_fields:
+                # Use the field name that exists in criteria
+                used_field = field_name if field_name in valid_fields else criteria_field
                 # Get display name for the current value
                 original_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
-                current_value = criteria[field_name]
+                current_value = criteria[used_field]
                 
                 valid_network_rates[key] = {
                     'field_name': field_name,
