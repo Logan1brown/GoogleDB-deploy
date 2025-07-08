@@ -794,11 +794,14 @@ class RecommendationEngine:
                     overall_rate, _ = self.calculate_overall_success_rate(field_criteria, matching_shows)
                     
                     if overall_rate is not None:
-                        # Create a consistent data structure that matches network_rate_data
+                        # Create a data structure that exactly matches the network_rate_data structure
+                        # This ensures consistent key matching between network and overall rates
                         overall_rates[key] = {
-                            'rate': overall_rate,  # Use 'rate' key for consistency
-                            'sample_size': len(matching_shows) if matching_shows is not None else 0,
-                            'confidence': 'medium'  # Default confidence level
+                            'field_name': field_name,
+                            'value': field_value,
+                            'value_name': self._get_criteria_name(field_name, field_value),
+                            'rate': overall_rate,
+                            'sample_size': len(matching_shows) if matching_shows is not None else 0
                         }
                         
                         if OptimizerConfig.DEBUG_MODE:
