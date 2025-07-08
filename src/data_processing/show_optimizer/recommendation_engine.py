@@ -1330,6 +1330,7 @@ class RecommendationEngine:
             
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Network {network.network_name} field {field_name}: network_rate={network_rate:.3f}, overall_rate={overall_rate:.3f}, diff={difference:.3f}, significant={should_generate}", category='recommendation')
+                OptimizerConfig.debug(f"Thresholds: network_diff={network_diff_threshold}, significant_diff={significant_diff_threshold}, sample_size={sample_size}, sufficient_data={has_sufficient_data}", category='recommendation')
             
             # Create recommendation if the difference is significant
             if should_generate:
