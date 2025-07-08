@@ -546,7 +546,11 @@ class RecommendationEngine:
                         for option_id, impact_data in impacts.items():
                             # Use the create_field_value_key function for consistent key generation
                             from .optimizer_data_contracts import create_field_value_key
-                            key = create_field_value_key(field, option_id)
+                            
+                            # Create key using the database column name format (with _id suffix)
+                            # This ensures compatibility with network analyzer keys
+                            db_field = f"{field}_id" if not field.endswith('_id') else field
+                            key = create_field_value_key(db_field, option_id)
                             
                             # Get the success rate from the impact data
                             success_rate = impact_data.get('success_rate')

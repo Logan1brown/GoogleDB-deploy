@@ -481,7 +481,7 @@ class NetworkAnalyzer:
                             # Use the create_field_value_key function from optimizer_data_contracts
                             from .optimizer_data_contracts import create_field_value_key
                             
-                            # Create a key using the field_name and value
+                            # Create a key using the exact database column name
                             key = create_field_value_key(field_name, value)
                             
                             if OptimizerConfig.DEBUG_MODE:
