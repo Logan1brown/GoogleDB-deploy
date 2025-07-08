@@ -537,7 +537,8 @@ class RecommendationEngine:
                 for network in top_networks:
                     network_rates = self.network_analyzer.get_network_specific_success_rates(
                         matching_shows=matching_shows,
-                        network_id=network.network_id
+                        network_id=network.network_id,
+                        criteria=criteria  # Pass criteria to filter fields
                     )
                     all_network_rates[network.network_id] = network_rates
                     all_keys.update(network_rates.keys())
@@ -545,6 +546,12 @@ class RecommendationEngine:
                 # Calculate overall success rates once for all keys
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Pre-calculating {len(all_keys)} overall success rates", category='recommendation')
+                    # Log the keys we found to help diagnose issues
+                    if len(all_keys) > 0:
+                        sample_keys = list(all_keys)[:5] if len(all_keys) > 5 else list(all_keys)
+                        OptimizerConfig.debug(f"Sample keys: {sample_keys}", category='recommendation')
+                    else:
+                        OptimizerConfig.debug("WARNING: No keys found in network rates", category='recommendation')
                     
                 for key in all_keys:
                     # Extract field name and value from key
@@ -1124,8 +1131,9 @@ class RecommendationEngine:
         if 'network_baseline' in network_rates:
             network_baseline_rate = network_rates['network_baseline'].get('rate', None)
             
-            if OptimizerConfig.debug():
+            if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Using network baseline rate: {network_baseline_rate}", category='recommendation')
+                OptimizerConfig.debug(f"Network baseline data: {network_rates['network_baseline']}", category='recommendation')
         
         # Calculate overall success rates if not provided
         if overall_rates is None:
@@ -1137,8 +1145,9 @@ class RecommendationEngine:
                 for key in network_rates.keys():
                     if key != 'network_baseline':  # Skip the baseline key itself
                         # Create a consistent data structure for the overall rate
+                        # Use 'rate' to match the structure in network_rates
                         overall_rates[key] = {
-                            'success_rate': network_baseline_rate,
+                            'rate': network_baseline_rate,
                             'sample_size': network_rates['network_baseline'].get('sample_size', 0),
                             'confidence': 'medium'  # Default confidence level
                         }
@@ -1229,13 +1238,15 @@ class RecommendationEngine:
             # Get the overall success rate using the exact key
             overall_rate_data = overall_rates.get(key)
             
-            if overall_rate_data is None or 'success_rate' not in overall_rate_data or overall_rate_data['success_rate'] is None:
+            if overall_rate_data is None or 'rate' not in overall_rate_data or overall_rate_data['rate'] is None:
                 # Skip criteria without overall rates or valid success rates
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"Skipping key {key}: Missing overall rate data", category='recommendation')
                 continue
                 
-            # Use the explicit success_rate value
-            overall_rate = overall_rate_data['success_rate']
-            network_rate = network_rate_data.get('success_rate')
+            # Use the explicit rate value
+            overall_rate = overall_rate_data['rate']
+            network_rate = network_rate_data.get('rate')
             sample_size = network_rate_data.get('sample_size', 0)
             
             # Skip if we don't have valid rates to compare

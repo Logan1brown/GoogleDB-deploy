@@ -324,7 +324,7 @@ class CriteriaScorer:
                 # No recommendation for unselected options with negative impact
                 return None
     
-    def calculate_criteria_impact(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None, integrated_data: IntegratedData = None) -> ImpactAnalysisResult:
+    def calculate_criteria_impact(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, option_matching_shows_map: Dict[str, Dict[Any, pd.DataFrame]] = None, integrated_data: IntegratedData = None, fields_to_analyze: List[str] = None) -> ImpactAnalysisResult:
         """Calculate the impact of each criteria option on success rate.
         
         Args:
