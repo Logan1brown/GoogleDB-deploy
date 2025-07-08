@@ -1087,14 +1087,12 @@ class RecommendationEngine:
             # Extract field name and value from key
             field_name, field_value = self._parse_key(key)
             
-            # Map database field name to criteria key using field_manager
+            # Map database field name to criteria key with direct mapping for performance
             # This handles cases where database uses field_id but criteria uses field
-            criteria_field = self.field_manager.standardize_field_name(field_name)
+            criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
             
             # Skip if neither the original field name nor the mapped field name is in criteria
             if field_name not in criteria and criteria_field not in criteria:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Skipping field {field_name} (mapped to {criteria_field}) - not in criteria keys: {list(criteria.keys())}", category='recommendation')
                 continue
                 
             # Use the field name that exists in criteria
@@ -1139,15 +1137,15 @@ class RecommendationEngine:
         for key, network_rate_data in network_rates.items():
             field_name, _ = self._parse_key(key)
             
-            # Map database field name to criteria key using field_manager
-            criteria_field = self.field_manager.standardize_field_name(field_name)
+            # Map database field name to criteria key with direct mapping for performance
+            criteria_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
             
             # Only process fields that exist in criteria (either with original name or mapped name)
             if field_name in valid_fields or criteria_field in valid_fields:
                 # Use the field name that exists in criteria
                 used_field = field_name if field_name in valid_fields else criteria_field
-                # Get display name for the current value using field_manager
-                original_field = self.field_manager.standardize_field_name(field_name)
+                # Get display name for the current value
+                original_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
                 current_value = criteria[used_field]
                 
                 valid_network_rates[key] = {
