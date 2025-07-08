@@ -182,8 +182,8 @@ class RecommendationEngine:
     def create_field_value_criteria(self, field_name: str, field_value: Any) -> CriteriaDict:
         """Create a criteria dictionary for a single field value.
         
-        This helper method ensures proper field name mapping between database column names
-        and criteria field names. It's used for network-specific recommendation generation.
+        DATA CONTRACT: This method must use exact database column names (IDs) to ensure
+        consistent key matching between network rates and overall rates.
         
         Args:
             field_name: The field name (e.g., 'genre_id', 'tone_id')
@@ -192,20 +192,11 @@ class RecommendationEngine:
         Returns:
             A criteria dictionary with just the specified field and value
         """
-        # Map between database column names and criteria field names
-        field_in_criteria = field_name
+        # IMPORTANT: Use exact field name without any mapping to ensure consistent keys
+        # between network rates and overall rates
         
-        # Handle ID fields - strip _id suffix if needed
-        if field_name.endswith('_id') and hasattr(self.criteria_scorer, 'reference_data'):
-            if self.criteria_scorer.reference_data and field_name[:-3] in self.criteria_scorer.reference_data.field_options:
-                field_in_criteria = field_name[:-3]
-        # Handle non-ID fields - add _id suffix if needed
-        elif not field_name.endswith('_id') and hasattr(self.criteria_scorer, 'reference_data'):
-            if self.criteria_scorer.reference_data and f"{field_name}_id" in self.criteria_scorer.reference_data.field_options:
-                field_in_criteria = f"{field_name}_id"
-                
-        # Create and return the criteria dictionary
-        return {field_in_criteria: field_value}
+        # Create and return the criteria dictionary using the exact field name
+        return {field_name: field_value}
     
     def identify_success_factors(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, integrated_data: IntegratedData = None, limit: int = 5) -> List[SuccessFactor]:
         """Identify success factors from the given criteria and matching shows.
@@ -687,6 +678,13 @@ class RecommendationEngine:
                         OptimizerConfig.debug(f"Sample keys from networks: {sample_keys}", category='recommendation')
                     else:
                         OptimizerConfig.debug("WARNING: No keys found in network rates", category='recommendation')
+                        
+                # Log the keys we need to ensure are in overall_rates
+                if OptimizerConfig.DEBUG_MODE and len(all_keys) > 0:
+                    network_keys = [k for k in all_keys if k != 'network_baseline']
+                    if network_keys:
+                        OptimizerConfig.debug(f"Network keys that need overall rates: {network_keys}", category='recommendation')
+                        OptimizerConfig.debug(f"Current overall rate keys: {list(overall_rates.keys())}", category='recommendation')
                     
                 # Extract fields from network rates to know which fields to calculate all options for
                 fields_in_network_rates = set()
@@ -1416,6 +1414,8 @@ class RecommendationEngine:
                 OptimizerConfig.debug(f"Processing key {key}: network_rate_data={network_rate_data}", category='recommendation')
                 OptimizerConfig.debug(f"Processing key {key}: overall_rate_data={overall_rate_data}", category='recommendation')
                 OptimizerConfig.debug(f"Available overall rate keys: {list(overall_rates.keys())}", category='recommendation')
+                
+                # No defensive code - rely on exact key matching
             
             # Extract field name and value from key for debugging
             field_name_from_key, field_value_from_key = self._parse_key(key)
