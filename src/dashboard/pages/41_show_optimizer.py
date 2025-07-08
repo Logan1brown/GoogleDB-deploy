@@ -46,7 +46,7 @@ def show():
         with st.expander("Developer Options", expanded=False):
             # Add version indicator
             from src.data_processing.show_optimizer.optimizer_config import OptimizerConfig
-            st.info(f"Show Optimizer v{OptimizerConfig.VERSION} - Last updated: 2025-06-25")
+            st.info(f"Show Optimizer v{OptimizerConfig.VERSION}")
             
             debug_mode = st.checkbox("Enable Debug Mode", value=st.session_state.get('debug_mode', False))
             st.session_state['debug_mode'] = debug_mode

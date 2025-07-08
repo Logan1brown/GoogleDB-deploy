@@ -120,18 +120,12 @@ class RecommendationEngine:
         self.criteria_scorer = criteria_scorer
         self.config = OptimizerConfig
         
-        # Use provided network_analyzer if available, otherwise try to get from criteria_scorer
-        # This ensures we have a direct reference to the network_analyzer
-        if network_analyzer is not None:
-            self.network_analyzer = network_analyzer
-        else:
-            self.network_analyzer = getattr(self.criteria_scorer, 'network_analyzer', None)
-            
+        # Use network_analyzer from criteria_scorer as per the architecture flow
+        # NetworkAnalyzer.analyze_network_compatibility (step 3.4) comes before 
+        # RecommendationEngine.generate_recommendations (step 3.5)
+        self.network_analyzer = self.criteria_scorer.network_analyzer
         if OptimizerConfig.DEBUG_MODE:
-            if self.network_analyzer is None:
-                OptimizerConfig.debug(f"CRITICAL: network_analyzer is None in RecommendationEngine constructor", category='recommendation')
-            else:
-                OptimizerConfig.debug(f"Successfully initialized network_analyzer in RecommendationEngine constructor", category='recommendation')
+            OptimizerConfig.debug(f"Using network_analyzer from criteria_scorer as per architecture flow", category='recommendation')
     
     def calculate_overall_success_rate(self, criteria: CriteriaDict) -> Tuple[float, str]:
         """Calculate the overall success rate for the given criteria.
@@ -415,8 +409,8 @@ class RecommendationEngine:
                     else:
                         OptimizerConfig.debug("Network analyzer is available in generate_recommendations", category='recommendation')
                 
-                # Process all available networks for comprehensive recommendations
-                for network in top_networks:
+                # Limit to top 3 networks for performance
+                for network in top_networks[:3]:
                     try:
                         if OptimizerConfig.DEBUG_MODE:
                             OptimizerConfig.debug(f"Generating recommendations for network: {network.network_name}", category='recommendation')
@@ -931,12 +925,6 @@ class RecommendationEngine:
         if OptimizerConfig.DEBUG_MODE and matching_shows is not None and not matching_shows.empty:
             OptimizerConfig.debug(f"Columns in matching_shows for network {network.network_name}: {list(matching_shows.columns)}", category='recommendation')
         
-        # Check if network_analyzer is available
-        if self.network_analyzer is None:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"CRITICAL: network_analyzer is None in generate_network_specific_recommendations for network {network.network_name}", category='recommendation')
-            return []
-            
         # Get network-specific success rates
         if OptimizerConfig.DEBUG_MODE:
             OptimizerConfig.debug(f"Getting network-specific success rates for network {network.network_name} (ID: {network.network_id})", category='recommendation')
