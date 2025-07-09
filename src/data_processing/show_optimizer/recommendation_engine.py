@@ -385,10 +385,8 @@ class RecommendationEngine:
                     fields_to_analyze=fields_to_analyze
                 )
                 
-                # Check if impact_result is valid
-                if not impact_result or not hasattr(impact_result, 'criteria_impacts') or not impact_result.criteria_impacts:
-                    # Error or empty impact calculation
-                    return []
+                # Get the impact data directly
+                # No defensive checks as per user preference
                     
                 # Get the impact data from the result
                 impact_data = impact_result.criteria_impacts
