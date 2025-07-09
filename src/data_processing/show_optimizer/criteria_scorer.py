@@ -260,34 +260,6 @@ class CriteriaScorer:
         """
         return df is not None and not df.empty
         
-    def _batch_calculate_success_rates(self, criteria_list: List[CriteriaDict], matching_shows_list: Optional[List[pd.DataFrame]] = None, integrated_data: Optional[IntegratedData] = None):
-        """
-        Calculate success rates for a batch of criteria using provided matching shows.
-
-        Args:
-            criteria_list: List of criteria dictionaries conforming to CriteriaDict
-            matching_shows_list: List of DataFrames containing shows matching each criteria
-            integrated_data: Optional integrated data dictionary
-            
-        Returns:
-            List of tuples (success_rate, confidence_info) for each criteria/matching shows pair
-        """
-        # Validate inputs
-        if matching_shows_list is None:
-            matching_shows_list = [None] * len(criteria_list)
-        
-        # Ensure lists are the same length
-        if len(criteria_list) != len(matching_shows_list):
-            raise ValueError("criteria_list and matching_shows_list must have the same length")
-            
-        # Calculate success rates in batch
-        results = []
-        for i, (criteria, shows) in enumerate(zip(criteria_list, matching_shows_list)):
-            rate, info = self._calculate_success_rate(shows, integrated_data=integrated_data)
-            results.append((rate, info))
-            
-        return results
-        
     def _create_option_criteria(self, base_criteria: CriteriaDict, field: str, option_id, is_array_field: bool) -> CriteriaDict:
         """Create criteria with a specific option value for a field or remove the field.
         
@@ -640,96 +612,77 @@ class CriteriaScorer:
                 # Field is already initialized in impact_scores above
                 # This ensures we maintain a consistent data structure
                 
-                # OPTIMIZATION: Batch process success rates for all valid options
-                valid_options = []
-                valid_shows = []
-                valid_indices = []
-                
-                # First collect all valid options and their matching shows
+                # Process each option in option_data
                 for i, (option_id, option_name) in enumerate(option_data):
-                    option_shows = field_options_map.get(option_id)
-                    if self._is_valid_dataframe(option_shows):
-                        valid_options.append(option_id)
-                        valid_shows.append(option_shows)
-                        valid_indices.append(i)
-                
-                # Batch calculate success rates for all valid options
-                if valid_options:
-                    # Use None for criteria_list since we're only using the shows
-                    batch_results = self._batch_calculate_success_rates(
-                        [None] * len(valid_options),
-                        valid_shows,
-                        integrated_data=integrated_data
-                    )
-                    
-                    # Process the batch results
-                    for j, batch_item in enumerate(zip(valid_options, valid_indices, batch_results)):
-                        try:
-                            option_id, option_idx, result_tuple = batch_item
-                            option_rate, option_info = result_tuple
-                            
-                            if option_rate is None:
-                                continue
-                                
-                            # Get the option name for this option
-                            option_name = option_data[option_idx][1]
-                            
-                            # Calculate impact as the difference from base rate
-                            impact = option_rate - base_rate
-                            
-                            # Store the original impact for reference
-                            original_impact = impact
-                            
-                            # Special debug for tracking recommendation flow
-                            rec_type = recommendation_types[option_idx] if option_idx < len(recommendation_types) else "unknown"
-                            
-                            # Get minimum impact threshold
-                            min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
-                            
-                            # Skip options with impact below minimum threshold
-                            if abs(impact) < min_impact:  # If impact is too small
-                                continue
-                            
-                            # Determine recommendation type based on impact and whether this specific option is selected
-                            is_field_selected = current_field in criteria
-                            is_option_selected = False
-                            
-                            # Check if this specific option is selected
-                            if is_field_selected:
-                                current_value = criteria[current_field]
-                                if isinstance(current_value, list):
-                                    is_option_selected = option_id in current_value
-                                else:
-                                    is_option_selected = current_value == option_id
-                            
-                            # Determine recommendation type using helper method
-                            recommendation_type = self._determine_recommendation_type(
-                                option_id, impact, is_field_selected, is_option_selected
-                            )
-                            
-                            # Skip options with no recommendation type
-                            if recommendation_type is None:
-                                continue  # Skip to next option
-                            
-                            # Store impact score with all relevant information
-                            # Get the sample size safely (option_shows might be None in some cases)
-                            sample_size = len(option_shows) if option_shows is not None else 0
-                            
-                            impact_scores[current_field][option_id] = {
-                                'option_id': option_id,
-                                'option_name': option_name,
-                                'impact': impact,
-                                'original_impact': original_impact,
-                                'success_rate': option_rate,
-                                'sample_size': sample_size,
-                                'recommendation_type': recommendation_type
-                            }
-                        except Exception as e:
-                            # Skip this option if there's an error
-                            if OptimizerConfig.DEBUG_MODE:
-                                option_name = option_data[option_idx][1] if option_idx < len(option_data) else "unknown"
-                                OptimizerConfig.debug(f"Error processing option {option_name}: {str(e)}", category='impact')
+                    try:
+                        # Get the option shows from field_options_map
+                        option_shows = field_options_map.get(option_id)
+                        
+                        # Skip options with no matching shows
+                        if not self._is_valid_dataframe(option_shows):
                             continue
+                            
+                        # Calculate success rate for this option's matching shows
+                        option_rate, option_info = self._calculate_success_rate(option_shows)
+                        
+                        if option_rate is None:
+                            continue
+                            
+                        # Calculate impact as the difference from base rate
+                        impact = option_rate - base_rate
+                        
+                        # Store the original impact for reference
+                        original_impact = impact
+                        
+                        # Special debug for tracking recommendation flow
+                        rec_type = recommendation_types[i] if i < len(recommendation_types) else "unknown"
+                        
+                        # Get minimum impact threshold
+                        min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
+                        
+                        # Skip options with impact below minimum threshold
+                        if abs(impact) < min_impact:  # If impact is too small
+                            continue
+                        
+                        # Determine recommendation type based on impact and whether this specific option is selected
+                        is_field_selected = current_field in criteria
+                        is_option_selected = False
+                        
+                        # Check if this specific option is selected
+                        if is_field_selected:
+                            current_value = criteria[current_field]
+                            if isinstance(current_value, list):
+                                is_option_selected = option_id in current_value
+                            else:
+                                is_option_selected = current_value == option_id
+                        
+                        # Determine recommendation type using helper method
+                        recommendation_type = self._determine_recommendation_type(
+                            option_id, impact, is_field_selected, is_option_selected
+                        )
+                        
+                        # Skip options with no recommendation type
+                        if recommendation_type is None:
+                            continue  # Skip to next option
+                            
+                        # Store impact score with all relevant information
+                        # Get the sample size safely (option_shows might be None in some cases)
+                        sample_size = len(option_shows) if option_shows is not None else 0
+                        
+                        impact_scores[current_field][option_id] = {
+                            'option_id': option_id,
+                            'option_name': option_name,
+                            'impact': impact,
+                            'original_impact': original_impact,
+                            'success_rate': option_rate,
+                            'sample_size': sample_size,
+                            'recommendation_type': recommendation_type
+                        }
+                    except Exception as e:
+                        # Skip this option if there's an error
+                        if OptimizerConfig.DEBUG_MODE:
+                            OptimizerConfig.debug(f"Error processing option {option_name}: {str(e)}", category='impact')
+                        continue
                 
             # Check if we have any impact scores after processing all fields
             # Process impact scores
