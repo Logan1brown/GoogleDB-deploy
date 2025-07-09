@@ -278,6 +278,36 @@ class Matcher:
             Tuple of (matching_shows, match_info) with combined matches from all levels needed,
             where match_info conforms to ConfidenceInfo
         """
+        # FAST PATH 1: Empty criteria optimization
+        # If no criteria provided, return all data with default confidence info
+        if not criteria:
+            # Get data for matching
+            data_to_match = self._get_data(data)
+            if len(data_to_match) == 0:
+                # Return empty DataFrame with required columns
+                empty_confidence = update_confidence_info({}, {
+                    'level': 'none',
+                    'match_level': 1,  # Use 1 as the default match level
+                    'error': 'No data available for matching'
+                })
+                return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), empty_confidence
+            
+            # All data matches when no criteria specified
+            result = data_to_match.copy()
+            result['match_level'] = 1  # Best match level
+            result['match_quality'] = 100  # Perfect quality
+            result['match_level_desc'] = self._get_match_level_description(1)
+            
+            # Create confidence info for all data
+            confidence_info = update_confidence_info({}, {
+                'level': 'perfect',
+                'match_level': 1,
+                'match_counts_by_level': {1: len(result)},
+                'total_unique_matches': len(result)
+            })
+            
+            return result, confidence_info
+        
         # Use config values for sample sizes if not specified
         if min_sample_size is None:
             min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample']
@@ -304,6 +334,58 @@ class Matcher:
                 'error': 'No data available for matching'
             })
             return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), empty_confidence
+        
+        # FAST PATH 2: Single criterion optimization
+        # If only one criterion, we can skip the match level progression
+        if len(criteria) == 1:
+            # Get the single criterion
+            level_criteria = criteria.copy()
+            level = 1  # Always level 1 for single criterion
+            
+            # Match shows using the criteria
+            level_matches, match_count = self._match_shows(level_criteria, data_to_match)
+            
+            # If no matches, return empty result
+            if len(level_matches) == 0:
+                empty_confidence = update_confidence_info({}, {
+                    'level': 'none',
+                    'match_level': 1,
+                    'error': 'No matches found for the single criterion'
+                })
+                return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), empty_confidence
+            
+            # Add match metadata
+            level_matches['match_level'] = level
+            level_matches['match_quality'] = 100  # Always 100% for single criterion
+            level_matches['match_level_desc'] = self._get_match_level_description(level)
+            
+            # Calculate confidence
+            confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
+            confidence_info['match_counts_by_level'] = {level: match_count}
+            confidence_info['total_unique_matches'] = len(level_matches)
+            
+            return level_matches, confidence_info
+        
+        # FAST PATH 3: Small dataset optimization
+        # For very small datasets, we can skip the complex sampling logic
+        if len(data_to_match) <= OptimizerConfig.MAX_RESULTS:
+            # Try exact match first (level 1)
+            level_criteria = criteria.copy()
+            level = 1
+            
+            level_matches, match_count = self._match_shows(level_criteria, data_to_match)
+            
+            # If we found matches with exact criteria, return them
+            if len(level_matches) > 0:
+                level_matches['match_level'] = level
+                level_matches['match_quality'] = 100
+                level_matches['match_level_desc'] = self._get_match_level_description(level)
+                
+                confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
+                confidence_info['match_counts_by_level'] = {level: match_count}
+                confidence_info['total_unique_matches'] = len(level_matches)
+                
+                return level_matches, confidence_info
         
         # Determine how many criteria we have to work with
         total_criteria = len(criteria)
@@ -434,7 +516,7 @@ class Matcher:
         if len(all_matches) > OptimizerConfig.MAX_RESULTS:
             # Define a function to prioritize shows with RT and TMDB data
             def prioritize_shows(group_df):
-                """Prioritize shows with better metrics data.
+                """Prioritize shows with better metrics data using vectorized operations.
                 
                 Args:
                     group_df: DataFrame of shows to prioritize
@@ -442,65 +524,58 @@ class Matcher:
                 Returns:
                     DataFrame of prioritized shows, limited to target size
                 """
-                # Handle empty DataFrame case
+                # FAST PATH 4: Empty group optimization
                 if group_df is None or len(group_df) == 0:
                     return pd.DataFrame()
-                    
-                # Calculate the target sample size for this group
-                # Use ceiling division to avoid getting fewer than MAX_RESULTS total shows
+                
+                # FAST PATH 5: Small group optimization
+                # If the group is already smaller than target size, return it as is
                 total_matches_count = len(all_matches)
                 target_size = min(len(group_df), max(1, int(np.ceil(OptimizerConfig.MAX_RESULTS * len(group_df) / total_matches_count))))
+                
+                if len(group_df) <= target_size:
+                    return group_df
                 
                 # Check if we have RT and TMDB columns to prioritize
                 has_rt = 'rt_score' in group_df.columns
                 has_tmdb = 'tmdb_score' in group_df.columns
                 
+                # FAST PATH 6: No metrics columns
+                if not has_rt and not has_tmdb:
+                    # No metrics to prioritize by, just sample
+                    return group_df.sample(target_size, random_state=42)
+                
                 try:
+                    # Vectorized approach using priority scores
+                    # Create a priority column for sorting (higher is better)
+                    # 3: Has both RT and TMDB
+                    # 2: Has RT only
+                    # 1: Has TMDB only
+                    # 0: Has neither
+                    
                     if has_rt and has_tmdb:
-                        # First prioritize shows with both RT and TMDB data
-                        both_data = group_df[(group_df['rt_score'].notna()) & (group_df['tmdb_score'].notna())]
-                        if len(both_data) >= target_size:
-                            return both_data.head(target_size)
-                        
-                        # If we need more, add shows with at least one data source
-                        remaining = target_size - len(both_data)
-                        one_data = group_df[(group_df['rt_score'].notna()) | (group_df['tmdb_score'].notna())]
-                        one_data = one_data[~one_data.index.isin(both_data.index)]
-                        
-                        if len(both_data) + len(one_data) >= target_size:
-                            return pd.concat([both_data, one_data.head(remaining)])
-                        
-                        # If we still need more, add remaining shows
-                        remaining = target_size - len(both_data) - len(one_data)
-                        no_data = group_df[(group_df['rt_score'].isna()) & (group_df['tmdb_score'].isna())]
-                        return pd.concat([both_data, one_data, no_data.head(remaining)])
-                    
+                        # Use numpy.select for vectorized conditional assignment
+                        conditions = [
+                            (group_df['rt_score'].notna() & group_df['tmdb_score'].notna()),
+                            (group_df['rt_score'].notna() & group_df['tmdb_score'].isna()),
+                            (group_df['rt_score'].isna() & group_df['tmdb_score'].notna())
+                        ]
+                        choices = [3, 2, 1]
+                        group_df['metrics_priority'] = np.select(conditions, choices, default=0)
                     elif has_rt:
-                        # Prioritize shows with RT data
-                        rt_data = group_df[group_df['rt_score'].notna()]
-                        if len(rt_data) >= target_size:
-                            return rt_data.head(target_size)
-                        
-                        # If we need more, add shows without RT data
-                        remaining = target_size - len(rt_data)
-                        no_rt = group_df[group_df['rt_score'].isna()]
-                        return pd.concat([rt_data, no_rt.head(remaining)])
-                    
+                        group_df['metrics_priority'] = np.where(group_df['rt_score'].notna(), 2, 0)
                     elif has_tmdb:
-                        # Prioritize shows with TMDB data
-                        tmdb_data = group_df[group_df['tmdb_score'].notna()]
-                        if len(tmdb_data) >= target_size:
-                            return tmdb_data.head(target_size)
-                        
-                        # If we need more, add shows without TMDB data
-                        remaining = target_size - len(tmdb_data)
-                        no_tmdb = group_df[group_df['tmdb_score'].isna()]
-                        return pd.concat([tmdb_data, no_tmdb.head(remaining)])
+                        group_df['metrics_priority'] = np.where(group_df['tmdb_score'].notna(), 1, 0)
+                    
+                    # Sort by priority (descending) and take top rows
+                    return group_df.sort_values('metrics_priority', ascending=False).head(target_size)
+                    
                 except Exception:
                     # If any error occurs in the prioritization logic, fall back to simple sampling
                     pass
+                
                 # Falling back to simple sampling
-                return group_df.sample(min(target_size, len(group_df)), random_state=42) if len(group_df) > 0 else group_df
+                return group_df.sample(min(target_size, len(group_df)), random_state=42)
             
             # Ensure match_level column exists before grouping or sorting
             if 'match_level' not in all_matches.columns:
@@ -521,7 +596,7 @@ class Matcher:
                 
                 # Define a function to sort by RT/TMDB data inclusion (no filtering)
                 def sort_by_metrics(df):
-                    """Sort shows by RT and TMDB data inclusion.
+                    """Sort shows by RT and TMDB data inclusion using vectorized operations.
                     
                     Args:
                         df: DataFrame of shows to sort
@@ -529,63 +604,80 @@ class Matcher:
                     Returns:
                         DataFrame of sorted shows (no filtering)
                     """
+                    # FAST PATH: Empty DataFrame
+                    if df is None or len(df) == 0:
+                        return df
+                    
                     # Check if we have RT and TMDB columns
                     has_rt = 'rt_score' in df.columns
                     has_tmdb = 'tmdb_score' in df.columns
                     
+                    # FAST PATH: No metrics columns
                     if not has_rt and not has_tmdb:
                         return df
-                        
-                    # Create a priority column for sorting
-                    # 3: Has both RT and TMDB
-                    # 2: Has RT only
-                    # 1: Has TMDB only
-                    # 0: Has neither
+                    
+                    # Vectorized approach using numpy for conditional logic
                     if has_rt and has_tmdb:
-                        df['metrics_priority'] = 0
-                        df.loc[(df['rt_score'].notna()) & (df['tmdb_score'].notna()), 'metrics_priority'] = 3
-                        df.loc[(df['rt_score'].notna()) & (df['tmdb_score'].isna()), 'metrics_priority'] = 2
-                        df.loc[(df['rt_score'].isna()) & (df['tmdb_score'].notna()), 'metrics_priority'] = 1
+                        # Use numpy.select for vectorized conditional assignment
+                        conditions = [
+                            (df['rt_score'].notna() & df['tmdb_score'].notna()),
+                            (df['rt_score'].notna() & df['tmdb_score'].isna()),
+                            (df['rt_score'].isna() & df['tmdb_score'].notna())
+                        ]
+                        choices = [3, 2, 1]
+                        df['metrics_priority'] = np.select(conditions, choices, default=0)
                     elif has_rt:
-                        df['metrics_priority'] = 0
-                        df.loc[df['rt_score'].notna(), 'metrics_priority'] = 2
+                        # Use numpy.where for simple conditional assignment
+                        df['metrics_priority'] = np.where(df['rt_score'].notna(), 2, 0)
                     elif has_tmdb:
-                        df['metrics_priority'] = 0
-                        df.loc[df['tmdb_score'].notna(), 'metrics_priority'] = 1
+                        # Use numpy.where for simple conditional assignment
+                        df['metrics_priority'] = np.where(df['tmdb_score'].notna(), 1, 0)
                     
                     # Sort by priority (descending)
                     return df.sort_values(by=['metrics_priority'], ascending=[False])
                 
-                # Process each match level in order
-                for level in match_levels:
-                    level_matches = all_matches[all_matches['match_level'] == level].copy()
+                # FAST PATH 7: Single match level optimization
+                if len(match_levels) == 1:
+                    # If there's only one match level, we can skip the loop
+                    level = match_levels[0]
                     
-                    # For perfect matches (level 1), keep ALL of them
-                    if level == 1:
-                        # Keep ALL perfect matches - they are critical for accurate recommendations
-                        perfect_count = len(level_matches)
+                    # Sort by RT/TMDB data inclusion
+                    sampled_matches = sort_by_metrics(all_matches)
+                    
+                    # If it's level 1 (perfect matches), keep all of them
+                    # Otherwise, limit to MAX_RESULTS
+                    if level != 1 and len(sampled_matches) > OptimizerConfig.MAX_RESULTS:
+                        sampled_matches = sampled_matches.head(OptimizerConfig.MAX_RESULTS)
+                else:
+                    # Process match levels in order using vectorized operations where possible
+                    # First handle perfect matches (level 1) separately if they exist
+                    if 1 in match_levels:
+                        perfect_matches = all_matches[all_matches['match_level'] == 1].copy()
+                        perfect_count = len(perfect_matches)
                         
-                        # Sort by RT/TMDB data inclusion
-                        level_matches = sort_by_metrics(level_matches)
-                        
-                        # Keep all perfect matches
-                        result_dfs.append(level_matches)
+                        # Sort perfect matches by metrics
+                        perfect_matches = sort_by_metrics(perfect_matches)
+                        result_dfs.append(perfect_matches)
                         
                         # Update remaining slots
                         remaining_slots -= perfect_count
-                    else:
-                        # For non-perfect matches, sort by RT/TMDB data inclusion
-                        level_matches = sort_by_metrics(level_matches)
+                    
+                    # Process non-perfect match levels if slots remain
+                    if remaining_slots > 0:
+                        # Get all non-perfect match levels
+                        non_perfect_levels = [level for level in match_levels if level > 1]
                         
-                        # Only take what fits in remaining slots
-                        if remaining_slots > 0:
+                        for level in non_perfect_levels:
+                            if remaining_slots <= 0:
+                                break
+                                
+                            level_matches = all_matches[all_matches['match_level'] == level].copy()
+                            level_matches = sort_by_metrics(level_matches)
+                            
+                            # Only take what fits in remaining slots
                             slots_to_use = min(remaining_slots, len(level_matches))
-                            # Take matches up to the available slots
                             result_dfs.append(level_matches.head(slots_to_use))
                             remaining_slots -= slots_to_use
-                        else:
-                            # No slots left
-                            break
                 
                 # Combine all match levels, with perfect matches first
                 sampled_matches = pd.concat(result_dfs) if result_dfs else pd.DataFrame()
