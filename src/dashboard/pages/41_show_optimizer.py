@@ -480,47 +480,9 @@ def show():
                                             network_grouped_recs[network_name] = []
                                         network_grouped_recs[network_name].append(rec)
                                     
-                                    # Display recommendations grouped by network
-                                    for network_name, recs in network_grouped_recs.items():
-                                        st.write(f"### {network_name}")
-                                        for rec in recs:
-                                            # Determine color based on impact score
-                                            if 'impact_score' in rec:
-                                                color = COLORS['success'] if rec['impact_score'] > 0 else COLORS['warning']
-                                            else:
-                                                color = None
-                                                
-                                            # Use the title directly from the recommendation
-                                            # The title should already be properly formatted by OptimizerView._format_recommendations
-                                            title = rec.get('title', 'Network-Specific Insight')
-                                                
-                                            # Display the recommendation using an info card
-                                            render_info_card(
-                                                title=title,
-                                                content=rec.get('description', 'No description available.'),
-                                                color=color
-                                            )
-                                else:
-                                    # Display a more informative message when no network-specific recommendations are available
-                                    st.info("No network-specific recommendations are currently available.")
-                                    
-                                    # Explain why recommendations might not be available
-                                    with st.expander("Why aren't there network-specific recommendations?"):
-                                        st.write("""
-                                        Network-specific recommendations are generated when there are significant differences in how criteria perform on specific networks 
-                                        compared to their overall performance. Some reasons you might not see recommendations:
-                                        
-                                        1. **Limited data variance**: The success rates across different networks may be too similar to generate meaningful recommendations.
-                                        
-                                        2. **Insufficient network-specific data**: There may not be enough shows on specific networks that match your criteria.
-                                        
-                                        3. **Try adding more criteria**: Adding more specific criteria to your concept may help identify network-specific patterns.
-                                        
-                                        4. **Explore different combinations**: Try different combinations of criteria to see if network-specific patterns emerge.
-                                        """)
-                                        
-                                    # Show the network compatibility table as a reminder
-                                    st.write("Review the network compatibility table above to see which networks best match your current concept.")
+                                    # Use the helper function to render network-specific recommendations
+                                    from src.dashboard.components.optimizer_helpers import render_network_recommendations
+                                    render_network_recommendations(network_recs)
                             else:
                                 st.write("Network-specific recommendations will appear here after analyzing your show concept.")
                                 st.write("Complete your concept criteria and click 'Analyze' to see recommendations.")

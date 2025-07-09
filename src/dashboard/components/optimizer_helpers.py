@@ -532,3 +532,120 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
         OptimizerConfig.debug(f"Error rendering recommendations: {str(e)}", category='recommendation')
         OptimizerConfig.debug(traceback.format_exc(), category='recommendation')
         st.error("Unable to display recommendations due to an error.")
+        
+
+def render_network_recommendations(network_recs: List[Dict]) -> None:
+    """Render network-specific recommendations, showing only those that suggest alternatives.
+    
+    This function takes network-specific recommendations, groups them by network,
+    and displays only those that suggest an alternative option rather than keeping
+    the current selection.
+    
+    Args:
+        network_recs: List of network-specific recommendation dictionaries
+    """
+    if not network_recs:
+        # Display a more informative message when no network-specific recommendations are available
+        st.info("No network-specific recommendations are currently available.")
+        
+        # Explain why recommendations might not be available
+        with st.expander("Why aren't there network-specific recommendations?"):
+            st.write("""
+            Network-specific recommendations are generated when there are significant differences in how criteria perform on specific networks 
+            compared to their overall performance. Some reasons you might not see recommendations:
+            
+            1. **Limited data variance**: The success rates across different networks may be too similar to generate meaningful recommendations.
+            
+            2. **Insufficient network-specific data**: There may not be enough shows on specific networks that match your criteria.
+            
+            3. **Try adding more criteria**: Adding more specific criteria to your concept may help identify network-specific patterns.
+            
+            4. **Explore different combinations**: Try different combinations of criteria to see if network-specific patterns emerge.
+            """)
+            
+        # Show the network compatibility table as a reminder
+        st.write("Review the network compatibility table above to see which networks best match your current concept.")
+        return
+    
+    try:
+        # Group recommendations by network for better organization
+        network_grouped_recs = {}
+        for rec in network_recs:
+            # Extract network name from metadata if available
+            network_name = None
+            if 'metadata' in rec and 'network_name' in rec['metadata']:
+                network_name = rec['metadata']['network_name']
+            else:
+                # Fall back to extracting from description
+                if 'description' in rec and 'Network ' in rec['description']:
+                    parts = rec['description'].split('Network ')
+                    if len(parts) > 1:
+                        network_parts = parts[1].split(' has')
+                        if network_parts:
+                            network_name = network_parts[0]
+            
+            if not network_name:
+                network_name = "Unknown Network"
+                
+            if network_name not in network_grouped_recs:
+                network_grouped_recs[network_name] = []
+            network_grouped_recs[network_name].append(rec)
+        
+        # Display recommendations grouped by network
+        for network_name, recs in network_grouped_recs.items():
+            # Filter out recommendations that say "you should change this" without specifying an alternative
+            useful_recs = []
+            for rec in recs:
+                # Keep recommendations that say "you should keep this"
+                keep_recommendation = False
+                
+                # Check if this is a "keep" recommendation based on title or description
+                if 'title' in rec and rec['title'] and ('keep' in rec['title'].lower() or 'maintain' in rec['title'].lower()):
+                    keep_recommendation = True
+                    
+                if 'description' in rec and rec['description'] and ('keep' in rec['description'].lower() or 'maintain' in rec['description'].lower()):
+                    keep_recommendation = True
+                
+                # Check if this is a recommendation that suggests a specific alternative
+                has_specific_alternative = False
+                
+                # Check metadata for best_alternative
+                if 'metadata' in rec and rec['metadata']:
+                    if 'best_alternative' in rec['metadata'] and rec['metadata']['best_alternative'] is not None:
+                        has_specific_alternative = True
+                
+                # Check if suggested_value is different from current_value and not None
+                if ('suggested_value' in rec and 'current_value' in rec and 
+                    rec['suggested_value'] is not None and 
+                    rec['suggested_value'] != rec['current_value']):
+                    has_specific_alternative = True
+                    
+                # Include recommendations that either say "keep this" or provide a specific alternative
+                if keep_recommendation or has_specific_alternative:
+                    useful_recs.append(rec)
+            
+            # Only show networks that have useful recommendations
+            if useful_recs:
+                st.write(f"### {network_name}")
+                for rec in useful_recs:
+                    # Determine color based on impact score
+                    if 'impact_score' in rec:
+                        color = COLORS['success'] if rec['impact_score'] > 0 else COLORS['warning']
+                    else:
+                        color = None
+                        
+                    # Use the title directly from the recommendation
+                    # The title should already be properly formatted by OptimizerView._format_recommendations
+                    title = rec.get('title', 'Network-Specific Insight')
+                        
+                    # Display the recommendation using an info card
+                    render_info_card(
+                        title=title,
+                        content=rec.get('description', 'No description available.'),
+                        color=color
+                    )
+    except Exception as e:
+        OptimizerConfig.debug(f"Error rendering network recommendations: {str(e)}", category='recommendation')
+        OptimizerConfig.debug(traceback.format_exc(), category='recommendation')
+        st.error("Unable to display network recommendations due to an error.")
+

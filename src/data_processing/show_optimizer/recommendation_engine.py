@@ -580,8 +580,18 @@ class RecommendationEngine:
                                     field_name = network_rate_data['field_name']
                                     field_value = network_rate_data['field_value']
                                     
-                                    # Get display name for the current value
-                                    display_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+                                    # Get display name for the current value using field_manager for consistent mapping
+                                    # First, reverse map from database column name to field name
+                                    display_field = field_name
+                                    for f_name, db_name in self.field_manager.field_mapping.items():
+                                        if db_name == field_name:
+                                            display_field = f_name
+                                            break
+                                    
+                                    # If no mapping found, use the old logic as fallback
+                                    if display_field == field_name:
+                                        display_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+                                        
                                     current_name = self._get_criteria_name(display_field, field_value)
                                     
                                     # Calculate impact score
