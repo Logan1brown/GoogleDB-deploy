@@ -434,7 +434,7 @@ class Matcher:
         # Add a summary of the match levels we tried and how many matches we found at each level
         level_summaries = {}
         for level, count in all_match_counts.items():
-            level_desc = self._get_match_level_description(level)
+            level_desc = _self._get_match_level_description(level)
             level_summaries[level_desc] = count
         
         confidence_info['match_level_summary'] = level_summaries
