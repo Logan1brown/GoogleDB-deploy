@@ -961,7 +961,12 @@ class RecommendationEngine:
                         avg_success = shows_with_value['success_score'].mean()
                         
                         # Make the value hashable
-                        # Use value directly as dictionary key
+                        if isinstance(value, list):
+                            hashable_value = tuple(value)
+                        else:
+                            hashable_value = value
+                            
+                        # Use hashable value as dictionary key
                         value_success[hashable_value] = avg_success
                 else:
                     # For non-list columns, use normal unique() method
@@ -973,8 +978,13 @@ class RecommendationEngine:
                         shows_with_value = successful_shows[successful_shows[criteria_type] == value]
                         avg_success = shows_with_value['success_score'].mean()
                         
-                        # Make the value hashable
-                        # Use value directly as dictionary key
+                        # Make the value hashable if needed
+                        if isinstance(value, list):
+                            hashable_value = tuple(value)
+                        else:
+                            hashable_value = value
+                            
+                        # Use hashable value as dictionary key
                         value_success[hashable_value] = avg_success
                         
                     # Sort values by success score
