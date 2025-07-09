@@ -380,9 +380,7 @@ class Matcher:
             # Only apply early termination for relaxed criteria (level > 1)
             # This ensures we find ALL exact matches before moving to relaxed criteria
             if level > 1 and total_unique_matches >= target_sample_size:
-                # Add debug to show we're stopping early
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Early termination at level {level} with {total_unique_matches} matches", category='matcher')
+                # Early termination with sufficient matches
                 break
         
         # If we still didn't find any matches at any level
@@ -556,10 +554,7 @@ class Matcher:
                         # Sort by RT/TMDB data inclusion
                         level_matches = sort_by_metrics(level_matches)
                         
-                        OptimizerConfig.debug(
-                            f"Keeping ALL {perfect_count} perfect matches",
-                            category='matcher'
-                        )
+                        # Keep all perfect matches
                         result_dfs.append(level_matches)
                         
                         # Update remaining slots
@@ -571,10 +566,7 @@ class Matcher:
                         # Only take what fits in remaining slots
                         if remaining_slots > 0:
                             slots_to_use = min(remaining_slots, len(level_matches))
-                            OptimizerConfig.debug(
-                                f"Taking {slots_to_use} matches from level {level} (remaining slots: {remaining_slots})",
-                                category='matcher'
-                            )
+                            # Take matches up to the available slots
                             result_dfs.append(level_matches.head(slots_to_use))
                             remaining_slots -= slots_to_use
                         else:
@@ -638,12 +630,9 @@ class Matcher:
                                     level_matches = level_matches.sort_values(by=['metrics_priority'], ascending=[False])
                             except Exception as e:
                                 # If sorting fails, just continue with unsorted matches
-                                OptimizerConfig.debug(f"Fallback: Sorting error: {str(e)}", category='matcher')
+                                pass
                             
-                            OptimizerConfig.debug(
-                                f"Fallback: Keeping ALL {perfect_count} perfect matches",
-                                category='matcher'
-                            )
+                            # Keep all perfect matches in fallback mode
                             result_dfs.append(level_matches)
                             
                             # Update remaining slots
@@ -652,10 +641,7 @@ class Matcher:
                             # For non-perfect matches, only take what fits in remaining slots
                             if remaining_slots > 0:
                                 slots_to_use = min(remaining_slots, len(level_matches))
-                                OptimizerConfig.debug(
-                                    f"Fallback: Taking {slots_to_use} matches from level {level} (remaining: {remaining_slots})",
-                                    category='matcher'
-                                )
+                                # Take matches up to the available slots in fallback mode
                                 result_dfs.append(level_matches.head(slots_to_use))
                                 remaining_slots -= slots_to_use
                             else:
@@ -665,8 +651,7 @@ class Matcher:
                     # Combine all match levels, with perfect matches first
                     sampled_matches = pd.concat(result_dfs) if result_dfs else pd.DataFrame()
                 except Exception as e:
-                    # If sorting fails, just sample randomly but log a warning
-                    OptimizerConfig.debug(f"Fallback to random sampling due to error: {str(e)}", category='matcher')
+                    # If sorting fails, just sample randomly
                     sampled_matches = all_matches.sample(min(OptimizerConfig.MAX_RESULTS, len(all_matches)), random_state=42)
             
             # Use the sampled matches as our final result
@@ -741,9 +726,7 @@ class Matcher:
             if field_name == 'subgenres':
                 is_array = True
                 
-            # Add debug logging for array field detection
-            if OptimizerConfig.DEBUG_MODE and field_name in ['genre', 'subgenres']:
-                OptimizerConfig.debug(f"Field {field_name} is_array={is_array}, value={value}, type={type(value)}", category='matcher')
+            # Array field detection for genre and subgenres
             
             if is_array:
                 # For array fields, we need to check if any value matches

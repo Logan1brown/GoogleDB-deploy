@@ -819,11 +819,6 @@ class FieldManager:
             
             # If we get here, it's not a recognized array field or scalar field
             # Return the original field name as a last resort
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(
-                    f"No explicit mapping for field '{field_name}' (type: {field_type}), using original name",
-                    category='field_manager'
-                )
             return field_name
         except Exception as e:
             # Return the original field name on error
