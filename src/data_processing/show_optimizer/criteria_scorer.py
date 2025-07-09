@@ -8,8 +8,6 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Optional, Any, Union, Set, Callable, TypedDict
 import numpy as np
 import pandas as pd
-import streamlit as st
-from dataclasses import dataclass, field
 from collections import defaultdict
 
 # Local imports
@@ -136,8 +134,8 @@ class CriteriaScorer:
         """
         # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
         # Use len() instead of .empty for better performance
-        if (shows is None or (isinstance(shows, pd.DataFrame) and len(shows) == 0)) and integrated_data is not None and 'shows' in integrated_data:
-            shows = integrated_data['shows']
+        if (shows is None or (isinstance(shows, pd.DataFrame) and len(shows) == 0)) and integrated_data is not None and 'shows' in integrated_data and len(integrated_data['shows']) > 0:
+            shows = integrated_data['shows']  # Use reference, avoid copying
                 
         # Initialize confidence info using update_confidence_info to ensure it conforms to ConfidenceInfo contract
         from .optimizer_data_contracts import update_confidence_info
@@ -562,8 +560,9 @@ class CriteriaScorer:
                             # Process option matching shows
                             
                             # Check if we got valid shows - inline check for better performance
+                            # Use len() instead of .empty for better performance
                             if option_shows is not None and isinstance(option_shows, pd.DataFrame) and len(option_shows) > 0:
-                                # Store in field_options_map
+                                # Store in field_options_map - avoid unnecessary DataFrame copy
                                 field_options_map[option_id] = option_shows
                             else:
                                 # Track missing data
