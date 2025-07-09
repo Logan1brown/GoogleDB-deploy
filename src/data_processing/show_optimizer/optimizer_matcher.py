@@ -263,6 +263,27 @@ class Matcher:
         """
         self._criteria_data = criteria_data.copy() if criteria_data is not None else None
         
+    @staticmethod
+    def _make_hashable(obj):
+        """Recursively convert an object to a hashable representation.
+        
+        Args:
+            obj: Any object to convert to a hashable representation
+            
+        Returns:
+            A hashable representation of the object
+        """
+        if isinstance(obj, dict):
+            return tuple(sorted((k, Matcher._make_hashable(v)) for k, v in obj.items()))
+        elif isinstance(obj, list):
+            return tuple(Matcher._make_hashable(x) for x in obj)
+        elif isinstance(obj, set):
+            return tuple(sorted(Matcher._make_hashable(x) for x in obj))
+        else:
+            # Primitive types are already hashable
+            return obj
+    
+    @st.cache_data(ttl=300, show_spinner=False, hash_funcs={dict: lambda x: Matcher._make_hashable(x)})
     def find_matches_with_fallback(self, criteria: CriteriaDict, data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, ConfidenceInfo]:
         """Find shows matching criteria, with fallback to more permissive criteria if needed.
         
