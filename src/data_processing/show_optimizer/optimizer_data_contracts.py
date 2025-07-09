@@ -332,6 +332,13 @@ def create_field_value_key(field_name: str, value: Any) -> str:
         elif isinstance(value, dict):
             # Handle dictionaries by converting to sorted items string
             value_str = str(sorted([(str(k), str(v)) for k, v in value.items()]))
+        elif isinstance(value, (int, float)):
+            # Normalize numeric values to ensure consistent keys
+            # Convert floats with zero decimal part to integers
+            if isinstance(value, float) and value.is_integer():
+                value_str = str(int(value))
+            else:
+                value_str = str(value)
         else:
             # Handle all other types
             value_str = str(value)
