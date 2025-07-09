@@ -544,6 +544,12 @@ def show():
     
     # Always add profiling results at the bottom of the page for performance monitoring
     with st.expander("Performance Profiling", expanded=False):
+        # Add reset button for profiling data
+        if st.button("Reset Profiling Data"):
+            from src.data_processing.show_optimizer.optimizer_profiler import reset_profiling
+            reset_profiling()
+            st.rerun()
+            
         display_profiling_results()
 
 if __name__ == "__main__":

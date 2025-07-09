@@ -849,7 +849,6 @@ class FieldManager:
             return field_name
         except Exception as e:
             # If any error occurs, return the original field name
-            OptimizerConfig.debug(f"Error standardizing field name '{field_name}': {str(e)}", category='field_manager')
             return field_name
     
     def has_field(self, field_name: str) -> bool:
