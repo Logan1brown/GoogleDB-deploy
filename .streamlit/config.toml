@@ -4,6 +4,7 @@ gatherUsageStats = false
 [server]
 headless = true
 port = 8501
+fileWatcherType = "none"
 
 [theme]
 primaryColor = "#1E4D8C"

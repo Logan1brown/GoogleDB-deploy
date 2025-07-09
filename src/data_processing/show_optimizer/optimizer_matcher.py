@@ -928,14 +928,9 @@ class Matcher:
         # Only perform validation if we have shows and claiming exact match (level 1)
         if len(shows) > 0 and match_level == 1:
             # Fast path: Use cached validation results if available
-            # Convert any list values to tuples to ensure hashability for frozenset
-            hashable_items = []
-            for key, value in criteria.items():
-                if isinstance(value, list):
-                    hashable_items.append((key, tuple(value)))
-                else:
-                    hashable_items.append((key, value))
-            validation_cache_key = (frozenset(hashable_items), tuple(sorted(shows.columns)))
+            # Convert criteria.items() to a hashable form by handling list values
+            hashable_criteria = tuple((k, tuple(v) if isinstance(v, list) else v) for k, v in criteria.items())
+            validation_cache_key = (frozenset(hashable_criteria), tuple(sorted(shows.columns)))
             validation_cache = getattr(self, '_validation_cache', {})
             cached_level = validation_cache.get(validation_cache_key)
             
