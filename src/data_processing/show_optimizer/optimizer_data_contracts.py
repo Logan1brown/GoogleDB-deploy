@@ -20,6 +20,13 @@ import pandas as pd
 
 from .optimizer_config import OptimizerConfig
 
+__all__ = [
+    'CriteriaDict', 'ConfidenceInfo', 'IntegratedData', 'NetworkMatch',
+    'SuccessFactor', 'RecommendationItem', 'FieldValueData',
+    'create_success_rate_data', 'create_field_value_key', 'parse_field_value_key',
+    'create_field_value_data', 'update_confidence_info'
+]
+
 
 class CriteriaDict(TypedDict):
     """Explicit contract for criteria dictionary used throughout the optimizer.
@@ -334,6 +341,39 @@ def create_field_value_key(field_name: str, value: Any) -> str:
         # Fallback for any unexpected errors
         OptimizerConfig.debug(f"Error creating field value key for {field_name}: {str(e)}", category='data')
         return f"{field_name}:error_{hash(str(field_name) + str(type(value)))}"
+
+
+def parse_field_value_key(key: str) -> Tuple[str, Any]:
+    """Extract field name and value from a formatted key.
+    
+    This is the inverse operation of create_field_value_key and ensures consistent
+    parsing of field-value keys throughout the codebase.
+    
+    Args:
+        key: A key in the format 'field_name:value'
+        
+    Returns:
+        Tuple of (field_name, field_value)
+    """
+    if ':' not in key:
+        return key, None
+        
+    field_name, field_value = key.split(':', 1)
+    
+    # Try to convert numeric values back to their original type
+    if field_value.replace('.', '', 1).isdigit():
+        # Convert to float if it has a decimal point
+        if '.' in field_value:
+            field_value = float(field_value)
+        else:
+            # Otherwise convert to int
+            field_value = int(field_value)
+    elif field_value == 'None':
+        field_value = None
+    elif field_value == 'empty_list':
+        field_value = []
+        
+    return field_name, field_value
 
 
 def create_field_value_data(field_name: str, value: Any, is_selected: bool = False) -> FieldValueData:

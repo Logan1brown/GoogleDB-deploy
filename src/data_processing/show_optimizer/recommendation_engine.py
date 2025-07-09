@@ -16,7 +16,7 @@ from .criteria_scorer import ImpactAnalysisResult, ImpactAnalysisSummary
 from .optimizer_data_contracts import (
     CriteriaDict, ConfidenceInfo, IntegratedData,
     NetworkMatch, RecommendationItem, FieldValueData, FieldValueSuccessRate,
-    update_confidence_info, create_success_rate_data, create_field_value_key
+    update_confidence_info, create_success_rate_data, create_field_value_key, parse_field_value_key
 )
 
 
@@ -50,31 +50,7 @@ class RecommendationEngine:
     
 
     
-    def _parse_key(self, key):
-        """Extract field name and value from a formatted key.
-        
-        Args:
-            key: A key in the format 'field_name:value'
-            
-        Returns:
-            Tuple of (field_name, field_value)
-        """
-        field_name = key.split(':', 1)[0] if ':' in key else key
-        field_value = key.split(':', 1)[1] if ':' in key else None
-        return field_name, field_value
-        
-    def _format_key(self, field_name, value_name):
-        """Standardize key formatting for consistent matching.
-        
-        Args:
-            field_name: Field name part of the key
-            value_name: Value name part of the key
-            
-        Returns:
-            Formatted key string
-        """
-        return f"{field_name}:{str(value_name)}"
-        
+    
     def _create_success_rate_entry(self, field_name, field_value, success_rate, sample_size):
         """Create a standardized success rate entry for consistent data structure.
         
@@ -99,24 +75,7 @@ class RecommendationEngine:
             value_name=self._get_criteria_name(field_name, field_value)
         )
         
-    def _make_hashable(self, value):
-        """Convert a value to a hashable type for dictionary keys.
-        
-        Args:
-            value: Any value that needs to be made hashable
-            
-        Returns:
-            A hashable version of the value
-        """
-        if value is None:
-            return None
-        if isinstance(value, (list, np.ndarray)):
-            return tuple(value)
-        if isinstance(value, dict):
-            return str(value)
-        if not isinstance(value, (str, int, float, bool, tuple)) or pd.isna(value):
-            return str(value)
-        return value
+    
     
     def __init__(self, shows_analyzer, success_analyzer, field_manager, criteria_scorer=None):
         """Initialize the recommendation engine.
@@ -294,8 +253,8 @@ class RecommendationEngine:
                 impact = impact_info.get('impact', self.config.DEFAULT_VALUES['impact_score'])
                 sample_size = impact_info.get('sample_size', self.config.DEFAULT_VALUES['fallback_sample_size'])
                 
-                # Make criteria value hashable
-                criteria_value = self._make_hashable(value_id)
+                # Use value directly - create_field_value_key will handle hashability
+                criteria_value = value_id
                 
                 # Get the proper display name
                 if value_id == 'remove':
@@ -544,7 +503,7 @@ class RecommendationEngine:
                     for key in network_rates.keys():
                         if key == 'network_baseline':
                             continue
-                        field_name, _ = self._parse_key(key)
+                        field_name, _ = parse_field_value_key(key)
                         if field_name:
                             all_fields_in_network_rates.add(field_name)
                 
@@ -573,7 +532,7 @@ class RecommendationEngine:
                 for key in all_keys:
                     if key == 'network_baseline':
                         continue
-                    field_name, _ = self._parse_key(key)
+                    field_name, _ = parse_field_value_key(key)
                     if field_name:
                         fields_in_network_rates.add(field_name)
                 
@@ -661,7 +620,7 @@ class RecommendationEngine:
                         continue
                         
                     # Extract field name and value from key
-                    field_name, field_value = self._parse_key(key)
+                    field_name, field_value = parse_field_value_key(key)
                     
                     if field_name is None or field_value is None:
                         continue
@@ -966,8 +925,8 @@ class RecommendationEngine:
             if criteria_type in criteria:
                 current_value = criteria[criteria_type]
                 
-                # Make current_value hashable
-                current_value = self._make_hashable(current_value)
+                # Use value directly - create_field_value_key will handle hashability when needed
+                # No conversion needed here
                 
                 # Calculate success rate for each value of this criteria
                 value_success = {}
@@ -997,7 +956,7 @@ class RecommendationEngine:
                         avg_success = shows_with_value['success_score'].mean()
                         
                         # Make the value hashable
-                        hashable_value = self._make_hashable(value)
+                        # Use value directly as dictionary key
                         value_success[hashable_value] = avg_success
                 else:
                     # For non-list columns, use normal unique() method
@@ -1010,7 +969,7 @@ class RecommendationEngine:
                         avg_success = shows_with_value['success_score'].mean()
                         
                         # Make the value hashable
-                        hashable_value = self._make_hashable(value)
+                        # Use value directly as dictionary key
                         value_success[hashable_value] = avg_success
                         
                     # Sort values by success score
@@ -1156,7 +1115,7 @@ class RecommendationEngine:
         # Process network rates for fields in criteria without excessive debug logging
             
         for key, network_rate_data in network_rates.items():
-            field_name, _ = self._parse_key(key)
+            field_name, _ = parse_field_value_key(key)
             
             # Keep using exact database column names for consistency with overall_rates keys
             # This ensures the same keys are used throughout the system
@@ -1197,7 +1156,7 @@ class RecommendationEngine:
                 # No defensive code - rely on exact key matching
             
             # Extract field name and value from key for debugging
-            field_name_from_key, field_value_from_key = self._parse_key(key)
+            field_name_from_key, field_value_from_key = parse_field_value_key(key)
             
             # Only use exact key matches - we can't compare different values
             if OptimizerConfig.DEBUG_MODE and (overall_rate_data is None or 'rate' not in overall_rate_data):
