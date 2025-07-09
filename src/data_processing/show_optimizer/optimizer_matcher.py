@@ -262,7 +262,6 @@ class Matcher:
         """
         self._criteria_data = criteria_data.copy() if criteria_data is not None else None
         
-    
     def find_matches_with_fallback(self, criteria: CriteriaDict, data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, ConfidenceInfo]:
         """Find shows matching criteria, with fallback to more permissive criteria if needed.
         
