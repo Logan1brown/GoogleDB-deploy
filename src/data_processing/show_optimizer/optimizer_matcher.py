@@ -284,7 +284,7 @@ class Matcher:
             return obj
     
     @st.cache_data(ttl=300, show_spinner=False, hash_funcs={dict: lambda x: Matcher._make_hashable(x)})
-    def find_matches_with_fallback(self, criteria: CriteriaDict, data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, ConfidenceInfo]:
+    def find_matches_with_fallback(_self, criteria: CriteriaDict, data: pd.DataFrame = None, min_sample_size: int = None) -> Tuple[pd.DataFrame, ConfidenceInfo]:
         """Find shows matching criteria, with fallback to more permissive criteria if needed.
         
         This method will progressively relax the matching criteria until either:
@@ -314,7 +314,7 @@ class Matcher:
         total_unique_matches = 0
         
         # Get data for matching
-        data_to_match = self._get_data(data)
+        data_to_match = _self._get_data(data)
         if len(data_to_match) == 0:
             # Only output debug message if we're not in a batch operation (criteria_scorer.calculate_criteria_impact)
             # This reduces noise in the logs during impact calculations
@@ -337,12 +337,12 @@ class Matcher:
         # Try each possible match level in order, from exact match to progressively fewer criteria
         for level in range(1, max_possible_drop + 2):
             # Get criteria for this match level
-            level_criteria = self.get_criteria_for_match_level(criteria, level)
+            level_criteria = _self.get_criteria_for_match_level(criteria, level)
             if not level_criteria:
                 continue
                 
             # Match shows using the level-specific criteria
-            level_matches, match_count = self._match_shows(level_criteria, data_to_match)
+            level_matches, match_count = _self._match_shows(level_criteria, data_to_match)
             
             # Skip if no matches at this level - use len() instead of .empty for better performance
             if len(level_matches) == 0:
@@ -358,12 +358,12 @@ class Matcher:
             level_matches['match_quality'] = match_quality_pct
             
             # Add description of the match level
-            level_desc = self._get_match_level_description(level)
+            level_desc = _self._get_match_level_description(level)
             level_matches['match_level_desc'] = level_desc
             
             # Calculate confidence for this level if it's the first with matches
             if not best_confidence_info:
-                best_confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
+                best_confidence_info = _self.calculate_match_confidence(level_matches, level, criteria)
                 
 
             
@@ -393,7 +393,7 @@ class Matcher:
                     elif col == 'match_quality':
                         all_matches[col] = 100  # Default to perfect quality
                     elif col == 'match_level_desc':
-                        all_matches[col] = self._get_match_level_description(1)
+                        all_matches[col] = _self._get_match_level_description(1)
                 
                 # Now concatenate with all required columns present
                 # Use list of DataFrames for better performance with concat
