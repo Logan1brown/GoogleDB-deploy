@@ -370,8 +370,17 @@ class ConceptAnalyzer:
         Returns:
             String hash representing the criteria state
         """
+        # Create a hashable version of the criteria
+        hashable_criteria = {}
+        for key, value in criteria.items():
+            # Convert lists to tuples for hashability
+            if isinstance(value, list):
+                hashable_criteria[key] = tuple(value)
+            else:
+                hashable_criteria[key] = value
+        
         # Convert criteria to a sorted tuple of items for consistent hashing
-        criteria_items = sorted(criteria.items())
+        criteria_items = sorted(hashable_criteria.items())
         criteria_str = str(criteria_items)
         return hashlib.md5(criteria_str.encode()).hexdigest()
     
