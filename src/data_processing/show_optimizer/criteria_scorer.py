@@ -532,25 +532,29 @@ class CriteriaScorer:
                     # Set batch operation flag on matcher to suppress repetitive debug messages
                     setattr(self.matcher, '_in_batch_operation', True)
                     
+                    # Pre-check integrated data validity once to avoid repeated checks
+                    has_valid_integrated_data = integrated_data and 'shows' in integrated_data and len(integrated_data['shows']) > 0
+                    has_valid_matching_shows = matching_shows is not None and len(matching_shows) > 0
+                    
+                    # Prepare data source once
+                    data_source = None
+                    if has_valid_integrated_data:
+                        data_source = integrated_data['shows']
+                    elif has_valid_matching_shows:
+                        data_source = matching_shows
+                    
                     # For each option in option_data, run the matcher to get matching shows
                     for i, (option_id, option_name) in enumerate(option_data):
                         try:
                             # Create criteria for this option using our helper method
                             option_criteria = self._create_option_criteria(normalized_base_criteria, current_field, option_id, is_array_field)
                             
-                            # Pre-check integrated data validity once to avoid repeated checks
-                            has_valid_integrated_data = integrated_data and 'shows' in integrated_data and len(integrated_data['shows']) > 0
-                            has_valid_matching_shows = matching_shows is not None and len(matching_shows) > 0
-                            
                             # Always use the integrated data for all recommendation types to ensure consistent comparison
-                            if has_valid_integrated_data:
-                                # Use the full dataset from integrated_data for all criteria combinations
-                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
-                            elif option_id == 'remove' and has_valid_matching_shows:
-                                # Fallback for remove recommendations if integrated data is missing
-                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
+                            if data_source is not None:
+                                # Use the prepared data source for all criteria combinations
+                                option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, data_source)
                             # Handle missing integrated data
-                            elif not integrated_data:
+                            else:
                                 option_shows = pd.DataFrame()
                                 confidence_info = update_confidence_info({}, {
                                     'level': 'none',

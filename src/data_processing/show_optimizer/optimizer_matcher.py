@@ -313,12 +313,17 @@ class Matcher:
         max_possible_drop = total_criteria - 1  # Maximum possible criteria to drop
         
         # Try each possible match level in order, from exact match to progressively fewer criteria
+        # Pre-compute all level criteria to avoid redundant computation
+        level_criteria_map = {}
         for level in range(1, max_possible_drop + 2):
             # Get criteria for this match level
             level_criteria = self.get_criteria_for_match_level(criteria, level)
-            if not level_criteria:
-                continue
+            if level_criteria:  # Only store non-empty criteria
+                level_criteria_map[level] = level_criteria
                 
+        # Process each level in order
+        for level in sorted(level_criteria_map.keys()):
+            level_criteria = level_criteria_map[level]
             # Match shows using the level-specific criteria
             level_matches, match_count = self._match_shows(level_criteria, data_to_match)
             
@@ -708,8 +713,9 @@ class Matcher:
                 # Don't map field names here - let FieldManager handle it
                 clean_criteria[field_name] = value
         
-        # Start with a copy of the data as our matches
-        matches = data.copy()
+        # Start with a copy of the data as our matches - use .copy(deep=False) for better performance
+        # since we're only filtering rows, not modifying columns
+        matches = data.copy(deep=False)
         
         # Separate array and scalar fields for different processing
         array_fields_to_process = {}
@@ -741,12 +747,34 @@ class Matcher:
                     value_set = set(value)
                     # If the column contains lists, use list intersection
                     # For each show's array field, convert to set and check intersection with criteria values
-                    mask = matches[field_column].apply(
-                        lambda x: isinstance(x, list) and len(value_set.intersection(set(x))) > 0)
+                    # Pre-convert to list to avoid repeated isinstance checks for better performance
+                    if len(matches) > 0:
+                        sample = matches[field_column].iloc[0]
+                        if isinstance(sample, list):
+                            # Fast path for list columns
+                            mask = matches[field_column].apply(
+                                lambda x: len(value_set.intersection(set(x))) > 0)
+                        else:
+                            # Fallback with type checking
+                            mask = matches[field_column].apply(
+                                lambda x: isinstance(x, list) and len(value_set.intersection(set(x))) > 0)
+                    else:
+                        # Empty DataFrame case
+                        mask = pd.Series([], dtype=bool)
                 else:
                     # Single value in array field
-                    mask = matches[field_column].apply(
-                        lambda x: isinstance(x, list) and value in x)
+                    # Pre-check data type to avoid repeated isinstance checks for better performance
+                    if len(matches) > 0:
+                        sample = matches[field_column].iloc[0]
+                        if isinstance(sample, list):
+                            # Fast path for list columns
+                            mask = matches[field_column].apply(lambda x: value in x)
+                        else:
+                            # Fallback with type checking
+                            mask = matches[field_column].apply(lambda x: isinstance(x, list) and value in x)
+                    else:
+                        # Empty DataFrame case
+                        mask = pd.Series([], dtype=bool)
             else:
                 # For scalar fields
                 if isinstance(value, list):
@@ -845,7 +873,6 @@ class Matcher:
                         
                     # If not all shows match this criterion, downgrade the match level
                     if not all_match:
-
                         actual_match_level = 2  # Downgrade to level 2
                         break
                 else:  # Handle scalar fields
@@ -860,7 +887,6 @@ class Matcher:
                             
                     # Check if all shows match this scalar criterion
                     if not (shows[field_id] == value).all():
-
                         actual_match_level = 2  # Downgrade to level 2
                         break
         
