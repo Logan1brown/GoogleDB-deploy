@@ -442,14 +442,10 @@ class ConceptAnalyzer:
             # Step 2: Calculate success probability
 
             success_probability, confidence = self._calculate_success_probability(criteria, matching_shows)
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Success probability: {success_probability}, confidence: {confidence}", category='analysis')
             
             # Step 3: Find top networks - pass the existing matching_shows and confidence_info to avoid redundant matching
 
             top_networks = self._find_top_networks(criteria, integrated_data=integrated_data, matching_shows=matching_shows, confidence_info=confidence_info)
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Found {len(top_networks)} top networks", category='analysis')
     
             
             # Step 4: Calculate component scores and impact data (to avoid duplicate calculations)
@@ -460,8 +456,6 @@ class ConceptAnalyzer:
             # Step 5: Identify success factors
 
             success_factors = self._identify_success_factors(criteria, matching_shows, integrated_data)
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Found {len(success_factors)} success factors", category='analysis')
             
             # Step 6: Generate recommendations
             
@@ -471,17 +465,6 @@ class ConceptAnalyzer:
             recommendations = self._generate_recommendations(
                 criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
             )
-            if OptimizerConfig.DEBUG_MODE:
-                # Count general and network-specific recommendations from the unified list
-                general_count = sum(1 for rec in recommendations if not rec.get('is_network_specific', False))
-                network_specific_count = sum(1 for rec in recommendations if rec.get('is_network_specific', False))
-                total_count = len(recommendations)
-                OptimizerConfig.debug(f"Generated {total_count} recommendations ({general_count} general, {network_specific_count} network-specific)", category='analysis')
-                # Safely get recommendation types, handling both dict and object access
-                if recommendations and total_count > 0:
-                    # Enforce RecommendationItem TypedDict contract - recommendations should always be dictionaries
-                    # No need to debug recommendation types
-                    pass
             
             # Get matching show titles (up to MAX_RESULTS) to include in the summary
             matching_titles = []
@@ -823,9 +806,6 @@ class ConceptAnalyzer:
             # Extract impact data
             impact_data = impact_result.criteria_impacts if impact_result else {}
             
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Calculated impact data for {len(impact_data)} fields", category='components')
-            
             if all_scores and 'component_scores' in all_scores:
                 # Component scores analyzed successfully
                 return all_scores['component_scores'], impact_data
@@ -909,11 +889,6 @@ class ConceptAnalyzer:
         self._recommendation_state['general_recommendations'] = []
         self._recommendation_state['network_recommendations'] = []
         
-        # Add detailed debugging for success factors
-        if self.config.DEBUG_MODE:
-            high_impact_factors = [f for f in success_factors if abs(f.impact_score) >= 0.05]
-            OptimizerConfig.debug(f"Found {len(high_impact_factors)} high impact success factors", category='recommendation')
-        
         try:
             # Store matching_shows for later use
             self._last_matching_shows = matching_shows
@@ -932,18 +907,6 @@ class ConceptAnalyzer:
             
             # Ensure confidence_info conforms to our ConfidenceInfo contract
             confidence_info = update_confidence_info(confidence_info, {})
-            
-            if self.config.DEBUG_MODE:
-                OptimizerConfig.debug("Using generate_all_recommendations to avoid redundant calculations", category='recommendation')
-                if top_networks and len(top_networks) > 0:
-                    network_names = [n.network_name for n in top_networks]
-                    OptimizerConfig.debug(f"Processing {len(top_networks)} networks: {', '.join(network_names)}", category='recommendation')
-                
-                # Check if matching_shows has network_id column
-                if matching_shows is not None and not matching_shows.empty:
-                    OptimizerConfig.debug(f"Matching shows columns: {list(matching_shows.columns)}", category='recommendation')
-                    if 'network_id' not in matching_shows.columns:
-                        OptimizerConfig.debug("CRITICAL: network_id column missing from matching_shows DataFrame", category='recommendation')
             
             # Generate all recommendations in a single call with unified tagging approach
             # Pass the pre-calculated impact data to avoid redundant calculations
@@ -966,29 +929,18 @@ class ConceptAnalyzer:
                 else:
                     general_recommendations.append(rec)
             
-            if self.config.DEBUG_MODE:
-                OptimizerConfig.debug(f"Generated {len(all_recommendations)} total recommendations", category='recommendation')
-                OptimizerConfig.debug(f"Separated into {len(general_recommendations)} general and {len(network_recommendations)} network-specific", category='recommendation')
-            
             # Store the recommendations in our state dictionary for backward compatibility with debug tools
             # These are only used for debugging and not for actual recommendation display
             self._recommendation_state['general_recommendations'] = general_recommendations
             self._recommendation_state['network_recommendations'] = network_recommendations
             
             # Return the unified list of tagged recommendations
-            if self.config.DEBUG_MODE:
-                OptimizerConfig.debug(f"Returning {len(all_recommendations)} total recommendations ({len(general_recommendations)} general, {len(network_recommendations)} network-specific)", category='recommendation')
-                
             return all_recommendations
             
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
             st.error(f"Error generating recommendations: {str(e)}")
-            
-            if self.config.DEBUG_MODE:
-                OptimizerConfig.debug(f"Exception in _generate_recommendations: {str(e)}", category='recommendation')
-                OptimizerConfig.debug(f"Traceback: {error_details[:500]}...", category='recommendation')
             
             # Initialize empty recommendation state if it doesn't exist
             if 'general_recommendations' not in self._recommendation_state:

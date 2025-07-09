@@ -142,7 +142,6 @@ class CriteriaScorer:
         confidence_info = update_confidence_info({} if confidence_info is None else confidence_info, {})
         if not isinstance(confidence_info, dict):
             # If somehow confidence_info is not a dict, create a new one that conforms to contract
-            OptimizerConfig.debug(f"Warning: confidence_info was not a dictionary: {type(confidence_info)}", category='error')
             confidence_info = update_confidence_info({}, {})
         
         # Handle case with no valid shows data
@@ -199,17 +198,11 @@ class CriteriaScorer:
             return success_rate, confidence_info
             
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                import traceback
-                OptimizerConfig.debug(f"Exception during success score calculation: {str(e)}", category='success_rate')
-                OptimizerConfig.debug(traceback.format_exc(), category='success_rate')
-            
-            confidence_info = update_confidence_info(confidence_info, {
+            return None, update_confidence_info(confidence_info, {
                 'level': 'none',
                 'score': 0.0,
                 'error': f'Exception during calculation: {str(e)}'
             })
-            return None, confidence_info
 
    
     def _batch_calculate_success_rates(self, criteria_list: List[CriteriaDict], matching_shows_list: Optional[List[pd.DataFrame]] = None) -> List[Optional[float]]:
@@ -222,10 +215,7 @@ class CriteriaScorer:
         Returns:
             List of success rates (one for each criteria/matching shows pair)
         """
-        # Validate inputs
-        if matching_shows_list is None or len(criteria_list) != len(matching_shows_list):
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Invalid inputs for batch calculation: criteria_list={len(criteria_list)}, matching_shows_list={len(matching_shows_list) if matching_shows_list else None}", category='success_rate')
+        if not criteria_list or not matching_shows_list or len(criteria_list) != len(matching_shows_list):
             return [None] * len(criteria_list)
         
         results = []
@@ -243,8 +233,6 @@ class CriteriaScorer:
                 results.append(component_score.score if component_score else None)
                 
             except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Error calculating success rate for criteria {i}: {str(e)}", category='success_rate')
                 results.append(None)
                 
         return results
@@ -339,8 +327,6 @@ class CriteriaScorer:
         """
         # Validate inputs - fail fast with clear error messages
         if not criteria:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Cannot calculate criteria impact: empty criteria", category='impact')
             return ImpactAnalysisResult(
                 criteria_impacts={},
                 summary={
@@ -356,8 +342,6 @@ class CriteriaScorer:
             normalized_base_criteria = self.field_manager.normalize_criteria(criteria)
         except ValueError as e:
             # Re-raise with more context about the validation error
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Invalid criteria format: {str(e)}", category='validation')
             raise ValueError(f"Invalid criteria format: {str(e)}") from e
             
         # Check if criteria contains only empty values
@@ -370,14 +354,10 @@ class CriteriaScorer:
                         break
                 except Exception as e:
                     # If we can't check a value properly, consider it valid to be safe
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Error checking criteria value for {field}: {str(e)}", category='impact')
                     has_valid_criteria = True  # Assume valid if we can't check properly
                     break
                     
             if not has_valid_criteria:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Cannot calculate criteria impact: criteria contains only empty values", category='impact')
                 return ImpactAnalysisResult(
                     criteria_impacts={},
                     summary={
@@ -388,10 +368,9 @@ class CriteriaScorer:
                     error='Cannot calculate criteria impact: criteria contains only empty values'
                 )
         except Exception as e:
-            # If we can't check criteria at all, log and continue with processing
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Error checking criteria validity: {str(e)}, continuing with processing", category='impact')
+            # If we can't check criteria at all, continue with processing
             # We'll continue and let other validation steps catch issues
+            pass
             
         if matching_shows is None or matching_shows.empty:
             return ImpactAnalysisResult(
@@ -417,8 +396,6 @@ class CriteriaScorer:
             
             # Check if we have a valid base success rate
             if base_rate is None:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Cannot calculate impact: invalid base success rate", category='impact')
                 return ImpactAnalysisResult(
                     criteria_impacts={},
                     summary={
@@ -458,8 +435,6 @@ class CriteriaScorer:
             # This allows us to limit expensive calculations for change/remove recommendations
             # while still calculating all add recommendations
             if fields_to_analyze:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Limiting analysis to {len(fields_to_analyze)} specified fields", category='impact')
                 # Only limit selected fields (for change/remove), not unselected fields (for add)
                 selected_fields = [field for field in selected_fields if field in fields_to_analyze]
                 
@@ -468,8 +443,6 @@ class CriteriaScorer:
             
             # Check if we have fields to process
             if not fields_to_process:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Cannot calculate impact: no fields to process", category='impact')
                 return {}
             
             # Process each field
@@ -562,15 +535,11 @@ class CriteriaScorer:
                             if integrated_data and 'shows' in integrated_data and not integrated_data['shows'].empty:
                                 # Use the full dataset from integrated_data for all criteria combinations
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
-                                
-                                # Debug log removed to reduce verbosity
                             elif option_id == 'remove' and matching_shows is not None and not matching_shows.empty:
                                 # Fallback for remove recommendations if integrated data is missing
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
-                            else:
-                                # No fallback - we need integrated data
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Missing integrated data for option {option_name}", category='error')
+                            # Handle missing integrated data
+                            if not integrated_data:
                                 option_shows = pd.DataFrame()
                                 confidence_info = update_confidence_info({}, {
                                     'level': 'none',
@@ -588,10 +557,7 @@ class CriteriaScorer:
                                 # Track missing data
                                 missing_data_count += 1
                         except Exception as e:
-                            # Log error and skip this option
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Exception getting matching shows for option {option_name}: {str(e)}", category='impact')
-                            # Skip this option
+                            # Skip this option on error
                             continue
                     
                     # Set the option_matching_shows_map for this field
@@ -599,9 +565,7 @@ class CriteriaScorer:
                         option_matching_shows_map = {}
                     option_matching_shows_map[current_field] = field_options_map
                     
-                    # Log a summary of missing data if any occurred
-                    if missing_data_count > 0 and OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"No data available for {missing_data_count} options in field '{current_field}'", category='impact')
+                    # Track missing data count but don't log it
                     
                     # Reset batch operation flag
                     setattr(self.matcher, '_in_batch_operation', False)
@@ -680,8 +644,6 @@ class CriteriaScorer:
                         }
                     except Exception as e:
                         # Skip this option if there's an error
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Error processing option {option_name}: {str(e)}", category='impact')
                         continue
                 
             # Check if we have any impact scores after processing all fields
@@ -778,10 +740,6 @@ class CriteriaScorer:
                                 'recommendation_type': recommendation_type
                             }
                         except Exception as e:
-                            if OptimizerConfig.DEBUG_MODE:
-                                import traceback
-                                OptimizerConfig.debug(f"Error processing unselected field option {field}: {str(e)}", category='impact')
-                                OptimizerConfig.debug(traceback.format_exc(), category='impact')
                             continue
                 
             # Summarize the impact scores we've generated
@@ -808,11 +766,7 @@ class CriteriaScorer:
                 'recommendation_counts': recommendation_counts
             }
             
-            # Store the summary in the result for backward compatibility
-            if OptimizerConfig.DEBUG_MODE:
-                impact_scores['_summary'] = result_summary
-                
-                # Summary information is now stored in impact_scores['_summary'] for better recommendations
+            # No longer storing summary in impact_scores for better performance
                 
             # If we still have no impact scores, return empty result with error
             if not any(impact_scores.values()) or all(k == '_summary' for k in impact_scores.keys()):
@@ -842,30 +796,11 @@ class CriteriaScorer:
             # Update summary if available
             if '_summary' in impact_scores:
                 result.summary.update(impact_scores['_summary'])
-            
-            # Validate impact data structure
-            if OptimizerConfig.DEBUG_MODE:
-                for field, options in result.criteria_impacts.items():
-                    for option_id, impact_info in options.items():
-                        if not isinstance(impact_info, dict):
-                            OptimizerConfig.debug(f"CRITICAL: Non-dict impact_info in final result for {field}.{option_id}: {type(impact_info)}", category='error')
-                            # Fix the issue by creating a proper dictionary
-                            result.criteria_impacts[field][option_id] = {
-                                'option_id': option_id,
-                                'impact': float(impact_info) if isinstance(impact_info, (int, float)) else 0.0,
-                                'sample_size': 0,
-                                'recommendation_type': self.REC_TYPE_ADD
-                            }
-                            OptimizerConfig.debug(f"Fixed non-dict impact_info for {field}.{option_id}", category='impact')
-            
+                        
             return result
 
         except ValueError as ve:
             error_msg = f"ValueError in calculate_criteria_impact: {str(ve)}"
-            if OptimizerConfig.DEBUG_MODE:
-                import traceback
-                OptimizerConfig.debug(error_msg, category='error')
-                OptimizerConfig.debug(traceback.format_exc(), category='error')
             return ImpactAnalysisResult(
                 criteria_impacts={},
                 summary={
@@ -877,10 +812,6 @@ class CriteriaScorer:
             )
         except Exception as e:
             error_msg = f"Unexpected error in calculate_criteria_impact: {str(e)}"
-            if OptimizerConfig.DEBUG_MODE:
-                import traceback
-                OptimizerConfig.debug(error_msg, category='error')
-                OptimizerConfig.debug(traceback.format_exc(), category='error')
             return ImpactAnalysisResult(
                 criteria_impacts={},
                 summary={
@@ -1000,9 +931,6 @@ class CriteriaScorer:
                     score_component = calculator.calculate(matching_shows.copy())
                     if score_component:
                         component_scores[calculator.component_name] = score_component
-                        if OptimizerConfig.DEBUG_MODE:
-                            score_value = score_component.score if score_component.score is not None else 'N/A'
-                            OptimizerConfig.debug(f"Calculated {calculator.component_name} score: {score_value}", category='components')
                 except Exception as e:
                     # Create error component score
                     component_scores[calculator.component_name] = ComponentScore(
@@ -1012,10 +940,6 @@ class CriteriaScorer:
                         confidence='none', 
                         details={'status': 'calculation_error', 'error': str(e)}
                     )
-                    if OptimizerConfig.DEBUG_MODE:
-                        import traceback
-                        OptimizerConfig.debug(f"Error calculating {calculator.component_name} score: {str(e)}", category='components')
-                        OptimizerConfig.debug(traceback.format_exc(), category='components')
             
             return component_scores
             
@@ -1063,16 +987,8 @@ class CriteriaScorer:
         if not hasattr(self, '_network_calculator'):
             self._network_calculator = NetworkScoreCalculator()
             self._network_calculator.field_manager = self.field_manager
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug("Initialized NetworkScoreCalculator", category='networks')
         
         # Calculate network scores
         network_matches = self._network_calculator.calculate_network_scores(criteria_str, matching_shows)
         
-        if OptimizerConfig.DEBUG_MODE:
-            network_count = len(network_matches) if network_matches else 0
-            OptimizerConfig.debug(f"Found {network_count} network matches", category='networks')
-            OptimizerConfig.debug(f"Calculated scores for {network_count} networks", category='networks')
-            
         return network_matches

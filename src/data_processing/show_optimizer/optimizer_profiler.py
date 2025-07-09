@@ -127,21 +127,31 @@ def display_profiling_results():
     
     # Create a list of methods sorted by total time
     methods = []
+    total_method_time = 0
     for name in data['calls'].keys():
         if data['calls'][name] > 0:
             times = data['times'][name]
             avg_time = sum(times) / len(times) if times else 0
             total_time = sum(times)
+            total_method_time += total_time
             methods.append({
                 'name': name,
                 'calls': data['calls'][name],
                 'avg_time': avg_time,
                 'total_time': total_time,
-                'pct_runtime': (total_time / runtime) * 100 if runtime > 0 else 0
+                'raw_time': total_time  # Store raw time for percentage calculation later
             })
     
     # Sort by total time
     methods.sort(key=lambda x: x['total_time'], reverse=True)
+    
+    # Calculate percentages based on total method time instead of wall clock time
+    # This ensures percentages add up to 100% and are more meaningful
+    for m in methods:
+        if total_method_time > 0:
+            m['pct_runtime'] = (m['raw_time'] / total_method_time) * 100
+        else:
+            m['pct_runtime'] = 0
     
     # Display top methods table
     st.write("### Methods by Total Time")
@@ -152,7 +162,7 @@ def display_profiling_results():
             "Calls": m['calls'],
             "Avg Time (s)": f"{m['avg_time']:.4f}",
             "Total Time (s)": f"{m['total_time']:.4f}",
-            "% of Runtime": f"{m['pct_runtime']:.1f}%"
+            "% of Method Time": f"{m['pct_runtime']:.1f}%"
         })
     
     st.table(method_data)
