@@ -542,10 +542,9 @@ def show():
     # End of page
     st.markdown("---")
     
-    # Add profiling results at the bottom of the page
-    if st.session_state.get('debug_mode', False):
-        with st.expander("Performance Profiling", expanded=False):
-            display_profiling_results()
+    # Always add profiling results at the bottom of the page for performance monitoring
+    with st.expander("Performance Profiling", expanded=False):
+        display_profiling_results()
 
 if __name__ == "__main__":
     show()
