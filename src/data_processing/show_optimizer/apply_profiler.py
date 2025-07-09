@@ -27,7 +27,7 @@ def apply_profiling():
     # Profile RecommendationEngine methods
     RecommendationEngine.calculate_overall_success_rate = profile()(RecommendationEngine.calculate_overall_success_rate)
     RecommendationEngine.identify_success_factors = profile()(RecommendationEngine.identify_success_factors)
-    RecommendationEngine.generate_recommendations = profile()(RecommendationEngine.generate_recommendations)
+    RecommendationEngine.generate_all_recommendations = profile()(RecommendationEngine.generate_all_recommendations)
     
     # Profile CriteriaScorer methods
     CriteriaScorer.calculate_component_scores = profile()(CriteriaScorer.calculate_component_scores)

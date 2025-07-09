@@ -501,8 +501,7 @@ class RecommendationEngine:
                     
                     # Extract field names from keys to know which fields to calculate all options for
                     for key in network_rates.keys():
-                        if key == 'network_baseline':
-                            continue
+
                         field_name, _ = parse_field_value_key(key)
                         if field_name:
                             all_fields_in_network_rates.add(field_name)
@@ -522,7 +521,7 @@ class RecommendationEngine:
                         
                 # Log the keys we need to ensure are in overall_rates
                 if OptimizerConfig.DEBUG_MODE and len(all_keys) > 0:
-                    network_keys = [k for k in all_keys if k != 'network_baseline']
+                    network_keys = all_keys
                     if network_keys:
                         OptimizerConfig.debug(f"Network keys that need overall rates: {network_keys}", category='recommendation')
                         OptimizerConfig.debug(f"Current overall rate keys: {list(overall_rates.keys())}", category='recommendation')
@@ -530,8 +529,7 @@ class RecommendationEngine:
                 # Extract fields from network rates to know which fields to calculate all options for
                 fields_in_network_rates = set()
                 for key in all_keys:
-                    if key == 'network_baseline':
-                        continue
+
                     field_name, _ = parse_field_value_key(key)
                     if field_name:
                         fields_in_network_rates.add(field_name)
@@ -616,7 +614,7 @@ class RecommendationEngine:
                 # Also calculate overall rates for any keys in network rates that we still don't have
                 for key in all_keys:
                     # Skip if we already have this key
-                    if key in overall_rates or key == 'network_baseline':
+                    if key in overall_rates:
                         continue
                         
                     # Extract field name and value from key
@@ -1083,14 +1081,7 @@ class RecommendationEngine:
         if not network_rates:
             return []
     
-        # Get network baseline success rate if available
-        network_baseline_rate = None
-        if 'network_baseline' in network_rates:
-            network_baseline_rate = network_rates['network_baseline'].get('rate', None)
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Using network baseline rate: {network_baseline_rate}", category='recommendation')
-                OptimizerConfig.debug(f"Network baseline data: {network_rates['network_baseline']}", category='recommendation')
+
         
         # Calculate overall success rates if not provided
         if overall_rates is None:
@@ -1152,6 +1143,8 @@ class RecommendationEngine:
                 OptimizerConfig.debug(f"Processing key {key}: network_rate_data={network_rate_data}", category='recommendation')
                 OptimizerConfig.debug(f"Processing key {key}: overall_rate_data={overall_rate_data}", category='recommendation')
                 OptimizerConfig.debug(f"Available overall rate keys: {list(overall_rates.keys())}", category='recommendation')
+                OptimizerConfig.debug(f"Current value for field {field_name}: {current_value}", category='recommendation')
+                OptimizerConfig.debug(f"Current name for field {field_name}: {current_name}", category='recommendation')
                 
                 # No defensive code - rely on exact key matching
             
@@ -1195,6 +1188,10 @@ class RecommendationEngine:
             condition1 = abs(difference) >= significant_diff_threshold  # Large difference
             condition2 = has_sufficient_data and abs(difference) > network_diff_threshold  # Smaller difference with sufficient data
             should_generate = condition1 or condition2
+            
+            # IMPORTANT: Temporarily lower the threshold to ensure we generate some recommendations
+            # This will help diagnose if the issue is with thresholds or something else
+            should_generate = abs(difference) > 0.01  # Generate recommendation for any non-zero difference
             
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Network {network.network_name} field {field_name}: network_rate={network_rate:.3f}, overall_rate={overall_rate:.3f}, diff={difference:.3f}, significant={should_generate}", category='recommendation')

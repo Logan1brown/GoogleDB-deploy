@@ -255,7 +255,7 @@ class NetworkAnalyzer:
                       If provided, only fields in this criteria will be analyzed.
             
         Returns:
-            Dictionary of success rates by field-value key, including a 'network_baseline'
+            Dictionary of success rates by field-value key
             key with the overall success rate for this network.
         """
         try:
@@ -314,24 +314,7 @@ class NetworkAnalyzer:
                         sample_vals = unique_vals[:3] if len(unique_vals) > 3 else unique_vals
                         OptimizerConfig.debug(f"Network {network_id} analysis: Column {col} sample values: {sample_vals}", category='recommendation')
             
-            # Calculate baseline success rate for this network
-            baseline_success_count = network_shows[network_shows['success_score'] >= success_threshold].shape[0]
-            baseline_total_count = network_shows.shape[0]
-            
-            if baseline_total_count > 0:
-                baseline_success_rate = baseline_success_count / baseline_total_count
-                
-                # Add baseline success rate to the dictionary using the centralized function
-                success_rates['network_baseline'] = create_success_rate_data(
-                    field_name='network',
-                    value=network_id,
-                    rate=baseline_success_rate,
-                    sample_size=baseline_total_count,
-                    value_name=f'Network {network_id}'
-                )
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network {network_id} baseline success rate: {baseline_success_rate:.2f} ({baseline_success_count}/{baseline_total_count})", category='recommendation')
+
             
             # Filter columns to only those in criteria if criteria is provided
             columns_to_process = id_columns
@@ -496,26 +479,13 @@ class NetworkAnalyzer:
                     # Error processing column
                     continue
             
-            # Add network baseline success rate to the results
-            if network_shows is not None and not network_shows.empty and 'success_score' in network_shows.columns:
-                network_baseline = network_shows[network_shows['success_score'] >= success_threshold].shape[0] / network_shows.shape[0]
-                # Use the centralized function for consistent data structure
-                success_rates['network_baseline'] = create_success_rate_data(
-                    field_name='network_id',
-                    value=network_id,
-                    rate=network_baseline,
-                    sample_size=network_shows.shape[0],
-                    value_name=f'Network {network_id}'
-                )
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network {network_id} analysis: Added network baseline success rate: {network_baseline}", category='recommendation')
-                    OptimizerConfig.debug(f"Network {network_id} analysis: Network baseline data: {success_rates['network_baseline']}", category='recommendation')
+
             
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Network {network_id} analysis: Returning {len(success_rates)} success rates", category='recommendation')
                 if len(success_rates) > 0:
                     sample_keys = list(success_rates.keys())[:3] if len(success_rates) > 3 else list(success_rates.keys())
+                    # Make sure we don't reference network_baseline in debug output
                     OptimizerConfig.debug(f"Network {network_id} analysis: Sample keys: {sample_keys}", category='recommendation')
             
             return success_rates
