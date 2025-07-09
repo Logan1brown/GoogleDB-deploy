@@ -452,9 +452,9 @@ class ConceptAnalyzer:
                 OptimizerConfig.debug(f"Found {len(top_networks)} top networks", category='analysis')
     
             
-            # Step 4: Calculate component scores
+            # Step 4: Calculate component scores and impact data (to avoid duplicate calculations)
 
-            component_scores = self._get_component_scores(criteria, matching_shows, integrated_data)
+            component_scores, impact_data = self._get_component_scores(criteria, matching_shows, integrated_data)
 
             
             # Step 5: Identify success factors
@@ -464,7 +464,10 @@ class ConceptAnalyzer:
                 OptimizerConfig.debug(f"Found {len(success_factors)} success factors", category='analysis')
             
             # Step 6: Generate recommendations
-
+            
+            # Add impact_data to integrated_data to pass it to the recommendation engine
+            integrated_data['impact_data'] = impact_data
+            
             recommendations = self._generate_recommendations(
                 criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
             )
@@ -755,7 +758,7 @@ class ConceptAnalyzer:
             st.error(f"Error finding top networks: {str(e)}")
             return []
     
-    def _get_component_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, integrated_data: IntegratedData) -> Dict[str, ComponentScore]:
+    def _get_component_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, integrated_data: IntegratedData) -> Tuple[Dict[str, ComponentScore], Dict]:
         """Calculate component scores for the given criteria.
         
         Args:
@@ -764,7 +767,9 @@ class ConceptAnalyzer:
             integrated_data: Dictionary of integrated data frames from ShowOptimizer
             
         Returns:
-            Dictionary mapping component names to ComponentScore objects
+            Tuple containing:
+                - Dictionary mapping component names to ComponentScore objects
+                - Dictionary containing criteria impact data for recommendation generation
         """
         try:
             
@@ -799,16 +804,38 @@ class ConceptAnalyzer:
                 criteria, matching_shows, integrated_data=integrated_data
             )
             
+            # Calculate impact data for all fields in criteria plus 'network' field
+            # This is the expensive operation we want to avoid duplicating
+            fields_to_analyze = list(criteria.keys())
+            
+            # Always include 'network' in fields_to_analyze to ensure network-specific recommendations work
+            if 'network' not in fields_to_analyze:
+                fields_to_analyze.append('network')
+                
+            # Calculate criteria impact once to be reused for recommendations
+            impact_result = self.criteria_scorer.calculate_criteria_impact(
+                criteria, 
+                matching_shows, 
+                integrated_data=integrated_data,
+                fields_to_analyze=fields_to_analyze
+            )
+            
+            # Extract impact data
+            impact_data = impact_result.criteria_impacts if impact_result else {}
+            
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"Calculated impact data for {len(impact_data)} fields", category='components')
+            
             if all_scores and 'component_scores' in all_scores:
                 # Component scores analyzed successfully
-                return all_scores['component_scores']
+                return all_scores['component_scores'], impact_data
             else:
                 st.warning("No component scores could be calculated")
-                return {}
+                return {}, impact_data
             
         except Exception as e:
             st.error(f"Error calculating component scores: {str(e)}")
-            return {}
+            return {}, {}
     
     
     def _get_confidence_level(self, sample_size: int, match_level: int = 1) -> str:
@@ -919,13 +946,14 @@ class ConceptAnalyzer:
                         OptimizerConfig.debug("CRITICAL: network_id column missing from matching_shows DataFrame", category='recommendation')
             
             # Generate all recommendations in a single call with unified tagging approach
-            # This avoids redundant calculations of criteria impact and success factors
+            # Pass the pre-calculated impact data to avoid redundant calculations
             all_recommendations = self.recommendation_engine.generate_all_recommendations(
                 criteria=criteria,
                 matching_shows=matching_shows,
                 integrated_data=integrated_data,
                 top_networks=top_networks,
-                confidence_info=confidence_info
+                confidence_info=confidence_info,
+                pre_calculated_impact_data=integrated_data.get('impact_data')
             )
             
             # Separate recommendations based on is_network_specific tag
