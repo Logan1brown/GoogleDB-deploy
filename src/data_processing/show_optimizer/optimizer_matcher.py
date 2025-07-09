@@ -278,36 +278,6 @@ class Matcher:
             Tuple of (matching_shows, match_info) with combined matches from all levels needed,
             where match_info conforms to ConfidenceInfo
         """
-        # FAST PATH 1: Empty criteria optimization
-        # If no criteria provided, return all data with default confidence info
-        if not criteria:
-            # Get data for matching
-            data_to_match = self._get_data(data)
-            if len(data_to_match) == 0:
-                # Return empty DataFrame with required columns
-                empty_confidence = update_confidence_info({}, {
-                    'level': 'none',
-                    'match_level': 1,  # Use 1 as the default match level
-                    'error': 'No data available for matching'
-                })
-                return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), empty_confidence
-            
-            # All data matches when no criteria specified
-            result = data_to_match.copy()
-            result['match_level'] = 1  # Best match level
-            result['match_quality'] = 100  # Perfect quality
-            result['match_level_desc'] = self._get_match_level_description(1)
-            
-            # Create confidence info for all data
-            confidence_info = update_confidence_info({}, {
-                'level': 'perfect',
-                'match_level': 1,
-                'match_counts_by_level': {1: len(result)},
-                'total_unique_matches': len(result)
-            })
-            
-            return result, confidence_info
-        
         # Use config values for sample sizes if not specified
         if min_sample_size is None:
             min_sample_size = OptimizerConfig.CONFIDENCE['minimum_sample']
@@ -334,58 +304,6 @@ class Matcher:
                 'error': 'No data available for matching'
             })
             return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), empty_confidence
-        
-        # FAST PATH 2: Single criterion optimization
-        # If only one criterion, we can skip the match level progression
-        if len(criteria) == 1:
-            # Get the single criterion
-            level_criteria = criteria.copy()
-            level = 1  # Always level 1 for single criterion
-            
-            # Match shows using the criteria
-            level_matches, match_count = self._match_shows(level_criteria, data_to_match)
-            
-            # If no matches, return empty result
-            if len(level_matches) == 0:
-                empty_confidence = update_confidence_info({}, {
-                    'level': 'none',
-                    'match_level': 1,
-                    'error': 'No matches found for the single criterion'
-                })
-                return pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title']), empty_confidence
-            
-            # Add match metadata
-            level_matches['match_level'] = level
-            level_matches['match_quality'] = 100  # Always 100% for single criterion
-            level_matches['match_level_desc'] = self._get_match_level_description(level)
-            
-            # Calculate confidence
-            confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
-            confidence_info['match_counts_by_level'] = {level: match_count}
-            confidence_info['total_unique_matches'] = len(level_matches)
-            
-            return level_matches, confidence_info
-        
-        # FAST PATH 3: Small dataset optimization
-        # For very small datasets, we can skip the complex sampling logic
-        if len(data_to_match) <= OptimizerConfig.MAX_RESULTS:
-            # Try exact match first (level 1)
-            level_criteria = criteria.copy()
-            level = 1
-            
-            level_matches, match_count = self._match_shows(level_criteria, data_to_match)
-            
-            # If we found matches with exact criteria, return them
-            if len(level_matches) > 0:
-                level_matches['match_level'] = level
-                level_matches['match_quality'] = 100
-                level_matches['match_level_desc'] = self._get_match_level_description(level)
-                
-                confidence_info = self.calculate_match_confidence(level_matches, level, criteria)
-                confidence_info['match_counts_by_level'] = {level: match_count}
-                confidence_info['total_unique_matches'] = len(level_matches)
-                
-                return level_matches, confidence_info
         
         # Determine how many criteria we have to work with
         total_criteria = len(criteria)
