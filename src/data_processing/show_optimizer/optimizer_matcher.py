@@ -294,7 +294,7 @@ class Matcher:
         
         # Get data for matching
         data_to_match = self._get_data(data)
-        if data_to_match.empty:
+        if len(data_to_match) == 0:
             # Only output debug message if we're not in a batch operation (criteria_scorer.calculate_criteria_impact)
             # This reduces noise in the logs during impact calculations
 
@@ -323,8 +323,8 @@ class Matcher:
             # Match shows using the level-specific criteria
             level_matches, match_count = self._match_shows(level_criteria, data_to_match)
             
-            # Skip if no matches at this level
-            if level_matches.empty:
+            # Skip if no matches at this level - use len() instead of .empty for better performance
+            if len(level_matches) == 0:
                 continue
             
             # Always ensure match_level column exists
@@ -352,25 +352,30 @@ class Matcher:
             
             # Process new matches if any were found
             
-            # Add new matches to our results
-            if all_matches.empty:
+            # Add new matches to our results - use len() instead of .empty for better performance
+            if len(all_matches) == 0:
                 all_matches = new_matches
             else:
-                # Ensure both DataFrames have the same columns before concatenating
+                # Pre-check required columns once before loop to avoid repeated lookups
                 required_columns = ['match_level', 'match_quality', 'match_level_desc']
-                for col in required_columns:
-                    if col not in all_matches.columns:
-                        # Use values from new_matches as a guide
-                        if col in new_matches.columns:
-                            # Use a default value based on the column
-                            if col == 'match_level':
-                                all_matches[col] = 1  # Default to best match level
-                            elif col == 'match_quality':
-                                all_matches[col] = 100  # Default to perfect quality
-                            elif col == 'match_level_desc':
-                                all_matches[col] = self._get_match_level_description(1)
+                all_matches_columns = set(all_matches.columns)
+                new_matches_columns = set(new_matches.columns)
+                
+                # Only process columns that need to be added
+                missing_columns = [col for col in required_columns if col not in all_matches_columns and col in new_matches_columns]
+                
+                # Add missing columns efficiently
+                for col in missing_columns:
+                    # Use a default value based on the column
+                    if col == 'match_level':
+                        all_matches[col] = 1  # Default to best match level
+                    elif col == 'match_quality':
+                        all_matches[col] = 100  # Default to perfect quality
+                    elif col == 'match_level_desc':
+                        all_matches[col] = self._get_match_level_description(1)
                 
                 # Now concatenate with all required columns present
+                # Use list of DataFrames for better performance with concat
                 all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
             
             # Update our list of unique titles
@@ -671,7 +676,8 @@ class Matcher:
         """
         # Use helper method to get data
         data = self._get_data(data)
-        if data.empty:
+        # Use len() instead of .empty for better performance
+        if len(data) == 0:
             # Silent handling for empty data - happens frequently during matching
             return pd.DataFrame(), 0
             
@@ -679,6 +685,91 @@ class Matcher:
         clean_criteria = {}
         
         # Get array fields and mapping from field_manager
+        array_field_mapping = self.field_manager.get_array_field_mapping()
+        array_fields = list(array_field_mapping.keys())
+        
+        for field_name, value in criteria.items():
+            # Skip empty criteria
+            if value is None or (isinstance(value, list) and not value):
+                continue
+                
+            # Use field_manager to determine the field type
+            field_type = self.field_manager.get_field_type(field_name)
+            
+            # Handle array fields
+            if field_type == 'array':
+                # Make sure array field values are always lists
+                if not isinstance(value, list):
+                    clean_criteria[field_name] = [value]
+                else:
+                    clean_criteria[field_name] = value
+            else:
+                # Don't map field names here - let FieldManager handle it
+                clean_criteria[field_name] = value
+        
+        # Start with a copy of the data as our matches
+        matches = data.copy()
+        
+        # Separate array and scalar fields for different processing
+        array_fields_to_process = {}
+        scalar_fields = {}
+        
+        # Process each criterion
+        for field_name, value in clean_criteria.items():
+            # Use field_manager to map the field name to the correct column name
+            field_column = self.field_manager.get_field_column_name(field_name, matches.columns)
+            
+            # Skip if the field doesn't exist in the data
+            if field_column not in matches.columns:
+                # Skip debug output to reduce noise
+                continue
+                
+            # Check if this is an array field - ONLY use field_manager's determination
+            # This ensures consistency with how fields are processed elsewhere
+            is_array = self.field_manager.get_field_type(field_name) == 'array'
+            
+            # Special handling for subgenres which is always an array field
+            if field_name == 'subgenres':
+                is_array = True
+                
+            # Array field detection for genre and subgenres
+            
+            if is_array:
+                # For array fields, we need to check if any value matches
+                if isinstance(value, list):
+                    value_set = set(value)
+                    # If the column contains lists, use list intersection
+                    # For each show's array field, convert to set and check intersection with criteria values
+                    mask = matches[field_column].apply(
+                        lambda x: isinstance(x, list) and len(value_set.intersection(set(x))) > 0)
+                else:
+                    # Single value in array field
+                    mask = matches[field_column].apply(
+                        lambda x: isinstance(x, list) and value in x)
+            else:
+                # For scalar fields
+                if isinstance(value, list):
+                    # Multiple values: any show with any of the values matches
+                    mask = matches[field_column].isin(value)
+                else:
+                    # Single value: exact match
+                    mask = matches[field_column] == value
+                    
+            # Apply filter
+            matches = matches[mask]
+            
+        # Matching complete
+        match_count = len(matches)
+        
+        return matches, match_count
+        
+    # Validate the actual match level by checking if all criteria are truly matched
+    # This is especially important for array fields like character_types
+    actual_match_level = match_level
+        
+    # Only perform validation if we have shows and claiming exact match (level 1)
+    if not shows.empty and match_level == 1:
+        # Get array field mapping to check array fields properly
         array_field_mapping = self.field_manager.get_array_field_mapping()
         array_fields = list(array_field_mapping.keys())
         

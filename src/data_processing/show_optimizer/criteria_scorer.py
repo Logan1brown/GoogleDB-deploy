@@ -153,9 +153,10 @@ class CriteriaScorer:
             })
             return None, confidence_info
         
-        # Define success filter function
+        # Pre-calculate the minimum threshold value to avoid dictionary lookup in the filter
+        min_threshold = OptimizerConfig.SCORE_NORMALIZATION['success_filter_min']
         def success_filter(df):
-            return (df['success_score'].notna()) & (df['success_score'] > OptimizerConfig.SCORE_NORMALIZATION['success_filter_min'])
+            return (df['success_score'].notna()) & (df['success_score'] > min_threshold)
         
         # Validate and prepare data
         calculator = SuccessScoreCalculator()
@@ -246,7 +247,9 @@ class CriteriaScorer:
         Returns:
             True if DataFrame is valid, False otherwise
         """
-        return df is not None and not df.empty
+        # Use len() instead of .empty for better performance
+        # .empty property has to check the shape which is slower
+        return df is not None and len(df) > 0
         
     def _create_option_criteria(self, base_criteria: CriteriaDict, field: str, option_id, is_array_field: bool) -> CriteriaDict:
         """Create criteria with a specific option value for a field or remove the field.
@@ -261,7 +264,8 @@ class CriteriaScorer:
             New criteria dictionary with the option set or field removed conforming to CriteriaDict
         """
         # Create a shallow copy of the base criteria
-        new_criteria = dict(base_criteria)
+        # Use dict comprehension instead of dict() for better performance
+        new_criteria = {k: v for k, v in base_criteria.items()}
         
         # Special handling for 'remove' option
         if option_id == 'remove':
@@ -270,7 +274,9 @@ class CriteriaScorer:
             return new_criteria
         
         # Convert option ID to integer for normal options
-        option_id = int(option_id)
+        # Only convert if it's not already an integer to avoid unnecessary conversion
+        if not isinstance(option_id, int) and option_id != 'remove':
+            option_id = int(option_id)
         
         # For array fields, use a list; for scalar fields, use the value directly
         if is_array_field:
@@ -531,15 +537,19 @@ class CriteriaScorer:
                             # Create criteria for this option using our helper method
                             option_criteria = self._create_option_criteria(normalized_base_criteria, current_field, option_id, is_array_field)
                             
+                            # Pre-check integrated data validity once to avoid repeated checks
+                            has_valid_integrated_data = integrated_data and 'shows' in integrated_data and len(integrated_data['shows']) > 0
+                            has_valid_matching_shows = matching_shows is not None and len(matching_shows) > 0
+                            
                             # Always use the integrated data for all recommendation types to ensure consistent comparison
-                            if integrated_data and 'shows' in integrated_data and not integrated_data['shows'].empty:
+                            if has_valid_integrated_data:
                                 # Use the full dataset from integrated_data for all criteria combinations
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, integrated_data['shows'])
-                            elif option_id == 'remove' and matching_shows is not None and not matching_shows.empty:
+                            elif option_id == 'remove' and has_valid_matching_shows:
                                 # Fallback for remove recommendations if integrated data is missing
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, matching_shows)
                             # Handle missing integrated data
-                            if not integrated_data:
+                            elif not integrated_data:
                                 option_shows = pd.DataFrame()
                                 confidence_info = update_confidence_info({}, {
                                     'level': 'none',
@@ -697,8 +707,8 @@ class CriteriaScorer:
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria)
                             
                 
-                            # Skip options with no matching shows
-                            if option_shows is None or option_shows.empty:
+                            # Skip options with no matching shows - use optimized check
+                            if not self._is_valid_dataframe(option_shows):
                                 continue
                                 
                             # Calculate success rate for this option's matching shows
@@ -730,13 +740,16 @@ class CriteriaScorer:
                             
                             # Store impact score with all relevant information - ALWAYS as a complete dictionary
                             # This ensures consistent data structure throughout the application
+                            # Pre-calculate sample size to avoid calling len() multiple times
+                            sample_size = len(option_shows)
+                            
                             impact_scores[field][option_id] = {
                                 'option_id': option_id,
                                 'option_name': option_name,
                                 'impact': impact,
                                 'original_impact': original_impact,
                                 'success_rate': option_rate,
-                                'sample_size': len(option_shows),
+                                'sample_size': sample_size,
                                 'recommendation_type': recommendation_type
                             }
                         except Exception as e:

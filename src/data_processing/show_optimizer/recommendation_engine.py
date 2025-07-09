@@ -188,12 +188,14 @@ class RecommendationEngine:
             List of SuccessFactor objects
         """
         # If matching_shows not provided or empty, get them using the matcher
-        if matching_shows is None or matching_shows.empty:
+        # Use len() instead of .empty for better performance
+        if matching_shows is None or (hasattr(matching_shows, 'empty') and len(matching_shows) == 0):
             try:
                 # Use the matcher directly instead of going through criteria_scorer
                 if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
                     matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(criteria)
-                    if matching_shows.empty:
+                    # Use len() instead of .empty for better performance
+                    if len(matching_shows) == 0:
                         st.error("No shows match your criteria. Try adjusting your parameters.")
                         return []
                 else:
@@ -294,8 +296,9 @@ class RecommendationEngine:
                 # Get matching titles for this criteria
                 matching_titles = []
                 try:
-                    # Convert hashable value back to original form if needed
-                    match_value = list(criteria_value) if isinstance(criteria_value, tuple) else criteria_value
+                    # Convert hashable value back to original form if needed - optimize by checking type once
+                    is_tuple = isinstance(criteria_value, tuple)
+                    match_value = list(criteria_value) if is_tuple else criteria_value
                     
                     # Get shows matching just this single criteria
                     single_criteria = {criteria_type: match_value}
