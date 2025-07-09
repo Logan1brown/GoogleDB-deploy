@@ -712,13 +712,16 @@ class CriteriaScorer:
                                 continue  # Skip to next option
                             
                             # Store impact score with all relevant information
+                            # Get the sample size safely (option_shows might be None in some cases)
+                            sample_size = len(option_shows) if option_shows is not None else 0
+                            
                             impact_scores[current_field][option_id] = {
                                 'option_id': option_id,
                                 'option_name': option_name,
                                 'impact': impact,
                                 'original_impact': original_impact,
                                 'success_rate': option_rate,
-                                'sample_size': len(option_shows),
+                                'sample_size': sample_size,
                                 'recommendation_type': recommendation_type
                             }
                         except Exception as e:
