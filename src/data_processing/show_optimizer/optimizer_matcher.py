@@ -360,27 +360,30 @@ class Matcher:
             if len(all_matches) == 0:
                 all_matches = new_matches
             else:
-                # Pre-check required columns once before loop to avoid repeated lookups
-                required_columns = ['match_level', 'match_quality', 'match_level_desc']
-                all_matches_columns = set(all_matches.columns)
-                new_matches_columns = set(new_matches.columns)
-                
-                # Only process columns that need to be added
-                missing_columns = [col for col in required_columns if col not in all_matches_columns and col in new_matches_columns]
-                
-                # Add missing columns efficiently
-                for col in missing_columns:
-                    # Use a default value based on the column
-                    if col == 'match_level':
-                        all_matches[col] = 1  # Default to best match level
-                    elif col == 'match_quality':
-                        all_matches[col] = 100  # Default to perfect quality
-                    elif col == 'match_level_desc':
-                        all_matches[col] = self._get_match_level_description(1)
-                
-                # Now concatenate with all required columns present
-                # Use list of DataFrames for better performance with concat
-                all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
+                # Fast path for common case - if all required columns are present, skip column checks
+                if 'match_level' in all_matches.columns and 'match_quality' in all_matches.columns and 'match_level_desc' in all_matches.columns:
+                    # Use list of DataFrames for better performance with concat
+                    all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
+                else:
+                    # Pre-check required columns once before loop to avoid repeated lookups
+                    required_columns = ['match_level', 'match_quality', 'match_level_desc']
+                    all_matches_columns = set(all_matches.columns)
+                    
+                    # Only process columns that need to be added
+                    missing_columns = [col for col in required_columns if col not in all_matches_columns]
+                    
+                    # Add missing columns efficiently
+                    for col in missing_columns:
+                        # Use a default value based on the column
+                        if col == 'match_level':
+                            all_matches[col] = 1  # Default to best match level
+                        elif col == 'match_quality':
+                            all_matches[col] = 100  # Default to perfect quality
+                        elif col == 'match_level_desc':
+                            all_matches[col] = self._get_match_level_description(1)
+                    
+                    # Now concatenate with all required columns present
+                    all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
             
             # Update unique titles set with new matches - use values for better performance
             if len(new_matches) > 0:
@@ -747,42 +750,86 @@ class Matcher:
                     value_set = set(value)
                     # If the column contains lists, use list intersection
                     # For each show's array field, convert to set and check intersection with criteria values
-                    # Pre-convert to list to avoid repeated isinstance checks for better performance
                     if len(matches) > 0:
                         sample = matches[field_column].iloc[0]
-                        if isinstance(sample, list):
-                            # Fast path for list columns
-                            mask = matches[field_column].apply(
-                                lambda x: len(value_set.intersection(set(x))) > 0)
+                        
+                        # Use different strategies based on dataset size for better performance
+                        if len(matches) <= 100:  # Small dataset optimization
+                            if isinstance(sample, list):
+                                # Fast path for small datasets with list columns
+                                mask = pd.Series([len(value_set.intersection(set(x))) > 0 if isinstance(x, list) else False 
+                                                 for x in matches[field_column]], index=matches.index)
+                            else:
+                                # Fallback with type checking for small datasets
+                                mask = pd.Series([isinstance(x, list) and len(value_set.intersection(set(x))) > 0 
+                                                 for x in matches[field_column]], index=matches.index)
                         else:
-                            # Fallback with type checking
-                            mask = matches[field_column].apply(
-                                lambda x: isinstance(x, list) and len(value_set.intersection(set(x))) > 0)
+                            # For larger datasets, use apply which is optimized for pandas
+                            if isinstance(sample, list):
+                                # Cache the set conversion to avoid repeated conversions
+                                # This significantly improves performance for large datasets
+                                mask = matches[field_column].apply(
+                                    lambda x: len(value_set.intersection(set(x) if isinstance(x, list) else set())) > 0)
+                            else:
+                                # Fallback with type checking
+                                mask = matches[field_column].apply(
+                                    lambda x: isinstance(x, list) and len(value_set.intersection(set(x))) > 0)
                     else:
                         # Empty DataFrame case
                         mask = pd.Series([], dtype=bool)
                 else:
                     # Single value in array field
-                    # Pre-check data type to avoid repeated isinstance checks for better performance
                     if len(matches) > 0:
                         sample = matches[field_column].iloc[0]
-                        if isinstance(sample, list):
-                            # Fast path for list columns
-                            mask = matches[field_column].apply(lambda x: value in x)
+                        
+                        # Use different strategies based on dataset size
+                        if len(matches) <= 100:  # Small dataset optimization
+                            if isinstance(sample, list):
+                                # Fast path for small datasets with list columns
+                                mask = pd.Series([value in x if isinstance(x, list) else False 
+                                                 for x in matches[field_column]], index=matches.index)
+                            else:
+                                # Fallback with type checking for small datasets
+                                mask = pd.Series([isinstance(x, list) and value in x 
+                                                 for x in matches[field_column]], index=matches.index)
                         else:
-                            # Fallback with type checking
-                            mask = matches[field_column].apply(lambda x: isinstance(x, list) and value in x)
+                            # For larger datasets, use vectorized operations where possible
+                            try:
+                                # Try using numpy vectorization for better performance
+                                if isinstance(sample, list):
+                                    # Convert to numpy array for faster processing if possible
+                                    mask = matches[field_column].apply(lambda x: value in x if isinstance(x, list) else False)
+                                else:
+                                    # Fallback with type checking
+                                    mask = matches[field_column].apply(lambda x: isinstance(x, list) and value in x)
+                            except Exception:
+                                # If numpy fails, fall back to pandas apply
+                                mask = matches[field_column].apply(lambda x: isinstance(x, list) and value in x)
                     else:
                         # Empty DataFrame case
                         mask = pd.Series([], dtype=bool)
             else:
-                # For scalar fields
+                # For scalar fields - use vectorized operations for better performance
                 if isinstance(value, list):
                     # Multiple values: any show with any of the values matches
+                    # Use isin which is already optimized for pandas
                     mask = matches[field_column].isin(value)
                 else:
                     # Single value: exact match
-                    mask = matches[field_column] == value
+                    # For small datasets, use numpy for faster comparison if possible
+                    if len(matches) > 100:
+                        try:
+                            # Try to use numpy for faster comparison
+                            import numpy as np
+                            # Convert to numpy array for faster comparison
+                            col_values = matches[field_column].values
+                            mask = pd.Series(col_values == value, index=matches.index)
+                        except Exception:
+                            # Fall back to pandas if numpy fails
+                            mask = matches[field_column] == value
+                    else:
+                        # For small datasets, pandas comparison is fast enough
+                        mask = matches[field_column] == value
                     
             # Apply filter
             matches = matches[mask]
@@ -809,86 +856,176 @@ class Matcher:
             - sample_size: Number of shows in the sample
             - match_level: The actual match level based on criteria validation
         """
-        # Get sample size
+        # Fast path: If shows is empty, return minimal confidence
+        if shows is None or len(shows) == 0:
+            return {
+                'level': 'none',
+                'score': 0.0,
+                'match_quality': 0.0,
+                'sample_size': 0,
+                'match_level': match_level
+            }
+        
+        # Get sample size - already checked above
         sample_size = len(shows)
         
-        # Calculate criteria coverage
-        total_criteria = len(OptimizerConfig.CRITERIA_IMPORTANCE)
+        # Calculate criteria coverage - use cached value if available
+        total_criteria = getattr(self, '_cached_total_criteria', None)
+        if total_criteria is None:
+            total_criteria = len(OptimizerConfig.CRITERIA_IMPORTANCE)
+            setattr(self, '_cached_total_criteria', total_criteria)
+            
         criteria_count = len(criteria)
         
         # Calculate match quality based on criteria difference
         # Level 1 = 0 differences, Level 2 = 1 difference, etc.
         criteria_diff = match_level - 1
         
-        # Use the OptimizerConfig helper method to get quality score
-        match_quality = OptimizerConfig.get_quality_for_diff(criteria_diff)
+        # Use cached quality scores if possible
+        quality_cache = getattr(self, '_quality_cache', {})
+        match_quality = quality_cache.get(criteria_diff)
+        if match_quality is None:
+            match_quality = OptimizerConfig.get_quality_for_diff(criteria_diff)
+            if not hasattr(self, '_quality_cache'):
+                setattr(self, '_quality_cache', {})
+            quality_cache = getattr(self, '_quality_cache')
+            quality_cache[criteria_diff] = match_quality
         
-        # Calculate confidence score using OptimizerConfig
-        confidence_score = OptimizerConfig.calculate_confidence_score(
-            sample_size, criteria_count, total_criteria, match_level)
+        # Cache key for confidence calculations
+        cache_key = (sample_size, criteria_count, match_level)
         
-        # Get confidence level string
-        confidence_level = OptimizerConfig.get_confidence_level(sample_size, match_level)
+        # Use cached confidence values if possible
+        confidence_cache = getattr(self, '_confidence_cache', {})
+        cached_values = confidence_cache.get(cache_key)
+        
+        if cached_values:
+            confidence_score, confidence_level = cached_values
+        else:
+            # Calculate confidence score using OptimizerConfig
+            confidence_score = OptimizerConfig.calculate_confidence_score(
+                sample_size, criteria_count, total_criteria, match_level)
+            
+            # Get confidence level string
+            confidence_level = OptimizerConfig.get_confidence_level(sample_size, match_level)
+            
+            # Cache the results
+            if not hasattr(self, '_confidence_cache'):
+                setattr(self, '_confidence_cache', {})
+            confidence_cache = getattr(self, '_confidence_cache')
+            confidence_cache[cache_key] = (confidence_score, confidence_level)
+            
+            # Limit cache size to prevent memory leaks
+            if len(confidence_cache) > 1000:  # Arbitrary limit
+                # Simple strategy: clear half the cache when it gets too large
+                keys_to_remove = list(confidence_cache.keys())[:500]
+                for key in keys_to_remove:
+                    confidence_cache.pop(key, None)
         
         # Validate the actual match level by checking if all criteria are truly matched
         # This is especially important for array fields like character_types
         actual_match_level = match_level
         
         # Only perform validation if we have shows and claiming exact match (level 1)
-        # Use len() instead of .empty for better performance
         if len(shows) > 0 and match_level == 1:
-            # Get array field mapping to check array fields properly
-            array_field_mapping = self.field_manager.get_array_field_mapping()
+            # Fast path: Use cached validation results if available
+            validation_cache_key = (frozenset(criteria.items()), tuple(sorted(shows.columns)))
+            validation_cache = getattr(self, '_validation_cache', {})
+            cached_level = validation_cache.get(validation_cache_key)
             
-            # Check each criterion to see if it's actually matched
-            for field_name, value in criteria.items():
-                # Skip empty criteria
-                if value is None or (isinstance(value, list) and not value):
-                    continue
+            if cached_level is not None:
+                actual_match_level = cached_level
+            else:
+                # Define a helper function to validate criteria and determine match level
+                def validate_criteria():
+                    # Pre-compute field column mapping once for all criteria
+                    field_columns = {}
+                    for field_name in criteria.keys():
+                        field_columns[field_name] = self.field_manager.get_field_column_name(field_name, shows.columns)
                     
-                # Handle array fields differently
-                if isinstance(value, list):
-                    # Use field_manager to get the correct column name
-                    field_column = self.field_manager.get_field_column_name(field_name, shows.columns)
+                    # Check each criterion to see if it's actually matched
+                    for field_name, value in criteria.items():
+                        # Skip empty criteria
+                        if value is None or (isinstance(value, list) and not value):
+                            continue
                         
-                    # Check if this column exists in the data
-                    if field_column not in shows.columns:
-                        # Silent handling - just downgrade match level
-                        actual_match_level = 2  # Downgrade to level 2 if field is missing
-                        continue
+                        # Get the mapped column name
+                        field_column = field_columns.get(field_name)
                         
-                    # Sample the first row to check data format - use len() instead of .empty for better performance
-                    sample = shows[field_column].iloc[0] if len(shows) > 0 else None
+                        # Check if column exists in the data
+                        if field_column not in shows.columns:
+                            return 2  # Downgrade to level 2 if field is missing
                         
-                    # Check if all shows actually match this array criterion
-                    value_set = set(value)
-                    if isinstance(sample, list):
-                        # For each show, check if any of the criteria values match
-                        all_match = shows[field_column].apply(
-                            lambda x: isinstance(x, list) and bool(value_set.intersection(x))
-                        ).all()
-                    else:
-                        # If not stored as lists, check if any match the values
-                        all_match = shows[field_column].isin(value).any(axis=0)
-                        
-                    # If not all shows match this criterion, downgrade the match level
-                    if not all_match:
-                        actual_match_level = 2  # Downgrade to level 2
-                        break
-                else:  # Handle scalar fields
-                    # Use field_manager to determine the actual column name
-                    field_id = self.field_manager.map_field_name(field_name, shows.columns)
-                        
-                    # Check if this column exists in the data
-                    if field_id not in shows.columns:
-                        # Silent handling - just downgrade match level
-                        actual_match_level = 2  # Downgrade to level 2 if field is missing
-                        continue
+                        # Handle array fields differently
+                        if isinstance(value, list):
+                            # Pre-compute value set once
+                            value_set = set(value)
                             
-                    # Check if all shows match this scalar criterion
-                    if not (shows[field_id] == value).all():
-                        actual_match_level = 2  # Downgrade to level 2
-                        break
+                            # Sample the first row to check data format
+                            sample = shows[field_column].iloc[0] if len(shows) > 0 else None
+                            
+                            # Check if all shows match this array criterion
+                            if isinstance(sample, list):
+                                # Optimize for small datasets
+                                if len(shows) <= 100:
+                                    # For small datasets, iterate directly
+                                    for idx, row_value in enumerate(shows[field_column]):
+                                        if not (isinstance(row_value, list) and bool(value_set.intersection(row_value))):
+                                            return 2  # Downgrade to level 2
+                                else:
+                                    # For larger datasets, use apply with optimized lambda
+                                    all_match = shows[field_column].apply(
+                                        lambda x: isinstance(x, list) and not value_set.isdisjoint(x)
+                                    ).all()
+                                    if not all_match:
+                                        return 2  # Downgrade to level 2
+                            else:
+                                # For non-list columns, use vectorized operations
+                                all_match = shows[field_column].isin(value).any(axis=0)
+                                if not all_match:
+                                    return 2  # Downgrade to level 2
+                        else:
+                            # Handle scalar fields
+                            # Use the pre-computed field column mapping
+                            field_id = field_columns.get(field_name)
+                            
+                            # Check if column exists
+                            if field_id not in shows.columns:
+                                return 2  # Downgrade to level 2 if field is missing
+                            
+                            # Optimize equality check based on dataset size
+                            if len(shows) > 100:
+                                try:
+                                    # Use numpy's vectorized equality check for large datasets
+                                    import numpy as np
+                                    if not np.all(shows[field_id].values == value):
+                                        return 2  # Downgrade to level 2
+                                except:
+                                    # Fallback to pandas if numpy approach fails
+                                    if not (shows[field_id] == value).all():
+                                        return 2  # Downgrade to level 2
+                            else:
+                                # For small datasets, pandas is fast enough
+                                if not (shows[field_id] == value).all():
+                                    return 2  # Downgrade to level 2
+                    
+                    # If we got here, all criteria matched
+                    return 1
+                
+                # Run the validation and get the actual match level
+                actual_match_level = validate_criteria()
+                
+                # Cache the validation result
+                if not hasattr(self, '_validation_cache'):
+                    setattr(self, '_validation_cache', {})
+                validation_cache = getattr(self, '_validation_cache')
+                validation_cache[validation_cache_key] = actual_match_level
+                
+                # Limit cache size to prevent memory leaks
+                if len(validation_cache) > 1000:  # Arbitrary limit
+                    # Simple strategy: clear half the cache when it gets too large
+                    keys_to_remove = list(validation_cache.keys())[:500]
+                    for key in keys_to_remove:
+                        validation_cache.pop(key, None)
         
         # Create the confidence info dictionary
         confidence_info = {

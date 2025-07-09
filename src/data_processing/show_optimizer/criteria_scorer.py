@@ -133,20 +133,31 @@ class CriteriaScorer:
             Tuple of success rate and confidence information conforming to ConfidenceInfo
             The confidence_info is always a dictionary with at least level, score, and error keys
         """
-        # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
-        # Use len() instead of .empty for better performance
-        if (shows is None or (isinstance(shows, pd.DataFrame) and len(shows) == 0)) and integrated_data is not None and 'shows' in integrated_data:
-            shows = integrated_data['shows']
-                
+        # Fast path: Check for empty shows first to avoid unnecessary processing
+        if shows is None or not isinstance(shows, pd.DataFrame) or len(shows) == 0:
+            # Use integrated_data['shows'] if shows is empty and integrated_data is provided
+            if integrated_data is not None and 'shows' in integrated_data and len(integrated_data['shows']) > 0:
+                shows = integrated_data['shows']
+            else:
+                # Initialize confidence info using update_confidence_info to ensure it conforms to ConfidenceInfo contract
+                from .optimizer_data_contracts import update_confidence_info
+                return None, update_confidence_info({} if confidence_info is None else confidence_info, {
+                    'level': 'none',
+                    'score': 0.0,
+                    'error': 'No valid shows data provided'
+                })
+        
         # Initialize confidence info using update_confidence_info to ensure it conforms to ConfidenceInfo contract
         from .optimizer_data_contracts import update_confidence_info
+        
+        # Process confidence info once
         confidence_info = update_confidence_info({} if confidence_info is None else confidence_info, {})
         if not isinstance(confidence_info, dict):
             # If somehow confidence_info is not a dict, create a new one that conforms to contract
             confidence_info = update_confidence_info({}, {})
         
         # Handle case with no valid shows data - use len() instead of .empty for better performance
-        if shows is None or (isinstance(shows, pd.DataFrame) and len(shows) == 0):
+        if len(shows) == 0:
             confidence_info = update_confidence_info(confidence_info, {
                 'level': 'none',
                 'score': 0.0,
@@ -156,17 +167,34 @@ class CriteriaScorer:
         
         # Pre-calculate the minimum threshold value to avoid dictionary lookup in the filter
         min_threshold = OptimizerConfig.SCORE_NORMALIZATION['success_filter_min']
-        def success_filter(df):
-            return (df['success_score'].notna()) & (df['success_score'] > min_threshold)
         
-        # Validate and prepare data
+        # Fast path: Check if success_score column exists before validation
+        if 'success_score' not in shows.columns:
+            confidence_info = update_confidence_info(confidence_info, {
+                'level': 'none',
+                'score': 0.0,
+                'error': 'Missing required column: success_score'
+            })
+            return None, confidence_info
+            
+        # Fast path: Pre-filter valid rows before full validation
+        valid_rows = (shows['success_score'].notna()) & (shows['success_score'] > min_threshold)
+        if not valid_rows.any():
+            confidence_info = update_confidence_info(confidence_info, {
+                'level': 'none',
+                'score': 0.0,
+                'error': 'No valid success scores found'
+            })
+            return None, confidence_info
+        
+        # Validate and prepare data - with pre-filtered data
         calculator = SuccessScoreCalculator()
         is_valid, validated_data, validation_info = calculator.validate_and_prepare_data(
-            shows, 
+            shows[valid_rows], 
             required_columns=['success_score'],
             optional_columns=[],
             data_column='success_score',
-            filter_condition=success_filter
+            filter_condition=None  # Already filtered
         )
         
         # Handle validation failure - use len() instead of .empty for better performance
@@ -543,21 +571,20 @@ class CriteriaScorer:
                     elif has_valid_matching_shows:
                         data_source = matching_shows
                     
-                    # For each option in option_data, run the matcher to get matching shows
-                    for i, (option_id, option_name) in enumerate(option_data):
+                    # Process all option criteria in a single loop to reduce overhead
+                    for i, option_criteria in enumerate(batch_criteria):
                         try:
-                            # Create criteria for this option using our helper method
-                            option_criteria = self._create_option_criteria(normalized_base_criteria, current_field, option_id, is_array_field)
+                            # Get the option data
+                            option_id, option_name = option_data[i]
                             
-                            # Always use the integrated data for all recommendation types to ensure consistent comparison
+                            # Use the prepared data source from earlier
                             if data_source is not None:
-                                # Use the prepared data source for all criteria combinations
+                                # Find matching shows for this option
                                 option_shows, confidence_info = self.matcher.find_matches_with_fallback(option_criteria, data_source)
-                            # Handle missing integrated data
                             else:
-                                option_shows = pd.DataFrame()
-                                confidence_info = update_confidence_info({}, {
-                                    'level': 'none',
+                                # Skip if no valid data source
+                                field_options_map[option_id] = pd.DataFrame()
+                                confidence_info = ConfidenceInfo({
                                     'match_level': 1,  # Use 1 as the default match level
                                     'error': 'Missing integrated data for option'
                                 })
@@ -591,22 +618,40 @@ class CriteriaScorer:
                 # Field is already initialized in impact_scores above
                 # This ensures we maintain a consistent data structure
                 
-                # Process each option in option_data
+                # Prepare batch processing for success rate calculations
+                valid_options = []
+                valid_option_shows = []
+                option_id_map = {}
+                
+                # Collect all valid options and their matching shows for batch processing
                 for i, (option_id, option_name) in enumerate(option_data):
+                    # Get the option shows from field_options_map
+                    option_shows = field_options_map.get(option_id)
+                    
+                    # Skip options with no matching shows - inline check for better performance
+                    if option_shows is None or (isinstance(option_shows, pd.DataFrame) and len(option_shows) == 0):
+                        continue
+                        
+                    # Add to batch processing lists
+                    valid_options.append((option_id, option_name))
+                    valid_option_shows.append(option_shows)
+                    option_id_map[len(valid_options) - 1] = option_id
+                
+                # Batch calculate success rates for all valid options
+                if valid_options:
+                    option_rates = self._batch_calculate_success_rates([{}] * len(valid_options), valid_option_shows)
+                else:
+                    option_rates = []
+                
+                # Process the batch results
+                for i, option_rate in enumerate(option_rates):
+                    if option_rate is None:
+                        continue
+                    
                     try:
-                        # Get the option shows from field_options_map
-                        option_shows = field_options_map.get(option_id)
+                        option_id = option_id_map[i]
+                        option_name = next(name for oid, name in valid_options if oid == option_id)
                         
-                        # Skip options with no matching shows - inline check for better performance
-                        if option_shows is None or (isinstance(option_shows, pd.DataFrame) and len(option_shows) == 0):
-                            continue
-                            
-                        # Calculate success rate for this option's matching shows
-                        option_rate, option_info = self._calculate_success_rate(option_shows)
-                        
-                        if option_rate is None:
-                            continue
-                            
                         # Calculate impact as the difference from base rate
                         impact = option_rate - base_rate
                         
@@ -643,7 +688,7 @@ class CriteriaScorer:
                         # Skip options with no recommendation type
                         if recommendation_type is None:
                             continue  # Skip to next option
-                            
+                        
                         # Store impact score with all relevant information
                         # Get the sample size safely - we've already validated option_shows is not None above
                         # This avoids redundant None check for better performance
@@ -664,8 +709,8 @@ class CriteriaScorer:
                 
             # Check if we have any impact scores after processing all fields
             # Process impact scores
-                
-                # Debug statements for impact scores removed to reduce verbosity
+            
+            # Debug statements for impact scores removed to reduce verbosity
             
             # Process unselected fields to generate 'add' recommendations
             # Debug statements removed to reduce verbosity
