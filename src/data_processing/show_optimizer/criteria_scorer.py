@@ -134,7 +134,8 @@ class CriteriaScorer:
             The confidence_info is always a dictionary with at least level, score, and error keys
         """
         # Use integrated_data['shows'] if shows is None or empty and integrated_data is provided
-        if (shows is None or shows.empty) and integrated_data is not None and 'shows' in integrated_data:
+        # Use len() instead of .empty for better performance
+        if (shows is None or (isinstance(shows, pd.DataFrame) and len(shows) == 0)) and integrated_data is not None and 'shows' in integrated_data:
             shows = integrated_data['shows']
                 
         # Initialize confidence info using update_confidence_info to ensure it conforms to ConfidenceInfo contract
@@ -144,8 +145,8 @@ class CriteriaScorer:
             # If somehow confidence_info is not a dict, create a new one that conforms to contract
             confidence_info = update_confidence_info({}, {})
         
-        # Handle case with no valid shows data
-        if shows is None or shows.empty:
+        # Handle case with no valid shows data - use len() instead of .empty for better performance
+        if shows is None or (isinstance(shows, pd.DataFrame) and len(shows) == 0):
             confidence_info = update_confidence_info(confidence_info, {
                 'level': 'none',
                 'score': 0.0,
@@ -168,8 +169,8 @@ class CriteriaScorer:
             filter_condition=success_filter
         )
         
-        # Handle validation failure
-        if not is_valid or validated_data is None or validated_data.empty:
+        # Handle validation failure - use len() instead of .empty for better performance
+        if not is_valid or validated_data is None or (isinstance(validated_data, pd.DataFrame) and len(validated_data) == 0):
             confidence_info = update_confidence_info(confidence_info, {
                 'level': 'none',
                 'score': 0.0,
@@ -559,8 +560,8 @@ class CriteriaScorer:
                                                         
                             # Process option matching shows
                             
-                            # Check if we got valid shows
-                            if self._is_valid_dataframe(option_shows):
+                            # Check if we got valid shows - inline check for better performance
+                            if option_shows is not None and isinstance(option_shows, pd.DataFrame) and len(option_shows) > 0:
                                 # Store in field_options_map
                                 field_options_map[option_id] = option_shows
                             else:
@@ -592,8 +593,8 @@ class CriteriaScorer:
                         # Get the option shows from field_options_map
                         option_shows = field_options_map.get(option_id)
                         
-                        # Skip options with no matching shows
-                        if not self._is_valid_dataframe(option_shows):
+                        # Skip options with no matching shows - inline check for better performance
+                        if option_shows is None or (isinstance(option_shows, pd.DataFrame) and len(option_shows) == 0):
                             continue
                             
                         # Calculate success rate for this option's matching shows
@@ -640,8 +641,9 @@ class CriteriaScorer:
                             continue  # Skip to next option
                             
                         # Store impact score with all relevant information
-                        # Get the sample size safely (option_shows might be None in some cases)
-                        sample_size = len(option_shows) if option_shows is not None else 0
+                        # Get the sample size safely - we've already validated option_shows is not None above
+                        # This avoids redundant None check for better performance
+                        sample_size = len(option_shows)
                         
                         impact_scores[current_field][option_id] = {
                             'option_id': option_id,

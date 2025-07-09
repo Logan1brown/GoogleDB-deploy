@@ -378,9 +378,10 @@ class Matcher:
                 # Use list of DataFrames for better performance with concat
                 all_matches = pd.concat([all_matches, new_matches], ignore_index=True)
             
-            # Update our list of unique titles
-            unique_titles.update(new_matches['title'].tolist())
-            total_unique_matches += new_unique_count
+            # Update unique titles set with new matches - use values for better performance
+            if len(new_matches) > 0:
+                unique_titles.update(new_matches['title'].values)
+                total_unique_matches += new_unique_count
             
             # Only apply early termination for relaxed criteria (level > 1)
             # This ensures we find ALL exact matches before moving to relaxed criteria
@@ -388,8 +389,8 @@ class Matcher:
                 # Early termination with sufficient matches
                 break
         
-        # If we still didn't find any matches at any level
-        if all_matches.empty:
+        # If we still didn't find any matches at any level - use len() instead of .empty for better performance
+        if len(all_matches) == 0:
             # Create an empty DataFrame with the required columns
             # Include all columns that will be used downstream
             empty_df = pd.DataFrame(columns=['match_level', 'match_quality', 'match_level_desc', 'title'])
@@ -418,7 +419,8 @@ class Matcher:
         confidence_info['match_level_summary'] = level_summaries
         
         # Sort by match_level (ascending) - no success score sorting during selection
-        if not all_matches.empty:
+        # Use len() instead of .empty for better performance
+        if len(all_matches) > 0:
             # The match_level column is guaranteed to exist since we set it above
             all_matches = all_matches.sort_values(by=['match_level'], ascending=[True])
         # Apply prioritized sampling within each match level if we have more than MAX_RESULTS
@@ -806,7 +808,8 @@ class Matcher:
         actual_match_level = match_level
         
         # Only perform validation if we have shows and claiming exact match (level 1)
-        if not shows.empty and match_level == 1:
+        # Use len() instead of .empty for better performance
+        if len(shows) > 0 and match_level == 1:
             # Get array field mapping to check array fields properly
             array_field_mapping = self.field_manager.get_array_field_mapping()
             
@@ -827,8 +830,8 @@ class Matcher:
                         actual_match_level = 2  # Downgrade to level 2 if field is missing
                         continue
                         
-                    # Sample the first row to check data format
-                    sample = shows[field_column].iloc[0] if not shows.empty else None
+                    # Sample the first row to check data format - use len() instead of .empty for better performance
+                    sample = shows[field_column].iloc[0] if len(shows) > 0 else None
                         
                     # Check if all shows actually match this array criterion
                     value_set = set(value)
