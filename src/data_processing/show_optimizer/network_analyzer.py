@@ -487,6 +487,9 @@ class NetworkAnalyzer:
                     sample_keys = list(success_rates.keys())[:3] if len(success_rates) > 3 else list(success_rates.keys())
                     # Make sure we don't reference network_baseline in debug output
                     OptimizerConfig.debug(f"Network {network_id} analysis: Sample keys: {sample_keys}", category='recommendation')
+                    # Debug #1: Show exact format of network rate keys and values
+                    for key in list(success_rates.keys())[:3] if len(success_rates) > 3 else list(success_rates.keys()):
+                        OptimizerConfig.debug(f"NETWORK RATE DEBUG: Network {network_id} key '{key}' has rate {success_rates[key]['rate']:.4f}", category='recommendation')
             
             return success_rates
         except Exception as e:

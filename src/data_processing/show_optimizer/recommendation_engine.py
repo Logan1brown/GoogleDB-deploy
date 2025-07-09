@@ -484,6 +484,9 @@ class RecommendationEngine:
                 # Debug the overall rates keys to help diagnose matching issues
                 if OptimizerConfig.DEBUG_MODE:
                     OptimizerConfig.debug(f"Overall rates keys: {list(overall_rates.keys())}", category='recommendation')
+                    # Debug #2: Show exact format of overall rate keys and values
+                    for key in list(overall_rates.keys())[:5] if len(overall_rates) > 5 else list(overall_rates.keys()):
+                        OptimizerConfig.debug(f"OVERALL RATE DEBUG: Key '{key}' has rate {overall_rates[key]['rate']:.4f}", category='recommendation')
                 
                 # Get all network-specific success rates first to know which fields we need to calculate overall rates for
                 all_network_rates = {}
@@ -1150,6 +1153,15 @@ class RecommendationEngine:
             
             # Extract field name and value from key for debugging
             field_name_from_key, field_value_from_key = parse_field_value_key(key)
+            
+            # Debug #3: Show exact comparison of keys between network rates and overall rates
+            if OptimizerConfig.DEBUG_MODE:
+                OptimizerConfig.debug(f"COMPARISON DEBUG: Looking for network key '{key}' in overall rates", category='recommendation')
+                OptimizerConfig.debug(f"COMPARISON DEBUG: Network key parsed as field='{field_name_from_key}', value='{field_value_from_key}' (type={type(field_value_from_key).__name__})", category='recommendation')
+                if key in overall_rates:
+                    OptimizerConfig.debug(f"COMPARISON DEBUG: MATCH FOUND - Key '{key}' exists in overall rates", category='recommendation')
+                else:
+                    OptimizerConfig.debug(f"COMPARISON DEBUG: NO MATCH - Key '{key}' not found in overall rates", category='recommendation')
             
             # Only use exact key matches - we can't compare different values
             if OptimizerConfig.DEBUG_MODE and (overall_rate_data is None or 'rate' not in overall_rate_data):
