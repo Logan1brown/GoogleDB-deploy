@@ -49,8 +49,6 @@ class RecommendationEngine:
     """Analyzes show data to identify success factors and generate recommendations."""
     
 
-    
-    
     def _create_success_rate_entry(self, field_name, field_value, success_rate, sample_size):
         """Create a standardized success rate entry for consistent data structure.
         
@@ -73,9 +71,7 @@ class RecommendationEngine:
             rate=success_rate,
             sample_size=sample_size,
             value_name=self._get_criteria_name(field_name, field_value)
-        )
-        
-    
+        )    
     
     def __init__(self, shows_analyzer, success_analyzer, field_manager, criteria_scorer=None):
         """Initialize the recommendation engine.
@@ -107,8 +103,6 @@ class RecommendationEngine:
         # NetworkAnalyzer.analyze_network_compatibility (step 3.4) comes before 
         # RecommendationEngine.generate_recommendations (step 3.5)
         self.network_analyzer = self.criteria_scorer.network_analyzer
-        if OptimizerConfig.DEBUG_MODE:
-            OptimizerConfig.debug(f"Using network_analyzer from criteria_scorer as per architecture flow", category='recommendation')
     
     def calculate_overall_success_rate(self, criteria: CriteriaDict, matching_shows=None) -> Tuple[float, str]:
         """Calculate the overall success rate for the given criteria.
@@ -222,9 +216,9 @@ class RecommendationEngine:
             # Get the impact data from the result
             impact_data = impact_result.criteria_impacts
             
-
         except Exception as e:
             error_msg = f"Error calculating impact data: {str(e)}"
+            st.write(error_msg)
             return []
         
         # Convert to SuccessFactor objects
@@ -310,7 +304,7 @@ class RecommendationEngine:
                     if not single_matches.empty and 'title' in single_matches.columns:
                         matching_titles = single_matches['title'].tolist()[:100]  # Limit to 100 titles
                 except Exception as e:
-                    pass
+                    st.write(f"Error finding matches for single criteria {criteria_type}: {str(e)}")
                 
                 # Create and add the success factor
                 try:
@@ -327,21 +321,20 @@ class RecommendationEngine:
                     success_factors.append(factor)
                     processed_count += 1
                 except Exception as e:
-                    pass
+                    st.write(f"Error creating success factor for {criteria_type}: {str(e)}")
         
         return success_factors
             
     def generate_all_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
-                               integrated_data: IntegratedData = None, 
-                               top_networks: List[NetworkMatch] = None,
-                               confidence_info: Optional[ConfidenceInfo] = None) -> Dict[str, List[RecommendationItem]]:
-        """Generate both general and network-specific recommendations.
+                                integrated_data: IntegratedData = None, 
+                                top_networks: List[NetworkMatch] = None,
+                                confidence_info: Optional[ConfidenceInfo] = None) -> List[RecommendationItem]:
+        """
+        Generate all recommendations in a single unified list.
         
-        This method orchestrates the recommendation generation process, including:
-        1. Calculating impact data once for all recommendations
-        2. Identifying success factors from criteria and matching shows
-        3. Generating general recommendations for missing criteria
-        4. Generating network-specific recommendations if networks are provided
+        This method generates both general and network-specific recommendations in one pass,
+        tagging each recommendation appropriately. All recommendations are returned in a single
+        list, sorted by impact score.
         
         Args:
             criteria: Dictionary of criteria conforming to CriteriaDict
@@ -351,11 +344,10 @@ class RecommendationEngine:
             confidence_info: Optional confidence information dictionary
             
         Returns:
-            Dictionary with 'general' and 'network_specific' recommendation lists
+            A single list of recommendation items with appropriate tagging
         """
-        # Initialize empty recommendation lists
-        general_recommendations = []
-        network_specific_recommendations = []
+        # Initialize empty recommendations list
+        recommendations = []
         
         try:
             # If matching_shows not provided or empty, get them using the matcher
@@ -365,24 +357,19 @@ class RecommendationEngine:
                     if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
                         matching_shows, confidence_info = self.criteria_scorer.matcher.find_matches_with_fallback(criteria)
                         if matching_shows.empty:
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug("No shows match criteria in generate_all_recommendations", category='recommendation')
-                            return {"general": [], "network_specific": []}
+                            # No shows match criteria
+                            return []
                     else:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug("No matcher available in generate_all_recommendations", category='recommendation')
-                        return {"general": [], "network_specific": []}
+                        # No matcher available
+                        return []
                 except Exception as e:
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Error finding matches in generate_all_recommendations: {str(e)}", category='recommendation')
-                    return {"general": [], "network_specific": []}
+                    # Display specific error when finding matches
+                    st.write(f"Error finding matches: {str(e)}")
+                    return []
             
             # Calculate impact data once - this is the expensive operation we want to avoid duplicating
             try:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Calculating criteria impact once for both general and network recommendations", category='recommendation')
-                
-                # For general recommendations, we need to analyze all fields that are already in criteria
+                # For recommendations, we need to analyze all fields that are already in criteria
                 # This limits the expensive calculations to only fields that are already selected
                 fields_to_analyze = list(criteria.keys())
                 
@@ -390,9 +377,7 @@ class RecommendationEngine:
                 if 'network' not in fields_to_analyze:
                     fields_to_analyze.append('network')
                     
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Fields to analyze for impact: {fields_to_analyze}", category='recommendation')
-                
+                # Analyze impact for selected fields and network field
                 impact_result = self.criteria_scorer.calculate_criteria_impact(
                     criteria, 
                     matching_shows, 
@@ -401,299 +386,295 @@ class RecommendationEngine:
                 )
                 
                 # Check for errors
-                if impact_result.error:
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Error in impact calculation: {impact_result.error_message}", category='recommendation')
-                    return {"general": [], "network_specific": []}
+                if impact_result.has_error:
+                    # Error in impact calculation
+                    return []
                     
                 # Get the impact data from the result
                 impact_data = impact_result.criteria_impacts
                 
             except Exception as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Error calculating impact data: {str(e)}", category='recommendation')
-                return {"general": [], "network_specific": []}
+                # Display specific error when calculating impact data
+                st.write(f"Error calculating impact data: {str(e)}")
+                return []
                 
-            # Convert to SuccessFactor objects once - reuse for both general and network recommendations
+            # Convert to SuccessFactor objects
             success_factors = self.identify_success_factors(criteria, matching_shows, integrated_data)
             
             # Generate general recommendations from success factors
-            # Use the more comprehensive implementation of _recommend_missing_criteria
-            general_recommendations = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
+            general_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
             
-            # Sort by absolute impact (descending)
-            general_recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
+            # Add general recommendations to our unified list
+            for rec in general_recs:
+                # Ensure is_network_specific is set to False for general recommendations
+                if 'is_network_specific' not in rec:
+                    rec['is_network_specific'] = False
+                recommendations.append(rec)
             
             # Apply max suggestions limit to general recommendations
             max_suggestions = self.config.SUGGESTIONS.get('max_suggestions', 5)
-            if len(general_recommendations) > max_suggestions:
-                general_recommendations = general_recommendations[:max_suggestions]
+            if len(recommendations) > max_suggestions:
+                recommendations = recommendations[:max_suggestions]
             
             # Generate network-specific recommendations if networks are provided
-            if top_networks and len(top_networks) > 0:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Starting network-specific recommendations generation for {len(top_networks)} networks", category='recommendation')
-                    # Check if network_analyzer is available
-                    if self.network_analyzer is None:
-                        OptimizerConfig.debug("Cannot generate network-specific recommendations: network_analyzer is None", category='recommendation')
-                    else:
-                        OptimizerConfig.debug("Network analyzer is available for network-specific recommendations", category='recommendation')
-                        # Check if matching_shows has network_id column
-                        if matching_shows is not None and not matching_shows.empty:
-                            OptimizerConfig.debug(f"Columns in matching_shows: {list(matching_shows.columns)}", category='recommendation')
-                            if 'network_id' in matching_shows.columns:
-                                unique_networks = matching_shows['network_id'].unique()
-                                OptimizerConfig.debug(f"Unique network IDs in matching shows: {list(unique_networks)}", category='recommendation')
-                
-                # Pre-calculate all overall success rates once for all networks
-                overall_rates = {}
-                
-                # Extract overall success rates from the impact_result
-                # This avoids redundant calculations and ensures consistency
-                if impact_result and hasattr(impact_result, 'criteria_impacts'):
-                    for field, impacts in impact_result.criteria_impacts.items():
-                        for option_id, impact_data in impacts.items():
-                            # Use the exact field name without any transformation
-                            # This ensures exact key matching with network analyzer
-                            db_field = field
+            if top_networks and len(top_networks) > 0 and matching_shows is not None and not matching_shows.empty:
+                # Only proceed if we have the network_id column in matching_shows
+                if 'network_id' not in matching_shows.columns:
+                    st.write("Cannot generate network-specific recommendations: missing network_id column in matching shows")
+                else:
+                    # Calculate success rates for each network
+                    network_rates = {}
+                    overall_rates = {}
+                    
+                    # Calculate overall success rates for all criteria fields
+                    for field_name in criteria.keys():
+                        # Use database column name format for consistency
+                        db_field = field_name if field_name.endswith('_id') else f"{field_name}_id"
+                        field_value = criteria[field_name]
+                        
+                        # Skip non-scalar values (lists, etc.)
+                        if isinstance(field_value, (list, np.ndarray)):
+                            continue
                             
-                            # Use the exact option_id value without any type conversion
-                            # This ensures exact key matching with network analyzer
-                                
-                            key = create_field_value_key(db_field, option_id)
+                        # Create key using exact database column name format
+                        key = create_field_value_key(db_field, field_value)
+                        
+                        # Calculate overall success rate
+                        success_threshold = OptimizerConfig.SUCCESS.get('threshold', 0.7)
+                        success_count = matching_shows[matching_shows['success_score'] >= success_threshold].shape[0]
+                        total_count = matching_shows.shape[0]
+                        
+                        if total_count > 0:
+                            success_rate = success_count / total_count
                             
-                            # Get the success rate from the impact data
-                            success_rate = impact_data.get('success_rate')
-                            if success_rate is not None:
-                                # Use the helper method for consistent data structure
-                                overall_rates[key] = self._create_success_rate_entry(
-                                    field_name=db_field,
-                                    field_value=option_id,
-                                    success_rate=success_rate,
-                                    sample_size=impact_data.get('sample_size', 0)
-                                )
-                                
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Added overall rate for key {key}: {success_rate}", category='recommendation')
+                            # Store overall rate using consistent format
+                            overall_rates[key] = {
+                                'rate': success_rate,
+                                'sample_size': total_count,
+                                'field_name': db_field,
+                                'field_value': field_value
+                            }
                 
-                # Debug the overall rates keys to help diagnose matching issues
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Overall rates keys: {list(overall_rates.keys())}", category='recommendation')
-                    # Debug #2: Show exact format of overall rate keys and values
-                    for key in list(overall_rates.keys())[:5] if len(overall_rates) > 5 else list(overall_rates.keys()):
-                        OptimizerConfig.debug(f"OVERALL RATE DEBUG: Key '{key}' has rate {overall_rates[key]['rate']:.4f}", category='recommendation')
-                
-                # Get all network-specific success rates first to know which fields we need to calculate overall rates for
-                all_network_rates = {}
-                all_keys = set()
-                all_fields_in_network_rates = set()
-                
-                for network in top_networks:
-                    network_rates = self.network_analyzer.get_network_specific_success_rates(
-                        matching_shows=matching_shows,
-                        network_id=network.network_id,
-                        criteria=criteria  # Pass criteria to filter fields
-                    )
-                    all_network_rates[network.network_id] = network_rates
-                    all_keys.update(network_rates.keys())
-                    
-                    # Extract field names from keys to know which fields to calculate all options for
-                    for key in network_rates.keys():
-
-                        field_name, _ = parse_field_value_key(key)
-                        if field_name:
-                            all_fields_in_network_rates.add(field_name)
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Found {len(all_fields_in_network_rates)} fields in network rates: {list(all_fields_in_network_rates)}", category='recommendation')
-                
-                # Calculate overall success rates once for all keys
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Pre-calculating {len(all_keys)} overall success rates from network keys", category='recommendation')
-                    # Log the keys we found to help diagnose issues
-                    if len(all_keys) > 0:
-                        sample_keys = list(all_keys)[:5] if len(all_keys) > 5 else list(all_keys)
-                        OptimizerConfig.debug(f"Sample keys from networks: {sample_keys}", category='recommendation')
-                    else:
-                        OptimizerConfig.debug("WARNING: No keys found in network rates", category='recommendation')
+                    # Process each network to calculate network-specific success rates
+                    for network in top_networks:
+                        if not hasattr(network, 'network_id') or network.network_id is None:
+                            continue
+                            
+                        # Filter shows for this network
+                        network_shows = matching_shows[matching_shows['network_id'] == network.network_id]
                         
-                # Log the keys we need to ensure are in overall_rates
-                if OptimizerConfig.DEBUG_MODE and len(all_keys) > 0:
-                    network_keys = all_keys
-                    if network_keys:
-                        OptimizerConfig.debug(f"Network keys that need overall rates: {network_keys}", category='recommendation')
-                        OptimizerConfig.debug(f"Current overall rate keys: {list(overall_rates.keys())}", category='recommendation')
-                    
-                # Extract fields from network rates to know which fields to calculate all options for
-                fields_in_network_rates = set()
-                for key in all_keys:
-
-                    field_name, _ = parse_field_value_key(key)
-                    if field_name:
-                        fields_in_network_rates.add(field_name)
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Found {len(fields_in_network_rates)} fields in network rates: {list(fields_in_network_rates)}", category='recommendation')
-                
-                # For each field found in network rates, calculate overall rates for ALL options
-                for field_name in fields_in_network_rates:
-                    # Skip if this field is not in the criteria (shouldn't happen, but just in case)
-                    field_in_criteria = field_name
-                    if field_name.endswith('_id') and field_name[:-3] in criteria:
-                        field_in_criteria = field_name[:-3]
-                    elif not field_name.endswith('_id') and f"{field_name}_id" in criteria:
-                        field_in_criteria = f"{field_name}_id"
+                        if network_shows.empty:
+                            continue
+                            
+                        # Calculate network-specific success rates for each criteria field
+                        network_specific_rates = {}
                         
-                    if field_in_criteria not in criteria:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Field {field_name} not found in criteria, skipping", category='recommendation')
-                        continue
-                    
-                    # Get all possible options for this field from the reference data
-                    if hasattr(self.criteria_scorer, 'reference_data') and self.criteria_scorer.reference_data is not None:
-                        field_options = self.criteria_scorer.reference_data.get_field_options(field_in_criteria)
-                        
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Calculating overall rates for all {len(field_options)} options of field {field_name}", category='recommendation')
-                        
-                        # Calculate overall rate for each option
-                        for option in field_options:
-                            option_id = option.get('id')
-                            if option_id is None:
+                        # Process each selected field to calculate success rates for all options
+                        for field_name in criteria.keys():
+                            # Skip non-scalar values and empty fields
+                            field_value = criteria[field_name]
+                            if isinstance(field_value, (list, np.ndarray)) or field_value is None:
                                 continue
                                 
-                            # Create key using the database column name format
-                            db_field = field_name
-                            if not db_field.endswith('_id'):
-                                db_field = f"{db_field}_id"
-                                
-                            # Convert option_id to float to match network analyzer key format
-                            try:
-                                if isinstance(option_id, (int, float)) or (isinstance(option_id, str) and option_id.isdigit()):
-                                    option_id = float(option_id)
-                            except (ValueError, TypeError):
-                                pass
-                                
-                            key = create_field_value_key(db_field, option_id)
+                            # Use database column name format for consistency
+                            db_field = field_name if field_name.endswith('_id') else f"{field_name}_id"
                             
-                            # Skip if we already have this key
-                            if key in overall_rates:
-                                continue
-                                
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Calculating overall rate for option {option_id} of field {field_name}", category='recommendation')
+                            # Create key using exact database column name format for the current value
+                            current_key = create_field_value_key(db_field, field_value)
                             
-                            # Calculate overall success rate for this option
-                            # Create a criteria dict with just this field and value
-                            single_criteria = {field_in_criteria: option_id}
+                            # Calculate network-specific success rate for current value
+                            success_threshold = OptimizerConfig.SUCCESS.get('threshold', 0.7)
+                            success_count = network_shows[network_shows['success_score'] >= success_threshold].shape[0]
+                            total_count = network_shows.shape[0]
                             
-                            # Get matching shows for this single criterion
-                            if hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher is not None:
-                                single_matches, _ = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                            if total_count > 0:
+                                network_rate = success_count / total_count
                                 
-                                # Calculate success rate
-                                if single_matches is not None and not single_matches.empty:
-                                    all_scores = self.criteria_scorer.calculate_scores(single_criteria, single_matches)
-                                    overall_rate = all_scores.get('success_rate')
-                                    
-                                    if overall_rate is not None:
-                                        # Create a consistent data structure
-                                        # Use the helper method for consistent data structure
-                                        overall_rates[key] = self._create_success_rate_entry(
-                                            field_name=field_name,
-                                            field_value=field_value,
-                                            success_rate=overall_rate,
-                                            sample_size=len(single_matches)
-                                        )
+                                # Store network-specific rate for current value using consistent format
+                                network_specific_rates[current_key] = {
+                                    'rate': network_rate,
+                                    'sample_size': total_count,
+                                    'field_name': db_field,
+                                    'field_value': field_value
+                                }
+                                
+                                # Also calculate success rates for alternative options in this field
+                                # Get all options for this field
+                                field_options = self.field_manager.get_options(field_name)
+                                
+                                # Track best alternative option
+                                best_alt_rate = 0
+                                best_alt_value = None
+                                best_alt_name = None
+                                
+                                # Check each alternative option
+                                for option in field_options:
+                                    # Skip the current value
+                                    if option.id == field_value:
+                                        continue
                                         
-                                        if OptimizerConfig.DEBUG_MODE:
-                                            OptimizerConfig.debug(f"Added calculated overall rate for key {key}: {overall_rate}", category='recommendation')
+                                    # Create a filter for shows with this option
+                                    option_filter = network_shows[db_field] == option.id
+                                    option_shows = network_shows[option_filter]
+                                    
+                                    # Skip if no shows match this option
+                                    if option_shows.empty:
+                                        continue
+                                        
+                                    # Calculate success rate for this option
+                                    opt_success_count = option_shows[option_shows['success_score'] >= success_threshold].shape[0]
+                                    opt_total_count = option_shows.shape[0]
+                                    
+                                    if opt_total_count >= OptimizerConfig.SUCCESS['min_data_points']:
+                                        opt_rate = opt_success_count / opt_total_count
+                                        
+                                        # Check if this is better than current best alternative
+                                        if opt_rate > best_alt_rate:
+                                            best_alt_rate = opt_rate
+                                            best_alt_value = option.id
+                                            best_alt_name = option.name
+                                
+                                # Store the best alternative in the current value's data
+                                if best_alt_value is not None:
+                                    network_specific_rates[current_key]['best_alternative'] = {
+                                        'value': best_alt_value,
+                                        'name': best_alt_name,
+                                        'rate': best_alt_rate
+                                    }
                 
-                # Also calculate overall rates for any keys in network rates that we still don't have
-                for key in all_keys:
-                    # Skip if we already have this key
-                    if key in overall_rates:
-                        continue
-                        
-                    # Extract field name and value from key
-                    field_name, field_value = parse_field_value_key(key)
-                    
-                    if field_name is None or field_value is None:
-                        continue
-                        
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Calculating overall rate for key {key} (field={field_name}, value={field_value})", category='recommendation')
-                    
-                    # Create a criteria dict with just this field and value
-                    field_criteria = self.create_field_value_criteria(field_name, field_value)
-                    
-                    # Calculate the overall success rate for this specific field value
-                    overall_rate, _ = self.calculate_overall_success_rate(field_criteria, matching_shows)
-                    
-                    if overall_rate is not None:
-                        # Create a data structure that exactly matches the network_rate_data structure
-                        # This ensures consistent key matching between network and overall rates
-                        # Use the helper method for consistent data structure
-                        overall_rates[key] = self._create_success_rate_entry(
-                            field_name=field_name,
-                            field_value=field_value,
-                            success_rate=overall_rate,
-                            sample_size=len(matching_shows) if matching_shows is not None else 0
-                        )
-                        
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Added calculated overall rate for key {key}: {overall_rate}", category='recommendation')
-                    else:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Could not calculate overall rate for key {key}", category='recommendation')
-                
-                # Process all networks using pre-calculated overall rates
-                for network in top_networks:
-                    try:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Generating recommendations for network: {network.network_name}", category='recommendation')
-                        
-                        network_recs = self.generate_network_specific_recommendations(
-                            criteria, network, matching_shows, integrated_data, confidence_info,
-                            network_rates=all_network_rates.get(network.network_id, {}),
-                            overall_rates=overall_rates
-                        )
-                        
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Generated {len(network_recs)} recommendations for network {network.network_name}", category='recommendation')
-                        
-                        # Add to network_specific_recommendations
-                        network_specific_recommendations.extend(network_recs)
-                    except Exception as e:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Error generating network recommendations for {network.network_name}: {str(e)}", category='recommendation')
+                            # Now compare network-specific rates with overall rates to generate recommendations
+                            for key, network_rate_data in network_specific_rates.items():
+                                # Get corresponding overall rate
+                                overall_rate_data = overall_rates.get(key)
+                                
+                                if not overall_rate_data:
+                                    continue
+                                    
+                                # Extract rates for comparison
+                                network_rate = network_rate_data['rate']
+                                overall_rate = overall_rate_data['rate']
+                                sample_size = network_rate_data['sample_size']
+                                
+                                # Calculate difference between network and overall rates
+                                difference = network_rate - overall_rate
+                                
+                                # Check if we have enough data points for reliable comparison
+                                has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
+                                
+                                # Get thresholds from config
+                                network_diff_threshold = OptimizerConfig.THRESHOLDS['network_difference']
+                                significant_diff_threshold = OptimizerConfig.THRESHOLDS['significant_difference']
+                                
+                                # Determine if the difference is significant enough for a recommendation
+                                condition1 = abs(difference) >= significant_diff_threshold  # Large difference
+                                condition2 = has_sufficient_data and abs(difference) > network_diff_threshold  # Smaller difference with sufficient data
+                                should_generate = condition1 or condition2
+                                
+                                # Create recommendation if the difference is significant
+                                if should_generate:
+                                    # Extract field information
+                                    field_name = network_rate_data['field_name']
+                                    field_value = network_rate_data['field_value']
+                                    
+                                    # Get display name for the current value
+                                    display_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
+                                    current_name = self._get_criteria_name(display_field, field_value)
+                                    
+                                    # Calculate impact score
+                                    impact_score = max(abs(difference), OptimizerConfig.THRESHOLDS['significant_difference']) * (1 if difference > 0 else -1)
+                                    
+                                    # Determine recommendation type and create explanation
+                                    if difference > 0:
+                                        # This is a positive recommendation - keep the current value
+                                        rec_type = self.REC_TYPE_NETWORK_KEEP
+                                        explanation = f"{network.network_name} shows {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
+                                        
+                                        # Create recommendation with no suggested alternative
+                                        recommendation = {
+                                            "recommendation_type": rec_type,
+                                            "field": field_name,
+                                            "current_value": field_value,
+                                            "suggested_value": None,
+                                            "suggested_name": f"{network.network_name}: {current_name}",
+                                            "impact": impact_score,
+                                            "confidence": "medium",
+                                            "explanation": explanation,
+                                            "is_network_specific": True,
+                                            "sample_size": sample_size,
+                                            "metadata": {
+                                                "network_id": network.network_id,
+                                                "network_name": network.network_name,
+                                                "network_rate": network_rate,
+                                                "overall_rate": overall_rate,
+                                                "difference": difference
+                                            }
+                                        }
+                                    else:
+                                        # This is a negative recommendation - suggest changing the current value
+                                        rec_type = self.REC_TYPE_NETWORK_CHANGE
+                                        
+                                        # Check if we have a better alternative for this field
+                                        has_alternative = False
+                                        alt_value = None
+                                        alt_name = None
+                                        alt_rate = None
+                                        
+                                        if 'best_alternative' in network_rate_data:
+                                            alt_data = network_rate_data['best_alternative']
+                                            alt_value = alt_data.get('value')
+                                            alt_name = alt_data.get('name')
+                                            alt_rate = alt_data.get('rate')
+                                            
+                                            # Only suggest if the alternative is significantly better
+                                            if alt_rate and alt_rate > network_rate + OptimizerConfig.THRESHOLDS['network_difference']:
+                                                has_alternative = True
+                                        
+                                        # Create explanation based on whether we have a better alternative
+                                        if has_alternative:
+                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name}. Consider changing to {alt_name} ({alt_rate*100:.1f}%)."
+                                        else:
+                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
+                                        
+                                        # Create recommendation with suggested alternative if available
+                                        recommendation = {
+                                            "recommendation_type": rec_type,
+                                            "field": field_name,
+                                            "current_value": field_value,
+                                            "suggested_value": alt_value if has_alternative else None,
+                                            "suggested_name": alt_name if has_alternative else f"{network.network_name}: {current_name}",
+                                            "impact": impact_score,
+                                            "confidence": "medium",
+                                            "explanation": explanation,
+                                            "is_network_specific": True,
+                                            "sample_size": sample_size,
+                                            "metadata": {
+                                                "network_id": network.network_id,
+                                                "network_name": network.network_name,
+                                                "network_rate": network_rate,
+                                                "overall_rate": overall_rate,
+                                                "difference": difference,
+                                                "alternative_value": alt_value if has_alternative else None,
+                                                "alternative_name": alt_name if has_alternative else None,
+                                                "alternative_rate": alt_rate if has_alternative else None
+                                            }
+                                        }
+                                    recommendations.append(recommendation)
+
+            # Sort all recommendations by impact score (descending)            
+            recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
             
-            # Sort network-specific recommendations by impact
-            network_specific_recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
+            # Apply max total suggestions limit
+            max_total_suggestions = self.config.SUGGESTIONS.get('max_total_suggestions', 10)
+            if len(recommendations) > max_total_suggestions:
+                recommendations = recommendations[:max_total_suggestions]
             
-            return {
-                "general": general_recommendations,
-                "network_specific": network_specific_recommendations
-            }
+            # Return the unified list of tagged recommendations
+            return recommendations
             
         except Exception as e:
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Error in generate_all_recommendations: {str(e)}", category='recommendation')
-            
-            # Always return a dictionary with the expected structure, even on error
-            return {
-                "general": [],
-                "network_specific": []
-            }
-                
-        except Exception as e:
-            error_msg = f"Error in generate_recommendations: {str(e)}"
-            
-            # Always return a dictionary with the expected structure, even on error
-            return {
-                "general": [],
-                "network_specific": []
-            }
+            # Display specific error but return an empty list
+            st.write(f"Error generating recommendations: {str(e)}")
+            return []
     
     def _recommend_missing_criteria(self, criteria: CriteriaDict, 
                                    success_factors: List[SuccessFactor],
@@ -720,8 +701,7 @@ class RecommendationEngine:
         # - 'change': For suggesting different values for already selected fields
         # - 'remove': For suggesting removal of selected fields with negative impact
         try:
-
-            
+        
             # Initialize variables for collecting all potential recommendations
             potential_recommendations = []
             min_impact = OptimizerConfig.SUGGESTIONS['minimum_impact']
@@ -746,9 +726,7 @@ class RecommendationEngine:
                         is_option_selected = option_id in criteria[criteria_type]
                     else:
                         is_option_selected = criteria[criteria_type] == option_id
-                        
-
-                
+                                
                 # Get the recommendation type and impact score
                 impact_score = factor.impact_score
                 criteria_name = factor.criteria_name
@@ -764,8 +742,11 @@ class RecommendationEngine:
                 # Explanation text is handled by the view layer (OptimizerView._generate_explanation_text)
                 # We only need to provide the necessary data for the view to generate explanations
                 
-                # Create recommendation and add to list
-                potential_recommendations.append({
+                # Create recommendation and add to list - ensure full compliance with RecommendationItem contract
+                # Tag network-related recommendations as network-specific
+                is_network_specific = criteria_type.lower() == 'network'
+                
+                recommendation = {
                     'recommendation_type': rec_type,
                     'field': criteria_type,
                     'current_value': None,
@@ -773,10 +754,16 @@ class RecommendationEngine:
                     'suggested_name': criteria_name,
                     'impact': impact_score,
                     'confidence': factor.confidence,
-                })
+                    'explanation': factor.explanation if hasattr(factor, 'explanation') and factor.explanation else '',
+                    'is_network_specific': is_network_specific
+                }
+                
+                # Add sample size if available
+                if hasattr(factor, 'sample_size') and factor.sample_size:
+                    recommendation['sample_size'] = factor.sample_size
                     
-
-            
+                potential_recommendations.append(recommendation)
+                      
             # Now that we've collected all potential recommendations, sort them by absolute impact (descending)
             potential_recommendations.sort(key=lambda x: abs(x['impact']), reverse=True)
             
@@ -1015,9 +1002,7 @@ class RecommendationEngine:
                         recommendations.append(recommendation)
             
             return recommendations
-    
-
-    
+      
     def _get_criteria_name(self, criteria_type, value):
         """Get the reference name for a criteria value.
         
@@ -1041,208 +1026,3 @@ class RecommendationEngine:
             if option.id == value:
                 return option.name
         return str(value)
-
-    def generate_network_specific_recommendations(self, criteria: CriteriaDict, 
-                                               network: NetworkMatch,
-                                               matching_shows: pd.DataFrame,
-                                               integrated_data: IntegratedData,
-                                               confidence_info: Optional[ConfidenceInfo] = None,
-                                               network_rates: Dict = None,
-                                               overall_rates: Dict = None) -> List[RecommendationItem]:
-        """
-        Generate network-specific recommendations.
-
-        Args:
-            criteria: Dictionary of criteria values
-            network: NetworkMatch object with network information
-            matching_shows: DataFrame of shows matching the criteria
-            integrated_data: Integrated data for additional context
-            confidence_info: Optional confidence information dictionary
-            network_rates: Pre-calculated network-specific success rates (optional)
-            overall_rates: Pre-calculated overall success rates (optional)
-
-        Returns:
-            List of network-specific recommendations
-        """
-        # Ensure confidence_info conforms to our ConfidenceInfo contract
-        if confidence_info is not None:
-            confidence_info = update_confidence_info(confidence_info, {})
-            
-        # Get network-specific success rates if not provided
-        if network_rates is None:
-            network_rates = self.network_analyzer.get_network_specific_success_rates(
-                matching_shows=matching_shows,
-                network_id=network.network_id,
-                criteria=criteria
-            )
-        
-        if not network_rates:
-            return []
-    
-
-        
-        # Calculate overall success rates if not provided
-        if overall_rates is None:
-            overall_rates = {}
-            
-            # We rely on the overall_rates parameter from the caller
-            # which contains the correct overall rates from the impact_result
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"No overall rates provided, using empty dictionary", category='recommendation')
-        
-        recommendations = []
-                 
-        # DATA CONTRACT: Network rates use database column names (IDs) as field names in keys
-        # These IDs must match exactly with the criteria keys for proper matching
-        # The recommendation engine uses these IDs for all internal processing
-        # Human-readable names are derived only for display purposes using _get_criteria_name
-        
-        # The criteria dictionary may use field names without _id suffix
-        valid_fields = set(criteria.keys())
-        valid_network_rates = {}
-        
-        # Process network rates for fields in criteria without excessive debug logging
-            
-        for key, network_rate_data in network_rates.items():
-            field_name, _ = parse_field_value_key(key)
-            
-            # Keep using exact database column names for consistency with overall_rates keys
-            # This ensures the same keys are used throughout the system
-            criteria_field = field_name
-            
-            # Only process fields that exist in criteria (either with original name or mapped name)
-            if field_name in valid_fields or criteria_field in valid_fields:
-                # Use the field name that exists in criteria
-                used_field = field_name if field_name in valid_fields else criteria_field
-                # Get display name for the current value
-                # For UI display only - use field name without _id suffix
-                # This doesn't affect the key matching which uses exact database column names
-                display_field = field_name[:-3] if field_name.endswith('_id') and not field_name.endswith('_ids') else field_name
-                current_value = criteria[used_field]
-                
-                valid_network_rates[key] = {
-                    'field_name': field_name,
-                    'network_rate_data': network_rate_data,
-                    'current_value': current_value,
-                    'current_name': self._get_criteria_name(display_field, current_value)
-                }
-        
-        # Now process only the valid network rates
-        for key, data in valid_network_rates.items():
-            field_name = data['field_name']
-            network_rate_data = data['network_rate_data']
-            current_value = data.get('current_value')
-            current_name = data.get('current_name')
-            
-            # Get the overall success rate using the exact key
-            overall_rate_data = overall_rates.get(key)
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Processing key {key}: network_rate_data={network_rate_data}", category='recommendation')
-                OptimizerConfig.debug(f"Processing key {key}: overall_rate_data={overall_rate_data}", category='recommendation')
-                OptimizerConfig.debug(f"Available overall rate keys: {list(overall_rates.keys())}", category='recommendation')
-                OptimizerConfig.debug(f"Current value for field {field_name}: {current_value}", category='recommendation')
-                OptimizerConfig.debug(f"Current name for field {field_name}: {current_name}", category='recommendation')
-                
-                # No defensive code - rely on exact key matching
-            
-            # Extract field name and value from key for debugging
-            field_name_from_key, field_value_from_key = parse_field_value_key(key)
-            
-            # Debug #3: Show exact comparison of keys between network rates and overall rates
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"COMPARISON DEBUG: Looking for network key '{key}' in overall rates", category='recommendation')
-                OptimizerConfig.debug(f"COMPARISON DEBUG: Network key parsed as field='{field_name_from_key}', value='{field_value_from_key}' (type={type(field_value_from_key).__name__})", category='recommendation')
-                if key in overall_rates:
-                    OptimizerConfig.debug(f"COMPARISON DEBUG: MATCH FOUND - Key '{key}' exists in overall rates", category='recommendation')
-                else:
-                    OptimizerConfig.debug(f"COMPARISON DEBUG: NO MATCH - Key '{key}' not found in overall rates", category='recommendation')
-            
-            # Only use exact key matches - we can't compare different values
-            if OptimizerConfig.DEBUG_MODE and (overall_rate_data is None or 'rate' not in overall_rate_data):
-                # For debugging only - show what keys we have available
-                matching_keys = [k for k in overall_rates.keys() if k.startswith(f"{field_name_from_key}:")]
-                if matching_keys:
-                    OptimizerConfig.debug(f"Found keys for same field but different values: {matching_keys}", category='recommendation')
-                    OptimizerConfig.debug(f"Cannot compare {key} with different values - exact match required", category='recommendation')
-            
-            if overall_rate_data is None or 'rate' not in overall_rate_data:
-                # Skip criteria without overall rates
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Skipping key {key}: Missing overall rate data", category='recommendation')
-                continue
-                
-            # Use the explicit rate value
-            try:
-                overall_rate = overall_rate_data['rate']
-                network_rate = network_rate_data['rate']
-                sample_size = network_rate_data['sample_size']
-                
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"RATE VALUES: key={key}, network_rate={network_rate}, overall_rate={overall_rate}, sample_size={sample_size}", category='recommendation')
-            except (KeyError, TypeError) as e:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"ERROR extracting rate values for key {key}: {str(e)}", category='recommendation')
-                    OptimizerConfig.debug(f"overall_rate_data={overall_rate_data}", category='recommendation')
-                    OptimizerConfig.debug(f"network_rate_data={network_rate_data}", category='recommendation')
-                continue
-            
-            # Skip if we don't have valid rates to compare
-            if network_rate is None or overall_rate is None:
-                continue
-                
-            # Calculate the difference between network and overall rates
-            difference = network_rate - overall_rate
-            
-            # Check if we have enough data points for reliable comparison
-            has_sufficient_data = sample_size >= OptimizerConfig.SUCCESS['min_data_points']
-            
-            # Get thresholds from config
-            network_diff_threshold = OptimizerConfig.THRESHOLDS['network_difference']
-            significant_diff_threshold = OptimizerConfig.THRESHOLDS['significant_difference']
-            
-            # Determine if the difference is significant enough for a recommendation
-            condition1 = abs(difference) >= significant_diff_threshold  # Large difference
-            condition2 = has_sufficient_data and abs(difference) > network_diff_threshold  # Smaller difference with sufficient data
-            should_generate = condition1 or condition2
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network {network.network_name} field {field_name}: network_rate={network_rate:.3f}, overall_rate={overall_rate:.3f}, diff={difference:.3f}, significant={should_generate}", category='recommendation')
-                OptimizerConfig.debug(f"Thresholds: network_diff={network_diff_threshold}, significant_diff={significant_diff_threshold}, sample_size={sample_size}, sufficient_data={has_sufficient_data}", category='recommendation')
-                OptimizerConfig.debug(f"Condition1 (large diff): {condition1} (abs({difference:.3f}) >= {significant_diff_threshold})", category='recommendation')
-                OptimizerConfig.debug(f"Condition2 (smaller diff with data): {condition2} (has_sufficient_data={has_sufficient_data} and abs({difference:.3f}) > {network_diff_threshold})", category='recommendation')
-            
-            # Create recommendation if the difference is significant
-            if should_generate:
-                # Calculate impact score with minimum threshold from config
-                impact_score = max(abs(difference), OptimizerConfig.THRESHOLDS['significant_difference']) * (1 if difference > 0 else -1)
-                
-                # Determine recommendation type and create explanation
-                if difference > 0:
-                    rec_type = self.REC_TYPE_NETWORK_KEEP
-                    explanation = f"{network.network_name} shows {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
-                else:
-                    rec_type = self.REC_TYPE_NETWORK_CHANGE
-                    explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
-                
-                # Create and append recommendation
-                recommendations.append({
-                    "recommendation_type": rec_type,
-                    "field": field_name,
-                    "current_value": current_value,
-                    "suggested_value": None,
-                    "suggested_name": f"{network.network_name}: {current_name}",
-                    "impact": impact_score,
-                    "confidence": network_rate_data.get("confidence", "medium"),
-                    "explanation": explanation,
-                    "is_network_specific": True,  # Flag to mark as network-specific recommendation
-                    "metadata": {
-                        "network_id": network.network_id,
-                        "network_name": network.network_name,
-                        "network_rate": network_rate,
-                        "overall_rate": overall_rate,
-                        "difference": difference
-                    }
-                })
-        
-        return recommendations

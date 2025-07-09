@@ -335,7 +335,8 @@ def create_field_value_key(field_name: str, value: Any) -> str:
         elif isinstance(value, (int, float)):
             # Normalize numeric values to ensure consistent keys
             # Convert floats with zero decimal part to integers
-            if isinstance(value, float) and value.is_integer():
+            # Use a more robust approach to check for integer equivalence
+            if isinstance(value, float) and value == int(value):
                 value_str = str(int(value))
             else:
                 value_str = str(value)

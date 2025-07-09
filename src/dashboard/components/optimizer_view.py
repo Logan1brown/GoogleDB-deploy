@@ -269,7 +269,7 @@ class OptimizerView:
                 "subtitle": "Success probability not available"
             }
         
-    def _format_recommendations(self, recommendations: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]:
+    def _format_recommendations(self, recommendations: List[Dict[str, Any]]) -> Dict[str, Union[List[Dict[str, Union[str, float, int, bool]]], Dict[str, List[Dict[str, Union[str, float, int, bool]]]]]]:
         """
         Format recommendations for display in the UI.
         
@@ -286,7 +286,7 @@ class OptimizerView:
         - 'network_change': For suggesting to change elements that don't work well with a specific network
         
         Args:
-            recommendations: Dictionary with 'general' and 'network_specific' recommendation lists
+            recommendations: Unified list of recommendations with is_network_specific tags
             
         Returns:
             Dictionary with formatted recommendations grouped by type:
@@ -312,9 +312,15 @@ class OptimizerView:
                 header = config.RECOMMENDATION_TYPES.get(rec_type, f"{rec_type.replace('_', ' ').title()} Recommendations")
                 grouped[rec_type] = {'items': [], 'header': header}
             
-        # Extract general and network-specific recommendations from the dictionary structure
-        general_recs = recommendations.get('general', [])
-        network_specific_recs = recommendations.get('network_specific', [])
+        # Separate recommendations based on is_network_specific tag
+        general_recs = []
+        network_specific_recs = []
+        
+        for rec in recommendations:
+            if rec.get('is_network_specific', False):
+                network_specific_recs.append(rec)
+            else:
+                general_recs.append(rec)
         
         # Track formatted network-specific recommendations
         network_specific_formatted = []
@@ -323,7 +329,7 @@ class OptimizerView:
         if OptimizerConfig.DEBUG_MODE:
             general_count = len(general_recs)
             network_count = len(network_specific_recs)
-            total_count = general_count + network_count
+            total_count = len(recommendations)
             OptimizerConfig.debug(f"Formatting {total_count} recommendations ({general_count} general, {network_count} network-specific)", category='recommendation')
             
             if general_recs:
@@ -617,8 +623,8 @@ class OptimizerView:
         for group_name, group_data in grouped.items():
             if group_name in ['add', 'change', 'remove']:
                 for rec in group_data.get('items', []):
-                    # Check if this is a network recommendation (field is 'network')
-                    if rec.get('field', '').lower() == 'network':
+                    # Check if this is a network recommendation (using the is_network_specific tag)
+                    if rec.get('is_network_specific', False):
                         # Create a network-specific recommendation format
                         network_rec = rec.copy()
                         

@@ -183,34 +183,21 @@ class NetworkAnalyzer:
         except Exception as e:
             return {}
     
-    def get_network_tiers(self, matching_shows: pd.DataFrame = None, min_confidence: str = 'low', criteria: CriteriaDict = None, integrated_data: IntegratedData = None) -> Dict[str, List[NetworkMatch]]:
+    def get_network_tiers(self, matching_shows: pd.DataFrame, min_confidence: str = 'low') -> Dict[str, List[NetworkMatch]]:
         """Group networks into tiers based on compatibility using matching shows.
         
-        This method supports two calling patterns:
-        1. With matching_shows directly (legacy pattern)
-        2. With criteria and integrated_data to find matching shows first (new pattern)
-        
         Args:
-            matching_shows: Optional DataFrame of shows matching the criteria with match_level column
+            matching_shows: DataFrame of shows matching the criteria with match_level column
             min_confidence: Minimum confidence level to include (none, low, medium, high)
-            criteria: Optional criteria dictionary to find matching shows if not provided
-            integrated_data: Optional integrated data needed to find matching shows
             
         Returns:
             Dictionary mapping tier names to lists of NetworkMatch objects
         """
         try:
-            # Handle the case where criteria and integrated_data are provided instead of matching_shows
-            if matching_shows is None and criteria is not None and integrated_data is not None:
-                # Use criteria_scorer to find matching shows
-                if self.criteria_scorer and hasattr(self.criteria_scorer, 'matcher') and self.criteria_scorer.matcher:
-                    matching_shows, _ = self.criteria_scorer.matcher.find_matches_with_fallback(criteria, integrated_data)
-                    
-                    if matching_shows is None or matching_shows.empty:
-                        return {}
-                else:
-                    # No matcher available
-                    return {}
+            # Validate inputs - require matching_shows to be provided
+            if matching_shows is None or matching_shows.empty:
+                st.error("Error: No matching shows provided for network tier analysis")
+                return {}
             
             # Validate inputs for both calling patterns
             if matching_shows is None or matching_shows.empty:
@@ -245,323 +232,16 @@ class NetworkAnalyzer:
             st.error(f"Error getting network tiers: {str(e)}")
             return {}
     
-    def get_network_specific_success_rates(self, matching_shows: pd.DataFrame, network_id: str, criteria: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
-        """Calculate success rates for specific field-value pairs within a network.
-        
-        Args:
-            matching_shows: DataFrame of shows matching the criteria
-            network_id: ID of the network to analyze
-            criteria: Optional dictionary of criteria to filter which fields to analyze.
-                      If provided, only fields in this criteria will be analyzed.
-            
-        Returns:
-            Dictionary of success rates by field-value key
-            key with the overall success rate for this network.
-        """
-        try:
-            # Initialize success rates dictionary
-            success_rates = {}
-            
-            # Validate inputs
-            if matching_shows is None or matching_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network {network_id} analysis: No matching shows provided", category='recommendation')
-                return {}
-                
-            # Check if network_id column exists
-            if 'network_id' not in matching_shows.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network {network_id} analysis: No network_id column in matching shows", category='recommendation')
-                    OptimizerConfig.debug(f"Available columns: {list(matching_shows.columns)}", category='recommendation')
-                return {}
-            
-            # Filter shows to only those from this network
-            network_shows = matching_shows[matching_shows['network_id'] == network_id].copy()
-            
-            # Skip if no shows for this network
-            if network_shows.empty:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network {network_id} analysis: No shows for this network", category='recommendation')
-                return {}
-                
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network {network_id} analysis: Found {len(network_shows)} shows for this network", category='recommendation')
-                
-            # Check if success_score column exists
-            if 'success_score' not in network_shows.columns:
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network {network_id} analysis: No success_score column in network shows", category='recommendation')
-                return {}
-                
-            # Get success threshold from config
-            success_threshold = OptimizerConfig.SUCCESS['threshold']
-            
-            # Define standard columns to exclude
-            standard_columns = ['show_id', 'title', 'success_score', 'match_level', 'network_id', 'network_name']
-            
-            # Only process ID columns for consistency with the rest of the system
-            # This follows the CriteriaDict contract which uses IDs for all fields
-            id_columns = [col for col in network_shows.columns 
-                          if (col.endswith('_id') or col.endswith('_ids')) 
-                          and col not in standard_columns]
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network {network_id} analysis: Found {len(id_columns)} ID columns to analyze", category='recommendation')
-                # Show sample values for each ID column to help diagnose issues
-                for col in id_columns[:3]:  # Limit to first 3 columns to avoid excessive output
-                    unique_vals = network_shows[col].dropna().unique()
-                    if len(unique_vals) > 0:
-                        sample_vals = unique_vals[:3] if len(unique_vals) > 3 else unique_vals
-                        OptimizerConfig.debug(f"Network {network_id} analysis: Column {col} sample values: {sample_vals}", category='recommendation')
-            
-
-            
-            # Filter columns to only those in criteria if criteria is provided
-            columns_to_process = id_columns
-            if criteria:
-                # Map database field names to criteria keys
-                criteria_fields = set()
-                for field in criteria.keys():
-                    # Add the original field name
-                    criteria_fields.add(field)
-                    # Add the field name with '_id' suffix if it doesn't already end with '_id'
-                    if not field.endswith('_id') and not field.endswith('_ids'):
-                        criteria_fields.add(f"{field}_id")
-                    # Add the field name without '_id' suffix if it ends with '_id'
-                    if field.endswith('_id'):
-                        criteria_fields.add(field[:-3])
-                
-                # Filter id_columns to only those related to criteria fields
-                filtered_columns = [col for col in id_columns if col in criteria_fields or (col.endswith('_id') and col[:-3] in criteria_fields)]
-                
-                # Only use filtered columns if we actually found some, otherwise use all columns
-                # This ensures we always have some data to work with
-                if filtered_columns:
-                    columns_to_process = filtered_columns
-                    
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug(f"Network {network_id} analysis: Filtered from {len(id_columns)} to {len(columns_to_process)} columns based on criteria", category='recommendation')
-                    if not filtered_columns:
-                        OptimizerConfig.debug(f"Network {network_id} analysis: No columns matched criteria, using all columns", category='recommendation')
-            
-            # Process each valid criteria column (ID columns)
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network {network_id} analysis: Processing {len(columns_to_process)} columns: {columns_to_process}", category='recommendation')
-                
-            for column in columns_to_process:
-                # Get unique values for this column
-                try:
-                    # Skip columns with all null values
-                    if network_shows[column].isna().all():
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Network {network_id} analysis: Skipping column {column} - all values are null", category='recommendation')
-                        continue
-                        
-                    # Get unique non-null values
-                    unique_values = network_shows[column].dropna().unique()
-                    
-                    # Skip if no unique values
-                    if len(unique_values) == 0:
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Network {network_id} analysis: No unique values for column {column}", category='recommendation')
-                        continue
-                        
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug(f"Network {network_id} analysis: Found {len(unique_values)} unique values for column {column}", category='recommendation')
-                        
-
-                        
-                    # For each unique value, calculate success rate
-                    for value in unique_values:
-                        # Skip null values
-                        if pd.isna(value):
-                            continue
-                            
-                        # Handle array fields differently
-                        is_array_field = False
-                        try:
-                            if isinstance(value, (list, tuple)):
-                                is_array_field = True
-                                # For list-type fields, find shows where the column contains this value
-                                value_shows = network_shows[network_shows[column].apply(
-                                    lambda x: isinstance(x, list) and all(item in x for item in value) if isinstance(x, list) else False
-                                )]
-                            elif isinstance(value, str) and column.endswith('_names') and '[' in value:
-                                is_array_field = True
-                                # Skip string representations of arrays as they need special parsing
-                                continue
-                            else:
-                                # For scalar fields, use direct comparison
-                                value_shows = network_shows[network_shows[column] == value]
-                        except Exception as e:
-                            continue
-                        
-                        # Skip if no shows
-                        if value_shows.empty:
-                            continue
-                            
-                        # Calculate success rate if we have data
-                        if 'success_score' not in value_shows.columns:
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Network {network_id} analysis: Missing success_score column for {column}", category='recommendation')
-                            continue
-                            
-                        success_count = value_shows[value_shows['success_score'] >= success_threshold].shape[0]
-                        total_count = value_shows.shape[0]
-                        
-                        if OptimizerConfig.DEBUG_MODE:
-                            OptimizerConfig.debug(f"Network {network_id} analysis: Column {column}, Value {value}, Success count {success_count}, Total count {total_count}", category='recommendation')
-                            
-                        if total_count > 0:
-                            success_rate = success_count / total_count
-                            
-                            # Use the exact database column name (ID) for field_name
-                            field_name = column
-                            
-                            # Get value name for display
-                            value_name = str(value)
-                            
-                            # Clean up value_name if it contains "Unknown" with a number in parentheses
-                            clean_value_name = value_name
-                            if isinstance(value_name, str) and "Unknown" in value_name and "(" in value_name and ")" in value_name:
-                                try:
-                                    # Extract the value inside parentheses
-                                    start_idx = value_name.find("(") + 1
-                                    end_idx = value_name.find(")")
-                                    if start_idx > 0 and end_idx > start_idx:
-                                        clean_value = value_name[start_idx:end_idx].strip()
-                                        clean_value_name = clean_value
-                                except Exception:
-                                    # Keep original value_name if extraction fails
-                                    pass
-                            
-                            # Get matching show titles (up to MAX_RESULTS)
-                            matching_titles = []
-                            if 'title' in value_shows.columns:
-                                matching_titles = value_shows['title'].tolist()
-                                if len(matching_titles) > OptimizerConfig.MAX_RESULTS:
-                                    matching_titles = matching_titles[:OptimizerConfig.MAX_RESULTS]
-                            
-                            # Use the centralized create_success_rate_data function for consistent data structure
-                            # This ensures consistent data structure between network-specific and overall success rates
-                            success_rate_data = create_success_rate_data(
-                                field_name=field_name,
-                                value=value,
-                                rate=success_rate,
-                                sample_size=total_count,
-                                value_name=clean_value_name
-                            )
-                            
-                            # Add matching shows to the data
-                            success_rate_data['matching_shows'] = matching_titles
-                            
-                            # Add cleaned value name if different from the generated one
-                            if clean_value_name != success_rate_data['value_name']:
-                                success_rate_data['original_value_name'] = success_rate_data['value_name']
-                                success_rate_data['value_name'] = clean_value_name
-                            
-                            # Create a key using the exact database column name
-                            # Using the imported create_field_value_key function from optimizer_data_contracts
-                            key = create_field_value_key(field_name, value)
-                            
-                            if OptimizerConfig.DEBUG_MODE:
-                                OptimizerConfig.debug(f"Network {network_id} analysis: Created key {key} for field {field_name}", category='recommendation')
-                            
-                            # Only add if this key doesn't already exist in success_rates
-                            if key not in success_rates:
-                                success_rates[key] = success_rate_data
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Network {network_id} analysis: Added key {key} to success_rates", category='recommendation')
-                            else:
-                                if OptimizerConfig.DEBUG_MODE:
-                                    OptimizerConfig.debug(f"Network {network_id} analysis: Key {key} already exists in success_rates", category='recommendation')
-                except Exception as e:
-                    # Error processing column
-                    continue
-            
-
-            
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Network {network_id} analysis: Returning {len(success_rates)} success rates", category='recommendation')
-                if len(success_rates) > 0:
-                    sample_keys = list(success_rates.keys())[:3] if len(success_rates) > 3 else list(success_rates.keys())
-                    # Make sure we don't reference network_baseline in debug output
-                    OptimizerConfig.debug(f"Network {network_id} analysis: Sample keys: {sample_keys}", category='recommendation')
-                    # Debug #1: Show exact format of network rate keys and values
-                    for key in list(success_rates.keys())[:3] if len(success_rates) > 3 else list(success_rates.keys()):
-                        OptimizerConfig.debug(f"NETWORK RATE DEBUG: Network {network_id} key '{key}' has rate {success_rates[key]['rate']:.4f}", category='recommendation')
-            
-            return success_rates
-        except Exception as e:
-            return {}
+    # The get_network_specific_success_rates method has been removed
+    # Network-specific success rates are now calculated directly in the recommendation engine
+    # This ensures consistent key formats and eliminates potential key mismatches
     
-    def get_network_recommendations(self, matching_shows: pd.DataFrame, 
-                                     network: NetworkMatch, 
-                                     concept_analyzer=None) -> List[RecommendationItem]:
-        """Generate network-specific recommendations using the RecommendationEngine from ConceptAnalyzer.
-        
-        Args:
-            matching_shows: DataFrame of shows matching the criteria with match_level column
-            network: Target network with compatibility score and other metrics
-            concept_analyzer: ConceptAnalyzer instance that contains the RecommendationEngine
-            
-        Returns:
-            List of RecommendationItem dictionaries with standardized structure
-        """
-        try:
-            # Debug logging to verify network object type and attributes
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG [network_analyzer.py:get_network_recommendations]: Network object type: {type(network).__name__}")
-
-            
-            # Get the RecommendationEngine from the ConceptAnalyzer
-            recommendation_engine = concept_analyzer.recommendation_engine
-                
-            # Get network ID using direct attribute access
-            network_id = network.network_id
-                
-            # Filter matching_shows to this network if needed
-            network_shows = matching_shows
-            if 'network_id' in matching_shows.columns:
-                network_shows = matching_shows[matching_shows['network_id'] == network_id]
-                
-                if network_shows.empty:
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: No shows found for network ID {network_id}")
-                    return []
-            
-            # Extract criteria from matching_shows if possible
-            # This is more reliable than passing potentially stale criteria
-            criteria: CriteriaDict = {}
-            if hasattr(matching_shows, 'criteria') and isinstance(matching_shows.criteria, dict):
-                # Use the criteria exactly as provided - no conversion needed
-                # The system should consistently use database column names (IDs) throughout
-                criteria = matching_shows.criteria
-                
-
-            
-            # Get integrated data from concept_analyzer if available
-            integrated_data = None
-            if hasattr(concept_analyzer, 'integrated_data'):
-                integrated_data = concept_analyzer.integrated_data
-            
-            # Call the RecommendationEngine with the network-specific shows
-            # This will generate recommendations specific to this network
-
-            
-            # Call the recommendation engine with the network object
-            # Create a default confidence_info dictionary to ensure contract compliance
-            confidence_info = update_confidence_info({}, {})
-            return recommendation_engine.generate_network_specific_recommendations(
-                criteria=criteria,
-                network=network,
-                matching_shows=network_shows,
-                integrated_data=integrated_data,
-                confidence_info=confidence_info
-            )
-        except Exception as e:
-            st.error(f"Error generating network recommendations: {str(e)}")
-            return []
+    # The get_network_recommendations method has been removed as part of unifying the recommendation generation.
+    # All recommendations (both general and network-specific) are now generated through the unified generate_all_recommendations
+    # method in the RecommendationEngine and tagged with is_network_specific=True/False for proper categorization.
+    # 
+    # Network-specific recommendations are now generated alongside general recommendations in a single pass,
+    # eliminating redundant calculations and ensuring consistent data contracts.
     
     def _get_criteria_name(self, criteria_type: str, criteria_value: Any) -> str:
         """Get the display name for a criteria value.

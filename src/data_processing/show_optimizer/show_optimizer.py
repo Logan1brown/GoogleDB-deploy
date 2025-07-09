@@ -362,46 +362,6 @@ class ShowOptimizer:
             st.error(f"Error matching shows: {str(e)}")
             return pd.DataFrame(), 0
     
-    def _create_fallback_summary(self, error_message: str) -> OptimizationSummary:
-        """Create a fallback summary when analysis fails.
-        
-        Args:
-            error_message: The error message to include in the summary
-            
-        Returns:
-            A fallback OptimizationSummary object with error information
-        """
-        # Create a minimal but valid OptimizationSummary with error information
-        current_time = datetime.now()
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-        
-        return OptimizationSummary(
-            overall_success_probability=None,  # None indicates unknown probability
-            confidence="Low",
-            top_networks=[],
-            component_scores={},
-            recommendations=[
-                {
-                    "field": "error",
-                    "option": "error",
-                    "option_name": "Error Occurred",
-                    "impact": 1.0,  # High impact
-                    "confidence": "low",
-                    "recommendation_type": "error",
-                    "explanation": f"Analysis failed: {error_message}"
-                }
-            ],
-            success_factors=[],
-            matching_titles=[],
-            match_level=0,
-            match_quality=0.0,
-            confidence_score=0.0,
-            matching_shows=None,
-            match_count=0,
-            match_counts_by_level={},
-            confidence_info={'error': error_message, 'level': 'none'}
-        )
-    
     def _handle_error(self, error_message: str) -> None:
         """Handle errors by displaying an error message.
         

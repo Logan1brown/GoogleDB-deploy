@@ -44,7 +44,7 @@ class OptimizationSummary:
     confidence: str
     top_networks: List[NetworkMatch]
     component_scores: Dict[str, ComponentScore]
-    recommendations: Dict[str, List[Dict[str, Any]]]  # Dictionary with 'general' and 'network_specific' recommendation lists
+    recommendations: List[Dict[str, Any]]  # Unified list of recommendations with is_network_specific tags
     success_factors: List[SuccessFactor]
     matching_titles: List[str] = field(default_factory=list)  # Titles of shows matching all criteria
     match_level: int = 1  # Match level used (1-4, where 1 is highest)
@@ -188,34 +188,14 @@ class OptimizationSummary:
                 formatted['networks'].append(network_data)
                 # Format recommendations data - now using the new dictionary structure
         if self.recommendations:
-            # Process general recommendations
-            general_recs = self.recommendations.get('general', [])
-            for rec in general_recs:
-                # Ensure rec is a dictionary
-                if not isinstance(rec, dict):
-                    # Skip non-dictionary recommendations
-                    continue
-                    
-                # Dictionary-style access for TypedDict
-                rec_type = rec.get('recommendation_type', '')
-                rec_dict = {
-                    'recommendation_type': rec_type,
-                    'criteria_type': rec.get('field', ''),
-                    'current_value': rec.get('current_value', None),
-                    'current_name': rec.get('current_name', ''),
-                    'suggested_value': rec.get('suggested_value', None),
-                    'suggested_name': rec.get('suggested_name', ''),
-                    'impact_score': rec.get('impact', 0.0),
-                    'confidence': rec.get('confidence', 'none'),
-                    'description': rec.get('explanation', 'No explanation available')
-                }
-                
-                # Add to general recommendations
-                formatted['recommendations']['general'].append(rec_dict)
+            # Initialize formatted recommendation containers
+            formatted['recommendations'] = {
+                'general': [],
+                'network_specific': []
+            }
             
-            # Process network-specific recommendations
-            network_recs = self.recommendations.get('network_specific', [])
-            for rec in network_recs:
+            # Process all recommendations from the unified list
+            for rec in self.recommendations:
                 # Ensure rec is a dictionary
                 if not isinstance(rec, dict):
                     # Skip non-dictionary recommendations
@@ -235,8 +215,11 @@ class OptimizationSummary:
                     'description': rec.get('explanation', 'No explanation available')
                 }
                 
-                # Add to network-specific recommendations
-                formatted['recommendations']['network_specific'].append(rec_dict)
+                # Add to the appropriate category based on is_network_specific tag
+                if rec.get('is_network_specific', False):
+                    formatted['recommendations']['network_specific'].append(rec_dict)
+                else:
+                    formatted['recommendations']['general'].append(rec_dict)
         
         # Cache and return the formatted data
             
@@ -432,7 +415,7 @@ class ConceptAnalyzer:
 
             matching_shows, confidence_info = self._find_matching_shows(criteria, integrated_data)
             
-            # Store matching_shows for later use in get_network_specific_recommendations
+            # Store matching_shows for later reference and debugging
             self._last_matching_shows = matching_shows
             
             # Extract match information
@@ -486,10 +469,10 @@ class ConceptAnalyzer:
                 criteria, matching_shows, success_factors, top_networks, confidence_info, integrated_data
             )
             if OptimizerConfig.DEBUG_MODE:
-                # Handle the new dictionary structure for recommendations
-                general_count = len(recommendations.get('general', []))
-                network_specific_count = len(recommendations.get('network_specific', []))
-                total_count = general_count + network_specific_count
+                # Count general and network-specific recommendations from the unified list
+                general_count = sum(1 for rec in recommendations if not rec.get('is_network_specific', False))
+                network_specific_count = sum(1 for rec in recommendations if rec.get('is_network_specific', False))
+                total_count = len(recommendations)
                 OptimizerConfig.debug(f"Generated {total_count} recommendations ({general_count} general, {network_specific_count} network-specific)", category='analysis')
                 # Safely get recommendation types, handling both dict and object access
                 if recommendations and total_count > 0:
@@ -538,7 +521,7 @@ class ConceptAnalyzer:
                     confidence="none",
                     top_networks=[],
                     component_scores={},
-                    recommendations={'general': [], 'network_specific': []},
+                    recommendations=[],  # Unified list of tagged recommendations
                     success_factors=[],
                     matching_titles=[]
                 )
@@ -771,43 +754,6 @@ class ConceptAnalyzer:
         except Exception as e:
             st.error(f"Error finding top networks: {str(e)}")
             return []
-            
-    def get_network_specific_recommendations(self, criteria: CriteriaDict, network: NetworkMatch) -> List[Dict[str, Any]]:
-        """Get network-specific recommendations for a given network.
-        
-        This method coordinates between the NetworkAnalyzer and RecommendationEngine
-        to generate network-specific recommendations.
-        
-        Args:
-            criteria: Dictionary of criteria
-            network: NetworkMatch object to generate recommendations for
-            
-        Returns:
-            List of recommendation dictionaries
-        """
-        try:
-            network_analyzer = self.criteria_scorer.network_analyzer
-            if network_analyzer is None:
-                st.warning("NetworkAnalyzer not available. Cannot generate network recommendations.")
-                return []
-            
-            # Get matching shows for the criteria from the most recent analysis
-            # This is stored during analyze_concept method execution
-            matching_shows = None
-            if hasattr(self, '_last_matching_shows') and self._last_matching_shows is not None:
-                matching_shows = self._last_matching_shows
-            else:
-                # If we don't have matching shows cached, we can't generate recommendations
-                st.warning("No matching shows available for network recommendations.")
-                return []
-                
-            # Use the NetworkAnalyzer to generate recommendations with the correct parameter order:
-            # matching_shows, network, concept_analyzer
-            return network_analyzer.get_network_recommendations(matching_shows, network, self)
-            
-        except Exception as e:
-            st.error(f"Error generating network-specific recommendations: {str(e)}")
-            return []
     
     def _get_component_scores(self, criteria: CriteriaDict, matching_shows: pd.DataFrame, integrated_data: IntegratedData) -> Dict[str, ComponentScore]:
         """Calculate component scores for the given criteria.
@@ -972,7 +918,7 @@ class ConceptAnalyzer:
                     if 'network_id' not in matching_shows.columns:
                         OptimizerConfig.debug("CRITICAL: network_id column missing from matching_shows DataFrame", category='recommendation')
             
-            # Generate both general and network-specific recommendations in a single call
+            # Generate all recommendations in a single call with unified tagging approach
             # This avoids redundant calculations of criteria impact and success factors
             all_recommendations = self.recommendation_engine.generate_all_recommendations(
                 criteria=criteria,
@@ -982,27 +928,30 @@ class ConceptAnalyzer:
                 confidence_info=confidence_info
             )
             
-            # Extract general and network-specific recommendations
-            general_recommendations = all_recommendations.get("general", [])
-            network_recommendations = all_recommendations.get("network_specific", [])
+            # Separate recommendations based on is_network_specific tag
+            general_recommendations = []
+            network_recommendations = []
+            
+            for rec in all_recommendations:
+                if rec.get('is_network_specific', False):
+                    network_recommendations.append(rec)
+                else:
+                    general_recommendations.append(rec)
             
             if self.config.DEBUG_MODE:
-                OptimizerConfig.debug(f"Generated {len(general_recommendations)} general recommendations", category='recommendation')
-                OptimizerConfig.debug(f"Generated {len(network_recommendations)} network-specific recommendations", category='recommendation')
-            # Store the recommendations in our state dictionary
+                OptimizerConfig.debug(f"Generated {len(all_recommendations)} total recommendations", category='recommendation')
+                OptimizerConfig.debug(f"Separated into {len(general_recommendations)} general and {len(network_recommendations)} network-specific", category='recommendation')
+            
+            # Store the recommendations in our state dictionary for backward compatibility with debug tools
+            # These are only used for debugging and not for actual recommendation display
             self._recommendation_state['general_recommendations'] = general_recommendations
             self._recommendation_state['network_recommendations'] = network_recommendations
             
-            # Return the recommendations dictionary with the correct structure
-            result = {
-                "general": general_recommendations,
-                "network_specific": network_recommendations
-            }
-            
+            # Return the unified list of tagged recommendations
             if self.config.DEBUG_MODE:
-                OptimizerConfig.debug(f"Returning {len(result['general'])} general and {len(result['network_specific'])} network-specific recommendations", category='recommendation')
+                OptimizerConfig.debug(f"Returning {len(all_recommendations)} total recommendations ({len(general_recommendations)} general, {len(network_recommendations)} network-specific)", category='recommendation')
                 
-            return result
+            return all_recommendations
             
         except Exception as e:
             import traceback
@@ -1019,4 +968,4 @@ class ConceptAnalyzer:
             if 'network_recommendations' not in self._recommendation_state:
                 self._recommendation_state['network_recommendations'] = []
             
-            return {"general": [], "network_specific": []}
+            return []  # Return empty list for unified approach

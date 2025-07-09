@@ -413,11 +413,9 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
     """Render recommendations using pre-formatted data from OptimizationSummary.
     
     Args:
-        formatted_recommendations: Dictionary with formatted recommendation data structure:
-        {
-            'general': List of general recommendations with fields like field, option, impact, explanation, etc.,
-            'network_specific': List of network-specific recommendations
-        }
+        formatted_recommendations: Dictionary with formatted recommendation data grouped by type
+        This is the result of _format_recommendations which separates the unified list into
+        general and network-specific recommendations based on is_network_specific tags
     """
     try:
         # Check if there are any recommendations to display
@@ -520,9 +518,7 @@ def render_recommendations(formatted_recommendations: Dict[str, Union[List[Dict[
                     
                     # Get the content - could be 'explanation' or 'description' depending on where it was formatted
                     content = rec.get('explanation', rec.get('description', 'No details available.'))
-                    
-
-                    
+                                   
                     # Use info card style for all recommendations
                     render_info_card(title, content)
                         
