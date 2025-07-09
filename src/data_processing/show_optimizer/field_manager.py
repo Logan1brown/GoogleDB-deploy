@@ -728,17 +728,10 @@ class FieldManager:
             if mapped_name in data_columns:
                 return mapped_name
             
-            # If the mapped column doesn't exist, log a debug message and return None
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(
-                    f"Field '{field_name}' mapped to '{mapped_name}' not found in data columns", 
-                    category='field_manager'
-                )
+            # If the mapped column doesn't exist, return None
             return None
         except Exception as e:
-            # Log the error and return None
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Error mapping field '{field_name}': {str(e)}", category='field_manager')
+            # Return None on error
             return None
         
     def get_criteria_importance(self, field_name: str) -> str:
@@ -833,9 +826,7 @@ class FieldManager:
                 )
             return field_name
         except Exception as e:
-            # Log the error and return the original field name
-            if OptimizerConfig.DEBUG_MODE:
-                OptimizerConfig.debug(f"Error mapping field name '{field_name}': {str(e)}", category='field_manager')
+            # Return the original field name on error
             return field_name
     
     def standardize_field_name(self, field_name: str) -> str:

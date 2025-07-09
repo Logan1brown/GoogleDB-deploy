@@ -373,8 +373,6 @@ class RecommendationEngine:
             if pre_calculated_impact_data is not None:
                 # Use the pre-calculated impact data
                 impact_data = pre_calculated_impact_data
-                if OptimizerConfig.DEBUG_MODE:
-                    OptimizerConfig.debug("Using pre-calculated impact data", category='recommendation')
             else:
                 # Calculate impact data - this is the expensive operation we want to avoid duplicating
                 try:
@@ -399,9 +397,6 @@ class RecommendationEngine:
                         
                     # Get the impact data from the result
                     impact_data = impact_result.criteria_impacts
-                    
-                    if OptimizerConfig.DEBUG_MODE:
-                        OptimizerConfig.debug("Calculated new impact data", category='recommendation')
                     
                 except Exception as e:
                     # Display specific error when calculating impact data

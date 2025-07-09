@@ -34,12 +34,11 @@ from src.data_processing.show_optimizer.apply_profiler import apply_profiling
 
 @auth_required()
 def show():
-    # Apply profiling to key methods
-    if st.session_state.get('debug_mode', False):
-        try:
-            apply_profiling()
-        except Exception as e:
-            st.write(f"Error applying profiling: {str(e)}")
+    # Always apply profiling to key methods for performance monitoring
+    try:
+        apply_profiling()
+    except Exception as e:
+        st.write(f"Error applying profiling: {str(e)}")
     """Main page content."""
     # Sidebar for debug controls
     with st.sidebar:
