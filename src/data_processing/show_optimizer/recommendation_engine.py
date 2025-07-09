@@ -453,17 +453,12 @@ class RecommendationEngine:
                 if impact_result and hasattr(impact_result, 'criteria_impacts'):
                     for field, impacts in impact_result.criteria_impacts.items():
                         for option_id, impact_data in impacts.items():
-                            # Create key using the database column name format (with _id suffix)
-                            # This ensures compatibility with network analyzer keys
-                            db_field = f"{field}_id" if not field.endswith('_id') else field
+                            # Use the exact field name without any transformation
+                            # This ensures exact key matching with network analyzer
+                            db_field = field
                             
-                            # Convert option_id to float if it's numeric to match network analyzer key format
-                            # Network analyzer uses numpy float64 values which are serialized as '3.0' not '3'
-                            try:
-                                if isinstance(option_id, (int, float)) or (isinstance(option_id, str) and option_id.isdigit()):
-                                    option_id = float(option_id)
-                            except (ValueError, TypeError):
-                                pass  # Keep original if conversion fails
+                            # Use the exact option_id value without any type conversion
+                            # This ensures exact key matching with network analyzer
                                 
                             key = create_field_value_key(db_field, option_id)
                             
