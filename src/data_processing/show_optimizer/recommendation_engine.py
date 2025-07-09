@@ -385,9 +385,9 @@ class RecommendationEngine:
                     fields_to_analyze=fields_to_analyze
                 )
                 
-                # Check for errors
-                if impact_result.has_error:
-                    # Error in impact calculation
+                # Check if impact_result is valid
+                if not impact_result or not hasattr(impact_result, 'criteria_impacts') or not impact_result.criteria_impacts:
+                    # Error or empty impact calculation
                     return []
                     
                 # Get the impact data from the result
