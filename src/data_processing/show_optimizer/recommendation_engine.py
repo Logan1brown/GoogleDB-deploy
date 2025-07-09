@@ -426,8 +426,11 @@ class RecommendationEngine:
                     
                     # Calculate overall success rates for all criteria fields
                     for field_name in criteria.keys():
-                        # Use database column name format for consistency
-                        db_field = field_name if field_name.endswith('_id') else f"{field_name}_id"
+                        # Use field_manager to get the correct database column name
+                        db_field = self.field_manager.map_field_name(field_name)
+                        if not db_field:
+                            # Fallback to simple mapping if field_manager doesn't have a mapping
+                            db_field = field_name if field_name.endswith('_id') else f"{field_name}_id"
                         field_value = criteria[field_name]
                         
                         # Skip non-scalar values (lists, etc.)
@@ -474,8 +477,11 @@ class RecommendationEngine:
                             if isinstance(field_value, (list, np.ndarray)) or field_value is None:
                                 continue
                                 
-                            # Use database column name format for consistency
-                            db_field = field_name if field_name.endswith('_id') else f"{field_name}_id"
+                            # Use field_manager to get the correct database column name
+                            db_field = self.field_manager.map_field_name(field_name)
+                            if not db_field:
+                                # Fallback to simple mapping if field_manager doesn't have a mapping
+                                db_field = field_name if field_name.endswith('_id') else f"{field_name}_id"
                             
                             # Create key using exact database column name format for the current value
                             current_key = create_field_value_key(db_field, field_value)
