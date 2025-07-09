@@ -1178,9 +1178,19 @@ class RecommendationEngine:
                 continue
                 
             # Use the explicit rate value
-            overall_rate = overall_rate_data['rate']
-            network_rate = network_rate_data['rate']
-            sample_size = network_rate_data['sample_size']
+            try:
+                overall_rate = overall_rate_data['rate']
+                network_rate = network_rate_data['rate']
+                sample_size = network_rate_data['sample_size']
+                
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"RATE VALUES: key={key}, network_rate={network_rate}, overall_rate={overall_rate}, sample_size={sample_size}", category='recommendation')
+            except (KeyError, TypeError) as e:
+                if OptimizerConfig.DEBUG_MODE:
+                    OptimizerConfig.debug(f"ERROR extracting rate values for key {key}: {str(e)}", category='recommendation')
+                    OptimizerConfig.debug(f"overall_rate_data={overall_rate_data}", category='recommendation')
+                    OptimizerConfig.debug(f"network_rate_data={network_rate_data}", category='recommendation')
+                continue
             
             # Skip if we don't have valid rates to compare
             if network_rate is None or overall_rate is None:
@@ -1200,10 +1210,6 @@ class RecommendationEngine:
             condition1 = abs(difference) >= significant_diff_threshold  # Large difference
             condition2 = has_sufficient_data and abs(difference) > network_diff_threshold  # Smaller difference with sufficient data
             should_generate = condition1 or condition2
-            
-            # IMPORTANT: Temporarily lower the threshold to ensure we generate some recommendations
-            # This will help diagnose if the issue is with thresholds or something else
-            should_generate = abs(difference) > 0.01  # Generate recommendation for any non-zero difference
             
             if OptimizerConfig.DEBUG_MODE:
                 OptimizerConfig.debug(f"Network {network.network_name} field {field_name}: network_rate={network_rate:.3f}, overall_rate={overall_rate:.3f}, diff={difference:.3f}, significant={should_generate}", category='recommendation')
@@ -1234,6 +1240,7 @@ class RecommendationEngine:
                     "impact": impact_score,
                     "confidence": network_rate_data.get("confidence", "medium"),
                     "explanation": explanation,
+                    "is_network_specific": True,  # Flag to mark as network-specific recommendation
                     "metadata": {
                         "network_id": network.network_id,
                         "network_name": network.network_name,
