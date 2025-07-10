@@ -209,9 +209,24 @@ class RecommendationEngine:
                 return []
         
         try:
-            # Calculate impact data using the criteria scorer
-            # Pass integrated_data to ensure matcher has access to full dataset
-            impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
+            # Create a key for the criteria and matching shows combination
+            # This will be used to check if we've already calculated impact for this exact combination
+            criteria_key = str(sorted([(k, str(v)) for k, v in criteria.items()]))
+            
+            # Check if we've already calculated impact for this criteria combination
+            if self._should_process_combination("criteria_impact", criteria_key):
+                # Calculate impact data using the criteria scorer
+                # Pass integrated_data to ensure matcher has access to full dataset
+                impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
+            else:
+                # Skip calculation and use pre-calculated impact data if available
+                if pre_calculated_impact_data and isinstance(pre_calculated_impact_data, dict):
+                    impact_result = ImpactResult(criteria_impacts=pre_calculated_impact_data, error=None)
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG: Using pre-calculated impact data for criteria combination")
+                else:
+                    # If no pre-calculated data, we have to calculate it
+                    impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
             
             # Check for errors
             if impact_result.error:
