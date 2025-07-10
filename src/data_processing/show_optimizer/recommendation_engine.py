@@ -226,11 +226,13 @@ class RecommendationEngine:
                 # Pass integrated_data to ensure matcher has access to full dataset
                 impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
             else:
-                # Skip calculation and use pre-calculated impact data if available
+                # Always show CACHE HIT message when skipping calculation
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG [CRITERIA IMPACT]: CACHE HIT - Using pre-calculated impact data")
+                    
+                # Use pre-calculated impact data if available
                 if pre_calculated_impact_data and isinstance(pre_calculated_impact_data, dict):
                     impact_result = ImpactResult(criteria_impacts=pre_calculated_impact_data, error=None)
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG [CRITERIA IMPACT]: CACHE HIT - Using pre-calculated impact data")
                 else:
                     # If no pre-calculated data, we have to calculate it
                     if OptimizerConfig.DEBUG_MODE:
@@ -743,9 +745,9 @@ class RecommendationEngine:
                                         
                                         # Create explanation based on whether we have a better alternative
                                         if has_alternative:
-                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate with {current_name} compared to the overall average of {overall_rate*100:.1f}%. Consider changing to {alt_name} which has a {alt_rate*100:.1f}% success rate."
+                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name}. Consider changing to {alt_name} ({alt_rate*100:.1f}%)."
                                         else:
-                                            explanation = f"{network.network_name} shows only a {network_rate*100:.1f}% success rate with {current_name} compared to the overall average of {overall_rate*100:.1f}%. Consider changing this element to improve success probability by {abs(difference)*100:.1f}%."
+                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
                                         
                                         # Create recommendation with suggested alternative if available
                                         recommendation = {
