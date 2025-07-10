@@ -696,7 +696,15 @@ class RecommendationEngine:
             network_change = sum(1 for r in recommendations if r.get('is_network_specific', False) and r.get('recommendation_type') == self.REC_TYPE_NETWORK_CHANGE)
             general = len(recommendations) - network_specific
             
-            st.write(f"DEBUG: Recommendations - Total: {len(recommendations)}, Network: {network_specific} (Keep: {network_keep}, Change: {network_change}), General: {general}")
+            # Count network change recommendations with alternatives
+            network_change_with_alt = 0
+            for r in recommendations:
+                if r.get('is_network_specific', False) and r.get('recommendation_type') == self.REC_TYPE_NETWORK_CHANGE:
+                    has_alt = r.get('suggested_value') is not None
+                    if has_alt:
+                        network_change_with_alt += 1
+            
+            st.write(f"DEBUG: Recommendations - Total: {len(recommendations)}, Network: {network_specific} (Keep: {network_keep}, Change: {network_change}, With Alt: {network_change_with_alt}), General: {general}")
             
             # Return the unified list of tagged recommendations
             return recommendations

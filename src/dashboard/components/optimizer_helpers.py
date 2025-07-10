@@ -568,6 +568,9 @@ def render_network_recommendations(network_recs: List[Dict]) -> None:
         return
     
     try:
+        # Debug count of total recommendations
+        st.write(f"DEBUG UI: Processing {len(network_recs)} network-specific recommendations")
+        
         # Group recommendations by network for better organization
         network_grouped_recs = {}
         for rec in network_recs:
@@ -593,11 +596,17 @@ def render_network_recommendations(network_recs: List[Dict]) -> None:
         
         # Display recommendations grouped by network
         for network_name, recs in network_grouped_recs.items():
+            # Debug count of recommendations per network
+            st.write(f"DEBUG UI: Network '{network_name}' has {len(recs)} recommendations")
+            
             # Filter out recommendations that say "you should change this" without specifying an alternative
             useful_recs = []
+            filtered_out = []
+            
             for rec in recs:
-                # Keep recommendations that say "you should keep this"
+                # Keep recommendations that say "keep this"
                 keep_recommendation = False
+                rec_type = rec.get('recommendation_type', 'unknown')
                 
                 # Check if this is a "keep" recommendation based on title or description
                 if 'title' in rec and rec['title'] and ('keep' in rec['title'].lower() or 'maintain' in rec['title'].lower()):
@@ -623,6 +632,12 @@ def render_network_recommendations(network_recs: List[Dict]) -> None:
                 # Include recommendations that either say "keep this" or provide a specific alternative
                 if keep_recommendation or has_specific_alternative:
                     useful_recs.append(rec)
+                else:
+                    filtered_out.append(rec)
+                    st.write(f"DEBUG UI: Filtered out {rec_type} recommendation - Keep: {keep_recommendation}, Has Alt: {has_specific_alternative}, Suggested: {rec.get('suggested_value')}, Current: {rec.get('current_value')}")
+            
+            st.write(f"DEBUG UI: Kept {len(useful_recs)} recommendations, filtered out {len(filtered_out)} recommendations for network '{network_name}'")
+
             
             # Only show networks that have useful recommendations
             if useful_recs:
