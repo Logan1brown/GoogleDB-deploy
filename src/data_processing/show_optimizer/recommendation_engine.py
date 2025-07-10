@@ -642,11 +642,10 @@ class RecommendationEngine:
                                     # Calculate impact score
                                     impact_score = max(abs(difference), OptimizerConfig.THRESHOLDS['significant_difference']) * (1 if difference > 0 else -1)
                                     
-                                    # Determine recommendation type and create explanation
+                                    # Determine recommendation type
                                     if difference > 0:
                                         # This is a positive recommendation - keep the current value
                                         rec_type = self.REC_TYPE_NETWORK_KEEP
-                                        explanation = f"{network.network_name} shows a {network_rate*100:.1f}% success rate with {network.network_name}: {current_name} compared to the overall average of {overall_rate*100:.1f}%. Keeping this element could increase success probability by {abs(difference)*100:.1f}%."
                                         
                                         # Create recommendation with no suggested alternative
                                         recommendation = {
@@ -657,7 +656,6 @@ class RecommendationEngine:
                                             "suggested_name": f"{network.network_name}: {current_name}",
                                             "impact": impact_score,
                                             "confidence": "medium",
-                                            "explanation": explanation,
                                             "is_network_specific": True,
                                             "sample_size": sample_size,
                                             "metadata": {
@@ -741,12 +739,6 @@ class RecommendationEngine:
                                                 # Debug when no fallback is found
                                                 st.write(f"DEBUG: No fallback alternative found for {network.network_name} - {field_name}: {current_name} ({network_rate:.3f})")
                                         
-                                        # Create explanation based on whether we have a better alternative
-                                        if has_alternative:
-                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name}. Consider changing to {alt_name} ({alt_rate*100:.1f}%)."
-                                        else:
-                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
-                                        
                                         # Create recommendation with suggested alternative if available
                                         recommendation = {
                                             "recommendation_type": rec_type,
@@ -756,7 +748,6 @@ class RecommendationEngine:
                                             "suggested_name": alt_name if has_alternative else f"{network.network_name}: {current_name}",
                                             "impact": impact_score,
                                             "confidence": "medium",
-                                            "explanation": explanation,
                                             "is_network_specific": True,
                                             # Add tracking flags to metadata
                                             "sample_size": sample_size,
@@ -1029,9 +1020,6 @@ class RecommendationEngine:
                     # Impact based on increase in sample size
                     impact_score = min(0.5, (test_count - len(matching_shows)) / len(matching_shows))
                 
-                # Create explanation text for the recommendation
-                explanation_text = f"Removing {criteria_name} would increase the number of matching shows from {len(matching_shows)} to {test_count}, potentially improving match quality."
-                
                 # Create a RecommendationItem dictionary using the TypedDict contract
                 recommendation: RecommendationItem = {
                     'recommendation_type': self.REC_TYPE_REMOVE,
@@ -1042,7 +1030,10 @@ class RecommendationEngine:
                     'suggested_name': '',  # Empty string instead of None for suggested_name
                     'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
                     'confidence': "medium",
-                    'explanation': explanation_text
+                    'metadata': {
+                        'current_matches': len(matching_shows),
+                        'potential_matches': test_count
+                    }
                 }
                 recommendations.append(recommendation)
         
@@ -1175,9 +1166,6 @@ class RecommendationEngine:
                         sample_size = len(shows_with_value)
                         confidence = self.config.get_confidence_level(sample_size)
                         
-                        # Create explanation text for the recommendation
-                        explanation_text = f"Changing from {current_name} to {suggested_name} could improve success probability by {impact_score*100:.1f}%. Based on analysis of {sample_size} successful shows."
-                        
                         # Create a RecommendationItem dictionary using the TypedDict contract
                         recommendation: RecommendationItem = {
                             'recommendation_type': self.REC_TYPE_CHANGE,
@@ -1188,7 +1176,9 @@ class RecommendationEngine:
                             'suggested_name': suggested_name,
                             'impact': impact_score,  # Renamed from impact_score to impact per TypedDict contract
                             'confidence': confidence,
-                            'explanation': explanation_text
+                            'metadata': {
+                                'sample_size': sample_size
+                            }
                         }
                         recommendations.append(recommendation)
             
