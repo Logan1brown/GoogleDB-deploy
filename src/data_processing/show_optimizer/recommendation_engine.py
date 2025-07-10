@@ -548,9 +548,6 @@ class RecommendationEngine:
                                             best_alt_value = option.id
                                             best_alt_name = option.name
                                 
-                                # Debug if we found any alternatives
-                                st.write(f"DEBUG: Alternative search - Network: {network.network_name}, Field: {field_name}, Current: {current_name} ({current_rate:.3f}), Found Alt: {best_alt_value is not None}, Best Alt: {best_alt_name if best_alt_name else 'None'} ({best_alt_rate:.3f if best_alt_value else 0.0})")
-                                
                                 
                                 # Store the best alternative in the current value's data
                                 if best_alt_value is not None:
@@ -651,8 +648,6 @@ class RecommendationEngine:
                                             alt_name = alt_data.get('name')
                                             alt_rate = alt_data.get('rate')
                                             
-                                            # Debug what's being compared
-                                            st.write(f"DEBUG: Alternative comparison - Network: {network.network_name}, Field: {field_name}, Current: {current_name} ({network_rate:.3f}), Best Alt: {alt_name} ({alt_rate:.3f}), Threshold: {OptimizerConfig.THRESHOLDS['network_difference']}")
                                             
                                             # Only suggest if the alternative is significantly better
                                             if alt_rate and alt_rate > network_rate + OptimizerConfig.THRESHOLDS['network_difference']:
@@ -703,15 +698,30 @@ class RecommendationEngine:
             network_change = sum(1 for r in recommendations if r.get('is_network_specific', False) and r.get('recommendation_type') == self.REC_TYPE_NETWORK_CHANGE)
             general = len(recommendations) - network_specific
             
-            # Count network change recommendations with alternatives
+            # Count network change recommendations with alternatives and track alternatives found
             network_change_with_alt = 0
+            alt_found_count = 0
+            alt_threshold_count = 0
+            
+            # Add a safe debug statement to track alternatives
+            st.write(f"DEBUG: Checking if alternatives were found and compared...")
+            
             for r in recommendations:
                 if r.get('is_network_specific', False) and r.get('recommendation_type') == self.REC_TYPE_NETWORK_CHANGE:
                     has_alt = r.get('suggested_value') is not None
                     if has_alt:
                         network_change_with_alt += 1
+                    
+                    # Check if metadata contains alternative tracking info
+                    if 'metadata' in r:
+                        if r['metadata'].get('alt_found', False):
+                            alt_found_count += 1
+                        if r['metadata'].get('alt_met_threshold', False):
+                            alt_threshold_count += 1
             
             st.write(f"DEBUG: Recommendations - Total: {len(recommendations)}, Network: {network_specific} (Keep: {network_keep}, Change: {network_change}, With Alt: {network_change_with_alt}), General: {general}")
+            st.write(f"DEBUG: Alternatives - Found: {alt_found_count}, Met threshold: {alt_threshold_count}")
+
             
             # Return the unified list of tagged recommendations
             return recommendations
