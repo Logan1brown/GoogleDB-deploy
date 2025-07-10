@@ -677,8 +677,9 @@ class RecommendationEngine:
                                                 if option.id == field_value:
                                                     continue
                                                 
-                                                # Look up this option in the overall rates
-                                                option_key = f"{field_name}_{option.id}"
+                                                # Look up this option in the overall rates using the same key format
+                                                # as used when creating overall_rates (field_name:value_str)
+                                                option_key = create_field_value_key(field_name, option.id)
                                                 if option_key in overall_rates:
                                                     option_rate = overall_rates[option_key].get('rate', 0)
                                                     
