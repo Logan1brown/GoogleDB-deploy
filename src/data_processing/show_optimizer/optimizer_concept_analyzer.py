@@ -918,14 +918,12 @@ class ConceptAnalyzer:
             confidence_info = update_confidence_info(confidence_info, {})
             
             # Generate all recommendations in a single call with unified tagging approach
-            # Pass the pre-calculated impact data to avoid redundant calculations
             all_recommendations = self.recommendation_engine.generate_all_recommendations(
                 criteria=criteria,
                 matching_shows=matching_shows,
                 integrated_data=integrated_data,
                 top_networks=top_networks,
-                confidence_info=confidence_info,
-                pre_calculated_impact_data=integrated_data.get('impact_data')
+                confidence_info=confidence_info
             )
             
             # Separate recommendations based on is_network_specific tag

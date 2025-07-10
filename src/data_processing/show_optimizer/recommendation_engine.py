@@ -97,6 +97,7 @@ class RecommendationEngine:
         self.success_analyzer = success_analyzer
         self.field_manager = field_manager
         self.criteria_scorer = criteria_scorer or CriteriaScorer(shows_analyzer, success_analyzer, field_manager)
+        self.config = OptimizerConfig
         
         # Constants for recommendation types
         self.REC_TYPE_ADD = "add"
