@@ -647,6 +647,9 @@ class RecommendationEngine:
                                             alt_name = alt_data.get('name')
                                             alt_rate = alt_data.get('rate')
                                             
+                                            # Debug what's being compared
+                                            st.write(f"DEBUG: Alternative comparison - Network: {network.network_name}, Field: {field_name}, Current: {current_name} ({network_rate:.3f}), Best Alt: {alt_name} ({alt_rate:.3f}), Threshold: {OptimizerConfig.THRESHOLDS['network_difference']}")
+                                            
                                             # Only suggest if the alternative is significantly better
                                             if alt_rate and alt_rate > network_rate + OptimizerConfig.THRESHOLDS['network_difference']:
                                                 has_alternative = True
