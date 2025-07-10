@@ -548,6 +548,10 @@ class RecommendationEngine:
                                             best_alt_value = option.id
                                             best_alt_name = option.name
                                 
+                                # Debug if we found any alternatives
+                                st.write(f"DEBUG: Alternative search - Network: {network.network_name}, Field: {field_name}, Current: {current_name} ({current_rate:.3f}), Found Alt: {best_alt_value is not None}, Best Alt: {best_alt_name if best_alt_name else 'None'} ({best_alt_rate:.3f if best_alt_value else 0.0})")
+                                
+                                
                                 # Store the best alternative in the current value's data
                                 if best_alt_value is not None:
                                     network_specific_rates[current_key]['best_alternative'] = {
