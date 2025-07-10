@@ -793,10 +793,16 @@ class OptimizerView:
             return f"Adding {suggested_name} could {impact_direction} success probability by {impact_percent:.1f}%."
         
         elif rec_type == 'change':
-            return f"Changing from {current_name} to {suggested_name} could {impact_direction} success probability by {impact_percent:.1f}%."
+            # If current_name is empty, just mention adding the suggested value
+            if not current_name or current_name.strip() == '':
+                return f"Using {suggested_name} could {impact_direction} success probability by {impact_percent:.1f}%."
+            else:
+                return f"Changing from {current_name} to {suggested_name} could {impact_direction} success probability by {impact_percent:.1f}%."
         
         elif rec_type == 'remove':
-            return f"Removing {suggested_name} could {impact_direction} success probability by {impact_percent:.1f}%."
+            # Use current_name for remove recommendations since that's what we're removing
+            item_to_remove = current_name if current_name else suggested_name
+            return f"Removing {item_to_remove} could {impact_direction} success probability by {impact_percent:.1f}%."
         
         elif rec_type == 'network_keep':
             # Use metadata for network-specific explanations
