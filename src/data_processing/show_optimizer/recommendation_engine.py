@@ -361,8 +361,7 @@ class RecommendationEngine:
     def generate_all_recommendations(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, 
                                 integrated_data: IntegratedData = None, 
                                 top_networks: List[NetworkMatch] = None,
-                                confidence_info: Optional[ConfidenceInfo] = None,
-                                pre_calculated_impact_data: Optional[Dict] = None) -> List[RecommendationItem]:
+                                confidence_info: Optional[ConfidenceInfo] = None) -> List[RecommendationItem]:
         """Generate all recommendations in a single unified list.
         
         This method generates both general and network-specific recommendations in one pass,
@@ -375,7 +374,7 @@ class RecommendationEngine:
             integrated_data: Dictionary of integrated data frames (optional)
             top_networks: List of NetworkMatch objects for network-specific recommendations
             confidence_info: Optional confidence information dictionary
-            pre_calculated_impact_data: Optional pre-calculated impact data to avoid redundant calculations
+
             
         Returns:
             A single list of recommendation items with appropriate tagging
@@ -404,39 +403,31 @@ class RecommendationEngine:
                     st.write(f"Error finding matches: {str(e)}")
                     return []
             
-            # Use pre-calculated impact data if provided, otherwise calculate it
-            if pre_calculated_impact_data is not None:
-                # Use the pre-calculated impact data
-                impact_data = pre_calculated_impact_data
-            else:
-                # Calculate impact data - this is the expensive operation we want to avoid duplicating
-                try:
-                    # For recommendations, we need to analyze all fields that are already in criteria
-                    # This limits the expensive calculations to only fields that are already selected
-                    fields_to_analyze = list(criteria.keys())
-                    
-                    # Always include 'network' in fields_to_analyze to ensure network-specific recommendations work
-                    if 'network' not in fields_to_analyze:
-                        fields_to_analyze.append('network')
-                        
-                    # Analyze impact for selected fields and network field
-                    impact_result = self.criteria_scorer.calculate_criteria_impact(
-                        criteria, 
-                        matching_shows, 
-                        integrated_data=integrated_data,
-                        fields_to_analyze=fields_to_analyze
-                    )
-                    
-                    # Get the impact data directly
-                    # No defensive checks as per user preference
-                        
-                    # Get the impact data from the result
-                    impact_data = impact_result.criteria_impacts
-                    
-                except Exception as e:
-                    # Display specific error when calculating impact data
-                    st.write(f"Error calculating impact data: {str(e)}")
-                    return []
+            # Calculate impact data - this is the expensive operation we want to avoid duplicating
+            try:
+                # For recommendations, we need to analyze all fields that are already in criteria
+                # This limits the expensive calculations to only fields that are already selected
+                fields_to_analyze = list(criteria.keys())
+                
+                # Always include 'network' in fields_to_analyze to ensure network-specific recommendations work
+                if 'network' not in fields_to_analyze:
+                    fields_to_analyze.append('network')
+                
+                # Analyze impact for selected fields and network field
+                impact_result = self.criteria_scorer.calculate_criteria_impact(
+                    criteria, 
+                    matching_shows, 
+                    integrated_data=integrated_data,
+                    fields_to_analyze=fields_to_analyze
+                )
+                
+                # Get the impact data from the result
+                impact_data = impact_result.criteria_impacts
+                
+            except Exception as e:
+                # Display specific error when calculating impact data
+                st.write(f"Error calculating impact data: {str(e)}")
+                return []
                 
             # Convert to SuccessFactor objects
             success_factors = self.identify_success_factors(criteria, matching_shows, integrated_data)
