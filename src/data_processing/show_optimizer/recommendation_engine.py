@@ -96,10 +96,16 @@ class RecommendationEngine:
         self.shows_analyzer = shows_analyzer
         self.success_analyzer = success_analyzer
         self.field_manager = field_manager
-        self.criteria_scorer = criteria_scorer
-        self.config = OptimizerConfig
+        self.criteria_scorer = criteria_scorer or CriteriaScorer(shows_analyzer, success_analyzer, field_manager)
         
-        # Initialize memoization cache for tracking processed combinations
+        # Constants for recommendation types
+        self.REC_TYPE_ADD = "add"
+        self.REC_TYPE_CHANGE = "change"
+        self.REC_TYPE_REMOVE = "remove"
+        self.REC_TYPE_NETWORK_KEEP = "network_keep"
+        self.REC_TYPE_NETWORK_CHANGE = "network_change"
+        
+        # Initialize memoization cache for processed combinations
         self._processed_combinations = {}
         
         # Use network_analyzer from criteria_scorer as per the architecture flow
@@ -226,18 +232,13 @@ class RecommendationEngine:
                 # Pass integrated_data to ensure matcher has access to full dataset
                 impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
             else:
-                # Always show CACHE HIT message when skipping calculation
+                # We've already seen this criteria combination, skip calculation
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG [CRITERIA IMPACT]: CACHE HIT - Using pre-calculated impact data")
+                    st.write(f"DEBUG [CRITERIA IMPACT]: CACHE HIT - Skipping duplicate calculation")
                     
-                # Use pre-calculated impact data if available
-                if pre_calculated_impact_data and isinstance(pre_calculated_impact_data, dict):
-                    impact_result = ImpactResult(criteria_impacts=pre_calculated_impact_data, error=None)
-                else:
-                    # If no pre-calculated data, we have to calculate it
-                    if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG [CRITERIA IMPACT]: CACHE MISS - No pre-calculated data available, calculating new data")
-                    impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
+                # For now, we still need to calculate even though we've seen this before
+                # In a future optimization, we could store and reuse the results
+                impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
             
             # Check for errors
             if impact_result.error:
