@@ -644,6 +644,7 @@ class RecommendationEngine:
                                         alt_rate = None
                                         
                                         # Initialize tracking flags
+                                        has_alternative = False
                                         alt_found = False
                                         alt_met_threshold = False
                                         
