@@ -466,6 +466,9 @@ class RecommendationEngine:
                                 'field_value': field_value
                             }
                 
+                    # Create a tracking set to avoid processing duplicate network-field-value combinations
+                    processed_combinations = set()
+                    
                     # Process each network to calculate network-specific success rates
                     for network in top_networks:
                         if not hasattr(network, 'network_id') or network.network_id is None:
