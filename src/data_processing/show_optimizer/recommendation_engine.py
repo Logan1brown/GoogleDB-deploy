@@ -859,19 +859,26 @@ class RecommendationEngine:
                 if abs(factor.impact_score) < min_impact:
                     continue
                     
-                # Create a key for this success factor
+                # Get the recommendation type that was already determined in the criteria_scorer
+                # This ensures consistency with the recommendation type determination logic
+                rec_type = factor.recommendation_type
+                
+                # Skip factors without a recommendation type
+                if rec_type is None:
+                    continue
+                
+                # Create a key for this success factor that includes the recommendation type
                 criteria_type = factor.criteria_type
                 criteria_value = factor.criteria_value
-                factor_key = f"{criteria_type}:{criteria_value}"
                 
-                # Check if we've already processed this success factor
-                if not self._should_process_combination("success_factor_recommendation", factor_key):
+                # Check if we've already processed this specific combination of recommendation type and criteria
+                if not self._should_process_combination("success_factor_recommendation", rec_type, criteria_type, criteria_value):
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG [RECOMMENDATIONS]: CACHE HIT - Skipping duplicate recommendation for {criteria_type}:{criteria_value}")
+                        st.write(f"DEBUG [RECOMMENDATIONS]: CACHE HIT - Skipping duplicate {rec_type} recommendation for {criteria_type}:{criteria_value}")
                     continue
                     
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG [RECOMMENDATIONS]: NEW CALCULATION - Processing recommendation for {criteria_type}:{criteria_value}")
+                    st.write(f"DEBUG [RECOMMENDATIONS]: NEW CALCULATION - Processing {rec_type} recommendation for {criteria_type}:{criteria_value}")
                 
                 # Get information about the selection status for filtering
                 criteria_type = factor.criteria_type
@@ -976,18 +983,19 @@ class RecommendationEngine:
             if importance == 'essential':
                 continue
                 
-            # Create a key for this limiting criteria test
-            # We're testing the removal of this criteria type
-            limiting_key = f"remove:{criteria_type}"
+            # Create a key for this limiting criteria test that includes the criteria value
+            # We need to include the value because the same criteria type might have different values
+            # in different contexts
+            criteria_value_str = str(criteria_value)
             
-            # Check if we've already tested removing this criterion
-            if not self._should_process_combination("limiting_criteria_test", limiting_key):
+            # Check if we've already tested removing this specific criterion with this value
+            if not self._should_process_combination("limiting_criteria_test", criteria_type, criteria_value_str, match_level):
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG [LIMITING CRITERIA]: CACHE HIT - Skipping duplicate test for removing {criteria_type}")
+                    st.write(f"DEBUG [LIMITING CRITERIA]: CACHE HIT - Skipping duplicate test for removing {criteria_type}:{criteria_value_str} at match level {match_level}")
                 continue
                 
             if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG [LIMITING CRITERIA]: NEW CALCULATION - Testing removal of {criteria_type}")
+                st.write(f"DEBUG [LIMITING CRITERIA]: NEW CALCULATION - Testing removal of {criteria_type}:{criteria_value_str} at match level {match_level}")
                 
             # Create a copy of criteria without this criterion
             test_criteria = {k: v for k, v in criteria.items() if k != criteria_type}
