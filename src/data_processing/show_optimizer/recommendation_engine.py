@@ -642,16 +642,23 @@ class RecommendationEngine:
                                         alt_name = None
                                         alt_rate = None
                                         
+                                        # Initialize tracking flags
+                                        alt_found = False
+                                        alt_met_threshold = False
+                                        
                                         if 'best_alternative' in network_rate_data:
                                             alt_data = network_rate_data['best_alternative']
                                             alt_value = alt_data.get('value')
                                             alt_name = alt_data.get('name')
                                             alt_rate = alt_data.get('rate')
                                             
+                                            # Mark that we found an alternative
+                                            alt_found = True
                                             
                                             # Only suggest if the alternative is significantly better
                                             if alt_rate and alt_rate > network_rate + OptimizerConfig.THRESHOLDS['network_difference']:
                                                 has_alternative = True
+                                                alt_met_threshold = True
                                         
                                         # Create explanation based on whether we have a better alternative
                                         if has_alternative:
