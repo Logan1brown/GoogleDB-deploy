@@ -319,7 +319,21 @@ class RecommendationEngine:
                     
                     # Get shows matching just this single criteria
                     single_criteria = {criteria_type: match_value}
-                    single_matches, single_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                    
+                    # Create a key for this single criteria
+                    criteria_key = f"{criteria_type}:{match_value}"
+                    
+                    # Check if we've already processed this single criteria
+                    if self._should_process_combination("single_criteria_matches", criteria_key):
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG [SINGLE CRITERIA]: NEW CALCULATION - First time processing {criteria_type}:{match_value}")
+                        # First time processing this combination
+                        single_matches, single_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
+                    else:
+                        if OptimizerConfig.DEBUG_MODE:
+                            st.write(f"DEBUG [SINGLE CRITERIA]: CACHE HIT - Skipping duplicate calculation for {criteria_type}:{match_value}")
+                        # Still need to calculate for now, but we've identified a redundant operation
+                        single_matches, single_confidence = self.criteria_scorer.matcher.find_matches_with_fallback(single_criteria)
                     
                     if not single_matches.empty and 'title' in single_matches.columns:
                         matching_titles = single_matches['title'].tolist()[:100]  # Limit to 100 titles
