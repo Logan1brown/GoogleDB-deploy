@@ -858,6 +858,20 @@ class RecommendationEngine:
                 # Skip factors with impact below threshold
                 if abs(factor.impact_score) < min_impact:
                     continue
+                    
+                # Create a key for this success factor
+                criteria_type = factor.criteria_type
+                criteria_value = factor.criteria_value
+                factor_key = f"{criteria_type}:{criteria_value}"
+                
+                # Check if we've already processed this success factor
+                if not self._should_process_combination("success_factor_recommendation", factor_key):
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG [RECOMMENDATIONS]: CACHE HIT - Skipping duplicate recommendation for {criteria_type}:{criteria_value}")
+                    continue
+                    
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG [RECOMMENDATIONS]: NEW CALCULATION - Processing recommendation for {criteria_type}:{criteria_value}")
                 
                 # Get information about the selection status for filtering
                 criteria_type = factor.criteria_type
@@ -961,6 +975,19 @@ class RecommendationEngine:
             importance = OptimizerConfig.CRITERIA_IMPORTANCE.get(criteria_type)
             if importance == 'essential':
                 continue
+                
+            # Create a key for this limiting criteria test
+            # We're testing the removal of this criteria type
+            limiting_key = f"remove:{criteria_type}"
+            
+            # Check if we've already tested removing this criterion
+            if not self._should_process_combination("limiting_criteria_test", limiting_key):
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG [LIMITING CRITERIA]: CACHE HIT - Skipping duplicate test for removing {criteria_type}")
+                continue
+                
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG [LIMITING CRITERIA]: NEW CALCULATION - Testing removal of {criteria_type}")
                 
             # Create a copy of criteria without this criterion
             test_criteria = {k: v for k, v in criteria.items() if k != criteria_type}
