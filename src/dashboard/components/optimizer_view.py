@@ -814,13 +814,7 @@ class OptimizerView:
             overall_rate = metadata.get('overall_rate', 0) * 100
             difference = metadata.get('difference', 0) * 100
             
-            # Get alternative information from metadata if available
-            alt_name = metadata.get('alternative_name')
-            
-            if alt_name:
-                return f"{network_name} shows only a {network_rate:.1f}% success rate with {suggested_name} compared to the overall average of {overall_rate:.1f}%. Consider changing to {alt_name} to {impact_direction} success probability by {impact_percent:.1f}%."
-            else:
-                return f"{network_name} shows only a {network_rate:.1f}% success rate with {suggested_name} compared to the overall average of {overall_rate:.1f}%. Consider changing this element to {impact_direction} success probability by {impact_percent:.1f}%."
+            return f"{network_name} shows only a {network_rate:.1f}% success rate with {suggested_name} compared to the overall average of {overall_rate:.1f}%. Consider changing this element to {impact_direction} success probability by {impact_percent:.1f}%."
         
         # Default explanation if no specific format is defined
         return f"This recommendation could {impact_direction} success probability by {impact_percent:.1f}%."

@@ -99,6 +99,9 @@ class RecommendationEngine:
         self.criteria_scorer = criteria_scorer
         self.config = OptimizerConfig
         
+        # Initialize memoization cache for tracking processed combinations
+        self._processed_combinations = {}
+        
         # Use network_analyzer from criteria_scorer as per the architecture flow
         # NetworkAnalyzer.analyze_network_compatibility (step 3.4) comes before 
         # RecommendationEngine.generate_recommendations (step 3.5)
@@ -333,8 +336,7 @@ class RecommendationEngine:
                                 top_networks: List[NetworkMatch] = None,
                                 confidence_info: Optional[ConfidenceInfo] = None,
                                 pre_calculated_impact_data: Optional[Dict] = None) -> List[RecommendationItem]:
-        """
-        Generate all recommendations in a single unified list.
+        """Generate all recommendations in a single unified list.
         
         This method generates both general and network-specific recommendations in one pass,
         tagging each recommendation appropriately. All recommendations are returned in a single
@@ -351,6 +353,9 @@ class RecommendationEngine:
         Returns:
             A single list of recommendation items with appropriate tagging
         """
+        # Reset the processed combinations cache for a fresh start
+        self._reset_processed_combinations()
+        
         # Initialize empty recommendations list
         recommendations = []
         
@@ -466,9 +471,6 @@ class RecommendationEngine:
                                 'field_value': field_value
                             }
                 
-                    # Create a tracking set to avoid processing duplicate network-field-value combinations
-                    processed_combinations = set()
-                    
                     # Process each network to calculate network-specific success rates
                     for network in top_networks:
                         if not hasattr(network, 'network_id') or network.network_id is None:
@@ -593,6 +595,13 @@ class RecommendationEngine:
                                     # Extract field information
                                     field_name = network_rate_data['field_name']
                                     field_value = network_rate_data['field_value']
+                                    
+                                    # Check if we've already processed this network-field-value combination
+                                    if not self._should_process_combination("network_specific", network.network_id, field_name, field_value):
+                                        # Skip this combination as we've already processed it
+                                        if OptimizerConfig.DEBUG_MODE:
+                                            st.write(f"DEBUG: Skipping already processed combination: {network.network_name} - {field_name}: {field_value}")
+                                        continue
                                     
                                     # Get display name for the current value
                                     # For database column names ending with _id or _ids, we need to get the display field name
@@ -1126,6 +1135,43 @@ class RecommendationEngine:
             
             return recommendations
       
+    def _should_process_combination(self, combination_type, *args):
+        """Check if a combination should be processed or skipped.
+        
+        Args:
+            combination_type: Type of recommendation/processing (e.g., "network_specific")
+            *args: Components that make up the unique combination key
+            
+        Returns:
+            Boolean indicating if processing should proceed (True) or skip (False)
+        """
+        # Initialize set for this combination type if not exists
+        if combination_type not in self._processed_combinations:
+            self._processed_combinations[combination_type] = set()
+            
+        # Create a unique key from the args
+        key = ":".join(str(arg) for arg in args)
+        
+        # If already processed, return False to skip
+        if key in self._processed_combinations[combination_type]:
+            return False
+            
+        # Mark as processed and return True to proceed
+        self._processed_combinations[combination_type].add(key)
+        return True
+        
+    def _reset_processed_combinations(self, combination_type=None):
+        """Reset the processed combinations cache.
+        
+        Args:
+            combination_type: Optional specific type to reset, or None for all
+        """
+        if combination_type:
+            if combination_type in self._processed_combinations:
+                self._processed_combinations[combination_type] = set()
+        else:
+            self._processed_combinations = {}
+            
     def _get_criteria_name(self, criteria_type, value):
         """Get the reference name for a criteria value.
         
