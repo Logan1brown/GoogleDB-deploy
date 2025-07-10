@@ -690,6 +690,14 @@ class RecommendationEngine:
             if len(recommendations) > max_total_suggestions:
                 recommendations = recommendations[:max_total_suggestions]
             
+            # DEBUG: Log recommendation counts
+            network_specific = sum(1 for r in recommendations if r.get('is_network_specific', False))
+            network_keep = sum(1 for r in recommendations if r.get('is_network_specific', False) and r.get('recommendation_type') == self.REC_TYPE_NETWORK_KEEP)
+            network_change = sum(1 for r in recommendations if r.get('is_network_specific', False) and r.get('recommendation_type') == self.REC_TYPE_NETWORK_CHANGE)
+            general = len(recommendations) - network_specific
+            
+            st.write(f"DEBUG: Recommendations - Total: {len(recommendations)}, Network: {network_specific} (Keep: {network_keep}, Change: {network_change}), General: {general}")
+            
             # Return the unified list of tagged recommendations
             return recommendations
             
