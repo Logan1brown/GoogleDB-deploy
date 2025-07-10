@@ -662,43 +662,45 @@ class RecommendationEngine:
                                                 alt_met_threshold = True
                                         
                                         # If no network-specific alternative was found or didn't meet threshold,
-                                        # look for a fallback from overall data
+                                        # use the best overall option as a fallback
                                         if not has_alternative:
-                                            # Get the field name for looking up overall rates
-                                            lookup_key = key
+                                            # Get the field options from the field manager
+                                            field_options = self.field_manager.get_options(display_field)
                                             
-                                            # Find the best overall option for this field
-                                            best_overall_option = None
-                                            best_overall_rate = 0
+                                            # Find the best option based on overall success rates
+                                            best_option = None
+                                            best_rate = 0
                                             
-                                            # Look through all options in the overall rates
-                                            for overall_key, overall_data in overall_rates.items():
-                                                # Only compare options for the same field
-                                                if not overall_key.startswith(field_name):
+                                            # Check each option's overall success rate
+                                            for option in field_options:
+                                                # Skip the current value
+                                                if option.id == field_value:
                                                     continue
+                                                
+                                                # Look up this option in the overall rates
+                                                option_key = f"{field_name}_{option.id}"
+                                                if option_key in overall_rates:
+                                                    option_rate = overall_rates[option_key].get('rate', 0)
                                                     
-                                                # Skip the current option
-                                                if overall_key == lookup_key:
-                                                    continue
-                                                
-                                                # Check if this option has a better rate
-                                                overall_option_rate = overall_data.get('rate', 0)
-                                                if overall_option_rate > best_overall_rate:
-                                                    best_overall_rate = overall_option_rate
-                                                    best_overall_option = overall_data
+                                                    # Keep track of the best option
+                                                    if option_rate > best_rate:
+                                                        best_rate = option_rate
+                                                        best_option = option
                                             
-                                            # If we found a better option in the overall data and it's better than
-                                            # the network rate for the current option
-                                            if (best_overall_option and 
-                                                best_overall_rate > network_rate + OptimizerConfig.THRESHOLDS['network_difference']):
-                                                
-                                                # Use this as a fallback alternative
-                                                alt_value = best_overall_option.get('field_value')
-                                                alt_name = self._get_criteria_name(display_field, alt_value) if alt_value is not None else None
-                                                alt_rate = best_overall_rate
+                                            # If we found a better option and it meets the threshold
+                                            if best_option and best_rate > network_rate + OptimizerConfig.THRESHOLDS['network_difference']:
+                                                alt_value = best_option.id
+                                                alt_name = best_option.name
+                                                alt_rate = best_rate
                                                 has_alternative = True
                                                 alt_found = True
                                                 alt_met_threshold = True
+                                                
+                                                # Add debug to show we're using a fallback
+                                                st.write(f"DEBUG: Using fallback alternative for {network.network_name} - {field_name}: {current_name} ({network_rate:.3f}) -> {alt_name} ({alt_rate:.3f})")
+                                            else:
+                                                # Debug when no fallback is found
+                                                st.write(f"DEBUG: No fallback alternative found for {network.network_name} - {field_name}: {current_name} ({network_rate:.3f})")
                                         
                                         # Create explanation based on whether we have a better alternative
                                         if has_alternative:
