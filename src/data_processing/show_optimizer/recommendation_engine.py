@@ -646,6 +646,7 @@ class RecommendationEngine:
                                         alt_found = False
                                         alt_met_threshold = False
                                         
+                                        # First try to find network-specific alternatives
                                         if 'best_alternative' in network_rate_data:
                                             alt_data = network_rate_data['best_alternative']
                                             alt_value = alt_data.get('value')
@@ -658,6 +659,45 @@ class RecommendationEngine:
                                             # Only suggest if the alternative is significantly better
                                             if alt_rate and alt_rate > network_rate + OptimizerConfig.THRESHOLDS['network_difference']:
                                                 has_alternative = True
+                                                alt_met_threshold = True
+                                        
+                                        # If no network-specific alternative was found or didn't meet threshold,
+                                        # look for a fallback from overall data
+                                        if not has_alternative:
+                                            # Get the field name for looking up overall rates
+                                            lookup_key = key
+                                            
+                                            # Find the best overall option for this field
+                                            best_overall_option = None
+                                            best_overall_rate = 0
+                                            
+                                            # Look through all options in the overall rates
+                                            for overall_key, overall_data in overall_rates.items():
+                                                # Only compare options for the same field
+                                                if not overall_key.startswith(field_name):
+                                                    continue
+                                                    
+                                                # Skip the current option
+                                                if overall_key == lookup_key:
+                                                    continue
+                                                
+                                                # Check if this option has a better rate
+                                                overall_option_rate = overall_data.get('rate', 0)
+                                                if overall_option_rate > best_overall_rate:
+                                                    best_overall_rate = overall_option_rate
+                                                    best_overall_option = overall_data
+                                            
+                                            # If we found a better option in the overall data and it's better than
+                                            # the network rate for the current option
+                                            if (best_overall_option and 
+                                                best_overall_rate > network_rate + OptimizerConfig.THRESHOLDS['network_difference']):
+                                                
+                                                # Use this as a fallback alternative
+                                                alt_value = best_overall_option.get('field_value')
+                                                alt_name = self._get_criteria_name(display_field, alt_value) if alt_value is not None else None
+                                                alt_rate = best_overall_rate
+                                                has_alternative = True
+                                                alt_found = True
                                                 alt_met_threshold = True
                                         
                                         # Create explanation based on whether we have a better alternative
@@ -677,6 +717,7 @@ class RecommendationEngine:
                                             "confidence": "medium",
                                             "explanation": explanation,
                                             "is_network_specific": True,
+                                            # Add tracking flags to metadata
                                             "sample_size": sample_size,
                                             "metadata": {
                                                 "network_id": network.network_id,
