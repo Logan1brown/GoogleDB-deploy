@@ -185,7 +185,7 @@ class RecommendationEngine:
         # Create and return the criteria dictionary using the exact field name
         return {field_name: field_value}
     
-    def identify_success_factors(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, integrated_data: IntegratedData = None, limit: int = 5) -> List[SuccessFactor]:
+    def identify_success_factors(self, criteria: CriteriaDict, matching_shows: pd.DataFrame = None, integrated_data: IntegratedData = None, limit: int = 5, impact_data: Dict = None) -> List[SuccessFactor]:
         """Identify success factors from the given criteria and matching shows.
         
         Args:
@@ -193,6 +193,7 @@ class RecommendationEngine:
             matching_shows: DataFrame of shows matching the criteria (optional)
             integrated_data: Dictionary of integrated data frames conforming to IntegratedData (optional)
             limit: Maximum number of success factors to identify per criteria type
+            impact_data: Pre-calculated impact data to use instead of calculating again (optional)
             
         Returns:
             List of SuccessFactor objects
@@ -216,38 +217,23 @@ class RecommendationEngine:
                 return []
         
         try:
-            # Create a key for the criteria and matching shows combination
-            # This will be used to check if we've already calculated impact for this exact combination
-            criteria_key = str(sorted([(k, str(v)) for k, v in criteria.items()]))
-            
-            # Always show debug message for criteria impact calculations
-            # Use a more visible format for these debug messages
-            if OptimizerConfig.DEBUG_MODE:
-                st.write(f"DEBUG [CRITERIA IMPACT]: Checking criteria impact calculation for criteria hash: {hash(criteria_key)}")
-            
-            # Check if we've already calculated impact for this criteria combination
-            if self._should_process_combination("criteria_impact", criteria_key):
+            # If impact_data is provided, use it directly
+            if impact_data is not None:
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG [CRITERIA IMPACT]: NEW CALCULATION - First time processing this criteria combination")
+                    st.write(f"DEBUG [CRITERIA IMPACT]: Using pre-calculated impact data")
+            else:
                 # Calculate impact data using the criteria scorer
                 # Pass integrated_data to ensure matcher has access to full dataset
-                impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
-            else:
-                # We've already seen this criteria combination, skip calculation
                 if OptimizerConfig.DEBUG_MODE:
-                    st.write(f"DEBUG [CRITERIA IMPACT]: CACHE HIT - Skipping duplicate calculation")
-                    
-                # For now, we still need to calculate even though we've seen this before
-                # In a future optimization, we could store and reuse the results
+                    st.write(f"DEBUG [CRITERIA IMPACT]: Calculating impact data")
                 impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
-            
-            # Check for errors
-            if impact_result.error:
-
-                return []
                 
-            # Get the impact data from the result
-            impact_data = impact_result.criteria_impacts
+                # Check for errors
+                if impact_result.error:
+                    return []
+                    
+                # Get the impact data from the result
+                impact_data = impact_result.criteria_impacts
             
         except Exception as e:
             error_msg = f"Error calculating impact data: {str(e)}"
@@ -381,6 +367,8 @@ class RecommendationEngine:
             A single list of recommendation items with appropriate tagging
         """
         # Reset the processed combinations cache for a fresh start
+        if OptimizerConfig.DEBUG_MODE:
+            st.write(f"DEBUG [MEMOIZATION]: Resetting all memoization caches")
         self._reset_processed_combinations()
         
         # Initialize empty recommendations list
@@ -415,6 +403,8 @@ class RecommendationEngine:
                     fields_to_analyze.append('network')
                 
                 # Analyze impact for selected fields and network field
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG [CRITERIA IMPACT]: Initial calculation in generate_all_recommendations")
                 impact_result = self.criteria_scorer.calculate_criteria_impact(
                     criteria, 
                     matching_shows, 
@@ -431,7 +421,8 @@ class RecommendationEngine:
                 return []
                 
             # Convert to SuccessFactor objects
-            success_factors = self.identify_success_factors(criteria, matching_shows, integrated_data)
+            # Pass the already calculated impact_data to avoid recalculation
+            success_factors = self.identify_success_factors(criteria, matching_shows, integrated_data, impact_data=impact_data)
             
             # Generate general recommendations from success factors
             general_recs = self._recommend_missing_criteria(criteria, success_factors, matching_shows)
