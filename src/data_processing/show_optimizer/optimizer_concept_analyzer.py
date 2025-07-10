@@ -938,6 +938,9 @@ class ConceptAnalyzer:
                 else:
                     general_recommendations.append(rec)
             
+            # Add debug output for recommendation categorization
+            st.write(f"DEBUG: Extracted {len(network_recommendations)} network-specific recommendations from {len(all_recommendations)} total recommendations")
+            
             # Store the recommendations in our state dictionary for backward compatibility with debug tools
             # These are only used for debugging and not for actual recommendation display
             self._recommendation_state['general_recommendations'] = general_recommendations
