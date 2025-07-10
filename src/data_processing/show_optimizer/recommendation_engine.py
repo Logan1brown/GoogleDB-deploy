@@ -610,7 +610,7 @@ class RecommendationEngine:
                                     if difference > 0:
                                         # This is a positive recommendation - keep the current value
                                         rec_type = self.REC_TYPE_NETWORK_KEEP
-                                        explanation = f"{network.network_name} shows {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
+                                        explanation = f"{network.network_name} shows a {network_rate*100:.1f}% success rate with {network.network_name}: {current_name} compared to the overall average of {overall_rate*100:.1f}%. Keeping this element could increase success probability by {abs(difference)*100:.1f}%."
                                         
                                         # Create recommendation with no suggested alternative
                                         recommendation = {
@@ -629,15 +629,16 @@ class RecommendationEngine:
                                                 "network_name": network.network_name,
                                                 "network_rate": network_rate,
                                                 "overall_rate": overall_rate,
-                                                "difference": difference
+                                                "difference": difference,
+                                                "alt_found": False,
+                                                "alt_met_threshold": False
                                             }
                                         }
                                     else:
                                         # This is a negative recommendation - suggest changing the current value
                                         rec_type = self.REC_TYPE_NETWORK_CHANGE
                                         
-                                        # Check if we have a better alternative for this field
-                                        has_alternative = False
+                                        # Initialize variables for alternatives
                                         alt_value = None
                                         alt_name = None
                                         alt_rate = None
@@ -730,7 +731,9 @@ class RecommendationEngine:
                                                 "difference": difference,
                                                 "alternative_value": alt_value if has_alternative else None,
                                                 "alternative_name": alt_name if has_alternative else None,
-                                                "alternative_rate": alt_rate if has_alternative else None
+                                                "alternative_rate": alt_rate if has_alternative else None,
+                                                "alt_found": alt_found,
+                                                "alt_met_threshold": alt_met_threshold
                                             }
                                         }
                                     recommendations.append(recommendation)
@@ -738,10 +741,10 @@ class RecommendationEngine:
             # Sort all recommendations by impact score (descending)            
             recommendations.sort(key=lambda x: abs(x.get('impact', 0)), reverse=True)
             
-            # Apply max total suggestions limit
-            max_total_suggestions = self.config.SUGGESTIONS.get('max_total_suggestions', 10)
-            if len(recommendations) > max_total_suggestions:
-                recommendations = recommendations[:max_total_suggestions]
+            # Apply max suggestions limit from config
+            max_suggestions = self.config.SUGGESTIONS.get('max_suggestions', 20)
+            if len(recommendations) > max_suggestions:
+                recommendations = recommendations[:max_suggestions]
             
             # DEBUG: Log recommendation counts
             network_specific = sum(1 for r in recommendations if r.get('is_network_specific', False))
