@@ -213,8 +213,15 @@ class RecommendationEngine:
             # This will be used to check if we've already calculated impact for this exact combination
             criteria_key = str(sorted([(k, str(v)) for k, v in criteria.items()]))
             
+            # Always show debug message for criteria impact calculations
+            # Use a more visible format for these debug messages
+            if OptimizerConfig.DEBUG_MODE:
+                st.write(f"DEBUG [CRITERIA IMPACT]: Checking criteria impact calculation for criteria hash: {hash(criteria_key)}")
+            
             # Check if we've already calculated impact for this criteria combination
             if self._should_process_combination("criteria_impact", criteria_key):
+                if OptimizerConfig.DEBUG_MODE:
+                    st.write(f"DEBUG [CRITERIA IMPACT]: NEW CALCULATION - First time processing this criteria combination")
                 # Calculate impact data using the criteria scorer
                 # Pass integrated_data to ensure matcher has access to full dataset
                 impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
@@ -223,9 +230,11 @@ class RecommendationEngine:
                 if pre_calculated_impact_data and isinstance(pre_calculated_impact_data, dict):
                     impact_result = ImpactResult(criteria_impacts=pre_calculated_impact_data, error=None)
                     if OptimizerConfig.DEBUG_MODE:
-                        st.write(f"DEBUG: Using pre-calculated impact data for criteria combination")
+                        st.write(f"DEBUG [CRITERIA IMPACT]: CACHE HIT - Using pre-calculated impact data")
                 else:
                     # If no pre-calculated data, we have to calculate it
+                    if OptimizerConfig.DEBUG_MODE:
+                        st.write(f"DEBUG [CRITERIA IMPACT]: CACHE MISS - No pre-calculated data available, calculating new data")
                     impact_result = self.criteria_scorer.calculate_criteria_impact(criteria, matching_shows, integrated_data=integrated_data)
             
             # Check for errors
@@ -734,9 +743,9 @@ class RecommendationEngine:
                                         
                                         # Create explanation based on whether we have a better alternative
                                         if has_alternative:
-                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name}. Consider changing to {alt_name} ({alt_rate*100:.1f}%)."
+                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate with {current_name} compared to the overall average of {overall_rate*100:.1f}%. Consider changing to {alt_name} which has a {alt_rate*100:.1f}% success rate."
                                         else:
-                                            explanation = f"{network.network_name} shows only {network_rate*100:.1f}% success rate for {current_name} (vs. {overall_rate*100:.1f}% overall)."
+                                            explanation = f"{network.network_name} shows only a {network_rate*100:.1f}% success rate with {current_name} compared to the overall average of {overall_rate*100:.1f}%. Consider changing this element to improve success probability by {abs(difference)*100:.1f}%."
                                         
                                         # Create recommendation with suggested alternative if available
                                         recommendation = {
